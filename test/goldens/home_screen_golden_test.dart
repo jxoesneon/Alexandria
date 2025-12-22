@@ -43,7 +43,9 @@ void main() {
 
   testWidgets('HomeScreen golden test - Empty State', (tester) async {
     if (Platform.environment.containsKey('CI')) {
-      markTestSkipped('Skipping golden tests on CI due to platform differences');
+      markTestSkipped(
+        'Skipping golden tests on CI due to platform differences',
+      );
       return;
     }
     final inMemoryDb = AppDatabase(NativeDatabase.memory());
