@@ -1,0 +1,18 @@
+{
+  "appTitle": "Alexandria",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "homeScreenTitle": "Library",
+  "@homeScreenTitle": {
+    "description": "Title for the home screen/library feed"
+  },
+  "addContentTooltip": "Add Content",
+  "@addContentTooltip": {
+    "description": "Tooltip for the add content floating action button"
+  },
+  "searchHint": "Search the archive...",
+  "@searchHint": {
+    "description": "Hint text for the search bar"
+  }
+}

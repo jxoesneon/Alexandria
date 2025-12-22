@@ -1,0 +1,17 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_print
+    - prefer_final_locals
+    - prefer_const_constructors
+    - prefer_const_literals_to_create_immutables
+    - unawaited_futures
+    - sort_child_properties_last
+    - prefer_single_quotes
+    - avoid_empty_else
+    - comment_references
+    - no_duplicate_case_values
+    - unnecessary_this
+    - prefer_void_to_null
