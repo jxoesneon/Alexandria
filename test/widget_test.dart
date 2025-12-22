@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:alexandria/main.dart';
 import 'package:alexandria/services/preservation_service.dart';
 import 'package:alexandria/services/biometric_service.dart';
+import 'package:alexandria/services/secure_storage_service.dart';
 import 'package:alexandria/data/database.dart';
 
 // Mock HttpOverrides
@@ -33,7 +34,15 @@ class FakeBiometricService extends BiometricService {
   Future<bool> authenticate() async => true;
   @override
   Future<bool> isBiometricsAvailable() async => true;
-  // Override other methods if necessary, e.g. setSecureMode
+}
+
+// Fake SecureStorageService
+class FakeSecureStorageService extends SecureStorageService {
+  @override
+  Future<String?> read(String key) async => null; // Simulate fresh install
+
+  @override
+  Future<void> write(String key, String value) async {}
 }
 
 void main() {
@@ -58,6 +67,9 @@ void main() {
           biometricServiceProvider.overrideWith(
             (ref) => FakeBiometricService(),
           ),
+          secureStorageServiceProvider.overrideWith(
+            (ref) => FakeSecureStorageService(),
+          ),
           databaseProvider.overrideWithValue(inMemoryDb),
         ],
         child: const AlexandriaApp(),
@@ -65,7 +77,10 @@ void main() {
     );
 
     await tester.pump();
-    await tester.pumpAndSettle();
+    // Pump frames to allow entry animations to complete
+    // We cannot use pumpAndSettle because the logo has an infinite loop animation
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
 
     expect(find.text('ALEXANDRIA'), findsOneWidget);
 
