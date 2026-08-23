@@ -1,46 +1,49 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'secure_storage_service.dart';
 
-final biometricServiceProvider = Provider((ref) => BiometricService());
+final biometricServiceProvider = Provider((ref) => BiometricService(ref));
 
 class BiometricService {
+  final Ref? _ref;
   final LocalAuthentication _auth = LocalAuthentication();
-  final _storage = const FlutterSecureStorage();
+
+  BiometricService([this._ref]);
 
   Future<bool> isBiometricsAvailable() async {
     try {
-      final bool canAuthenticateWithBiometrics = await _auth.canCheckBiometrics;
-      final bool canAuthenticate =
-          canAuthenticateWithBiometrics || await _auth.isDeviceSupported();
-      return canAuthenticate;
-    } on PlatformException catch (_) {
+      final canAuth = await _auth.canCheckBiometrics;
+      return canAuth || await _auth.isDeviceSupported();
+    } on PlatformException {
       return false;
     }
   }
 
-  Future<bool> authenticate() async {
+  Future<bool> authenticate({String reason = 'Please authenticate to access Alexandria'}) async {
     try {
       final isAvailable = await isBiometricsAvailable();
-      if (!isAvailable) return true; // Fallback to allowing if no hardware
+      if (!isAvailable) return true;
 
-      // Check if user has enabled "Secure Mode"
-      final secureMode = await _storage.read(key: 'secure_mode_enabled');
-      if (secureMode != 'true') return true;
+      if (_ref != null) {
+        final storage = _ref!.read(secureStorageServiceProvider);
+        final secureMode = await storage.read('secure_mode_enabled');
+        if (secureMode != 'true') return true;
+      }
 
       return await _auth.authenticate(
-        localizedReason: 'Please authenticate to access Alexandria',
-        // options param seems unavailable or misspelled, using defaults or older API style if valid
-        // If stickyAuth/biometricOnly are needed, we pass them if supported.
-        // For now, simplify to just localizedReason to pass build.
+        localizedReason: reason,
+        options: const AuthenticationOptions(stickyAuth: true, biometricOnly: false),
       );
-    } on PlatformException catch (_) {
+    } on PlatformException {
       return false;
     }
   }
 
   Future<void> setSecureMode(bool enabled) async {
-    await _storage.write(key: 'secure_mode_enabled', value: enabled.toString());
+    if (_ref != null) {
+      final storage = _ref!.read(secureStorageServiceProvider);
+      await storage.write('secure_mode_enabled', enabled.toString());
+    }
   }
 }

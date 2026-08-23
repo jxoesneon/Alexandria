@@ -1,83 +1,47 @@
-// import 'package:drift/drift.dart'; // Unused
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
 import 'dart:math';
-import '../data/database.dart';
-import '../main.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final honorSystemProvider = Provider((ref) => HonorSystem(ref));
+final honorSystemProvider = Provider((ref) => HonorSystem());
+
+class ValidationVote {
+  final String validatorId;
+  final String targetCid;
+  final int score;
+  final int reputation;
+
+  ValidationVote({
+    required this.validatorId,
+    required this.targetCid,
+    required this.score,
+    required this.reputation,
+  });
+}
 
 class HonorSystem {
-  final Ref _ref;
+  final List<ValidationVote> _votes = [];
 
-  HonorSystem(this._ref);
-
-  AppDatabase get _db => _ref.read(databaseProvider);
-
-  // Submit a validation (vote/verification)
-  Future<void> validateContent({
+  void recordVote({
+    required String validatorId,
     required String targetCid,
-    required int score, // -1 or 1
-    required String validatorId, // Public Key
-  }) async {
-    if (score != -1 && score != 1) {
-      throw ArgumentError('Score must be -1 or 1');
-    }
-
-    // Create signature (Mock)
-    final signatureData = '$validatorId:$targetCid:$score';
-    final signature = sha256.convert(utf8.encode(signatureData)).toString();
-
-    // Ensure user profile exists for validator
-    final profile = await _db.getProfileByPublicKey(validatorId);
-    if (profile == null) {
-      // Create new profile with base reputation
-      await _db.insertProfile(
-        UserProfilesCompanion.insert(
-          publicKey: validatorId,
-          reputation: 10, // Base reputation
-          lastActive: DateTime.now(),
-        ),
-      );
-    }
-
-    await _db.insertValidation(
-      HonorValidationsCompanion.insert(
-        validatorId: validatorId,
-        targetCid: targetCid,
-        score: score,
-        timestamp: DateTime.now(),
-        signature: signature,
-      ),
-    );
+    required int score,
+    int reputation = 10,
+  }) {
+    if (score != -1 && score != 1) throw ArgumentError('Score must be -1 or 1');
+    _votes.add(ValidationVote(
+      validatorId: validatorId,
+      targetCid: targetCid,
+      score: score,
+      reputation: reputation,
+    ));
   }
 
-  // Calculate Trust Score for a CID using Weighted Voting
-  Future<int> getTrustScore(String targetCid) async {
-    final validations = await _db.getValidationsForCid(targetCid);
-
-    double totalWeightedScore = 0;
-
-    for (var v in validations) {
-      // Fetch validator reputation
-      final profile = await _db.getProfileByPublicKey(v.validatorId);
-      final reputation = profile?.reputation ?? 0;
-
-      // Weight Logic: log10(Reputation + 10)
-      // Base rep 10 -> log(20) ~= 1.3
-      // Rep 100 -> log(110) ~= 2.0
-      // Rep 0 -> log(10) = 1.0 (Minimum weight)
-      // Negative reputation could have 0 weight
-
-      double weight = 0;
-      if (reputation >= 0) {
-        weight = log(reputation + 10) / ln10; // dart:math log is natural ln
-      }
-
-      totalWeightedScore += (v.score * weight);
+  int computeTrustScore(String targetCid) {
+    final cidVotes = _votes.where((v) => v.targetCid == targetCid);
+    double total = 0.0;
+    for (final v in cidVotes) {
+      final weight = log(v.reputation + 10) / ln10;
+      total += v.score * weight;
     }
-
-    return totalWeightedScore.round();
+    return total.round();
   }
 }
