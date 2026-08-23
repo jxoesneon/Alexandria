@@ -1,49 +1,38 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class GlassCard extends StatelessWidget {
   final Widget child;
-  final double? width;
-  final double? height;
+  final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
 
   const GlassCard({
     super.key,
     required this.child,
-    this.width,
-    this.height,
+    this.padding = const EdgeInsets.all(16.0),
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16.0),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16.0),
           child: Container(
-            width: width,
-            height: height,
+            padding: padding,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(16.0),
               border: Border.all(
-                color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                width: 1.5,
-              ),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppTheme.surfaceColor.withValues(alpha: 0.2),
-                  AppTheme.surfaceColor.withValues(alpha: 0.1),
-                ],
-                stops: const [0.1, 1],
+                color: Colors.white.withOpacity(0.12),
+                width: 1.0,
               ),
             ),
-            child: Padding(padding: const EdgeInsets.all(16.0), child: child),
+            child: child,
           ),
         ),
       ),
