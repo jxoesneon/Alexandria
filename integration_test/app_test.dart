@@ -28,7 +28,7 @@ void main() {
 
   testWidgets('verify app startup and empty state', (tester) async {
     // Use in-memory DB for integration test to ensure clean state
-    final inMemoryDb = AppDatabase(NativeDatabase.memory());
+    final inMemoryDb = AppDatabase();
 
     await tester.pumpWidget(
       ProviderScope(

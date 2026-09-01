@@ -1,9 +1,8 @@
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/sync_service.dart';
 import 'package:alexandria/services/ipfs_service.dart';
-import 'package:alexandria/services/identity_service.dart';
-import 'package:alexandria/services/collection_service.dart';
 import 'package:alexandria/services/secure_storage_service.dart';
 
 // --- Fakes ---
@@ -36,27 +35,20 @@ class FakeSecureStorageService implements SecureStorageService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class FakeIdentityService implements IdentityService {
-  @override
-  Future<AlexandriaIdentity?> getIdentity() async => null;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class FakeCollectionService implements CollectionService {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 void main() {
   test('SyncService publishes to IPFS', () async {
     final ipfs = FakeIpfsService();
     final storage = FakeSecureStorageService();
-    final identity = FakeIdentityService();
-    final collections = FakeCollectionService();
 
-    final syncService = SyncService(collections, identity, storage, ipfs);
+    final container = ProviderContainer(
+      overrides: [
+        ipfsServiceProvider.overrideWithValue(ipfs),
+        secureStorageServiceProvider.overrideWithValue(storage),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final syncService = container.read(syncServiceProvider);
     await syncService.init();
 
     await syncService.queueOperation(

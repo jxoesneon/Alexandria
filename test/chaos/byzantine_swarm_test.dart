@@ -1,8 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/erasure_coding_service.dart';
-import 'package:alexandria/services/merkle_scrubber_service.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
   group('Byzantine Fault & Swarm Attack Resilience', () {

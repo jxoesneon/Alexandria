@@ -38,22 +38,11 @@ class FakeIpfsService implements IpfsService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class FakeIdentityService implements IdentityService {
-  @override
-  Future<AlexandriaIdentity?> getIdentity() async => null; // Simplify for UI test
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class FakeBiometricService implements BiometricService {
-  @override
-  Future<bool> authenticate() async => true;
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 class FakeTorService implements TorService {
   bool enabled = false;
+
+  @override
+  bool get isEnabled => enabled;
 
   @override
   Future<bool> enable() async {
@@ -78,25 +67,14 @@ void main() {
 
   late FakeSecureStorageService storage;
   late FakeIpfsService ipfs;
-  late FakeIdentityService identity;
-  late FakeBiometricService bio;
   late FakeTorService tor;
   late SettingsNotifier settingsNotifier;
 
   setUp(() {
     storage = FakeSecureStorageService();
     ipfs = FakeIpfsService();
-    identity = FakeIdentityService();
-    bio = FakeBiometricService();
     tor = FakeTorService();
-
-    settingsNotifier = SettingsNotifier(
-      storage,
-      ipfs,
-      identity,
-      bio,
-      clearCacheFn: () async {}, // No-op for UI test
-    );
+    settingsNotifier = SettingsNotifier(storage, ipfs);
   });
 
   Widget createSubject() {
@@ -104,11 +82,10 @@ void main() {
       overrides: [
         settingsProvider.overrideWith((ref) => settingsNotifier),
         torServiceProvider.overrideWithValue(tor),
-        torStatusProvider.overrideWith((ref) => TorStatus.disabled),
       ],
       child: MaterialApp(
         theme: AppTheme.darkTheme,
-        home: const Scaffold(body: SettingsScreen()),
+        home: const SettingsScreen(),
       ),
     );
   }
@@ -117,20 +94,22 @@ void main() {
     await tester.pumpWidget(createSubject());
     await tester.pumpAndSettle();
 
-    expect(find.text('APPEARANCE'), findsOneWidget);
-    // Sections might be offscreen, but Finders find them in tree.
-    // To verify visibility we might need scrolling but existence is enough for "renders".
-    expect(find.text('STORAGE'), findsOneWidget);
-    expect(find.text('SECURITY & PRIVACY'), findsOneWidget);
+    expect(find.text('Appearance'), findsOneWidget);
+    expect(find.text('Network & Privacy'), findsOneWidget);
+    expect(find.text('Storage & Maintenance'), findsOneWidget);
   });
 
-  testWidgets('Theme toggle updates state', (tester) async {
+  testWidgets('Theme dropdown updates state', (tester) async {
     await tester.pumpWidget(createSubject());
     await tester.pumpAndSettle();
 
-    final lightFinder = find.text('Light');
-    await tester.scrollUntilVisible(lightFinder, 500);
-    await tester.tap(lightFinder);
+    final dropdownFinder = find.byType(DropdownButton<ThemeMode>);
+    expect(dropdownFinder, findsOneWidget);
+    await tester.tap(dropdownFinder);
+    await tester.pumpAndSettle();
+
+    final lightOption = find.text('Light').last;
+    await tester.tap(lightOption);
     await tester.pumpAndSettle();
 
     expect(settingsNotifier.state.themeMode, ThemeMode.light);
@@ -142,80 +121,37 @@ void main() {
     await tester.pumpAndSettle();
 
     final reducedMotionFinder = find.text('Reduced Motion');
-    await tester.scrollUntilVisible(reducedMotionFinder, 500);
     await tester.tap(reducedMotionFinder);
     await tester.pumpAndSettle();
 
     expect(settingsNotifier.state.reducedMotion, true);
   });
 
-  testWidgets('Clear Cache triggers action', (tester) async {
-    await tester.pumpWidget(createSubject());
-    await tester.pumpAndSettle();
-
-    final clearCacheFinder = find.text('Clear Cache');
-    await tester.scrollUntilVisible(clearCacheFinder, 500);
-    await tester.tap(clearCacheFinder);
-
-    // Pump start of async
-    await tester.pump();
-    // Pump animation frame for SnackBar entry
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(find.text('Cache cleared'), findsOneWidget);
-
-    // Clear snackbar
-    await tester.pumpAndSettle();
-  });
-
   testWidgets('Prune Repo triggers GC', (tester) async {
     await tester.pumpWidget(createSubject());
     await tester.pumpAndSettle();
 
-    final pruneFinder = find.text('Prune IPFS Repo');
-    await tester.scrollUntilVisible(pruneFinder, 500);
+    final pruneFinder = find.text('Prune');
     await tester.tap(pruneFinder);
+    await tester.pumpAndSettle();
 
-    // Pump to process tap
-    await tester.pump();
-    await tester.pump();
-
-    // Verify first SnackBar (Feedback that action started)
-    expect(find.text('Running GC...'), findsOneWidget);
-
-    // Verify Logic executed
     expect(ipfs.gcRun, true);
-
-    // Skipping verification of second SnackBar "Garbage collection complete"
-    // as it relies on precise animation timing (4s) which is flaky in widget tests.
-    // The fact that logic ran implies the second one would show.
-
-    await tester.pumpAndSettle(); // Dispose
+    expect(find.text('Storage cleanup completed successfully.'), findsOneWidget);
   });
 
-  // Note: Tor Test is tricky because TorStatusProvider is a StatefulProvider?
-  // In SettingsScreen: `ref.read(torStatusProvider.notifier).state = ...`
-  // We mocked `torStatusProvider` with a value.
-  // To test the interaction we should ideally let the provider exist
-  // but override the Service it typically might depend on, OR simply override the default value
-  // and hope the notifier works.
-  // `torStatusProvider` is likely a StateProvider<TorStatus>.
-  // `overrideWith` expects a new provider definition or a value?
-  // Riverpod 2.0 overrideWith replaces the whole provider.
-  // If we want it to be stateful, we should provide a helper.
-  // Actually, let's skip Tor toggle test here as it interacts with logic outside SettingsLogic deeply (TorService).
-  // We can verify it renders.
-
-  testWidgets('Burner Mode shows confirmation dialog', (tester) async {
+  testWidgets('Emergency Data Wipe shows confirmation dialog', (tester) async {
     await tester.pumpWidget(createSubject());
     await tester.pumpAndSettle();
 
-    final burnerFinder = find.text('Burner Mode');
-    await tester.scrollUntilVisible(burnerFinder, 500);
-    await tester.tap(burnerFinder);
+    final wipeFinder = find.text('Emergency Data Wipe');
+    await tester.tap(wipeFinder);
     await tester.pumpAndSettle();
 
-    expect(find.text('Activate Burner Mode?'), findsOneWidget);
-    expect(find.text('BURN EVERYTHING'), findsOneWidget);
+    expect(find.text('Confirm Emergency Data Wipe'), findsOneWidget);
+    expect(find.text('Confirm Wipe'), findsOneWidget);
+
+    await tester.tap(find.text('Confirm Wipe'));
+    await tester.pumpAndSettle();
+    expect(find.text('Data wipe completed.'), findsOneWidget);
   });
 }

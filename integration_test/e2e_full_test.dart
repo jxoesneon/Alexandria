@@ -49,7 +49,7 @@ void main() {
 
   testWidgets('Full onboarding to home flow', (tester) async {
     // Use in-memory DB for integration test to ensure clean state
-    final inMemoryDb = AppDatabase(NativeDatabase.memory());
+    final inMemoryDb = AppDatabase();
     final fakeStorage = FakeSecureStorageService();
 
     await tester.pumpWidget(

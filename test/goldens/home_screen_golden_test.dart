@@ -48,7 +48,7 @@ void main() {
       );
       return;
     }
-    final inMemoryDb = AppDatabase(NativeDatabase.memory());
+    final inMemoryDb = AppDatabase();
 
     await tester.pumpWidget(
       ProviderScope(
