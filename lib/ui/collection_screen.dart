@@ -28,8 +28,7 @@ class CollectionScreen extends ConsumerWidget {
             SizedBox(width: 8),
             InfoGlass(
               title: 'Collaborative Collections',
-              description:
-                  'Create and manage collaborative reading lists. '
+              description: 'Create and manage collaborative reading lists. '
                   'Uses CRDTs for conflict-free multi-device sync.',
               small: true,
               color: AppTheme.primaryColor,

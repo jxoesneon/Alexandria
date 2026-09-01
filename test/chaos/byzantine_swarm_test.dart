@@ -6,8 +6,10 @@ void main() {
   group('Byzantine Fault & Swarm Attack Resilience', () {
     test('detects tampered Cauchy shard checksums and reconstructs data', () {
       final service = ErasureCodingService();
-      final original = Uint8List.fromList('Mission Critical Preservation Data'.codeUnits);
-      final block = service.encode(blockId: 'byzantine_1', data: original, k: 4, m: 2);
+      final original =
+          Uint8List.fromList('Mission Critical Preservation Data'.codeUnits);
+      final block =
+          service.encode(blockId: 'byzantine_1', data: original, k: 4, m: 2);
 
       // Tamper with shard 0
       final tamperedData = Uint8List.fromList(block.shards[0].data);

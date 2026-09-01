@@ -38,10 +38,10 @@ class AlexandriaIdentity {
 
   /// Convert to JSON for debugging (never export private key in production)
   Map<String, dynamic> toJson() => {
-    'publicKey': publicKeyBase58,
-    'shortId': shortId,
-    'createdAt': createdAt.toIso8601String(),
-  };
+        'publicKey': publicKeyBase58,
+        'shortId': shortId,
+        'createdAt': createdAt.toIso8601String(),
+      };
 
   /// Base58 encoding implementation
   static String _base58Encode(Uint8List bytes) {
@@ -91,11 +91,11 @@ class IdentityProof {
   String get signatureBase64 => base64Encode(signature);
 
   Map<String, dynamic> toJson() => {
-    'message': message,
-    'signature': signatureBase64,
-    'publicKey': AlexandriaIdentity._base58Encode(publicKey),
-    'timestamp': timestamp.toIso8601String(),
-  };
+        'message': message,
+        'signature': signatureBase64,
+        'publicKey': AlexandriaIdentity._base58Encode(publicKey),
+        'timestamp': timestamp.toIso8601String(),
+      };
 }
 
 /// Service for managing cryptographic identity
@@ -139,8 +139,8 @@ class IdentityService {
     final keyPair = await _algorithm.newKeyPair();
 
     // Extract keys
-    final privateKeyBytes = await keyPair
-        .extractPrivateKeyBytes(); // 32 bytes seed
+    final privateKeyBytes =
+        await keyPair.extractPrivateKeyBytes(); // 32 bytes seed
     final publicKeyObj = await keyPair.extractPublicKey();
     final publicKeyBytes = Uint8List.fromList(publicKeyObj.bytes); // 32 bytes
 

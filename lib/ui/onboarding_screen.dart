@@ -156,9 +156,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           Text(
             'Your Identity',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -195,15 +195,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       children: [
                         Text(
                           'Create New Identity',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                         Text(
                           'Generate a fresh Ed25519 keypair',
-                          style: Theme.of(context).textTheme.bodySmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
                               ?.copyWith(color: Colors.white54),
                         ),
                       ],
@@ -247,15 +249,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       children: [
                         Text(
                           'Import Existing Identity',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                         Text(
                           'Restore from 24-word recovery phrase',
-                          style: Theme.of(context).textTheme.bodySmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
                               ?.copyWith(color: Colors.white54),
                         ),
                       ],
@@ -283,9 +287,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           Text(
             'Identity Created!',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -360,9 +364,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           Text(
             'Recovery Phrase',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 8),
           Container(
@@ -404,11 +408,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         child: GridView.builder(
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                childAspectRatio: 2.5,
-                                crossAxisSpacing: 8,
-                                mainAxisSpacing: 8,
-                              ),
+                            crossAxisCount: 3,
+                            childAspectRatio: 2.5,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          ),
                           itemCount: mnemonic.length,
                           itemBuilder: (context, index) {
                             return Container(
@@ -511,9 +515,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           Text(
             'Secure Your Vault',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -568,9 +572,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           Text(
             'Welcome, Archivist',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
           ).animate().fadeIn(delay: 200.ms),
           const SizedBox(height: 16),
           Text(

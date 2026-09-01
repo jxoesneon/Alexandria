@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final hardwareSchematicsServiceProvider = Provider((ref) => HardwareSchematicsService());
+final hardwareSchematicsServiceProvider =
+    Provider((ref) => HardwareSchematicsService());
 
 class KiCadSchematicMetadata {
   final String? title;

@@ -8,7 +8,8 @@ import 'package:alexandria/ui/widgets/info_glass.dart';
 
 void main() {
   group('Accessibility & Semantics Verification', () {
-    testWidgets('Interactive GlassCard provides accessible tap semantics', (tester) async {
+    testWidgets('Interactive GlassCard provides accessible tap semantics',
+        (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.darkTheme,
@@ -22,10 +23,12 @@ void main() {
       );
 
       expect(find.byType(InkWell), findsOneWidget);
-      expect(tester.getSemantics(find.text('Accessible Action Item')), matchesSemantics(label: 'Accessible Action Item'));
+      expect(tester.getSemantics(find.text('Accessible Action Item')),
+          matchesSemantics(label: 'Accessible Action Item'));
     });
 
-    testWidgets('InfoGlass structure provides clear semantic hierarchy', (tester) async {
+    testWidgets('InfoGlass structure provides clear semantic hierarchy',
+        (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.darkTheme,
@@ -43,7 +46,8 @@ void main() {
       expect(find.text('512 MB'), findsOneWidget);
     });
 
-    testWidgets('SettingsScreen adheres to accessibility guidelines', (tester) async {
+    testWidgets('SettingsScreen adheres to accessibility guidelines',
+        (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(

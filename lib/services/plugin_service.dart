@@ -69,20 +69,20 @@ class PluginManifest {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'version': version,
-    'author': author,
-    'description': description,
-    'homepage': homepage,
-    'repository': repository,
-    'entrypoint': entrypoint,
-    'permissions': permissions.map((p) => p.name).toList(),
-    'hooks': hooks.map((h) => h.name).toList(),
-    'uiSlots': uiSlots.map((s) => s.name).toList(),
-    'maxMemoryMb': maxMemoryMb,
-    'timeoutMs': timeoutMs,
-  };
+        'id': id,
+        'name': name,
+        'version': version,
+        'author': author,
+        'description': description,
+        'homepage': homepage,
+        'repository': repository,
+        'entrypoint': entrypoint,
+        'permissions': permissions.map((p) => p.name).toList(),
+        'hooks': hooks.map((h) => h.name).toList(),
+        'uiSlots': uiSlots.map((s) => s.name).toList(),
+        'maxMemoryMb': maxMemoryMb,
+        'timeoutMs': timeoutMs,
+      };
 
   factory PluginManifest.fromJson(Map<String, dynamic> json) {
     return PluginManifest(
@@ -94,20 +94,17 @@ class PluginManifest {
       homepage: json['homepage'] as String?,
       repository: json['repository'] as String?,
       entrypoint: json['entrypoint'] as String,
-      permissions:
-          (json['permissions'] as List?)
+      permissions: (json['permissions'] as List?)
               ?.map(
                 (p) => PluginPermission.values.firstWhere((e) => e.name == p),
               )
               .toList() ??
           [],
-      hooks:
-          (json['hooks'] as List?)
+      hooks: (json['hooks'] as List?)
               ?.map((h) => PluginHook.values.firstWhere((e) => e.name == h))
               .toList() ??
           [],
-      uiSlots:
-          (json['uiSlots'] as List?)
+      uiSlots: (json['uiSlots'] as List?)
               ?.map((s) => UISlot.values.firstWhere((e) => e.name == s))
               .toList() ??
           [],
@@ -156,14 +153,14 @@ class ThemeManifest {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'version': version,
-    'author': author,
-    'colors': colors,
-    'sizing': sizing,
-    'fontFamily': fontFamily,
-  };
+        'id': id,
+        'name': name,
+        'version': version,
+        'author': author,
+        'colors': colors,
+        'sizing': sizing,
+        'fontFamily': fontFamily,
+      };
 
   factory ThemeManifest.fromJson(Map<String, dynamic> json) {
     return ThemeManifest(
@@ -292,27 +289,27 @@ class PluginService {
 
   /// Create Zotero connector plugin template
   String get zoteroConnectorTemplate => jsonEncode({
-    'id': 'com.alexandria.zotero-connector',
-    'name': 'Zotero Connector',
-    'version': '1.0.0',
-    'author': 'Alexandria',
-    'description': 'Import and sync with Zotero library',
-    'entrypoint': 'zotero_connector.wasm',
-    'permissions': ['networkFetch', 'contentWrite', 'storagePersist'],
-    'hooks': ['onStartup', 'onContentAdded'],
-    'uiSlots': ['settingsSection'],
-  });
+        'id': 'com.alexandria.zotero-connector',
+        'name': 'Zotero Connector',
+        'version': '1.0.0',
+        'author': 'Alexandria',
+        'description': 'Import and sync with Zotero library',
+        'entrypoint': 'zotero_connector.wasm',
+        'permissions': ['networkFetch', 'contentWrite', 'storagePersist'],
+        'hooks': ['onStartup', 'onContentAdded'],
+        'uiSlots': ['settingsSection'],
+      });
 
   /// Create Calibre connector plugin template
   String get calibreConnectorTemplate => jsonEncode({
-    'id': 'com.alexandria.calibre-connector',
-    'name': 'Calibre Connector',
-    'version': '1.0.0',
-    'author': 'Alexandria',
-    'description': 'Import books from Calibre library',
-    'entrypoint': 'calibre_connector.wasm',
-    'permissions': ['contentRead', 'contentWrite', 'storagePersist'],
-    'hooks': ['onStartup'],
-    'uiSlots': ['settingsSection'],
-  });
+        'id': 'com.alexandria.calibre-connector',
+        'name': 'Calibre Connector',
+        'version': '1.0.0',
+        'author': 'Alexandria',
+        'description': 'Import books from Calibre library',
+        'entrypoint': 'calibre_connector.wasm',
+        'permissions': ['contentRead', 'contentWrite', 'storagePersist'],
+        'hooks': ['onStartup'],
+        'uiSlots': ['settingsSection'],
+      });
 }

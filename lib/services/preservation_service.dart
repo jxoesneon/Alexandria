@@ -11,14 +11,20 @@ class PreservationService {
   Timer? _timer;
   bool _isRunning = false;
 
-  PreservationService(this._ref);
+  PreservationService(this._ref) {
+    _ref.onDispose(stopBackgroundPreservation);
+  }
+
+  static const int healthyPeerThreshold = 3;
+  static const int endangeredPeerThreshold = 1;
 
   bool get isRunning => _isRunning;
 
   void startBackgroundPreservation() {
     if (_isRunning) return;
     _isRunning = true;
-    _timer = Timer.periodic(const Duration(minutes: 15), (_) => runPreservationCycle());
+    _timer = Timer.periodic(
+        const Duration(minutes: 15), (_) => runPreservationCycle());
   }
 
   void stopBackgroundPreservation() {

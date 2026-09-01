@@ -20,20 +20,22 @@ class BiometricService {
     }
   }
 
-  Future<bool> authenticate({String reason = 'Please authenticate to access Alexandria'}) async {
+  Future<bool> authenticate(
+      {String reason = 'Please authenticate to access Alexandria'}) async {
     try {
       final isAvailable = await isBiometricsAvailable();
       if (!isAvailable) return true;
 
       if (_ref != null) {
-        final storage = _ref!.read(secureStorageServiceProvider);
+        final storage = _ref.read(secureStorageServiceProvider);
         final secureMode = await storage.read('secure_mode_enabled');
         if (secureMode != 'true') return true;
       }
 
       return await _auth.authenticate(
         localizedReason: reason,
-        options: const AuthenticationOptions(stickyAuth: true, biometricOnly: false),
+        options:
+            const AuthenticationOptions(stickyAuth: true, biometricOnly: false),
       );
     } on PlatformException {
       return false;
@@ -42,7 +44,7 @@ class BiometricService {
 
   Future<void> setSecureMode(bool enabled) async {
     if (_ref != null) {
-      final storage = _ref!.read(secureStorageServiceProvider);
+      final storage = _ref.read(secureStorageServiceProvider);
       await storage.write('secure_mode_enabled', enabled.toString());
     }
   }

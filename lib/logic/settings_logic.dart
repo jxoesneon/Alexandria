@@ -43,7 +43,8 @@ class AppSettings {
   }
 }
 
-final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
+final settingsProvider =
+    StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
   final storage = ref.read(secureStorageServiceProvider);
   final ipfs = ref.read(ipfsServiceProvider);
   return SettingsNotifier(storage, ipfs);
@@ -53,9 +54,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   final SecureStorageService _storage;
   final IpfsService _ipfs;
 
-  SettingsNotifier(this._storage, this._ipfs) : super(const AppSettings()) {
-    loadSettings();
-  }
+  SettingsNotifier(this._storage, this._ipfs) : super(const AppSettings());
 
   Future<void> loadSettings() async {
     final theme = await _storage.read('setting_theme');

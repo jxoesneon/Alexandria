@@ -1,6 +1,4 @@
 import 'package:alexandria/logic/settings_logic.dart';
-import 'package:alexandria/services/biometric_service.dart';
-import 'package:alexandria/services/identity_service.dart';
 import 'package:alexandria/services/ipfs_service.dart';
 import 'package:alexandria/services/secure_storage_service.dart';
 import 'package:alexandria/services/tor_service.dart';
@@ -136,7 +134,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ipfs.gcRun, true);
-    expect(find.text('Storage cleanup completed successfully.'), findsOneWidget);
+    expect(
+        find.text('Storage cleanup completed successfully.'), findsOneWidget);
   });
 
   testWidgets('Emergency Data Wipe shows confirmation dialog', (tester) async {

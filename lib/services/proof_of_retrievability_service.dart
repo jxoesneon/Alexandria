@@ -4,7 +4,8 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../logic/honor_system.dart';
 
-final proofOfRetrievabilityServiceProvider = Provider((ref) => ProofOfRetrievabilityService(ref));
+final proofOfRetrievabilityServiceProvider =
+    Provider((ref) => ProofOfRetrievabilityService(ref));
 
 class PoRChallenge {
   final String challengeId;
@@ -22,12 +23,12 @@ class PoRChallenge {
   });
 
   Map<String, dynamic> toJson() => {
-    'challengeId': challengeId,
-    'cid': cid,
-    'chunkIndex': chunkIndex,
-    'nonce': nonce.toList(),
-    'timestamp': timestamp.toIso8601String(),
-  };
+        'challengeId': challengeId,
+        'cid': cid,
+        'chunkIndex': chunkIndex,
+        'nonce': nonce.toList(),
+        'timestamp': timestamp.toIso8601String(),
+      };
 }
 
 class PoRProof {
@@ -42,10 +43,10 @@ class PoRProof {
   });
 
   Map<String, dynamic> toJson() => {
-    'challengeId': challengeId,
-    'tag': tag,
-    'timestamp': timestamp.toIso8601String(),
-  };
+        'challengeId': challengeId,
+        'tag': tag,
+        'timestamp': timestamp.toIso8601String(),
+      };
 }
 
 class ProofOfRetrievabilityService {
@@ -61,7 +62,8 @@ class ProofOfRetrievabilityService {
     if (totalChunks <= 0) throw ArgumentError('totalChunks must be positive');
     final rnd = Random.secure();
     final chunkIndex = rnd.nextInt(totalChunks);
-    final nonce = Uint8List.fromList(List.generate(32, (_) => rnd.nextInt(256)));
+    final nonce =
+        Uint8List.fromList(List.generate(32, (_) => rnd.nextInt(256)));
     final challengeId = sha256.convert(nonce).toString().substring(0, 16);
 
     final challenge = PoRChallenge(

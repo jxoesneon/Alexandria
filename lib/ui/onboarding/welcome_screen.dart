@@ -29,10 +29,10 @@ class WelcomeScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(
-                      Icons.temple_buddhist,
-                      size: 80,
-                      color: AppTheme.primaryColor,
-                    )
+                  Icons.temple_buddhist,
+                  size: 80,
+                  color: AppTheme.primaryColor,
+                )
                     .animate(onPlay: (c) => c.repeat(reverse: true))
                     .boxShadow(
                       begin: BoxShadow(
@@ -85,46 +85,45 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  child:
-                      Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 48,
-                              vertical: 16,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withValues(
-                                alpha: 0.1,
-                              ),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(
-                                color: AppTheme.primaryColor.withValues(
-                                  alpha: 0.5,
-                                ),
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primaryColor.withValues(
-                                    alpha: 0.2,
-                                  ),
-                                  blurRadius: 20,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              'ENTER THE ARCHIVE',
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryColor,
-                                letterSpacing: 2,
-                              ),
-                            ),
-                          )
-                          .animate()
-                          .fadeIn(delay: 1000.ms)
-                          .shimmer(delay: 1500.ms, duration: 2.seconds),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 48,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(
+                        alpha: 0.1,
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: AppTheme.primaryColor.withValues(
+                          alpha: 0.5,
+                        ),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withValues(
+                            alpha: 0.2,
+                          ),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      'ENTER THE ARCHIVE',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryColor,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  )
+                      .animate()
+                      .fadeIn(delay: 1000.ms)
+                      .shimmer(delay: 1500.ms, duration: 2.seconds),
                 ),
               ],
             ),

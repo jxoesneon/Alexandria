@@ -2,7 +2,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'erasure_coding_service.dart';
 
-final merkleScrubberServiceProvider = Provider((ref) => MerkleScrubberService(ref));
+final merkleScrubberServiceProvider =
+    Provider((ref) => MerkleScrubberService(ref));
 
 class MerkleScrubReport {
   final String blockId;
@@ -55,7 +56,8 @@ class MerkleScrubberService {
     var wasRepaired = false;
     if (corrupted.isNotEmpty && intact.length >= block.k) {
       final erasureService = _ref.read(erasureCodingServiceProvider);
-      final repairedBlock = erasureService.repairShards(block: block, availableShards: intact);
+      final repairedBlock =
+          erasureService.repairShards(block: block, availableShards: intact);
       _monitoredBlocks[blockId] = repairedBlock;
       wasRepaired = true;
     }

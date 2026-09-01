@@ -3,6 +3,7 @@ import 'package:alexandria/services/sync_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('Network Interface Switching & Offline Buffering', () {
     test('buffers operations while offline and preserves queue', () async {
       final container = ProviderContainer();

@@ -70,7 +70,8 @@ class ContentIdentifier {
   }
 
   static String _base58Encode(Uint8List bytes) {
-    const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    const alphabet =
+        '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     var zeroes = 0;
     while (zeroes < bytes.length && bytes[zeroes] == 0) {
       zeroes++;
@@ -108,4 +109,6 @@ class CidService {
     if (cid.startsWith('Qm') && cid.length == 46) return true;
     return false;
   }
+
+  String cidFromBytes(Uint8List data) => computeCid(data).toBase32();
 }

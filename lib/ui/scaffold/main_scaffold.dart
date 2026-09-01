@@ -25,8 +25,10 @@ class _MainScaffoldState extends State<MainScaffold> {
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) => setState(() => _currentIndex = index),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.local_library_outlined), label: 'Library'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+          NavigationDestination(
+              icon: Icon(Icons.local_library_outlined), label: 'Library'),
+          NavigationDestination(
+              icon: Icon(Icons.settings_outlined), label: 'Settings'),
         ],
       ),
     );

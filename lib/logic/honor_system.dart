@@ -44,4 +44,20 @@ class HonorSystem {
     }
     return total.round();
   }
+
+  int getTrustScore(String cid) => computeTrustScore(cid);
+
+  void validateContent({
+    required String targetCid,
+    required int score,
+    required String validatorId,
+    int reputation = 10,
+  }) {
+    recordVote(
+      validatorId: validatorId,
+      targetCid: targetCid,
+      score: score,
+      reputation: reputation,
+    );
+  }
 }

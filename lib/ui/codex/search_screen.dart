@@ -10,7 +10,15 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   String _selectedCategory = 'All';
-  final _categories = const ['All', 'Books', 'Science', 'Audio', '3D Models', 'Datasets', 'Web Archives'];
+  final _categories = const [
+    'All',
+    'Books',
+    'Science',
+    'Audio',
+    '3D Models',
+    'Datasets',
+    'Web Archives'
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +29,8 @@ class _SearchScreenState extends State<SearchScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Search by title, author, topic, or CID...',
@@ -42,7 +51,8 @@ class _SearchScreenState extends State<SearchScreen> {
           // Category Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
             child: Row(
               children: _categories.map((cat) {
                 final isSelected = cat == _selectedCategory;

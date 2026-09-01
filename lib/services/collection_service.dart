@@ -80,10 +80,10 @@ class HybridLogicalClock implements Comparable<HybridLogicalClock> {
   }
 
   Map<String, dynamic> toJson() => {
-    'wallTime': wallTime,
-    'logical': logical,
-    'nodeId': base64Encode(nodeId),
-  };
+        'wallTime': wallTime,
+        'logical': logical,
+        'nodeId': base64Encode(nodeId),
+      };
 
   factory HybridLogicalClock.fromJson(Map<String, dynamic> json) {
     return HybridLogicalClock(
@@ -131,10 +131,10 @@ class LWWRegister<T> {
   }
 
   Map<String, dynamic> toJson(Object? Function(T) valueEncoder) => {
-    'value': valueEncoder(value),
-    'timestamp': timestamp.toJson(),
-    'author': base64Encode(author),
-  };
+        'value': valueEncoder(value),
+        'timestamp': timestamp.toJson(),
+        'author': base64Encode(author),
+      };
 }
 
 /// Observed-Remove Set CRDT (Spec §17.1)
@@ -170,9 +170,9 @@ class ORSet<T> {
   }
 
   Map<String, dynamic> toJson(Object? Function(T) valueEncoder) => {
-    'elements': _elements.map((k, v) => MapEntry(k, valueEncoder(v))),
-    'removed': _removed.toList(),
-  };
+        'elements': _elements.map((k, v) => MapEntry(k, valueEncoder(v))),
+        'removed': _removed.toList(),
+      };
 }
 
 /// Grow-only Counter CRDT (Spec §17.1)
@@ -220,11 +220,11 @@ class CollectionItem {
   });
 
   Map<String, dynamic> toJson() => {
-    'contentCid': contentCid,
-    'addedBy': base64Encode(addedBy),
-    'addedAt': addedAt.toIso8601String(),
-    'note': note,
-  };
+        'contentCid': contentCid,
+        'addedBy': base64Encode(addedBy),
+        'addedAt': addedAt.toIso8601String(),
+        'note': note,
+      };
 
   factory CollectionItem.fromJson(Map<String, dynamic> json) {
     return CollectionItem(
@@ -289,18 +289,18 @@ class Collection {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'rootCid': rootCid,
-    'parentId': parentId,
-    'name': name.toJson((v) => v),
-    'description': description.toJson((v) => v),
-    'tags': tags.toJson((v) => v),
-    'items': items.toJson((v) => v.toJson()),
-    'accessControl': accessControl.map((k, v) => MapEntry(k, v.name)),
-    'created': created.toIso8601String(),
-    'lastModified': lastModified.toJson(),
-    'ownerKey': base64Encode(ownerKey),
-  };
+        'id': id,
+        'rootCid': rootCid,
+        'parentId': parentId,
+        'name': name.toJson((v) => v),
+        'description': description.toJson((v) => v),
+        'tags': tags.toJson((v) => v),
+        'items': items.toJson((v) => v.toJson()),
+        'accessControl': accessControl.map((k, v) => MapEntry(k, v.name)),
+        'created': created.toIso8601String(),
+        'lastModified': lastModified.toJson(),
+        'ownerKey': base64Encode(ownerKey),
+      };
 }
 
 /// Merge request for collections (Spec §6.3)
@@ -324,14 +324,14 @@ class MergeRequest {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'sourceId': sourceId,
-    'targetId': targetId,
-    'diff': diff,
-    'signature': base64Encode(signature),
-    'timestamp': timestamp.toIso8601String(),
-    'status': status,
-  };
+        'id': id,
+        'sourceId': sourceId,
+        'targetId': targetId,
+        'diff': diff,
+        'signature': base64Encode(signature),
+        'timestamp': timestamp.toIso8601String(),
+        'status': status,
+      };
 }
 
 /// Service for managing collaborative collections

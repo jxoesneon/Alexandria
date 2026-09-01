@@ -20,15 +20,19 @@ class FlacStreamInfo {
     required this.totalSamples,
   });
 
-  double get durationSeconds => totalSamples > 0 && sampleRate > 0 ? totalSamples / sampleRate : 0.0;
+  double get durationSeconds =>
+      totalSamples > 0 && sampleRate > 0 ? totalSamples / sampleRate : 0.0;
 }
 
 class AudioMediaService {
   FlacStreamInfo parseFlacHeader(Uint8List bytes) {
-    if (bytes.length < 42) throw FormatException('Truncated FLAC buffer');
+    if (bytes.length < 42) throw const FormatException('Truncated FLAC buffer');
     // Verify "fLaC" magic marker
-    if (bytes[0] != 0x66 || bytes[1] != 0x4C || bytes[2] != 0x61 || bytes[3] != 0x43) {
-      throw FormatException('Invalid FLAC magic marker');
+    if (bytes[0] != 0x66 ||
+        bytes[1] != 0x4C ||
+        bytes[2] != 0x61 ||
+        bytes[3] != 0x43) {
+      throw const FormatException('Invalid FLAC magic marker');
     }
 
     final minBlock = (bytes[8] << 8) | bytes[9];

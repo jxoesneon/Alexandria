@@ -23,7 +23,8 @@ void main() {
 
     test('encrypts and decrypts payload correctly (round-trip)', () async {
       final key = await encryption.generateKey();
-      final plaintext = Uint8List.fromList('Censorship-Resistant Preserved Knowledge'.codeUnits);
+      final plaintext = Uint8List.fromList(
+          'Censorship-Resistant Preserved Knowledge'.codeUnits);
 
       final ciphertext = await encryption.encryptData(plaintext, key);
       expect(ciphertext, isNot(equals(plaintext)));
@@ -38,7 +39,8 @@ void main() {
       final plaintext = Uint8List.fromList('Secret Data'.codeUnits);
 
       final ciphertext = await encryption.encryptData(plaintext, key1);
-      expect(() async => await encryption.decryptData(ciphertext, key2), throwsA(anything));
+      expect(() async => await encryption.decryptData(ciphertext, key2),
+          throwsA(anything));
     });
   });
 }

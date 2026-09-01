@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:alexandria/logic/settings_logic.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues({});
   group('SettingsLogic & AppSettings Notifier Tests', () {
     late ProviderContainer container;
     late SettingsNotifier notifier;
 
-    setUp(() {
+    setUp(() async {
       container = ProviderContainer();
       notifier = container.read(settingsProvider.notifier);
+      await notifier.loadSettings();
     });
 
     tearDown(() {
@@ -19,10 +23,12 @@ void main() {
 
     test('updates theme mode and persists state', () async {
       await notifier.setThemeMode(ThemeMode.light);
-      expect(container.read(settingsProvider).themeMode, equals(ThemeMode.light));
+      expect(
+          container.read(settingsProvider).themeMode, equals(ThemeMode.light));
 
       await notifier.setThemeMode(ThemeMode.dark);
-      expect(container.read(settingsProvider).themeMode, equals(ThemeMode.dark));
+      expect(
+          container.read(settingsProvider).themeMode, equals(ThemeMode.dark));
     });
 
     test('toggles reduced motion preference', () async {

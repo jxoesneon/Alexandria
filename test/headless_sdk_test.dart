@@ -26,7 +26,12 @@ void main() {
     });
 
     test('executes alexandria.status RPC method', () async {
-      final req = jsonEncode({'jsonrpc': '2.0', 'method': 'alexandria.status', 'params': {}, 'id': 1});
+      final req = jsonEncode({
+        'jsonrpc': '2.0',
+        'method': 'alexandria.status',
+        'params': {},
+        'id': 1
+      });
       final res = await sdk.executeRpc(req);
 
       expect(res['jsonrpc'], equals('2.0'));
@@ -35,7 +40,12 @@ void main() {
     });
 
     test('handles unknown RPC methods with error code', () async {
-      final req = jsonEncode({'jsonrpc': '2.0', 'method': 'invalid.method', 'params': {}, 'id': 2});
+      final req = jsonEncode({
+        'jsonrpc': '2.0',
+        'method': 'invalid.method',
+        'params': {},
+        'id': 2
+      });
       final res = await sdk.executeRpc(req);
 
       expect(res['error'], isNotNull);

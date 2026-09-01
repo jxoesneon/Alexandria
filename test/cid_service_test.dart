@@ -11,7 +11,8 @@ void main() {
     });
 
     test('computes valid CIDv1 in Base32 format', () {
-      final sample = Uint8List.fromList('Alexandria Library P2P Knowledge'.codeUnits);
+      final sample =
+          Uint8List.fromList('Alexandria Library P2P Knowledge'.codeUnits);
       final cid = cidService.computeCid(sample);
 
       expect(cid.version, 1);
@@ -35,7 +36,10 @@ void main() {
     });
 
     test('validates legacy CIDv0 and invalid CIDs', () {
-      expect(cidService.isValidCid('QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco'), isTrue);
+      expect(
+          cidService
+              .isValidCid('QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco'),
+          isTrue);
       expect(cidService.isValidCid(''), isFalse);
       expect(cidService.isValidCid('invalid_short'), isFalse);
     });

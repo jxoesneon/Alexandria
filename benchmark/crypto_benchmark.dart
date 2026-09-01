@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 import 'dart:typed_data';
 import 'package:alexandria/services/encryption_service.dart';
 
@@ -9,11 +10,12 @@ void main() async {
   final sw = Stopwatch()..start();
   final encrypted = await encryption.encryptData(data, key);
   sw.stop();
-  print('AES-256-GCM Encryption (1MB): ${sw.elapsedMilliseconds} ms');
+  dev.log('AES-256-GCM Encryption (1MB): ${sw.elapsedMilliseconds} ms');
 
   sw.reset();
   sw.start();
   final decrypted = await encryption.decryptData(encrypted, key);
   sw.stop();
-  print('AES-256-GCM Decryption (1MB): ${sw.elapsedMilliseconds} ms');
+  dev.log(
+      'AES-256-GCM Decryption (1MB): ${sw.elapsedMilliseconds} ms, bytes: ${decrypted.length}');
 }

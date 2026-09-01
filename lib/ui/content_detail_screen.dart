@@ -8,7 +8,6 @@ import '../logic/honor_system.dart';
 import '../services/preservation_service.dart';
 import '../services/sibling_service.dart';
 import '../services/ledger_service.dart';
-import '../main.dart';
 import 'widgets/glass_card.dart';
 import 'theme/app_theme.dart';
 import 'widgets/info_glass.dart';
@@ -120,14 +119,10 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: metadata.entries.map((e) {
           // Prettify key: snake_case to Title Case
-          final key = e.key
-              .replaceAll('_', ' ')
-              .split(' ')
-              .map((word) {
-                if (word.isEmpty) return '';
-                return word[0].toUpperCase() + word.substring(1);
-              })
-              .join(' ');
+          final key = e.key.replaceAll('_', ' ').split(' ').map((word) {
+            if (word.isEmpty) return '';
+            return word[0].toUpperCase() + word.substring(1);
+          }).join(' ');
 
           return Padding(
             padding: const EdgeInsets.only(top: 4.0),
@@ -220,7 +215,9 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                           const SizedBox(height: 8),
                           Text(
                             "By ${manifest.author ?? 'Unknown'}",
-                            style: Theme.of(context).textTheme.titleLarge
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
                                 ?.copyWith(color: AppTheme.primaryColor),
                           ),
                           const SizedBox(height: 16),
@@ -448,9 +445,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              ref
-                  .read(honorSystemProvider)
-                  .validateContent(
+              ref.read(honorSystemProvider).validateContent(
                     targetCid: cid,
                     score: -1,
                     validatorId: 'me',

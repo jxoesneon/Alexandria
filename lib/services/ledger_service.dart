@@ -90,10 +90,10 @@ class CrossSignature {
   });
 
   Map<String, dynamic> toJson() => {
-    'signerPublicKey': base64Encode(signerPublicKey),
-    'signature': base64Encode(signature),
-    'timestamp': timestamp.toIso8601String(),
-  };
+        'signerPublicKey': base64Encode(signerPublicKey),
+        'signature': base64Encode(signature),
+        'timestamp': timestamp.toIso8601String(),
+      };
 
   factory CrossSignature.fromJson(Map<String, dynamic> json) {
     return CrossSignature(
@@ -149,14 +149,14 @@ class LedgerEntry {
   }
 
   Map<String, dynamic> toJson() => {
-    'index': index,
-    'timestamp': timestamp.toIso8601String(),
-    'action': action.name,
-    'contentCid': contentCid,
-    'previousHash': base64Encode(previousHash),
-    'signature': base64Encode(signature),
-    'crossSignatures': crossSignatures.map((cs) => cs.toJson()).toList(),
-  };
+        'index': index,
+        'timestamp': timestamp.toIso8601String(),
+        'action': action.name,
+        'contentCid': contentCid,
+        'previousHash': base64Encode(previousHash),
+        'signature': base64Encode(signature),
+        'crossSignatures': crossSignatures.map((cs) => cs.toJson()).toList(),
+      };
 
   factory LedgerEntry.fromJson(Map<String, dynamic> json) {
     return LedgerEntry(
@@ -169,8 +169,7 @@ class LedgerEntry {
       contentCid: json['contentCid'] as String,
       previousHash: base64Decode(json['previousHash'] as String),
       signature: base64Decode(json['signature'] as String),
-      crossSignatures:
-          (json['crossSignatures'] as List?)
+      crossSignatures: (json['crossSignatures'] as List?)
               ?.map((cs) => CrossSignature.fromJson(cs as Map<String, dynamic>))
               .toList() ??
           [],

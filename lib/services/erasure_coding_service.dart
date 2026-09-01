@@ -54,18 +54,18 @@ class ErasureShard {
   }
 
   Map<String, dynamic> toJson() => {
-    'index': index,
-    'isParity': isParity,
-    'data': data.toList(),
-    'checksum': checksum,
-  };
+        'index': index,
+        'isParity': isParity,
+        'data': data.toList(),
+        'checksum': checksum,
+      };
 
   factory ErasureShard.fromJson(Map<String, dynamic> json) => ErasureShard(
-    index: json['index'] as int,
-    isParity: json['isParity'] as bool,
-    data: Uint8List.fromList(List<int>.from(json['data'] as List)),
-    checksum: json['checksum'] as String,
-  );
+        index: json['index'] as int,
+        isParity: json['isParity'] as bool,
+        data: Uint8List.fromList(List<int>.from(json['data'] as List)),
+        checksum: json['checksum'] as String,
+      );
 }
 
 class ErasureBlock {
@@ -86,22 +86,24 @@ class ErasureBlock {
   });
 
   Map<String, dynamic> toJson() => {
-    'blockId': blockId,
-    'originalSize': originalSize,
-    'k': k,
-    'm': m,
-    'shardSize': shardSize,
-    'shards': shards.map((s) => s.toJson()).toList(),
-  };
+        'blockId': blockId,
+        'originalSize': originalSize,
+        'k': k,
+        'm': m,
+        'shardSize': shardSize,
+        'shards': shards.map((s) => s.toJson()).toList(),
+      };
 
   factory ErasureBlock.fromJson(Map<String, dynamic> json) => ErasureBlock(
-    blockId: json['blockId'] as String,
-    originalSize: json['originalSize'] as int,
-    k: json['k'] as int,
-    m: json['m'] as int,
-    shardSize: json['shardSize'] as int,
-    shards: (json['shards'] as List).map((s) => ErasureShard.fromJson(s as Map<String, dynamic>)).toList(),
-  );
+        blockId: json['blockId'] as String,
+        originalSize: json['originalSize'] as int,
+        k: json['k'] as int,
+        m: json['m'] as int,
+        shardSize: json['shardSize'] as int,
+        shards: (json['shards'] as List)
+            .map((s) => ErasureShard.fromJson(s as Map<String, dynamic>))
+            .toList(),
+      );
 }
 
 class ErasureCodingService {
@@ -123,7 +125,9 @@ class ErasureCodingService {
     for (var i = 0; i < k; i++) {
       final start = i * shardSize;
       if (start < originalSize) {
-        final end = (start + shardSize > originalSize) ? originalSize : start + shardSize;
+        final end = (start + shardSize > originalSize)
+            ? originalSize
+            : start + shardSize;
         dataShards[i].setRange(0, end - start, data.sublist(start, end));
       }
     }
@@ -173,9 +177,11 @@ class ErasureCodingService {
     required ErasureBlock block,
     required List<ErasureShard> availableShards,
   }) {
-    final validShards = availableShards.where((s) => s.verifyChecksum()).toList();
+    final validShards =
+        availableShards.where((s) => s.verifyChecksum()).toList();
     if (validShards.length < block.k) {
-      throw StateError('Insufficient valid shards to decode. Required: ${block.k}, Available: ${validShards.length}');
+      throw StateError(
+          'Insufficient valid shards to decode. Required: ${block.k}, Available: ${validShards.length}');
     }
 
     validShards.sort((a, b) => a.index.compareTo(b.index));
@@ -206,13 +212,15 @@ class ErasureCodingService {
     });
 
     final invMatrix = _invertMatrix(subMatrix, block.k);
-    final reconstructedDataShards = List.generate(block.k, (_) => Uint8List(block.shardSize));
+    final reconstructedDataShards =
+        List.generate(block.k, (_) => Uint8List(block.shardSize));
 
     for (var i = 0; i < block.k; i++) {
       for (var byteIdx = 0; byteIdx < block.shardSize; byteIdx++) {
         var val = 0;
         for (var j = 0; j < block.k; j++) {
-          val = GF256.add(val, GF256.mul(invMatrix[i][j], selectedShards[j].data[byteIdx]));
+          val = GF256.add(
+              val, GF256.mul(invMatrix[i][j], selectedShards[j].data[byteIdx]));
         }
         reconstructedDataShards[i][byteIdx] = val;
       }
@@ -230,8 +238,10 @@ class ErasureCodingService {
     required ErasureBlock block,
     required List<ErasureShard> availableShards,
   }) {
-    final recoveredData = decode(block: block, availableShards: availableShards);
-    return encode(blockId: block.blockId, data: recoveredData, k: block.k, m: block.m);
+    final recoveredData =
+        decode(block: block, availableShards: availableShards);
+    return encode(
+        blockId: block.blockId, data: recoveredData, k: block.k, m: block.m);
   }
 
   List<List<int>> _buildCauchyMatrix(int k, int m) {
@@ -261,7 +271,9 @@ class ErasureCodingService {
   List<List<int>> _invertMatrix(List<List<int>> mat, int n) {
     final aug = List.generate(n, (i) {
       final row = List.filled(2 * n, 0);
-      for (var j = 0; j < n; j++) row[j] = mat[i][j];
+      for (var j = 0; j < n; j++) {
+        row[j] = mat[i][j];
+      }
       row[n + i] = 1;
       return row;
     });
@@ -276,7 +288,9 @@ class ErasureCodingService {
             break;
           }
         }
-        if (swapIdx == -1) throw StateError('Singular matrix in erasure decoder');
+        if (swapIdx == -1) {
+          throw StateError('Singular matrix in erasure decoder');
+        }
         final tmp = aug[i];
         aug[i] = aug[swapIdx];
         aug[swapIdx] = tmp;

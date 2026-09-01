@@ -75,12 +75,12 @@ class GovernanceVote {
   });
 
   Map<String, dynamic> toJson() => {
-    'voterId': voterId,
-    'weight': weight,
-    'approve': approve,
-    'timestamp': timestamp.toIso8601String(),
-    'signature': signature,
-  };
+        'voterId': voterId,
+        'weight': weight,
+        'approve': approve,
+        'timestamp': timestamp.toIso8601String(),
+        'signature': signature,
+      };
 
   factory GovernanceVote.fromJson(Map<String, dynamic> json) {
     return GovernanceVote(
@@ -152,18 +152,18 @@ class Proposal {
   bool get isExpired => DateTime.now().isAfter(deadline);
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'type': type.name,
-    'title': title,
-    'description': description,
-    'payload': payload,
-    'proposerId': proposerId,
-    'created': created.toIso8601String(),
-    'deadline': deadline.toIso8601String(),
-    'votes': votes.map((v) => v.toJson()).toList(),
-    'status': status.name,
-    'signature': signature,
-  };
+        'id': id,
+        'type': type.name,
+        'title': title,
+        'description': description,
+        'payload': payload,
+        'proposerId': proposerId,
+        'created': created.toIso8601String(),
+        'deadline': deadline.toIso8601String(),
+        'votes': votes.map((v) => v.toJson()).toList(),
+        'status': status.name,
+        'signature': signature,
+      };
 
   factory Proposal.fromJson(Map<String, dynamic> json) {
     return Proposal(
@@ -175,8 +175,7 @@ class Proposal {
       proposerId: json['proposerId'] as String,
       created: DateTime.parse(json['created'] as String),
       deadline: DateTime.parse(json['deadline'] as String),
-      votes:
-          (json['votes'] as List?)
+      votes: (json['votes'] as List?)
               ?.map((v) => GovernanceVote.fromJson(v as Map<String, dynamic>))
               .toList() ??
           [],
@@ -212,9 +211,8 @@ class GovernanceService {
     if (reputation < GovernanceConstants.minReputationToVote) return false;
 
     // Check account age
-    final daysSinceCreation = DateTime.now()
-        .difference(identity.createdAt)
-        .inDays;
+    final daysSinceCreation =
+        DateTime.now().difference(identity.createdAt).inDays;
     if (daysSinceCreation < GovernanceConstants.minAccountAgeDays) return false;
 
     return true;
@@ -226,9 +224,8 @@ class GovernanceService {
 
     // Check rate limit
     if (_lastProposalTime != null) {
-      final daysSinceLast = DateTime.now()
-          .difference(_lastProposalTime!)
-          .inDays;
+      final daysSinceLast =
+          DateTime.now().difference(_lastProposalTime!).inDays;
       if (daysSinceLast < GovernanceConstants.proposalRateLimitDays) {
         return false;
       }

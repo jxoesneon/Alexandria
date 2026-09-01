@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/logic/settings_logic.dart';
-import 'package:alexandria/services/biometric_service.dart';
-import 'package:alexandria/services/identity_service.dart';
 import 'package:alexandria/services/ipfs_service.dart';
 import 'package:alexandria/services/secure_storage_service.dart';
 
@@ -49,8 +47,8 @@ void main() {
   );
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-        return '.';
-      });
+    return '.';
+  });
 
   late SettingsNotifier notifier;
   late FakeSecureStorageService storage;

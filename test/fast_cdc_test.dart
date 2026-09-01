@@ -17,7 +17,8 @@ void main() {
     });
 
     test('chunks data within min and max boundaries', () {
-      final sample = Uint8List.fromList(List.generate(4096, (i) => (i * 31) % 256));
+      final sample =
+          Uint8List.fromList(List.generate(4096, (i) => (i * 31) % 256));
       final chunks = cdcService.chunk(sample);
 
       expect(chunks.isNotEmpty, isTrue);

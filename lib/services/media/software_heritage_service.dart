@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final softwareHeritageServiceProvider = Provider((ref) => SoftwareHeritageService());
+final softwareHeritageServiceProvider =
+    Provider((ref) => SoftwareHeritageService());
 
 class GitBundleMetadata {
   final String version;
@@ -31,7 +32,7 @@ class SoftwareHeritageService {
   GitBundleMetadata parseGitBundleHeader(String headerText) {
     final lines = headerText.split('\n');
     if (lines.isEmpty || !lines[0].startsWith('# v')) {
-      throw FormatException('Invalid Git bundle header');
+      throw const FormatException('Invalid Git bundle header');
     }
     final version = lines[0].replaceFirst('# ', '').trim();
     final prereqs = <String>[];
@@ -56,12 +57,16 @@ class SoftwareHeritageService {
   }
 
   WasmModuleMetadata parseWasmHeader(Uint8List bytes) {
-    if (bytes.length < 8) throw FormatException('Truncated WASM buffer');
+    if (bytes.length < 8) throw const FormatException('Truncated WASM buffer');
     // '\0asm' magic
-    if (bytes[0] != 0x00 || bytes[1] != 0x61 || bytes[2] != 0x73 || bytes[3] != 0x6D) {
-      throw FormatException('Invalid WASM magic header');
+    if (bytes[0] != 0x00 ||
+        bytes[1] != 0x61 ||
+        bytes[2] != 0x73 ||
+        bytes[3] != 0x6D) {
+      throw const FormatException('Invalid WASM magic header');
     }
-    final version = bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24);
+    final version =
+        bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24);
 
     return WasmModuleMetadata(
       version: version,

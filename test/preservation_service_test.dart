@@ -27,7 +27,13 @@ void main() {
 
     test('checks content health and heals pinned items', () async {
       final health = await preservation.checkContentHealth('bafy_sample_test');
-      expect(health, isIn([HealthStatus.healthy, HealthStatus.endangered, HealthStatus.lost]));
+      expect(
+          health,
+          isIn([
+            HealthStatus.healthy,
+            HealthStatus.endangered,
+            HealthStatus.lost
+          ]));
 
       final heal = await preservation.healContent('bafy_sample_test');
       expect(heal, isTrue);

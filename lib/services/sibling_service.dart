@@ -22,12 +22,12 @@ class ContentSibling {
   });
 
   Map<String, dynamic> toJson() => {
-    'cid': cid,
-    'title': title,
-    'similarity': similarity,
-    'variantType': variantType?.name,
-    'variantValue': variantValue,
-  };
+        'cid': cid,
+        'title': title,
+        'similarity': similarity,
+        'variantType': variantType?.name,
+        'variantValue': variantValue,
+      };
 }
 
 class SiblingService {
@@ -39,13 +39,24 @@ class SiblingService {
         .trim();
   }
 
+  String _stripVariantSuffix(String title) {
+    return title
+        .replaceAll(RegExp(r'\([^)]*\)|\[[^\]]*\]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
   int levenshteinDistance(String s1, String s2) {
     final m = s1.length;
     final n = s2.length;
     final d = List.generate(m + 1, (_) => List.filled(n + 1, 0));
 
-    for (var i = 0; i <= m; i++) d[i][0] = i;
-    for (var j = 0; j <= n; j++) d[0][j] = j;
+    for (var i = 0; i <= m; i++) {
+      d[i][0] = i;
+    }
+    for (var j = 0; j <= n; j++) {
+      d[0][j] = j;
+    }
 
     for (var i = 1; i <= m; i++) {
       for (var j = 1; j <= n; j++) {
@@ -61,8 +72,8 @@ class SiblingService {
   }
 
   double calculateSimilarity(String s1, String s2) {
-    final n1 = normalizeTitle(s1);
-    final n2 = normalizeTitle(s2);
+    final n1 = normalizeTitle(_stripVariantSuffix(s1));
+    final n2 = normalizeTitle(_stripVariantSuffix(s2));
     if (n1.isEmpty || n2.isEmpty) return 0.0;
     if (n1 == n2) return 1.0;
     final maxLen = max(n1.length, n2.length);
@@ -81,9 +92,17 @@ class SiblingService {
     String? format1,
     String? format2,
   }) {
-    if (resolution1 != null && resolution2 != null && resolution1 != resolution2) return VariantType.resolution;
-    if (language1 != null && language2 != null && language1 != language2) return VariantType.language;
-    if (format1 != null && format2 != null && format1 != format2) return VariantType.format;
+    if (resolution1 != null &&
+        resolution2 != null &&
+        resolution1 != resolution2) {
+      return VariantType.resolution;
+    }
+    if (language1 != null && language2 != null && language1 != language2) {
+      return VariantType.language;
+    }
+    if (format1 != null && format2 != null && format1 != format2) {
+      return VariantType.format;
+    }
     return null;
   }
 
@@ -96,7 +115,11 @@ class SiblingService {
     for (final candidate in candidates) {
       final candidateCid = candidate['cid'] as String?;
       final candidateTitle = candidate['title'] as String?;
-      if (candidateCid == null || candidateTitle == null || candidateCid == targetCid) continue;
+      if (candidateCid == null ||
+          candidateTitle == null ||
+          candidateCid == targetCid) {
+        continue;
+      }
 
       final similarity = calculateSimilarity(targetTitle, candidateTitle);
       if (similarity >= _similarityThreshold) {
@@ -104,7 +127,9 @@ class SiblingService {
           cid: candidateCid,
           title: candidateTitle,
           similarity: similarity,
-          variantType: candidate['variantType'] != null ? VariantType.values.byName(candidate['variantType']) : null,
+          variantType: candidate['variantType'] != null
+              ? VariantType.values.byName(candidate['variantType'])
+              : null,
           variantValue: candidate['variantValue'] as String?,
         ));
       }

@@ -18,7 +18,8 @@ class HomeScreen extends ConsumerWidget {
           children: [
             Icon(Icons.auto_stories, color: theme.colorScheme.primary),
             const SizedBox(width: 10),
-            const Text('Alexandria', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Alexandria',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
@@ -46,51 +47,63 @@ class HomeScreen extends ConsumerWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.2),
+                        color: Colors.green.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green.withOpacity(0.5)),
+                        border: Border.all(
+                            color: Colors.green.withValues(alpha: 0.5)),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle, size: 14, color: Colors.greenAccent),
+                          Icon(Icons.check_circle,
+                              size: 14, color: Colors.greenAccent),
                           SizedBox(width: 6),
                           Text(
                             'Network Healthy',
-                            style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                                color: Colors.greenAccent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
                     ),
                     const Spacer(),
-                    const Text('32 Documents Synced', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text('32 Documents Synced',
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Your Decentralized Library',
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'All saved books, research papers, and media are safely stored locally and backed up across the peer-to-peer network.',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: Colors.white70),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const CreationWizard()),
+                      MaterialPageRoute(
+                          builder: (context) => const CreationWizard()),
                     );
                   },
                   icon: const Icon(Icons.add),
                   label: const Text('Add to Library'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
               ],
@@ -126,13 +139,15 @@ class HomeScreen extends ConsumerWidget {
             children: [
               Text(
                 'Recent Additions',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const SearchScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const SearchScreen()),
                   );
                 },
                 child: const Text('View All'),
@@ -194,7 +209,8 @@ class HomeScreen extends ConsumerWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
@@ -215,7 +231,8 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

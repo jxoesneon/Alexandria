@@ -29,8 +29,14 @@ void main() {
     });
 
     test('disallows invalid score bounds', () {
-      expect(() => honorSystem.recordVote(validatorId: 'val', targetCid: 'cid', score: 2), throwsArgumentError);
-      expect(() => honorSystem.recordVote(validatorId: 'val', targetCid: 'cid', score: 0), throwsArgumentError);
+      expect(
+          () => honorSystem.recordVote(
+              validatorId: 'val', targetCid: 'cid', score: 2),
+          throwsArgumentError);
+      expect(
+          () => honorSystem.recordVote(
+              validatorId: 'val', targetCid: 'cid', score: 0),
+          throwsArgumentError);
     });
   });
 }

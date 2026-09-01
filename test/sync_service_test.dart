@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/sync_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('SyncService P2P PubSub Queue Tests', () {
     late ProviderContainer container;
     late SyncService syncService;

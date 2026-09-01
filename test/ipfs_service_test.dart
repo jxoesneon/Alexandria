@@ -26,7 +26,8 @@ void main() {
     });
 
     test('adds file, retrieves stream, pins and unpins CIDs', () async {
-      final payload = Uint8List.fromList('Alexandria P2P Knowledge Block'.codeUnits);
+      final payload =
+          Uint8List.fromList('Alexandria P2P Knowledge Block'.codeUnits);
       final cid = await ipfs.addFile(payload);
       expect(cid.startsWith('b'), isTrue);
 

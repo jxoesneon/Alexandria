@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'cid_service.dart';
 import 'ipfs_service.dart';
 
 final headlessSdkProvider = Provider((ref) => HeadlessSdk(ref));
@@ -69,9 +67,9 @@ class HeadlessSdk {
     }
   }
 
-  Future<dynamic> _dispatchMethod(String? method, Map<String, dynamic> params) async {
+  Future<dynamic> _dispatchMethod(
+      String? method, Map<String, dynamic> params) async {
     final ipfs = _ref.read(ipfsServiceProvider);
-    final cidService = _ref.read(cidServiceProvider);
 
     switch (method) {
       case 'alexandria.status':
@@ -95,7 +93,9 @@ class HeadlessSdk {
 
       case 'alexandria.import':
         final dataBase64 = params['dataBase64'] as String?;
-        if (dataBase64 == null) throw ArgumentError('Missing dataBase64 parameter');
+        if (dataBase64 == null) {
+          throw ArgumentError('Missing dataBase64 parameter');
+        }
         final bytes = base64Decode(dataBase64);
         final cid = await ipfs.addFile(bytes);
         _totalBytesIngested += bytes.length;
@@ -105,7 +105,11 @@ class HeadlessSdk {
         final cid = params['cid'] as String?;
         if (cid == null) throw ArgumentError('Missing cid parameter');
         final providers = await ipfs.findProviders(cid);
-        return {'cid': cid, 'providerCount': providers.length, 'isHealthy': providers.length >= 3};
+        return {
+          'cid': cid,
+          'providerCount': providers.length,
+          'isHealthy': providers.length >= 3
+        };
 
       default:
         throw UnsupportedError('Unknown RPC method: $method');

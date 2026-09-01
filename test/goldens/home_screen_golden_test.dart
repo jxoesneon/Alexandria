@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:drift/native.dart';
 import 'package:alexandria/main.dart';
 import 'package:alexandria/data/database.dart';
 import 'package:alexandria/services/biometric_service.dart';
@@ -19,7 +18,7 @@ class FakePreservationService extends PreservationService {
 
 class FakeBiometricService extends BiometricService {
   @override
-  Future<bool> authenticate() async => true;
+  Future<bool> authenticate({String reason = ''}) async => true;
   @override
   Future<bool> isBiometricsAvailable() async => true;
 }

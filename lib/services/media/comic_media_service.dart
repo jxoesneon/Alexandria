@@ -25,12 +25,17 @@ class ComicInfoMetadata {
 class ComicMediaService {
   ComicInfoMetadata parseComicInfoXml(String xmlContent) {
     final titleMatch = RegExp(r'<Title>(.*?)</Title>').firstMatch(xmlContent);
-    final seriesMatch = RegExp(r'<Series>(.*?)</Series>').firstMatch(xmlContent);
+    final seriesMatch =
+        RegExp(r'<Series>(.*?)</Series>').firstMatch(xmlContent);
     final numMatch = RegExp(r'<Number>(.*?)</Number>').firstMatch(xmlContent);
-    final writerMatch = RegExp(r'<Writer>(.*?)</Writer>').firstMatch(xmlContent);
-    final pencillerMatch = RegExp(r'<Penciller>(.*?)</Penciller>').firstMatch(xmlContent);
-    final summaryMatch = RegExp(r'<Summary>(.*?)</Summary>').firstMatch(xmlContent);
-    final pageCountMatch = RegExp(r'<PageCount>(\d+)</PageCount>').firstMatch(xmlContent);
+    final writerMatch =
+        RegExp(r'<Writer>(.*?)</Writer>').firstMatch(xmlContent);
+    final pencillerMatch =
+        RegExp(r'<Penciller>(.*?)</Penciller>').firstMatch(xmlContent);
+    final summaryMatch =
+        RegExp(r'<Summary>(.*?)</Summary>').firstMatch(xmlContent);
+    final pageCountMatch =
+        RegExp(r'<PageCount>(\d+)</PageCount>').firstMatch(xmlContent);
 
     return ComicInfoMetadata(
       title: titleMatch?.group(1),
@@ -39,7 +44,9 @@ class ComicMediaService {
       writer: writerMatch?.group(1),
       penciller: pencillerMatch?.group(1),
       summary: summaryMatch?.group(1),
-      pageCount: pageCountMatch != null ? int.tryParse(pageCountMatch.group(1)!) ?? 0 : 0,
+      pageCount: pageCountMatch != null
+          ? int.tryParse(pageCountMatch.group(1)!) ?? 0
+          : 0,
     );
   }
 

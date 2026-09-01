@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/database.dart';
-import '../main.dart';
 import '../services/identity_service.dart';
 import '../services/ledger_service.dart';
 import '../services/ipfs_service.dart';
@@ -267,29 +266,29 @@ class ProfileScreen extends ConsumerWidget {
 
           // Contribution Graph Section
           GlassCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'PRESERVATION ACTIVITY',
-                        style: TextStyle(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.8),
-                          letterSpacing: 2,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const SizedBox(
-                        height: 110,
-                        child: ContributionGraph(activityData: {}),
-                      ),
-                    ],
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'PRESERVATION ACTIVITY',
+                    style: TextStyle(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.8),
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              )
+                  const SizedBox(height: 16),
+                  const SizedBox(
+                    height: 110,
+                    child: ContributionGraph(activityData: {}),
+                  ),
+                ],
+              ),
+            ),
+          )
               .animate()
               .fadeIn(duration: 400.ms, delay: 100.ms)
               .slideY(begin: 0.1),
@@ -297,46 +296,46 @@ class ProfileScreen extends ConsumerWidget {
 
           // Badges Section
           GlassCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'EARNED BADGES',
+                    style: TextStyle(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.8),
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
                     children: [
-                      Text(
-                        'EARNED BADGES',
-                        style: TextStyle(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.8),
-                          letterSpacing: 2,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
+                      _Badge(
+                        icon: Icons.shield,
+                        label: 'Guardian',
+                        color: Colors.amber,
                       ),
-                      const SizedBox(height: 16),
-                      const Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          _Badge(
-                            icon: Icons.shield,
-                            label: 'Guardian',
-                            color: Colors.amber,
-                          ),
-                          _Badge(
-                            icon: Icons.auto_stories,
-                            label: 'Keeper',
-                            color: Colors.blue,
-                          ),
-                          _Badge(
-                            icon: Icons.visibility,
-                            label: 'Watchful',
-                            color: Colors.green,
-                          ),
-                        ],
+                      _Badge(
+                        icon: Icons.auto_stories,
+                        label: 'Keeper',
+                        color: Colors.blue,
+                      ),
+                      _Badge(
+                        icon: Icons.visibility,
+                        label: 'Watchful',
+                        color: Colors.green,
                       ),
                     ],
                   ),
-                ),
-              )
+                ],
+              ),
+            ),
+          )
               .animate()
               .fadeIn(duration: 400.ms, delay: 200.ms)
               .slideY(begin: 0.1),

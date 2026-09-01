@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final encryptionServiceProvider = Provider((ref) => EncryptionService());
 
 class EncryptionService {
-  final AesGcm _algorithm = AesGcm.with256Bits();
+  final AesGcm _algorithm = AesGcm.with256bits();
 
   Future<SecretKey> generateKey() async {
     return await _algorithm.newSecretKey();

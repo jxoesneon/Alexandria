@@ -18,11 +18,13 @@ void main() {
 
     test('Conforms to ALX-003 Erasure Reconstruction Threshold', () {
       final erasure = ErasureCodingService();
-      final data = Uint8List.fromList('ALX-003 Conformance Test Data'.codeUnits);
+      final data =
+          Uint8List.fromList('ALX-003 Conformance Test Data'.codeUnits);
       final block = erasure.encode(blockId: 'alx_003', data: data, k: 3, m: 2);
 
       expect(block.shards.length, 5);
-      final decoded = erasure.decode(block: block, availableShards: block.shards.sublist(1, 4));
+      final decoded = erasure.decode(
+          block: block, availableShards: block.shards.sublist(1, 4));
       expect(decoded, equals(data));
     });
   });

@@ -41,13 +41,13 @@ class Vote {
   });
 
   Map<String, dynamic> toJson() => {
-    'voterKey': base64Encode(voterKey),
-    'weight': weight,
-    'approve': approve,
-    'signature': base64Encode(signature),
-    'timestamp': timestamp.toIso8601String(),
-    'isHuman': isHuman,
-  };
+        'voterKey': base64Encode(voterKey),
+        'weight': weight,
+        'approve': approve,
+        'signature': base64Encode(signature),
+        'timestamp': timestamp.toIso8601String(),
+        'isHuman': isHuman,
+      };
 
   factory Vote.fromJson(Map<String, dynamic> json) {
     return Vote(
@@ -128,19 +128,19 @@ class ChangeRequest {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'targetCid': targetCid,
-    'field': field,
-    'currentValue': currentValue,
-    'proposedValue': proposedValue,
-    'proposerKey': base64Encode(proposerKey),
-    'proposerSignature': base64Encode(proposerSignature),
-    'timestamp': timestamp.toIso8601String(),
-    'votes': votes.map((v) => v.toJson()).toList(),
-    'status': status.name,
-    'uploaderKey': uploaderKey != null ? base64Encode(uploaderKey!) : null,
-    'isAiProposal': isAiProposal,
-  };
+        'id': id,
+        'targetCid': targetCid,
+        'field': field,
+        'currentValue': currentValue,
+        'proposedValue': proposedValue,
+        'proposerKey': base64Encode(proposerKey),
+        'proposerSignature': base64Encode(proposerSignature),
+        'timestamp': timestamp.toIso8601String(),
+        'votes': votes.map((v) => v.toJson()).toList(),
+        'status': status.name,
+        'uploaderKey': uploaderKey != null ? base64Encode(uploaderKey!) : null,
+        'isAiProposal': isAiProposal,
+      };
 
   factory ChangeRequest.fromJson(Map<String, dynamic> json) {
     return ChangeRequest(
@@ -152,8 +152,7 @@ class ChangeRequest {
       proposerKey: base64Decode(json['proposerKey'] as String),
       proposerSignature: base64Decode(json['proposerSignature'] as String),
       timestamp: DateTime.parse(json['timestamp'] as String),
-      votes:
-          (json['votes'] as List?)
+      votes: (json['votes'] as List?)
               ?.map((v) => Vote.fromJson(v as Map<String, dynamic>))
               .toList() ??
           [],
@@ -192,15 +191,15 @@ class AuditEntry {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'changeRequestId': changeRequestId,
-    'eventType': eventType,
-    'actorKey': base64Encode(actorKey),
-    'timestamp': timestamp.toIso8601String(),
-    'previousValue': previousValue,
-    'newValue': newValue,
-    'signature': base64Encode(signature),
-  };
+        'id': id,
+        'changeRequestId': changeRequestId,
+        'eventType': eventType,
+        'actorKey': base64Encode(actorKey),
+        'timestamp': timestamp.toIso8601String(),
+        'previousValue': previousValue,
+        'newValue': newValue,
+        'signature': base64Encode(signature),
+      };
 
   factory AuditEntry.fromJson(Map<String, dynamic> json) {
     return AuditEntry(

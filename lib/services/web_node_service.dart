@@ -18,7 +18,8 @@ class IndexedDbBlockStore {
 
   Future<void> putBlock(String cid, Uint8List data) async {
     if (_blocks.containsKey(cid)) return;
-    while (_currentUsageBytes + data.length > maxCapacityBytes && _blocks.isNotEmpty) {
+    while (_currentUsageBytes + data.length > maxCapacityBytes &&
+        _blocks.isNotEmpty) {
       final oldestCid = _blocks.keys.first;
       _currentUsageBytes -= _blocks[oldestCid]!.length;
       _blocks.remove(oldestCid);

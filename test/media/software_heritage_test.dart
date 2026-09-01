@@ -19,7 +19,8 @@ void main() {
       final meta = softwareService.parseGitBundleHeader(header);
       expect(meta.version, equals('v2 git bundle'));
       expect(meta.prerequisiteCommitIds.length, equals(1));
-      expect(meta.references['refs/heads/main'], equals('879c17fc869a56a5dea1f02827a65024dc6cbbdf'));
+      expect(meta.references['refs/heads/main'],
+          equals('879c17fc869a56a5dea1f02827a65024dc6cbbdf'));
     });
 
     test('parses WASM binary module header', () {

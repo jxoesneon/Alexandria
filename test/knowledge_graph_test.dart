@@ -36,7 +36,8 @@ void main() {
       );
 
       graphService.registerEntity(entity);
-      final optimal = graphService.selectOptimalVariant('ent_plat_rep', preferredFormat: 'pdf', preferredLanguage: 'en');
+      final optimal = graphService.selectOptimalVariant('ent_plat_rep',
+          preferredFormat: 'pdf', preferredLanguage: 'en');
 
       expect(optimal, isNotNull);
       expect(optimal!.cid, equals('bafy_pdf_healthy'));

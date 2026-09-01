@@ -18,7 +18,8 @@ void main() {
       header[3] = 0x43; // 'C'
       header[18] = (44100 >> 12) & 0xFF;
       header[19] = (44100 >> 4) & 0xFF;
-      header[20] = ((44100 & 0x0F) << 4) | (1 << 1) | 0x00; // 2 channels, 16 bits
+      header[20] =
+          ((44100 & 0x0F) << 4) | (1 << 1) | 0x00; // 2 channels, 16 bits
 
       final info = audioService.parseFlacHeader(header);
       expect(info.sampleRate, equals(44100));
@@ -26,7 +27,8 @@ void main() {
     });
 
     test('rejects truncated FLAC buffers', () {
-      expect(() => audioService.parseFlacHeader(Uint8List(10)), throwsFormatException);
+      expect(() => audioService.parseFlacHeader(Uint8List(10)),
+          throwsFormatException);
     });
   });
 }

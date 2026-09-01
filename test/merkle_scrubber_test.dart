@@ -23,7 +23,8 @@ void main() {
 
     test('scrubs pristine block and reports 0 corrupted shards', () async {
       final data = Uint8List.fromList('Pristine Merkle Tree Block'.codeUnits);
-      final block = erasureService.encode(blockId: 'blk_scrub_1', data: data, k: 3, m: 2);
+      final block =
+          erasureService.encode(blockId: 'blk_scrub_1', data: data, k: 3, m: 2);
 
       scrubber.registerBlock(block);
       final report = await scrubber.scrubBlock('blk_scrub_1');

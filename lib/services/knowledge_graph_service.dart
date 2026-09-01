@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final knowledgeGraphServiceProvider = Provider((ref) => KnowledgeGraphService());
+final knowledgeGraphServiceProvider =
+    Provider((ref) => KnowledgeGraphService());
 
 enum VariantResolution {
   vectorPdf,
@@ -43,16 +44,16 @@ class KnowledgeVariant {
   });
 
   Map<String, dynamic> toJson() => {
-    'cid': cid,
-    'format': format,
-    'language': language,
-    'edition': edition,
-    'resolution': resolution.name,
-    'sizeBytes': sizeBytes,
-    'peerCount': peerCount,
-    'isPinned': isPinned,
-    'honorTrustScore': honorTrustScore,
-  };
+        'cid': cid,
+        'format': format,
+        'language': language,
+        'edition': edition,
+        'resolution': resolution.name,
+        'sizeBytes': sizeBytes,
+        'peerCount': peerCount,
+        'isPinned': isPinned,
+        'honorTrustScore': honorTrustScore,
+      };
 }
 
 class KnowledgeEntity {
@@ -73,13 +74,13 @@ class KnowledgeEntity {
   });
 
   Map<String, dynamic> toJson() => {
-    'entityId': entityId,
-    'canonicalTitle': canonicalTitle,
-    'author': author,
-    'description': description,
-    'tags': tags,
-    'variants': variants.map((v) => v.toJson()).toList(),
-  };
+        'entityId': entityId,
+        'canonicalTitle': canonicalTitle,
+        'author': author,
+        'description': description,
+        'tags': tags,
+        'variants': variants.map((v) => v.toJson()).toList(),
+      };
 }
 
 class KnowledgeEdge {
@@ -105,7 +106,8 @@ class KnowledgeGraphService {
   void addVariant(String entityId, KnowledgeVariant variant) {
     final existing = _entities[entityId];
     if (existing == null) throw ArgumentError('Entity $entityId not found');
-    final updatedVariants = List<KnowledgeVariant>.from(existing.variants)..add(variant);
+    final updatedVariants = List<KnowledgeVariant>.from(existing.variants)
+      ..add(variant);
     _entities[entityId] = KnowledgeEntity(
       entityId: existing.entityId,
       canonicalTitle: existing.canonicalTitle,
@@ -116,8 +118,12 @@ class KnowledgeGraphService {
     );
   }
 
-  void addRelation(String sourceId, String targetId, KnowledgeRelationType type) {
-    _edges.add(KnowledgeEdge(sourceEntityId: sourceId, targetEntityId: targetId, relationType: type));
+  void addRelation(
+      String sourceId, String targetId, KnowledgeRelationType type) {
+    _edges.add(KnowledgeEdge(
+        sourceEntityId: sourceId,
+        targetEntityId: targetId,
+        relationType: type));
   }
 
   KnowledgeEntity? getEntity(String entityId) => _entities[entityId];
@@ -131,8 +137,13 @@ class KnowledgeGraphService {
     if (entity == null || entity.variants.isEmpty) return null;
 
     final candidates = entity.variants.where((v) {
-      if (preferredLanguage != null && v.language != preferredLanguage) return false;
-      if (preferredFormat != null && v.format.toLowerCase() != preferredFormat.toLowerCase()) return false;
+      if (preferredLanguage != null && v.language != preferredLanguage) {
+        return false;
+      }
+      if (preferredFormat != null &&
+          v.format.toLowerCase() != preferredFormat.toLowerCase()) {
+        return false;
+      }
       return true;
     }).toList();
 
@@ -140,8 +151,10 @@ class KnowledgeGraphService {
 
     // Score based on health (peerCount), pinning status, and trust score
     pool.sort((a, b) {
-      final scoreA = (a.peerCount * 2) + (a.isPinned ? 10 : 0) + (a.honorTrustScore ~/ 5);
-      final scoreB = (b.peerCount * 2) + (b.isPinned ? 10 : 0) + (b.honorTrustScore ~/ 5);
+      final scoreA =
+          (a.peerCount * 2) + (a.isPinned ? 10 : 0) + (a.honorTrustScore ~/ 5);
+      final scoreB =
+          (b.peerCount * 2) + (b.isPinned ? 10 : 0) + (b.honorTrustScore ~/ 5);
       return scoreB.compareTo(scoreA);
     });
 

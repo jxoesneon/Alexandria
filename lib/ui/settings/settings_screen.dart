@@ -24,12 +24,14 @@ class SettingsScreen extends ConsumerWidget {
           // Section 1: Appearance
           _buildSectionHeader(theme, 'Appearance'),
           GlassCard(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Column(
               children: [
                 ListTile(
                   title: const Text('Theme Mode'),
-                  subtitle: const Text('Choose between system, dark void, or light themes'),
+                  subtitle: const Text(
+                      'Choose between system, dark void, or light themes'),
                   trailing: DropdownButton<ThemeMode>(
                     value: settings.themeMode,
                     underline: const SizedBox(),
@@ -37,16 +39,20 @@ class SettingsScreen extends ConsumerWidget {
                       if (mode != null) settingsNotifier.setThemeMode(mode);
                     },
                     items: const [
-                      DropdownMenuItem(value: ThemeMode.system, child: Text('System')),
-                      DropdownMenuItem(value: ThemeMode.light, child: Text('Light')),
-                      DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark Void')),
+                      DropdownMenuItem(
+                          value: ThemeMode.system, child: Text('System')),
+                      DropdownMenuItem(
+                          value: ThemeMode.light, child: Text('Light')),
+                      DropdownMenuItem(
+                          value: ThemeMode.dark, child: Text('Dark Void')),
                     ],
                   ),
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
                   title: const Text('Reduced Motion'),
-                  subtitle: const Text('Minimize interface animations and transitions'),
+                  subtitle: const Text(
+                      'Minimize interface animations and transitions'),
                   value: settings.reducedMotion,
                   onChanged: (val) => settingsNotifier.setReducedMotion(val),
                 ),
@@ -58,12 +64,14 @@ class SettingsScreen extends ConsumerWidget {
           // Section 2: Network & Privacy
           _buildSectionHeader(theme, 'Network & Privacy'),
           GlassCard(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Column(
               children: [
                 SwitchListTile(
                   title: const Text('Route via Tor Proxy (SOCKS5)'),
-                  subtitle: const Text('Enhance privacy by tunneling all P2P discovery through Tor (127.0.0.1:9050)'),
+                  subtitle: const Text(
+                      'Enhance privacy by tunneling all P2P discovery through Tor (127.0.0.1:9050)'),
                   value: torService.isEnabled,
                   onChanged: (val) async {
                     if (val) {
@@ -81,19 +89,23 @@ class SettingsScreen extends ConsumerWidget {
           // Section 3: Storage & Maintenance
           _buildSectionHeader(theme, 'Storage & Maintenance'),
           GlassCard(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Column(
               children: [
                 ListTile(
                   leading: const Icon(Icons.cleaning_services_outlined),
                   title: const Text('Prune Storage Cache'),
-                  subtitle: const Text('Safely cleans up temporary unpinned cache blocks to free disk space'),
+                  subtitle: const Text(
+                      'Safely cleans up temporary unpinned cache blocks to free disk space'),
                   trailing: OutlinedButton(
                     onPressed: () async {
                       await settingsNotifier.pruneIpfsRepo();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Storage cleanup completed successfully.')),
+                          const SnackBar(
+                              content: Text(
+                                  'Storage cleanup completed successfully.')),
                         );
                       }
                     },
@@ -102,9 +114,12 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.delete_forever_outlined, color: Colors.redAccent),
-                  title: const Text('Emergency Data Wipe', style: TextStyle(color: Colors.redAccent)),
-                  subtitle: const Text('Securely zeroes private keys and flushes local storage cache'),
+                  leading: const Icon(Icons.delete_forever_outlined,
+                      color: Colors.redAccent),
+                  title: const Text('Emergency Data Wipe',
+                      style: TextStyle(color: Colors.redAccent)),
+                  subtitle: const Text(
+                      'Securely zeroes private keys and flushes local storage cache'),
                   onTap: () {
                     _showDataWipeDialog(context);
                   },

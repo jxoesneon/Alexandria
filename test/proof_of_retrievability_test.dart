@@ -18,13 +18,16 @@ void main() {
     });
 
     test('generates challenge and verifies authentic proof tag', () {
-      final chunkData = Uint8List.fromList('Preserved Block Data Chunk 42'.codeUnits);
-      final challenge = porService.createChallenge(cid: 'bafy_por_target', totalChunks: 100);
+      final chunkData =
+          Uint8List.fromList('Preserved Block Data Chunk 42'.codeUnits);
+      final challenge =
+          porService.createChallenge(cid: 'bafy_por_target', totalChunks: 100);
 
       expect(challenge.challengeId.isNotEmpty, isTrue);
       expect(challenge.nonce.length, equals(32));
 
-      final proof = porService.generateProof(challenge: challenge, chunkData: chunkData);
+      final proof =
+          porService.generateProof(challenge: challenge, chunkData: chunkData);
       expect(proof.tag.isNotEmpty, isTrue);
 
       final verified = porService.verifyProof(
@@ -38,10 +41,13 @@ void main() {
 
     test('rejects forged proof tag with tampered chunk data', () {
       final realChunk = Uint8List.fromList('Original Block Bytes'.codeUnits);
-      final tamperedChunk = Uint8List.fromList('Forged Corrupted Bytes'.codeUnits);
+      final tamperedChunk =
+          Uint8List.fromList('Forged Corrupted Bytes'.codeUnits);
 
-      final challenge = porService.createChallenge(cid: 'bafy_por_target_2', totalChunks: 50);
-      final forgedProof = porService.generateProof(challenge: challenge, chunkData: tamperedChunk);
+      final challenge =
+          porService.createChallenge(cid: 'bafy_por_target_2', totalChunks: 50);
+      final forgedProof = porService.generateProof(
+          challenge: challenge, chunkData: tamperedChunk);
 
       final verified = porService.verifyProof(
         proof: forgedProof,

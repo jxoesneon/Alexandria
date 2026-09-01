@@ -38,8 +38,7 @@ class GovernanceScreen extends ConsumerWidget {
             SizedBox(width: 8),
             InfoGlass(
               title: 'Governance',
-              description:
-                  'Participate in decentralized governance. '
+              description: 'Participate in decentralized governance. '
                   'Create proposals, vote on changes, and shape the future of Alexandria.',
               small: true,
               color: AppTheme.primaryColor,
@@ -59,7 +58,7 @@ class GovernanceScreen extends ConsumerWidget {
                   )
                 : const SizedBox.shrink(),
             loading: () => const SizedBox.shrink(),
-            error: (_, _) => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
           ),
         ],
       ),
@@ -115,17 +114,15 @@ class GovernanceScreen extends ConsumerWidget {
                             Icon(
                               canVote ? Icons.how_to_vote : Icons.block,
                               size: 16,
-                              color: canVote
-                                  ? AppTheme.honorColor
-                                  : Colors.grey,
+                              color:
+                                  canVote ? AppTheme.honorColor : Colors.grey,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               canVote ? 'ELIGIBLE' : 'NOT ELIGIBLE',
                               style: TextStyle(
-                                color: canVote
-                                    ? AppTheme.honorColor
-                                    : Colors.grey,
+                                color:
+                                    canVote ? AppTheme.honorColor : Colors.grey,
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1,
@@ -135,7 +132,7 @@ class GovernanceScreen extends ConsumerWidget {
                         ),
                       ),
                       loading: () => const SizedBox.shrink(),
-                      error: (_, _) => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
                     ),
                   ],
                 ),
@@ -156,13 +153,17 @@ class GovernanceScreen extends ConsumerWidget {
                             const SizedBox(height: 16),
                             Text(
                               'No proposals yet',
-                              style: Theme.of(context).textTheme.titleLarge
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
                                   ?.copyWith(color: Colors.white54),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'Be the first to create a governance proposal',
-                              style: Theme.of(context).textTheme.bodyMedium
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
                                   ?.copyWith(color: Colors.white38),
                             ),
                           ],
@@ -174,16 +175,16 @@ class GovernanceScreen extends ConsumerWidget {
                         itemBuilder: (context, index) {
                           final proposal = proposals[index];
                           return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _ProposalCard(
-                                  proposal: proposal,
-                                  onTap: () => _showProposalDetail(
-                                    context,
-                                    ref,
-                                    proposal,
-                                  ),
-                                ),
-                              )
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _ProposalCard(
+                              proposal: proposal,
+                              onTap: () => _showProposalDetail(
+                                context,
+                                ref,
+                                proposal,
+                              ),
+                            ),
+                          )
                               .animate()
                               .fadeIn(delay: (index * 100).ms)
                               .slideX(begin: 0.1);
@@ -575,9 +576,9 @@ class _ProposalDetailSheet extends ConsumerWidget {
               Text(
                 proposal.title,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 16),
               Text(
@@ -645,7 +646,7 @@ class _ProposalDetailSheet extends ConsumerWidget {
                         ),
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (_, _) => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
               const SizedBox(height: 24),
               // Vote Breakdown

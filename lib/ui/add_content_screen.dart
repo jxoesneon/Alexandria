@@ -349,13 +349,13 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
         // Dataset / Code
         if (metadata.containsKey('row_count') &&
             _metadataControllers.containsKey('row_count')) {
-          _metadataControllers['row_count']!.text = metadata['row_count']
-              .toString();
+          _metadataControllers['row_count']!.text =
+              metadata['row_count'].toString();
         }
         if (metadata.containsKey('dependencies') &&
             _metadataControllers.containsKey('dependencies')) {
-          _metadataControllers['dependencies']!.text = metadata['dependencies']
-              .toString();
+          _metadataControllers['dependencies']!.text =
+              metadata['dependencies'].toString();
         }
 
         // General Size/Format
@@ -393,31 +393,11 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
     try {
       final repo = ref.read(contentRepositoryProvider);
 
-      // Construct metadata
-      final Map<String, dynamic> metadata = {};
-      final fields = _categoryFields[_selectedCategory] ?? [];
-
-      for (var f in fields) {
-        final key = f['key']!;
-        final type = f['type'];
-        final controller = _metadataControllers[key];
-
-        if (controller != null && controller.text.isNotEmpty) {
-          if (type == 'number') {
-            metadata[key] = num.tryParse(controller.text) ?? controller.text;
-          } else {
-            metadata[key] = controller.text;
-          }
-        }
-      }
-
       await repo.createContent(
-        _titleController.text,
-        _descController.text,
-        _authorController.text,
-        files: _selectedFiles, // Pass files here!
-        category: _selectedCategory,
-        metadata: metadata,
+        title: _titleController.text,
+        description: _descController.text,
+        author: _authorController.text,
+        fileData: _selectedFiles.first.bytes!,
         isEncrypted: _enableEncryption,
       );
       if (mounted) {

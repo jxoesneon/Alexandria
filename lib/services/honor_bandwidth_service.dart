@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final honorBandwidthServiceProvider = Provider((ref) => HonorBandwidthService());
+final honorBandwidthServiceProvider =
+    Provider((ref) => HonorBandwidthService());
 
 class BandwidthRequest<T> {
   final String requestId;
@@ -25,7 +26,9 @@ class BandwidthRequest<T> {
   double computeEffectivePriority(DateTime now) {
     final waitSeconds = now.difference(requestTime).inSeconds;
     // Weighted priority = (BaseHonor * 0.5) + (VerifiedPoR * 2.0) + (AntiStarvationAge * 0.2)
-    return (baseHonorScore * 0.5) + (verifiedPoRCount * 2.0) + (waitSeconds * 0.2);
+    return (baseHonorScore * 0.5) +
+        (verifiedPoRCount * 2.0) +
+        (waitSeconds * 0.2);
   }
 }
 

@@ -30,8 +30,10 @@ class MeshPeer {
 
 class MeshTransportService {
   final Map<String, MeshPeer> _peers = {};
-  final StreamController<MeshPeer> _peerDiscoveryController = StreamController.broadcast();
-  final StreamController<Uint8List> _incomingPayloadController = StreamController.broadcast();
+  final StreamController<MeshPeer> _peerDiscoveryController =
+      StreamController.broadcast();
+  final StreamController<Uint8List> _incomingPayloadController =
+      StreamController.broadcast();
 
   final Set<TransportTier> _activeTiers = {
     TransportTier.lanMdns,
@@ -44,7 +46,8 @@ class MeshTransportService {
   Stream<MeshPeer> get onPeerDiscovered => _peerDiscoveryController.stream;
   Stream<Uint8List> get onPayloadReceived => _incomingPayloadController.stream;
 
-  List<MeshPeer> get activePeers => _peers.values.where((p) => p.isReachable).toList();
+  List<MeshPeer> get activePeers =>
+      _peers.values.where((p) => p.isReachable).toList();
 
   void registerPeer(MeshPeer peer) {
     _peers[peer.peerId] = peer;

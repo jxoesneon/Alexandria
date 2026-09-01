@@ -31,19 +31,26 @@ class FitsMetadata {
 
 class DatasetMediaService {
   ParquetMetadata parseParquetHeader(Uint8List bytes) {
-    if (bytes.length < 4) throw FormatException('Truncated Parquet buffer');
+    if (bytes.length < 4) {
+      throw const FormatException('Truncated Parquet buffer');
+    }
     // Verify "PAR1" magic signature
-    if (bytes[0] != 0x50 || bytes[1] != 0x41 || bytes[2] != 0x52 || bytes[3] != 0x31) {
-      throw FormatException('Invalid Parquet magic header');
+    if (bytes[0] != 0x50 ||
+        bytes[1] != 0x41 ||
+        bytes[2] != 0x52 ||
+        bytes[3] != 0x31) {
+      throw const FormatException('Invalid Parquet magic header');
     }
     return ParquetMetadata(isValid: true, compressionCodec: 'SNAPPY');
   }
 
   FitsMetadata parseFitsHeader(Uint8List bytes) {
-    if (bytes.length < 80) throw FormatException('Truncated FITS header card');
+    if (bytes.length < 80) {
+      throw const FormatException('Truncated FITS header card');
+    }
     final headerStr = String.fromCharCodes(bytes.sublist(0, 80));
     if (!headerStr.startsWith('SIMPLE  =')) {
-      throw FormatException('Invalid FITS header signature');
+      throw const FormatException('Invalid FITS header signature');
     }
 
     return FitsMetadata(

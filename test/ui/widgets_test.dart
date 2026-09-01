@@ -6,7 +6,8 @@ import 'package:alexandria/ui/widgets/info_glass.dart';
 
 void main() {
   group('UI Glass Widgets Tests', () {
-    testWidgets('GlassCard renders child and triggers onTap callback', (tester) async {
+    testWidgets('GlassCard renders child and triggers onTap callback',
+        (tester) async {
       var tapped = false;
       await tester.pumpWidget(
         MaterialApp(

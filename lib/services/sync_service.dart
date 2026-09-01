@@ -6,6 +6,7 @@ import 'secure_storage_service.dart';
 
 final syncServiceProvider = Provider((ref) => SyncService(ref));
 final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.idle);
+
 enum SyncStatus { idle, syncing, offline, error }
 
 class QueuedOperation {
@@ -26,22 +27,23 @@ class QueuedOperation {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'collectionId': collectionId,
-    'operation': operation,
-    'data': data,
-    'timestamp': timestamp.toIso8601String(),
-    'retries': retries,
-  };
+        'id': id,
+        'collectionId': collectionId,
+        'operation': operation,
+        'data': data,
+        'timestamp': timestamp.toIso8601String(),
+        'retries': retries,
+      };
 
-  factory QueuedOperation.fromJson(Map<String, dynamic> json) => QueuedOperation(
-    id: json['id'] as String,
-    collectionId: json['collectionId'] as String,
-    operation: json['operation'] as String,
-    data: json['data'] as Map<String, dynamic>,
-    timestamp: DateTime.parse(json['timestamp'] as String),
-    retries: json['retries'] as int? ?? 0,
-  );
+  factory QueuedOperation.fromJson(Map<String, dynamic> json) =>
+      QueuedOperation(
+        id: json['id'] as String,
+        collectionId: json['collectionId'] as String,
+        operation: json['operation'] as String,
+        data: json['data'] as Map<String, dynamic>,
+        timestamp: DateTime.parse(json['timestamp'] as String),
+        retries: json['retries'] as int? ?? 0,
+      );
 }
 
 class SyncService {
@@ -60,7 +62,8 @@ class SyncService {
 
   void _startSyncLoop() {
     _syncTimer?.cancel();
-    _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) => processQueue());
+    _syncTimer =
+        Timer.periodic(const Duration(minutes: 5), (_) => processQueue());
   }
 
   Future<void> queueOperation({
@@ -94,7 +97,8 @@ class SyncService {
         op.retries++;
       }
     }
-    _offlineQueue.removeWhere((op) => completed.contains(op) || op.retries >= 5);
+    _offlineQueue
+        .removeWhere((op) => completed.contains(op) || op.retries >= 5);
     await _saveQueue();
   }
 
@@ -111,7 +115,8 @@ class SyncService {
       final list = jsonDecode(raw) as List;
       _offlineQueue.clear();
       for (final item in list) {
-        _offlineQueue.add(QueuedOperation.fromJson(item as Map<String, dynamic>));
+        _offlineQueue
+            .add(QueuedOperation.fromJson(item as Map<String, dynamic>));
       }
     }
   }

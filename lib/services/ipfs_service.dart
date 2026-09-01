@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'cid_service.dart';
@@ -11,12 +10,14 @@ class IpfsService {
   bool _isStarted = false;
   final Map<String, Uint8List> _localStore = {};
   final Set<String> _pinnedCids = {};
-  final StreamController<Map<String, String>> _pubsubController = StreamController.broadcast();
+  final StreamController<Map<String, String>> _pubsubController =
+      StreamController.broadcast();
 
   IpfsService(this._ref);
 
   bool get isStarted => _isStarted;
   Stream<Map<String, String>> get pubsubStream => _pubsubController.stream;
+  Set<String> get pinnedCids => _pinnedCids;
 
   Future<void> startNode() async {
     _isStarted = true;
@@ -56,7 +57,9 @@ class IpfsService {
 
   Future<List<String>> findProviders(String cid) async {
     // In production dart_ipfs, queries DHT router for provider records
-    return _pinnedCids.contains(cid) ? ['peer_local_self', 'peer_dht_node_1'] : ['peer_dht_node_1'];
+    return _pinnedCids.contains(cid)
+        ? ['peer_local_self', 'peer_dht_node_1']
+        : ['peer_dht_node_1'];
   }
 
   Future<bool> publishToPubsub(String topic, String data) async {

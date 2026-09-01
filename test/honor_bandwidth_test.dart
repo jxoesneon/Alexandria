@@ -9,7 +9,8 @@ void main() {
       qosService = HonorBandwidthService(maxConcurrent: 2);
     });
 
-    test('enqueues and executes tasks based on effective honor priority', () async {
+    test('enqueues and executes tasks based on effective honor priority',
+        () async {
       final executionOrder = <String>[];
 
       // Low honor request

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'secure_storage_service.dart';
 
@@ -9,6 +8,7 @@ final torServiceProvider = Provider((ref) {
 });
 
 final torStatusProvider = StateProvider<TorStatus>((ref) => TorStatus.disabled);
+
 enum TorStatus { disabled, connecting, connected, error }
 
 class TorService {
@@ -61,7 +61,8 @@ class TorService {
 
   Future<bool> _testConnection() async {
     try {
-      final socket = await Socket.connect(_proxyHost, _proxyPort, timeout: const Duration(seconds: 3));
+      final socket = await Socket.connect(_proxyHost, _proxyPort,
+          timeout: const Duration(seconds: 3));
       await socket.close();
       return true;
     } catch (_) {

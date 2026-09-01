@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import '../data/database.dart';
 import '../services/encryption_service.dart';
 import '../services/ipfs_service.dart';
 import '../services/secure_storage_service.dart';
@@ -27,7 +28,8 @@ class ContentRepository {
     bool isEncrypted = false,
   }) async {
     final uuid = const Uuid().v4();
-    await _auditLogger.log('create_content_start', details: 'UUID: $uuid, Encrypted: $isEncrypted');
+    await _auditLogger.log('create_content_start',
+        details: 'UUID: $uuid, Encrypted: $isEncrypted');
 
     Uint8List uploadPayload = fileData;
     String? wrappedKey;
@@ -41,7 +43,8 @@ class ContentRepository {
     }
 
     final cid = await _ipfs.addFile(uploadPayload);
-    await _auditLogger.log('create_content_success', details: 'UUID: $uuid, CID: $cid');
+    await _auditLogger.log('create_content_success',
+        details: 'UUID: $uuid, CID: $cid');
     return uuid;
   }
 
@@ -57,5 +60,32 @@ class ContentRepository {
       return await _encryption.decryptData(rawBytes, key);
     }
     return rawBytes;
+  }
+
+  Future<List<ContentManifest>> getContentPage(
+      {required int page, required int pageSize}) async {
+    final db = _ref.read(databaseProvider);
+    final all = await db.getAllManifests();
+    final start = page * pageSize;
+    if (start >= all.length) return [];
+    final end = start + pageSize;
+    return all.sublist(start, end > all.length ? all.length : end);
+  }
+
+  Future<Uint8List> downloadContent(String cid, {String? keyBase64}) async {
+    return retrieveContent(cid, dekBase64: keyBase64);
+  }
+
+  Future<void> addVersion(
+      String uuid, String path, String language, String format) async {
+    final db = _ref.read(databaseProvider);
+    await db.insertVersion({
+      'manifestId': 0,
+      'cid': path,
+      'language': language,
+      'format': format,
+      'sizeBytes': 0,
+      'createdData': DateTime.now(),
+    });
   }
 }

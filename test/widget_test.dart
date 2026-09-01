@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alexandria/main.dart';
 
 void main() {
-  testWidgets('Alexandria App Root Smoke & MainScaffold Navigation Test', (WidgetTester tester) async {
+  testWidgets('Alexandria App Root Smoke & MainScaffold Navigation Test',
+      (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: AlexandriaApp(),

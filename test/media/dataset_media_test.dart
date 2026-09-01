@@ -18,9 +18,11 @@ void main() {
     });
 
     test('parses FITS astronomy header card', () {
-      final fitsCard = 'SIMPLE  =                    T / file does conform to FITS standard             '
-          .padRight(80);
-      final meta = datasetService.parseFitsHeader(Uint8List.fromList(fitsCard.codeUnits));
+      final fitsCard =
+          'SIMPLE  =                    T / file does conform to FITS standard             '
+              .padRight(80);
+      final meta = datasetService
+          .parseFitsHeader(Uint8List.fromList(fitsCard.codeUnits));
       expect(meta.isValid, isTrue);
       expect(meta.naxis, equals(2));
       expect(meta.dimensions, equals([1024, 1024]));

@@ -37,7 +37,8 @@ class _CreationWizardState extends ConsumerState<CreationWizard> {
             setState(() => _currentStep += 1);
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Document successfully added and encrypted.')),
+              const SnackBar(
+                  content: Text('Document successfully added and encrypted.')),
             );
             Navigator.pop(context);
           }
@@ -59,7 +60,8 @@ class _CreationWizardState extends ConsumerState<CreationWizard> {
               child: Center(
                 child: Column(
                   children: [
-                    const Icon(Icons.cloud_upload_outlined, size: 48, color: Colors.grey),
+                    const Icon(Icons.cloud_upload_outlined,
+                        size: 48, color: Colors.grey),
                     const SizedBox(height: 12),
                     const Text('Drag and drop files here, or browse'),
                     const SizedBox(height: 12),
@@ -120,7 +122,8 @@ class _CreationWizardState extends ConsumerState<CreationWizard> {
                 children: [
                   SwitchListTile(
                     title: const Text('Encrypt with Personal Key (AES-256)'),
-                    subtitle: const Text('Only you and people with the key will be able to read this file.'),
+                    subtitle: const Text(
+                        'Only you and people with the key will be able to read this file.'),
                     value: _encrypt,
                     onChanged: (val) => setState(() => _encrypt = val),
                   ),

@@ -74,16 +74,16 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
               children: [
                 // Outer ring
                 Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                          width: 2,
-                        ),
-                      ),
-                    )
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                      width: 2,
+                    ),
+                  ),
+                )
                     .animate(onPlay: (c) => c.repeat())
                     .rotate(duration: 10.seconds),
 
@@ -106,24 +106,22 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
             ),
             const SizedBox(height: 48),
             Text(
-                  _statusText,
-                  style: GoogleFonts.firaCode(
-                    color: AppTheme.primaryColor,
-                    fontSize: 14,
-                  ),
-                )
-                .animate(target: _statusText == 'Access Granted.' ? 1 : 0)
-                .custom(
-                  builder: (context, val, child) {
-                    // Flash effect on success
-                    return Opacity(
-                      opacity: val == 1
-                          ? (DateTime.now().millisecond % 500 > 250 ? 1 : 0.5)
-                          : 1,
-                      child: child,
-                    );
-                  },
-                ),
+              _statusText,
+              style: GoogleFonts.firaCode(
+                color: AppTheme.primaryColor,
+                fontSize: 14,
+              ),
+            ).animate(target: _statusText == 'Access Granted.' ? 1 : 0).custom(
+              builder: (context, val, child) {
+                // Flash effect on success
+                return Opacity(
+                  opacity: val == 1
+                      ? (DateTime.now().millisecond % 500 > 250 ? 1 : 0.5)
+                      : 1,
+                  child: child,
+                );
+              },
+            ),
           ],
         ),
       ),

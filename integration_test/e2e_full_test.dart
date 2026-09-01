@@ -7,7 +7,6 @@ import 'package:alexandria/services/biometric_service.dart';
 import 'package:alexandria/services/preservation_service.dart';
 import 'package:alexandria/services/secure_storage_service.dart';
 import 'package:alexandria/data/database.dart';
-import 'package:drift/native.dart';
 
 // Fakes
 class FakePreservationService extends PreservationService {
@@ -20,7 +19,7 @@ class FakePreservationService extends PreservationService {
 
 class FakeBiometricService extends BiometricService {
   @override
-  Future<bool> authenticate() async => true;
+  Future<bool> authenticate({String reason = ''}) async => true;
   @override
   Future<bool> isBiometricsAvailable() async => true;
 }

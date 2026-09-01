@@ -50,11 +50,11 @@ class ScrubbableFields {
   ];
 
   static List<String> get allFields => [
-    ...gpsFields,
-    ...deviceFields,
-    ...authorFields,
-    ...timestampFields,
-  ];
+        ...gpsFields,
+        ...deviceFields,
+        ...authorFields,
+        ...timestampFields,
+      ];
 }
 
 /// Options for metadata scrubbing
@@ -133,7 +133,7 @@ class ExtractedMetadata {
     this.dateTime,
   });
 
-  factory ExtractedMetadata.fromExifData(Map<String, IfdTag> data) {
+  factory ExtractedMetadata.fromExifData(Map<String, IfdTag?> data) {
     String? gps;
     if (data.containsKey('GPS GPSLatitude') &&
         data.containsKey('GPS GPSLongitude')) {
@@ -141,7 +141,7 @@ class ExtractedMetadata {
     }
 
     return ExtractedMetadata(
-      exif: data.map((k, v) => MapEntry(k, v.printable)),
+      exif: data.map((k, v) => MapEntry(k, v?.printable ?? '')),
       gpsLocation: gps,
       cameraMake: data['Image Make']?.printable,
       cameraModel: data['Image Model']?.printable,

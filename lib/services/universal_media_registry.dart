@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'external_player_service.dart';
 
-final universalMediaRegistryProvider = Provider((ref) => UniversalMediaRegistry(ref));
+final universalMediaRegistryProvider =
+    Provider((_) => UniversalMediaRegistry());
 
 enum MediaDomain {
   academicAndScience,
@@ -32,10 +33,9 @@ class MediaFormatDescriptor {
 }
 
 class UniversalMediaRegistry {
-  final Ref _ref;
   final Map<String, MediaFormatDescriptor> _registry = {};
 
-  UniversalMediaRegistry(this._ref) {
+  UniversalMediaRegistry() {
     _registerAll();
   }
 
@@ -251,12 +251,13 @@ class UniversalMediaRegistry {
 
   MediaFormatDescriptor resolveExtension(String ext) {
     final clean = ext.replaceFirst('.', '').toLowerCase();
-    return _registry[clean] ?? MediaFormatDescriptor(
-      extension: clean,
-      mimeType: 'application/octet-stream',
-      canonicalName: 'Generic Binary Object',
-      domain: MediaDomain.genericBinary,
-      preferredApp: SupportedApp.systemDefault,
-    );
+    return _registry[clean] ??
+        MediaFormatDescriptor(
+          extension: clean,
+          mimeType: 'application/octet-stream',
+          canonicalName: 'Generic Binary Object',
+          domain: MediaDomain.genericBinary,
+          preferredApp: SupportedApp.systemDefault,
+        );
   }
 }

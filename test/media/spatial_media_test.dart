@@ -16,9 +16,11 @@ void main() {
       glb[1] = 0x6C; // 'l'
       glb[2] = 0x54; // 'T'
       glb[3] = 0x46; // 'F'
-      glb[4] = 2;    // version 2
-      glb[8] = 1024; // length 1024
-      glb[12] = 512; // JSON length
+      glb[4] = 2; // version 2
+      glb[8] = 0;
+      glb[9] = 4; // length 1024
+      glb[12] = 0;
+      glb[13] = 2; // JSON length
 
       final meta = spatialService.parseGlbHeader(glb);
       expect(meta.version, equals(2));

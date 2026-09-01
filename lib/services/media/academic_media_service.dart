@@ -55,17 +55,27 @@ class AcademicMediaService {
 
     final authorMatch = RegExp(r'\\author\{([^}]+)\}').firstMatch(source);
     final authors = authorMatch != null
-        ? authorMatch.group(1)!.split(RegExp(r'\\and|,')).map((a) => a.trim()).toList()
+        ? authorMatch
+            .group(1)!
+            .split(RegExp(r'\\and|,'))
+            .map((a) => a.trim())
+            .toList()
         : <String>[];
 
-    final abstractMatch = RegExp(r'\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}').firstMatch(source);
+    final abstractMatch =
+        RegExp(r'\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}')
+            .firstMatch(source);
     final abstractText = abstractMatch?.group(1)?.trim();
 
-    final packageMatches = RegExp(r'\\usepackage(?:\[[^\]]*\])?\{([^}]+)\}').allMatches(source);
+    final packageMatches =
+        RegExp(r'\\usepackage(?:\[[^\]]*\])?\{([^}]+)\}').allMatches(source);
     final packages = packageMatches.map((m) => m.group(1)!).toList();
 
     final citeMatches = RegExp(r'\\cite\{([^}]+)\}').allMatches(source);
-    final citations = citeMatches.expand((m) => m.group(1)!.split(',')).map((c) => c.trim()).toList();
+    final citations = citeMatches
+        .expand((m) => m.group(1)!.split(','))
+        .map((c) => c.trim())
+        .toList();
 
     return LatexDocumentMetadata(
       title: title,
@@ -78,22 +88,29 @@ class AcademicMediaService {
 
   List<BibtexEntry> parseBibtex(String source) {
     final entries = <BibtexEntry>[];
-    final entryRegex = RegExp(r'@(\w+)\s*\{\s*([^,]+),([\s\S]*?)\n\}', multiLine: true);
+    final entryRegex =
+        RegExp(r'@(\w+)\s*\{\s*([^,]+),([\s\S]*?)\n\s*\}', multiLine: true);
 
     for (final match in entryRegex.allMatches(source)) {
       final type = match.group(1)!;
       final key = match.group(2)!;
       final body = match.group(3)!;
 
-      final titleMatch = RegExp(r'title\s*=\s*[\{"]([^"\}]+)[\}"]', caseSensitive: false).firstMatch(body);
+      final titleMatch =
+          RegExp(r'title\s*=\s*[\{"]([^"\}]+)[\}"]', caseSensitive: false)
+              .firstMatch(body);
       final title = titleMatch?.group(1) ?? 'Untitled';
 
-      final authorMatch = RegExp(r'author\s*=\s*[\{"]([^"\}]+)[\}"]', caseSensitive: false).firstMatch(body);
+      final authorMatch =
+          RegExp(r'author\s*=\s*[\{"]([^"\}]+)[\}"]', caseSensitive: false)
+              .firstMatch(body);
       final authors = authorMatch != null
           ? authorMatch.group(1)!.split(' and ').map((a) => a.trim()).toList()
           : <String>[];
 
-      final yearMatch = RegExp(r'year\s*=\s*[\{"]?(\d{4})[\}"]?', caseSensitive: false).firstMatch(body);
+      final yearMatch =
+          RegExp(r'year\s*=\s*[\{"]?(\d{4})[\}"]?', caseSensitive: false)
+              .firstMatch(body);
       final year = yearMatch != null ? int.tryParse(yearMatch.group(1)!) : null;
 
       entries.add(BibtexEntry(
