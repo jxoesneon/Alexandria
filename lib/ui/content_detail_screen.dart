@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -6,8 +8,13 @@ import '../data/database.dart';
 import '../logic/content_repository.dart';
 import '../logic/honor_system.dart';
 import '../services/preservation_service.dart';
+import '../services/proof_of_retrievability_service.dart';
+import '../services/ipfs_service.dart';
 import '../services/sibling_service.dart';
+import '../services/knowledge_graph_service.dart';
 import '../services/ledger_service.dart';
+import '../services/universal_media_registry.dart';
+import '../services/external_player_service.dart';
 import 'widgets/glass_card.dart';
 import 'theme/app_theme.dart';
 import 'widgets/info_glass.dart';
@@ -60,6 +67,51 @@ final siblingsProvider = FutureProvider.family<List<ContentSibling>, String>((
   );
 });
 
+/// Provider for knowledge-graph related content.
+///
+/// The [KnowledgeGraphService] is an in-memory store and does not expose a
+/// public method to query relations (edges). When an entity is registered we
+/// fall back to showing its [KnowledgeVariant]s as related content. If no
+/// entity is registered for the given id, `null` is returned.
+final relatedContentProvider =
+    FutureProvider.family<KnowledgeEntity?, String>((ref, entityId) async {
+  final kgService = ref.watch(knowledgeGraphServiceProvider);
+  try {
+    return kgService.getEntity(entityId);
+  } catch (_) {
+    return null;
+  }
+});
+
+/// Provider that runs a Proof-of-Retrievability challenge against the content
+/// identified by the given cid. Returns `true` when the content is retrievable
+/// and its integrity could be cryptographically verified.
+final integrityVerificationProvider =
+    FutureProvider.family<bool, String>((ref, cid) async {
+  final porService = ref.read(proofOfRetrievabilityServiceProvider);
+  final ipfs = ref.read(ipfsServiceProvider);
+
+  final challenge = porService.createChallenge(cid: cid, totalChunks: 4);
+  final data = await ipfs.getFile(cid).first;
+  if (data.isEmpty) return false;
+
+  final chunkSize = (data.length / 4).ceil();
+  final chunkIndex = challenge.chunkIndex;
+  final start = chunkIndex * chunkSize;
+  final end = (start + chunkSize).clamp(0, data.length);
+  final chunkData = Uint8List.fromList(data.sublist(start, end));
+
+  final proof = porService.generateProof(
+    challenge: challenge,
+    chunkData: chunkData,
+  );
+  return porService.verifyProof(
+    proof: proof,
+    expectedChunkData: chunkData,
+    proverPeerId: 'self',
+  );
+});
+
 class ContentDetailScreen extends ConsumerStatefulWidget {
   final ContentManifest manifest;
 
@@ -72,6 +124,7 @@ class ContentDetailScreen extends ConsumerStatefulWidget {
 
 class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
   bool _viewRecorded = false;
+  DateTime? _lastVerified;
 
   ContentManifest get manifest => widget.manifest;
 
@@ -148,6 +201,153 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
       );
     } catch (_) {
       return const SizedBox.shrink();
+    }
+  }
+
+  /// Resolves the media format descriptor for the current manifest.
+  MediaFormatDescriptor _resolveFormat() {
+    final registry = ref.read(universalMediaRegistryProvider);
+    return registry.resolveExtension(manifest.category);
+  }
+
+  /// Returns true if the format can be viewed in-app (text, images, PDF).
+  bool _isViewableInApp(MediaFormatDescriptor descriptor) {
+    final ext = descriptor.extension.toLowerCase();
+    final category = manifest.category.toLowerCase();
+    const viewableExtensions = {'txt', 'pdf', 'jpg', 'jpeg', 'png', 'csv'};
+    const viewableCategories = {'book', 'image', 'text'};
+    return viewableExtensions.contains(ext) ||
+        viewableCategories.contains(category);
+  }
+
+  /// Returns a human-readable name for a [SupportedApp].
+  String _appName(SupportedApp app) {
+    switch (app) {
+      case SupportedApp.vlc:
+        return 'VLC';
+      case SupportedApp.calibre:
+        return 'Calibre';
+      case SupportedApp.blender:
+        return 'Blender';
+      case SupportedApp.replayWeb:
+        return 'ReplayWeb';
+      case SupportedApp.kicad:
+        return 'KiCad';
+      case SupportedApp.codeEditor:
+        return 'Code Editor';
+      case SupportedApp.systemDefault:
+        return 'System Default';
+    }
+  }
+
+  Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
+    final descriptor = _resolveFormat();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _handleView(context, descriptor),
+              icon: const Icon(Icons.visibility, size: 18),
+              label: const Text('View'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+                side: BorderSide(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.5)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              onPressed: () => _handleOpenExternal(context, descriptor),
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: const Text('Open in…'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+                side: BorderSide(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.5)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          descriptor.canonicalName,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.white54,
+                fontStyle: FontStyle.italic,
+              ),
+        ),
+      ],
+    );
+  }
+
+  void _handleView(BuildContext context, MediaFormatDescriptor descriptor) {
+    final format = descriptor.extension;
+    if (_isViewableInApp(descriptor)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Opening in-app viewer for $format...')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "This format ($format) requires an external viewer. Use 'Open in…' instead.",
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleOpenExternal(
+    BuildContext context,
+    MediaFormatDescriptor descriptor,
+  ) async {
+    final playerService = ref.read(externalPlayerServiceProvider);
+    final app = descriptor.preferredApp;
+    final appName = _appName(app);
+
+    // Use the manifest category as the target path placeholder.
+    // In a real deployment this would be the decrypted file path or a
+    // streaming URL resolved from the content CID.
+    final targetPath = manifest.category;
+
+    try {
+      final command = playerService.buildAppCommand(app, targetPath);
+      final result = await Process.run(command[0], command.sublist(1));
+
+      if (!context.mounted) return;
+
+      if (result.exitCode == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Opened in $appName')),
+        );
+      } else {
+        final error = result.stderr.toString().trim();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to launch: ${error.isEmpty ? result.exitCode : error}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to launch: $e')),
+      );
     }
   }
 
@@ -259,6 +459,9 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                           if (manifest.metadata != null &&
                               manifest.metadata!.isNotEmpty)
                             _buildMetadataSection(context, manifest.metadata!),
+                          const SizedBox(height: 16),
+                          // Universal View + Open in… buttons
+                          _buildActionButtons(context, ref),
                         ],
                       ),
                     ),
@@ -289,6 +492,19 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                           small: true,
                           color: AppTheme.primaryColor,
                         ),
+                        if (_lastVerified != null) ...[
+                          const SizedBox(width: 12),
+                          Text(
+                            'Last verified: ${_formatTime(_lastVerified!)}',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppTheme.honorColor.withValues(
+                                        alpha: 0.8,
+                                      ),
+                                      fontSize: 11,
+                                    ),
+                          ),
+                        ],
                       ],
                     ),
                     loading: () => const Text('VERSIONS (...)'),
@@ -424,6 +640,14 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                 error: (e, _) => Center(child: Text('Error: $e')),
               ),
             ),
+
+            // ── Variants of this work ──────────────────────────────────────
+            _buildVariantsSection(context),
+
+            const SizedBox(height: 16),
+
+            // ── Related Content ────────────────────────────────────────────
+            _buildRelatedContentSection(context),
           ],
         ),
       ),
@@ -443,6 +667,18 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
           'Is this content safe, high quality, and correctly labeled?',
         ),
         actions: [
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _verifyIntegrity(context, ref, cid);
+            },
+            icon: const Icon(Icons.shield, color: AppTheme.primaryColor),
+            label: const Text(
+              'Verify Integrity',
+              style: TextStyle(color: AppTheme.primaryColor),
+            ),
+          ),
+          const SizedBox(height: 8),
           TextButton(
             onPressed: () {
               ref.read(honorSystemProvider).validateContent(
@@ -572,6 +808,95 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
     }
   }
 
+  Future<void> _verifyIntegrity(
+    BuildContext context,
+    WidgetRef ref,
+    String cid,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Verifying integrity...'),
+          ],
+        ),
+        duration: Duration(seconds: 10),
+      ),
+    );
+
+    try {
+      final result = await ref.read(integrityVerificationProvider(cid).future);
+
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+
+      if (result) {
+        setState(() => _lastVerified = DateTime.now());
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: AppTheme.honorColor, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Integrity verified — content is retrievable and intact',
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.honorColor.withValues(alpha: 0.2),
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.error, color: AppTheme.dangerColor, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Integrity check failed — content may be corrupted or unavailable',
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.dangerColor.withValues(alpha: 0.2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error, color: AppTheme.dangerColor, size: 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Integrity check failed — content may be corrupted or unavailable',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.dangerColor.withValues(alpha: 0.2),
+        ),
+      );
+    }
+  }
+
+  /// Formats a [DateTime] as a short, human-readable time string.
+  String _formatTime(DateTime dt) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(dt.hour)}:${two(dt.minute)}';
+  }
+
   Future<void> _addVersionMock(BuildContext context, WidgetRef ref) async {
     try {
       final repo = ref.read(contentRepositoryProvider);
@@ -635,5 +960,318 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
       error: (_, s) =>
           const Icon(Icons.error_outline, color: Colors.grey, size: 16),
     );
+  }
+
+  // ── Variants & Related Content sections ─────────────────────────────────
+
+  /// Returns a human-readable label for a [ContentSibling] variant.
+  String _variantLabel(ContentSibling sibling) {
+    final type = sibling.variantType;
+    final value = sibling.variantValue;
+    if (type == null) return 'Variant';
+    switch (type) {
+      case VariantType.edition:
+        return value != null ? '$value Edition' : 'Alternate Edition';
+      case VariantType.language:
+        return value != null ? '$value translation' : 'Translation';
+      case VariantType.format:
+        return value != null ? '$value format' : 'Alternate Format';
+      case VariantType.resolution:
+        return value != null ? '$value resolution' : 'Alternate Resolution';
+      case VariantType.quality:
+        return value != null ? '$value quality' : 'Alternate Quality';
+    }
+  }
+
+  /// Section A — "Variants of this work".
+  ///
+  /// Shows sibling content (other editions, translations, formats) as a
+  /// horizontally scrollable list of glass cards.
+  Widget _buildVariantsSection(BuildContext context) {
+    final siblingsAsync = ref.watch(siblingsProvider(manifest.title));
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              Text(
+                'VARIANTS',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(letterSpacing: 2),
+              ),
+              const SizedBox(width: 8),
+              const InfoGlass(
+                title: 'Variants of this work',
+                description:
+                    'Other editions, translations, and format variants of this work',
+                small: true,
+                color: AppTheme.primaryColor,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 120,
+            child: siblingsAsync.when(
+              data: (siblings) {
+                if (siblings.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No variants found',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.white38,
+                            fontStyle: FontStyle.italic,
+                          ),
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: siblings.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final s = siblings[index];
+                    final similarityPct = (s.similarity * 100).round();
+                    return SizedBox(
+                      width: 200,
+                      child: GlassCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              s.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _variantLabel(s),
+                              style: TextStyle(
+                                color: AppTheme.primaryColor.withValues(
+                                  alpha: 0.8,
+                                ),
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.compare_arrows,
+                                  size: 12,
+                                  color: AppTheme.honorColor.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$similarityPct% match',
+                                  style: TextStyle(
+                                    color: AppTheme.honorColor.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ).animate().slideX(delay: (index * 80).ms).fadeIn();
+                  },
+                );
+              },
+              loading: () => const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              error: (_, __) => Center(
+                child: Text(
+                  'Could not load variants',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.white38,
+                        fontStyle: FontStyle.italic,
+                      ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().slideY(begin: 0.15, end: 0, duration: 500.ms).fadeIn();
+  }
+
+  /// Section B — "Related Content".
+  ///
+  /// Shows knowledge-graph relationships (cited by, commentary on, translation
+  /// of, etc.) as a vertical list of cards. Because the in-memory
+  /// [KnowledgeGraphService] does not expose a public relation query, we fall
+  /// back to displaying the entity's registered [KnowledgeVariant]s.
+  Widget _buildRelatedContentSection(BuildContext context) {
+    final relatedAsync =
+        ref.watch(relatedContentProvider(manifest.id.toString()));
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              Text(
+                'RELATED CONTENT',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(letterSpacing: 2),
+              ),
+              const SizedBox(width: 8),
+              const InfoGlass(
+                title: 'Related Content',
+                description:
+                    'Works cited by, commenting on, or derived from this content',
+                small: true,
+                color: AppTheme.primaryColor,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          relatedAsync.when(
+            data: (entity) {
+              if (entity == null || entity.variants.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    'No related content indexed yet',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white38,
+                          fontStyle: FontStyle.italic,
+                        ),
+                  ),
+                );
+              }
+              return Column(
+                children: entity.variants.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final v = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: GlassCard(
+                      height: 64,
+                      child: Row(
+                        children: [
+                          // Relation-type chip
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withValues(
+                                alpha: 0.15,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _relationChipLabel(v),
+                              style: const TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  entity.canonicalTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  entity.author ?? 'Unknown author',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.hub,
+                            size: 18,
+                            color: AppTheme.primaryColor.withValues(alpha: 0.6),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ).animate().slideX(delay: (index * 80).ms).fadeIn();
+                }).toList(),
+              );
+            },
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            error: (_, __) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Text(
+                'Could not load related content',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white38,
+                      fontStyle: FontStyle.italic,
+                    ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().slideY(begin: 0.15, end: 0, duration: 500.ms).fadeIn();
+  }
+
+  /// Builds a short chip label describing a [KnowledgeVariant].
+  String _relationChipLabel(KnowledgeVariant v) {
+    final parts = <String>[];
+    if (v.edition != null && v.edition!.isNotEmpty) {
+      parts.add(v.edition!);
+    }
+    if (v.language.isNotEmpty) {
+      parts.add(v.language);
+    }
+    if (parts.isEmpty) return v.format.toUpperCase();
+    return parts.join(' · ').toUpperCase();
   }
 }

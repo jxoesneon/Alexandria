@@ -1,9 +1,71 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/preservation_service.dart';
+import '../services/ipfs_service.dart';
 import 'widgets/glass_card.dart';
 import 'widgets/info_glass.dart';
 import 'codex/search_screen.dart';
 import 'scriptorium/creation_wizard.dart';
+
+/// Summary of preservation health across all pinned content.
+class PreservationHealthSummary {
+  final int healthy;
+  final int endangered;
+  final int lost;
+  final int total;
+
+  const PreservationHealthSummary({
+    required this.healthy,
+    required this.endangered,
+    required this.lost,
+    required this.total,
+  });
+
+  bool get allHealthy => endangered == 0 && lost == 0 && total > 0;
+}
+
+/// Checks the health of every pinned CID and returns an aggregated summary.
+final preservationHealthProvider =
+    FutureProvider.autoDispose<PreservationHealthSummary>((ref) async {
+  final ipfs = ref.watch(ipfsServiceProvider);
+  final preservation = ref.watch(preservationServiceProvider);
+  final cids = ipfs.pinnedCids.toList();
+
+  if (cids.isEmpty) {
+    return const PreservationHealthSummary(
+        healthy: 0, endangered: 0, lost: 0, total: 0);
+  }
+
+  int healthy = 0;
+  int endangered = 0;
+  int lost = 0;
+
+  for (final cid in cids) {
+    final status = await preservation.checkContentHealth(cid);
+    switch (status) {
+      case HealthStatus.healthy:
+        healthy++;
+        break;
+      case HealthStatus.endangered:
+        endangered++;
+        break;
+      case HealthStatus.lost:
+        lost++;
+        break;
+      case HealthStatus.unknown:
+        // Treat unknown as endangered so it surfaces to the user.
+        endangered++;
+        break;
+    }
+  }
+
+  return PreservationHealthSummary(
+    healthy: healthy,
+    endangered: endangered,
+    lost: lost,
+    total: cids.length,
+  );
+});
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -11,6 +73,8 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final healthAsync = ref.watch(preservationHealthProvider);
+    final pinnedCount = ref.watch(ipfsServiceProvider).pinnedCids.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -46,34 +110,15 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: Colors.green.withValues(alpha: 0.5)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.check_circle,
-                              size: 14, color: Colors.greenAccent),
-                          SizedBox(width: 6),
-                          Text(
-                            'Network Healthy',
-                            style: TextStyle(
-                                color: Colors.greenAccent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
+                    healthAsync.when(
+                      data: (summary) => _buildHealthBadge(summary),
+                      loading: () => _buildLoadingBadge(),
+                      error: (e, _) => _buildErrorBadge(),
                     ),
                     const Spacer(),
-                    const Text('32 Documents Synced',
-                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text('$pinnedCount Documents Synced',
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -107,6 +152,50 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Preservation Health Card
+          healthAsync.when(
+            data: (summary) => _buildPreservationHealthCard(theme, summary),
+            loading: () => GlassCard(
+              padding: const EdgeInsets.all(20.0),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Checking preservation health…',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+            error: (e, _) => GlassCard(
+              padding: const EdgeInsets.all(20.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Could not check preservation health.',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: Colors.white70),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => ref.invalidate(preservationHealthProvider),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -185,6 +274,215 @@ class HomeScreen extends ConsumerWidget {
             format: 'PARQUET',
             size: '45.1 MB',
             isEncrypted: false,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHealthBadge(PreservationHealthSummary summary) {
+    final Color color;
+    final IconData icon;
+    final String label;
+
+    if (summary.lost > 0) {
+      color = Colors.red;
+      icon = Icons.error;
+      label = '${summary.lost} Content Lost';
+    } else if (summary.endangered > 0) {
+      color = Colors.amber;
+      icon = Icons.warning_amber_rounded;
+      label = '${summary.endangered} Content Endangered';
+    } else {
+      color = Colors.green;
+      icon = Icons.check_circle;
+      label = 'All Content Healthy';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+                color: color, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 6),
+          Text(
+            'Checking…',
+            style: TextStyle(
+                color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.error_outline, size: 14, color: Colors.red),
+          SizedBox(width: 6),
+          Text(
+            'Health Unknown',
+            style: TextStyle(
+                color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreservationHealthCard(
+      ThemeData theme, PreservationHealthSummary summary) {
+    if (summary.total == 0) {
+      return GlassCard(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          children: [
+            Icon(Icons.shield_outlined,
+                color: theme.colorScheme.primary, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'No content preserved yet. Add artifacts to start tracking their health.',
+                style:
+                    theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (summary.allHealthy) {
+      return GlassCard(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          children: [
+            const Icon(Icons.verified, color: Colors.greenAccent, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'All artifacts preserved',
+                style:
+                    theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GlassCard(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Preservation Health',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMiniStat(
+                  'Healthy',
+                  summary.healthy.toString(),
+                  Colors.green,
+                  Icons.check_circle_outline,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMiniStat(
+                  'Endangered',
+                  summary.endangered.toString(),
+                  Colors.amber,
+                  Icons.warning_amber_rounded,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMiniStat(
+                  'Lost',
+                  summary.lost.toString(),
+                  Colors.red,
+                  Icons.error_outline,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStat(
+      String label, String count, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 6),
+          Text(
+            count,
+            style: TextStyle(
+              color: color,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
           ),
         ],
       ),

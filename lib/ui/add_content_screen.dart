@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../logic/content_repository.dart';
 import 'theme/app_theme.dart';
+import '../services/metadata_scrubbing_service.dart';
 import '../services/metadata_service.dart';
 import 'widgets/info_glass.dart';
 
@@ -117,6 +120,12 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
   bool _isLoading = false;
   bool _isAnalyzing = false;
   bool _enableEncryption = false;
+  bool _stripMetadata = true; // Privacy by default
+
+  // Metadata scrubbing detection state
+  List<String> _detectedSensitiveFields = [];
+  bool _isDetectingMetadata = false;
+  bool _metadataDetectionDone = false;
 
   @override
   void dispose() {
@@ -162,7 +171,10 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
       if (result != null) {
         setState(() {
           _selectedFiles = result.files;
+          _metadataDetectionDone = false;
+          _detectedSensitiveFields = [];
           _smartFillMetadata(); // Trigger smart detection
+          _detectSensitiveMetadataFields(); // Trigger scrubbing detection
         });
       }
     } catch (e) {
@@ -380,6 +392,52 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
     }
   }
 
+  Future<void> _detectSensitiveMetadataFields() async {
+    if (_selectedFiles.isEmpty || !_stripMetadata) {
+      setState(() {
+        _detectedSensitiveFields = [];
+        _metadataDetectionDone = true;
+      });
+      return;
+    }
+
+    final file = _selectedFiles.first;
+    final bytes = file.bytes;
+    if (bytes == null) {
+      setState(() {
+        _detectedSensitiveFields = [];
+        _metadataDetectionDone = true;
+      });
+      return;
+    }
+
+    setState(() => _isDetectingMetadata = true);
+
+    try {
+      final service = ref.read(metadataScrubbingServiceProvider);
+      final detected = await service.detectSensitiveFields(
+        Uint8List.fromList(bytes),
+      );
+      if (!mounted) return;
+      setState(() {
+        _detectedSensitiveFields = detected;
+        _metadataDetectionDone = true;
+      });
+    } catch (e) {
+      debugPrint('Sensitive field detection failed: $e');
+      if (mounted) {
+        setState(() {
+          _detectedSensitiveFields = [];
+          _metadataDetectionDone = true;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDetectingMetadata = false);
+      }
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedFiles.isEmpty) {
@@ -393,11 +451,25 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
     try {
       final repo = ref.read(contentRepositoryProvider);
 
+      Uint8List fileBytes = Uint8List.fromList(_selectedFiles.first.bytes!);
+
+      // Scrub metadata if enabled and file is a supported image type
+      if (_stripMetadata) {
+        final scrubbingService = ref.read(metadataScrubbingServiceProvider);
+        final fileType = scrubbingService.detectFileType(fileBytes);
+        if (fileType != null && scrubbingService.isSupportedType(fileType)) {
+          final result = await scrubbingService.scrubMetadata(fileBytes);
+          if (result.wasModified) {
+            fileBytes = result.scrubbedBytes;
+          }
+        }
+      }
+
       await repo.createContent(
         title: _titleController.text,
         description: _descController.text,
         author: _authorController.text,
-        fileData: _selectedFiles.first.bytes!,
+        fileData: fileBytes,
         isEncrypted: _enableEncryption,
       );
       if (mounted) {
@@ -487,7 +559,13 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
                               onPressed: () {
                                 setState(() {
                                   _selectedFiles.remove(f);
+                                  _metadataDetectionDone = false;
+                                  _detectedSensitiveFields = [];
                                 });
+                                if (_stripMetadata &&
+                                    _selectedFiles.isNotEmpty) {
+                                  _detectSensitiveMetadataFields();
+                                }
                               },
                             ),
                           ),
@@ -594,6 +672,91 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
                     ),
                   ],
                 ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SwitchListTile(
+                        title: const Text('Strip Metadata for Privacy'),
+                        subtitle: const Text(
+                          'Removes GPS location, device info, and author data from images before upload.',
+                        ),
+                        value: _stripMetadata,
+                        onChanged: (val) {
+                          setState(() {
+                            _stripMetadata = val;
+                            _metadataDetectionDone = false;
+                            _detectedSensitiveFields = [];
+                          });
+                          if (val) {
+                            _detectSensitiveMetadataFields();
+                          }
+                        },
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(right: 16.0),
+                      child: InfoGlass(
+                        title: 'EXIF Stripping',
+                        description:
+                            'EXIF metadata in images can reveal your location, device, and identity. This strips GPS coordinates, camera serial numbers, and author fields before preservation.',
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_stripMetadata && _selectedFiles.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  if (_isDetectingMetadata)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Scanning for sensitive metadata...',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white60,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_metadataDetectionDone)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+                      child: Chip(
+                        label: Text(
+                          _detectedSensitiveFields.isEmpty
+                              ? 'No sensitive fields detected — already clean'
+                              : '${_detectedSensitiveFields.length} sensitive fields detected — will be stripped',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        backgroundColor: _detectedSensitiveFields.isEmpty
+                            ? AppTheme.honorColor.withValues(alpha: 0.2)
+                            : Colors.amber.withValues(alpha: 0.2),
+                        side: BorderSide(
+                          color: _detectedSensitiveFields.isEmpty
+                              ? AppTheme.honorColor.withValues(alpha: 0.4)
+                              : Colors.amber.withValues(alpha: 0.4),
+                        ),
+                        avatar: Icon(
+                          _detectedSensitiveFields.isEmpty
+                              ? Icons.verified_user
+                              : Icons.privacy_tip,
+                          size: 16,
+                          color: _detectedSensitiveFields.isEmpty
+                              ? AppTheme.honorColor
+                              : Colors.amber,
+                        ),
+                      ),
+                    ),
+                ],
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,

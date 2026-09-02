@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +7,7 @@ import '../data/database.dart';
 import '../services/identity_service.dart';
 import '../services/ledger_service.dart';
 import '../services/ipfs_service.dart';
+import '../services/mnemonic_service.dart';
 import 'widgets/glass_card.dart';
 import 'theme/app_theme.dart';
 import 'widgets/contribution_graph.dart';
@@ -214,14 +216,38 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                             if (identity == null) ...[
                               const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: () => _createIdentity(context, ref),
-                                icon: const Icon(Icons.vpn_key, size: 16),
-                                label: const Text('Generate Identity'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryColor,
-                                  foregroundColor: Colors.black,
-                                ),
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 8,
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () =>
+                                        _createIdentity(context, ref),
+                                    icon: const Icon(Icons.vpn_key, size: 16),
+                                    label: const Text('Generate Identity'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                      foregroundColor: Colors.black,
+                                    ),
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _showRecoverDialog(context, ref),
+                                    icon: const Icon(
+                                      Icons.restore,
+                                      size: 16,
+                                    ),
+                                    label: const Text('Recover from Mnemonic'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppTheme.primaryColor,
+                                      side: BorderSide(
+                                        color: AppTheme.primaryColor.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ],
@@ -364,24 +390,326 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   Future<void> _showBackupDialog(BuildContext context, WidgetRef ref) async {
-    await showDialog(
+    final mnemonicService = ref.read(mnemonicServiceProvider);
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _BackupDialog(mnemonicService: mnemonicService),
+    );
+  }
+
+  Future<void> _showRecoverDialog(BuildContext context, WidgetRef ref) async {
+    final mnemonicService = ref.read(mnemonicServiceProvider);
+    final controller = TextEditingController();
+
+    final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
         title: const Text(
-          'Backup Identity',
+          'Recover Identity',
           style: TextStyle(color: Colors.white),
         ),
-        content: const Text(
-          'Identity backup with BIP-39 mnemonic will be available in a future update.',
-          style: TextStyle(color: Colors.white70),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter your 24-word recovery phrase, separated by spaces.',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                maxLines: 4,
+                style: GoogleFonts.firaCode(
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'abandon ability able about ...',
+                  hintStyle: GoogleFonts.firaCode(
+                    color: Colors.white30,
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFF0B1021),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: AppTheme.primaryColor,
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Recover'),
           ),
         ],
+      ),
+    );
+
+    if (result != true) return;
+
+    final phrase = controller.text.trim().toLowerCase();
+    final words =
+        phrase.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+
+    if (words.length != 24) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid mnemonic phrase')),
+        );
+      }
+      return;
+    }
+
+    final identity = await mnemonicService.recoverFromMnemonic(words);
+    if (identity != null) {
+      ref.invalidate(identityStateProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Identity recovered successfully!'),
+            backgroundColor: AppTheme.honorColor,
+          ),
+        );
+      }
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid mnemonic phrase'),
+            backgroundColor: AppTheme.dangerColor,
+          ),
+        );
+      }
+    }
+  }
+}
+
+class _BackupDialog extends StatefulWidget {
+  final MnemonicService mnemonicService;
+
+  const _BackupDialog({required this.mnemonicService});
+
+  @override
+  State<_BackupDialog> createState() => _BackupDialogState();
+}
+
+class _BackupDialogState extends State<_BackupDialog> {
+  MnemonicResult? _mnemonic;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMnemonic();
+  }
+
+  Future<void> _loadMnemonic() async {
+    try {
+      final result = await widget.mnemonicService.backupCurrentIdentity();
+      if (mounted) {
+        setState(() {
+          _mnemonic = result;
+          _error = result == null ? 'No identity found to backup.' : null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Error: $e');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1E293B),
+      title: const Text(
+        'Backup Identity',
+        style: TextStyle(color: Colors.white),
+      ),
+      content: _buildContent(),
+      actions: [
+        if (_mnemonic != null)
+          TextButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(
+                ClipboardData(text: _mnemonic!.phrase),
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Phrase copied to clipboard')),
+                );
+              }
+            },
+            icon: const Icon(Icons.copy, size: 16),
+            label: const Text('Copy'),
+          ),
+        if (_mnemonic != null)
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text("I've saved it"),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    if (_error != null) {
+      return SizedBox(
+        width: 320,
+        child: Text(
+          _error!,
+          style: const TextStyle(color: Colors.white70),
+        ),
+      );
+    }
+
+    if (_mnemonic == null) {
+      return const SizedBox(
+        width: 320,
+        height: 200,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final words = _mnemonic!.words;
+
+    return SizedBox(
+      width: 360,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your 24-word recovery phrase:',
+              style: TextStyle(
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B1021),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                ),
+              ),
+              padding: const EdgeInsets.all(12),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 2.2,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: words.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.4),
+                            fontSize: 9,
+                          ),
+                        ),
+                        Text(
+                          words[index],
+                          style: GoogleFonts.firaCode(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.dangerColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.dangerColor.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppTheme.dangerColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Write these words down and store them safely. '
+                      'Anyone with this phrase can recover your identity. '
+                      'This will never be shown again.',
+                      style: TextStyle(
+                        color: AppTheme.dangerColor.withValues(alpha: 0.9),
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

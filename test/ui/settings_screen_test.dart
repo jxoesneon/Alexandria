@@ -143,6 +143,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final wipeFinder = find.text('Emergency Data Wipe');
+    await tester.ensureVisible(wipeFinder);
+    await tester.pumpAndSettle();
     await tester.tap(wipeFinder);
     await tester.pumpAndSettle();
 
