@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../logic/settings_logic.dart';
 import '../../services/tor_service.dart';
@@ -12,6 +13,7 @@ class SettingsScreen extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final settingsNotifier = ref.read(settingsProvider.notifier);
     final torService = ref.watch(torServiceProvider);
+    final torStatus = ref.watch(torStatusProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -75,12 +77,19 @@ class SettingsScreen extends ConsumerWidget {
                   value: torService.isEnabled,
                   onChanged: (val) async {
                     if (val) {
-                      await torService.enable();
+                      ref.read(torStatusProvider.notifier).state =
+                          TorStatus.connecting;
+                      final success = await torService.enable();
+                      ref.read(torStatusProvider.notifier).state =
+                          success ? TorStatus.connected : TorStatus.error;
                     } else {
                       await torService.disable();
+                      ref.read(torStatusProvider.notifier).state =
+                          TorStatus.disabled;
                     }
                   },
                 ),
+                _buildTorStatusRow(torStatus),
               ],
             ),
           ),
@@ -150,6 +159,66 @@ class SettingsScreen extends ConsumerWidget {
           letterSpacing: 0.5,
           color: theme.colorScheme.primary,
         ),
+      ),
+    );
+  }
+
+  Widget _buildTorStatusRow(TorStatus status) {
+    final Color dotColor;
+    final String label;
+    final bool pulse;
+
+    switch (status) {
+      case TorStatus.disabled:
+        dotColor = Colors.grey;
+        label = 'Tor Disabled';
+        pulse = false;
+        break;
+      case TorStatus.connecting:
+        dotColor = Colors.amber;
+        label = 'Connecting to Tor Network...';
+        pulse = true;
+        break;
+      case TorStatus.connected:
+        dotColor = const Color(0xFF22C55E);
+        label = 'Connected via Tor (127.0.0.1:9050)';
+        pulse = false;
+        break;
+      case TorStatus.error:
+        dotColor = const Color(0xFFEF4444);
+        label = 'Tor Connection Failed — Check your Tor daemon';
+        pulse = false;
+        break;
+    }
+
+    Widget dot = Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: dotColor,
+        shape: BoxShape.circle,
+      ),
+    );
+
+    if (pulse) {
+      dot = dot
+          .animate(onPlay: (c) => c.repeat())
+          .fadeIn(duration: 600.ms)
+          .then()
+          .fadeOut(duration: 600.ms);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+      child: Row(
+        children: [
+          dot,
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12, color: dotColor),
+          ),
+        ],
       ),
     );
   }
