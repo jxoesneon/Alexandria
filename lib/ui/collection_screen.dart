@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/collection_service.dart';
 import 'theme/app_theme.dart';
@@ -31,14 +30,14 @@ class CollectionScreen extends ConsumerWidget {
               description: 'Create and manage collaborative reading lists. '
                   'Uses CRDTs for conflict-free multi-device sync.',
               small: true,
-              color: AppTheme.primaryColor,
+              color: AppTheme.primaryAccent,
             ),
           ],
         ),
         backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_circle, color: AppTheme.primaryColor),
+            icon: const Icon(Icons.add_circle, color: AppTheme.primaryAccent),
             onPressed: () => _showCreateCollectionDialog(context, ref),
           ),
         ],
@@ -187,7 +186,7 @@ class _CollectionsList extends StatelessWidget {
                   collection.id,
             ),
           ),
-        ).animate().fadeIn(delay: (index * 100).ms).slideX(begin: 0.1);
+        );
       },
     );
   }
@@ -320,7 +319,7 @@ class _CollectionDetail extends ConsumerWidget {
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white70),
+                icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 onPressed: () =>
                     ref.read(selectedCollectionProvider.notifier).state = null,
               ),
@@ -348,29 +347,29 @@ class _CollectionDetail extends ConsumerWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white70),
+                icon: Icon(Icons.more_vert, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 color: const Color(0xFF1E293B),
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'fork',
                     child: Row(
                       children: [
-                        Icon(Icons.call_split, color: Colors.white70, size: 20),
-                        SizedBox(width: 8),
-                        Text(
+                        Icon(Icons.call_split, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
                           'Fork Collection',
                           style: TextStyle(color: Colors.white),
                         ),
                       ],
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'history',
                     child: Row(
                       children: [
-                        Icon(Icons.history, color: Colors.white70, size: 20),
-                        SizedBox(width: 8),
-                        Text(
+                        Icon(Icons.history, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
                           'View History',
                           style: TextStyle(color: Colors.white),
                         ),
@@ -391,19 +390,19 @@ class _CollectionDetail extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              color: AppTheme.primaryAccent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                color: AppTheme.primaryAccent.withValues(alpha: 0.3),
               ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.sync, size: 16, color: AppTheme.primaryColor),
+                const Icon(Icons.sync, size: 16, color: AppTheme.primaryAccent),
                 const SizedBox(width: 8),
                 const Text(
                   'CRDT Synced',
-                  style: TextStyle(color: AppTheme.primaryColor, fontSize: 12),
+                  style: TextStyle(color: AppTheme.primaryAccent, fontSize: 12),
                 ),
                 const Spacer(),
                 Text(
@@ -430,12 +429,12 @@ class _CollectionDetail extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add, color: AppTheme.primaryColor),
+                  Icon(Icons.add, color: AppTheme.primaryAccent),
                   SizedBox(width: 8),
                   Text(
                     'Add Item',
                     style: TextStyle(
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.primaryAccent,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -682,7 +681,7 @@ class _HistoryItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: AppTheme.primaryColor, size: 20),
+          Icon(icon, color: AppTheme.primaryAccent, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/database.dart';
 import '../services/identity_service.dart';
@@ -62,7 +61,7 @@ class ProfileScreen extends ConsumerWidget {
           'DIGITAL IDENTITY',
           style: theme.textTheme.headlineSmall?.copyWith(
             letterSpacing: 3,
-            color: AppTheme.primaryColor,
+            color: AppTheme.primaryAccent,
           ),
         ),
         centerTitle: true,
@@ -131,13 +130,13 @@ class ProfileScreen extends ConsumerWidget {
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: identity != null
-                                ? AppTheme.primaryColor
+                                ? AppTheme.primaryAccent
                                 : Colors.grey,
                             width: 2,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.primaryColor.withValues(
+                              color: AppTheme.primaryAccent.withValues(
                                 alpha: 0.3,
                               ),
                               blurRadius: 20,
@@ -150,7 +149,7 @@ class ProfileScreen extends ConsumerWidget {
                               : Icons.person_off,
                           size: 40,
                           color: identity != null
-                              ? AppTheme.primaryColor
+                              ? AppTheme.primaryAccent
                               : Colors.grey,
                         ),
                       ),
@@ -166,7 +165,7 @@ class ProfileScreen extends ConsumerWidget {
                                   identity != null ? 'VERIFIED' : 'UNVERIFIED',
                                   style: TextStyle(
                                     color: identity != null
-                                        ? AppTheme.primaryColor
+                                        ? AppTheme.primaryAccent
                                         : Colors.grey,
                                     letterSpacing: 2,
                                     fontWeight: FontWeight.bold,
@@ -178,7 +177,7 @@ class ProfileScreen extends ConsumerWidget {
                                   description:
                                       'Your identity is derived from your Ed25519 Public Key. It is mathematically unique and cannot be forged.',
                                   small: true,
-                                  color: AppTheme.primaryColor.withValues(
+                                  color: AppTheme.primaryAccent.withValues(
                                     alpha: 0.7,
                                   ),
                                 ),
@@ -199,7 +198,7 @@ class ProfileScreen extends ConsumerWidget {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withValues(
+                                color: AppTheme.primaryAccent.withValues(
                                   alpha: 0.2,
                                 ),
                                 borderRadius: BorderRadius.circular(4),
@@ -210,7 +209,7 @@ class ProfileScreen extends ConsumerWidget {
                                     : publicKeyDisplay,
                                 style: GoogleFonts.firaCode(
                                   fontSize: 10,
-                                  color: AppTheme.primaryColor,
+                                  color: AppTheme.primaryAccent,
                                 ),
                               ),
                             ),
@@ -226,7 +225,7 @@ class ProfileScreen extends ConsumerWidget {
                                     icon: const Icon(Icons.vpn_key, size: 16),
                                     label: const Text('Generate Identity'),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.primaryColor,
+                                      backgroundColor: AppTheme.primaryAccent,
                                       foregroundColor: Colors.black,
                                     ),
                                   ),
@@ -239,9 +238,9 @@ class ProfileScreen extends ConsumerWidget {
                                     ),
                                     label: const Text('Recover from Mnemonic'),
                                     style: OutlinedButton.styleFrom(
-                                      foregroundColor: AppTheme.primaryColor,
+                                      foregroundColor: AppTheme.primaryAccent,
                                       side: BorderSide(
-                                        color: AppTheme.primaryColor.withValues(
+                                        color: AppTheme.primaryAccent.withValues(
                                           alpha: 0.5,
                                         ),
                                       ),
@@ -271,7 +270,7 @@ class ProfileScreen extends ConsumerWidget {
                       _StatItem(
                         label: 'ARTIFACTS',
                         value: '$pinnedCount',
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primaryAccent,
                         hint:
                             'Number of unique CIDs you have permanently pinned.',
                       ),
@@ -287,7 +286,7 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
-          ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1),
+          ),
           const SizedBox(height: 24),
 
           // Contribution Graph Section
@@ -300,7 +299,7 @@ class ProfileScreen extends ConsumerWidget {
                   Text(
                     'PRESERVATION ACTIVITY',
                     style: TextStyle(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.8),
+                      color: AppTheme.primaryAccent.withValues(alpha: 0.8),
                       letterSpacing: 2,
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
@@ -314,10 +313,7 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
-          )
-              .animate()
-              .fadeIn(duration: 400.ms, delay: 100.ms)
-              .slideY(begin: 0.1),
+          ),
           const SizedBox(height: 24),
 
           // Badges Section
@@ -330,7 +326,7 @@ class ProfileScreen extends ConsumerWidget {
                   Text(
                     'EARNED BADGES',
                     style: TextStyle(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.8),
+                      color: AppTheme.primaryAccent.withValues(alpha: 0.8),
                       letterSpacing: 2,
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
@@ -361,10 +357,7 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
-          )
-              .animate()
-              .fadeIn(duration: 400.ms, delay: 200.ms)
-              .slideY(begin: 0.1),
+          ),
         ],
       ),
     );
@@ -416,9 +409,12 @@ class ProfileScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Enter your 24-word recovery phrase, separated by spaces.',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -439,13 +435,13 @@ class ProfileScreen extends ConsumerWidget {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                      color: AppTheme.primaryAccent.withValues(alpha: 0.5),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.primaryAccent,
                       width: 2,
                     ),
                   ),
@@ -462,7 +458,7 @@ class ProfileScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.primaryAccent,
               foregroundColor: Colors.black,
             ),
             child: const Text('Recover'),
@@ -574,7 +570,7 @@ class _BackupDialogState extends State<_BackupDialog> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.primaryAccent,
               foregroundColor: Colors.black,
             ),
             child: const Text("I've saved it"),
@@ -589,7 +585,9 @@ class _BackupDialogState extends State<_BackupDialog> {
         width: 320,
         child: Text(
           _error!,
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -614,7 +612,7 @@ class _BackupDialogState extends State<_BackupDialog> {
             const Text(
               'Your 24-word recovery phrase:',
               style: TextStyle(
-                color: AppTheme.primaryColor,
+                color: AppTheme.primaryAccent,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
@@ -625,7 +623,7 @@ class _BackupDialogState extends State<_BackupDialog> {
                 color: const Color(0xFF0B1021),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                  color: AppTheme.primaryAccent.withValues(alpha: 0.3),
                 ),
               ),
               padding: const EdgeInsets.all(12),

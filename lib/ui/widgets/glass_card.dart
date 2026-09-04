@@ -1,6 +1,10 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
+/// A plain bordered surface container.
+///
+/// Formerly a glassmorphic blur card; now a simple bordered [Container] that
+/// blends with the editorial theme. The public API is preserved so existing
+/// call sites continue to work unchanged.
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -17,30 +21,28 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16.0),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
-        child: InkWell(
-          onTap: onTap,
-          canRequestFocus: false,
-          excludeFromSemantics: true,
-          borderRadius: BorderRadius.circular(16.0),
-          child: Container(
-            height: height,
-            padding: padding,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(16.0),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.12),
-                width: 1.0,
-              ),
-            ),
-            child: child,
-          ),
-        ),
+    final decoration = BoxDecoration(
+      border: Border.all(
+        color: Theme.of(context).dividerColor.withValues(alpha: 0.4),
       ),
+      borderRadius: BorderRadius.circular(12.0),
+    );
+
+    final content = Container(
+      height: height,
+      padding: padding,
+      decoration: decoration,
+      child: child,
+    );
+
+    if (onTap == null) return content;
+
+    return InkWell(
+      onTap: onTap,
+      canRequestFocus: false,
+      excludeFromSemantics: true,
+      borderRadius: BorderRadius.circular(12.0),
+      child: content,
     );
   }
 }

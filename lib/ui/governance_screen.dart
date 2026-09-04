@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../services/governance_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/glass_card.dart';
@@ -41,7 +40,7 @@ class GovernanceScreen extends ConsumerWidget {
               description: 'Participate in decentralized governance. '
                   'Create proposals, vote on changes, and shape the future of Alexandria.',
               small: true,
-              color: AppTheme.primaryColor,
+              color: AppTheme.primaryAccent,
             ),
           ],
         ),
@@ -52,7 +51,7 @@ class GovernanceScreen extends ConsumerWidget {
                 ? IconButton(
                     icon: const Icon(
                       Icons.add_circle,
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.primaryAccent,
                     ),
                     onPressed: () => _showCreateProposalDialog(context, ref),
                   )
@@ -68,7 +67,7 @@ class GovernanceScreen extends ConsumerWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppTheme.primaryColor.withValues(alpha: 0.1),
+              AppTheme.primaryAccent.withValues(alpha: 0.1),
               AppTheme.canvasColor,
             ],
           ),
@@ -85,7 +84,7 @@ class GovernanceScreen extends ConsumerWidget {
                     _StatCard(
                       label: 'Active',
                       value: '${activeProposals.length}',
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.primaryAccent,
                     ),
                     const SizedBox(width: 12),
                     _StatCard(
@@ -136,7 +135,7 @@ class GovernanceScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-              ).animate().fadeIn(duration: 400.ms),
+              ),
 
               // Proposals List
               Expanded(
@@ -184,10 +183,7 @@ class GovernanceScreen extends ConsumerWidget {
                                 proposal,
                               ),
                             ),
-                          )
-                              .animate()
-                              .fadeIn(delay: (index * 100).ms)
-                              .slideX(begin: 0.1);
+                          );
                         },
                       ),
               ),
@@ -489,13 +485,13 @@ class _ProposalCard extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                      color: AppTheme.primaryAccent.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
                       'VOTE NOW',
                       style: TextStyle(
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primaryAccent,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
@@ -512,7 +508,7 @@ class _ProposalCard extends StatelessWidget {
   Color _getStatusColor(ProposalStatus status) {
     switch (status) {
       case ProposalStatus.active:
-        return AppTheme.primaryColor;
+        return AppTheme.primaryAccent;
       case ProposalStatus.approved:
       case ProposalStatus.executed:
         return AppTheme.honorColor;
@@ -583,7 +579,7 @@ class _ProposalDetailSheet extends ConsumerWidget {
               const SizedBox(height: 16),
               Text(
                 proposal.description,
-                style: const TextStyle(color: Colors.white70, fontSize: 16),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
               ),
               const SizedBox(height: 24),
               // Voting Section

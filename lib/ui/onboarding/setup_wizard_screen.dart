@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:alexandria/ui/theme/app_theme.dart';
 import 'package:alexandria/ui/scaffold/main_scaffold.dart';
@@ -15,7 +14,7 @@ class SetupWizardScreen extends ConsumerStatefulWidget {
 }
 
 class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
-  String _statusText = 'Initializing Protocol...'; // Sci-fi flavor
+  String _statusText = 'Preparing local storage...'; // Sci-fi flavor
 
   @override
   void initState() {
@@ -25,7 +24,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
 
   Future<void> _startGenerationSequence() async {
     // Fake sequence for drama/UX
-    await Future.delayed(1.seconds);
+    await Future.delayed(const Duration(seconds: 1));
     if (!mounted) return;
     setState(() => _statusText = 'Generating Cryptographic Keys...');
 
@@ -35,23 +34,23 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
     // Since createContent does it, we might want a dedicated init method.
     // We'll proceed assuming standard lazy init for now.
 
-    await Future.delayed(1.5.seconds);
+    await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
-    setState(() => _statusText = 'Forging Digital Identity...');
+    setState(() => _statusText = 'Generating keys...');
 
-    await Future.delayed(1.seconds);
+    await Future.delayed(const Duration(seconds: 1));
     if (!mounted) return;
-    setState(() => _statusText = 'Connecting to IPFS Swarm...');
+    setState(() => _statusText = 'Connected.');
 
-    await Future.delayed(1.seconds);
+    await Future.delayed(const Duration(seconds: 1));
     if (!mounted) return;
-    setState(() => _statusText = 'Access Granted.');
+    setState(() => _statusText = 'Ready.');
 
     // Write First Run Flag
     final secureStorage = ref.read(secureStorageServiceProvider);
     await secureStorage.write('has_seen_onboarding', 'true');
 
-    await Future.delayed(500.ms);
+    await Future.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) return;
     // ignore: use_build_context_synchronously, unawaited_futures
@@ -79,13 +78,11 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                      color: AppTheme.primaryAccent.withValues(alpha: 0.2),
                       width: 2,
                     ),
                   ),
-                )
-                    .animate(onPlay: (c) => c.repeat())
-                    .rotate(duration: 10.seconds),
+                ),
 
                 // Inner spinner
                 const SizedBox(
@@ -100,27 +97,17 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                 Icon(
                   Icons.fingerprint,
                   size: 40,
-                  color: AppTheme.primaryColor.withValues(alpha: 0.8),
-                ).animate().fadeIn(duration: 2.seconds),
+                  color: AppTheme.primaryAccent.withValues(alpha: 0.8),
+                ),
               ],
             ),
             const SizedBox(height: 48),
             Text(
               _statusText,
               style: GoogleFonts.firaCode(
-                color: AppTheme.primaryColor,
+                color: AppTheme.primaryAccent,
                 fontSize: 14,
               ),
-            ).animate(target: _statusText == 'Access Granted.' ? 1 : 0).custom(
-              builder: (context, val, child) {
-                // Flash effect on success
-                return Opacity(
-                  opacity: val == 1
-                      ? (DateTime.now().millisecond % 500 > 250 ? 1 : 0.5)
-                      : 1,
-                  child: child,
-                );
-              },
             ),
           ],
         ),

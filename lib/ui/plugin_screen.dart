@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../services/plugin_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/glass_card.dart';
@@ -32,7 +31,7 @@ class PluginScreen extends ConsumerWidget {
                   'Extend Alexandria with community plugins and customize '
                   'your experience with themes.',
               small: true,
-              color: AppTheme.primaryColor,
+              color: AppTheme.primaryAccent,
             ),
           ],
         ),
@@ -74,7 +73,7 @@ class PluginScreen extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(
                         Icons.add_circle,
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primaryAccent,
                       ),
                       onPressed: () =>
                           _showInstallDialog(context, ref, selectedTab),
@@ -113,9 +112,10 @@ class PluginScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Paste the manifest JSON:',
-                style: TextStyle(color: Colors.white70),
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -230,17 +230,17 @@ class _TabButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primaryColor.withValues(alpha: 0.2)
+              ? AppTheme.primaryAccent.withValues(alpha: 0.2)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? AppTheme.primaryColor : Colors.white24,
+            color: isSelected ? AppTheme.primaryAccent : Colors.white24,
           ),
         ),
         child: Text(
           label.toUpperCase(),
           style: TextStyle(
-            color: isSelected ? AppTheme.primaryColor : Colors.white54,
+            color: isSelected ? AppTheme.primaryAccent : Colors.white54,
             fontWeight: FontWeight.bold,
             letterSpacing: 1,
             fontSize: 12,
@@ -262,8 +262,8 @@ class _ExampleButton extends StatelessWidget {
     return ActionChip(
       label: Text(label, style: const TextStyle(fontSize: 11)),
       onPressed: onTap,
-      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-      labelStyle: const TextStyle(color: AppTheme.primaryColor),
+      backgroundColor: AppTheme.primaryAccent.withValues(alpha: 0.2),
+      labelStyle: const TextStyle(color: AppTheme.primaryAccent),
       side: BorderSide.none,
     );
   }
@@ -313,7 +313,7 @@ class _PluginsList extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: _PluginCard(plugin: plugin),
-        ).animate().fadeIn(delay: (index * 100).ms).slideX(begin: 0.1);
+        );
       },
     );
   }
@@ -334,12 +334,12 @@ class _PluginCard extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                color: AppTheme.primaryAccent.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.extension,
-                color: AppTheme.primaryColor,
+                color: AppTheme.primaryAccent,
                 size: 28,
               ),
             ),
@@ -383,7 +383,7 @@ class _PluginCard extends ConsumerWidget {
                 final pluginService = ref.read(pluginServiceProvider);
                 pluginService.togglePlugin(plugin.id, value);
               },
-              activeThumbColor: AppTheme.primaryColor,
+              activeThumbColor: AppTheme.primaryAccent,
             ),
           ],
         ),
@@ -453,7 +453,7 @@ class _ThemesList extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: _ThemeCard(theme: theme),
-        ).animate().fadeIn(delay: (index * 100).ms).slideX(begin: 0.1);
+        );
       },
     );
   }

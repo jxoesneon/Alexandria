@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../data/database.dart';
 import '../logic/content_repository.dart';
 import '../logic/honor_system.dart';
@@ -185,14 +184,16 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                 Icon(
                   Icons.info_outline,
                   size: 14,
-                  color: AppTheme.primaryColor.withValues(alpha: 0.7),
+                  color: AppTheme.primaryAccent.withValues(alpha: 0.7),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '$key: ${e.value}',
                   style: Theme.of(
                     context,
-                  ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                  ).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                 ),
               ],
             ),
@@ -253,9 +254,9 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
               icon: const Icon(Icons.visibility, size: 18),
               label: const Text('View'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primaryColor,
+                foregroundColor: AppTheme.primaryAccent,
                 side: BorderSide(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.5)),
+                    color: AppTheme.primaryAccent.withValues(alpha: 0.5)),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(
@@ -269,9 +270,9 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
               icon: const Icon(Icons.open_in_new, size: 18),
               label: const Text('Open in…'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primaryColor,
+                foregroundColor: AppTheme.primaryAccent,
                 side: BorderSide(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.5)),
+                    color: AppTheme.primaryAccent.withValues(alpha: 0.5)),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(
@@ -368,7 +369,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppTheme.primaryColor.withValues(alpha: 0.2),
+              AppTheme.primaryAccent.withValues(alpha: 0.2),
               AppTheme.canvasColor,
             ],
           ),
@@ -391,7 +392,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                            color: AppTheme.primaryAccent.withValues(alpha: 0.3),
                             blurRadius: 20,
                           ),
                         ],
@@ -399,9 +400,9 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                       child: const Icon(
                         Icons.book,
                         size: 60,
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primaryAccent,
                       ),
-                    ).animate().shimmer(),
+                    ),
                     const SizedBox(width: 24),
                     Expanded(
                       child: Column(
@@ -418,7 +419,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                             style: Theme.of(context)
                                 .textTheme
                                 .titleLarge
-                                ?.copyWith(color: AppTheme.primaryColor),
+                                ?.copyWith(color: AppTheme.primaryAccent),
                           ),
                           const SizedBox(height: 16),
                           Wrap(
@@ -442,10 +443,10 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                               ...tags.map(
                                 (t) => Chip(
                                   label: Text(t),
-                                  backgroundColor: AppTheme.primaryColor
+                                  backgroundColor: AppTheme.primaryAccent
                                       .withValues(alpha: 0.1),
                                   labelStyle: const TextStyle(
-                                    color: AppTheme.primaryColor,
+                                    color: AppTheme.primaryAccent,
                                     fontSize: 10,
                                   ),
                                   side: BorderSide.none,
@@ -468,7 +469,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                   ],
                 ),
               ),
-            ).animate().slideY(begin: 0.2, end: 0, duration: 600.ms).fadeIn(),
+            ),
 
             const SizedBox(height: 32),
             Padding(
@@ -490,7 +491,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                           description:
                               'Each version is cryptographically frozen. Pinned versions are verified by the "Health" signal. "Verified" badges indicate Community Trust.',
                           small: true,
-                          color: AppTheme.primaryColor,
+                          color: AppTheme.primaryAccent,
                         ),
                         if (_lastVerified != null) ...[
                           const SizedBox(width: 12),
@@ -515,7 +516,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                     onPressed: () => _addVersionMock(context, ref),
                     icon: const Icon(
                       Icons.add_circle,
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.primaryAccent,
                     ),
                   ),
                 ],
@@ -547,9 +548,11 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.file_present,
-                                color: Colors.white70,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
                             ),
                             const SizedBox(width: 16),
@@ -632,7 +635,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                             ),
                           ],
                         ),
-                      ).animate().slideX(delay: (index * 100).ms).fadeIn(),
+                      ),
                     );
                   },
                 ),
@@ -672,10 +675,10 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
               Navigator.pop(ctx);
               _verifyIntegrity(context, ref, cid);
             },
-            icon: const Icon(Icons.shield, color: AppTheme.primaryColor),
+            icon: const Icon(Icons.shield, color: AppTheme.primaryAccent),
             label: const Text(
               'Verify Integrity',
-              style: TextStyle(color: AppTheme.primaryColor),
+              style: TextStyle(color: AppTheme.primaryAccent),
             ),
           ),
           const SizedBox(height: 8),
@@ -714,10 +717,10 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
               Navigator.pop(ctx);
               _downloadContent(context, ref, cid);
             },
-            icon: const Icon(Icons.download, color: AppTheme.primaryColor),
+            icon: const Icon(Icons.download, color: AppTheme.primaryAccent),
             label: const Text(
               'Download & Decrypt',
-              style: TextStyle(color: AppTheme.primaryColor),
+              style: TextStyle(color: AppTheme.primaryAccent),
             ),
           ),
           const SizedBox(height: 8),
@@ -1011,7 +1014,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                 description:
                     'Other editions, translations, and format variants of this work',
                 small: true,
-                color: AppTheme.primaryColor,
+                color: AppTheme.primaryAccent,
               ),
             ],
           ),
@@ -1058,7 +1061,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                             Text(
                               _variantLabel(s),
                               style: TextStyle(
-                                color: AppTheme.primaryColor.withValues(
+                                color: AppTheme.primaryAccent.withValues(
                                   alpha: 0.8,
                                 ),
                                 fontSize: 11,
@@ -1089,7 +1092,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                           ],
                         ),
                       ),
-                    ).animate().slideX(delay: (index * 80).ms).fadeIn();
+                    );
                   },
                 );
               },
@@ -1113,7 +1116,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
           ),
         ],
       ),
-    ).animate().slideY(begin: 0.15, end: 0, duration: 500.ms).fadeIn();
+    );
   }
 
   /// Section B — "Related Content".
@@ -1147,7 +1150,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                 description:
                     'Works cited by, commenting on, or derived from this content',
                 small: true,
-                color: AppTheme.primaryColor,
+                color: AppTheme.primaryAccent,
               ),
             ],
           ),
@@ -1167,9 +1170,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                 );
               }
               return Column(
-                children: entity.variants.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final v = entry.value;
+                children: entity.variants.map((v) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
                     child: GlassCard(
@@ -1183,7 +1184,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withValues(
+                              color: AppTheme.primaryAccent.withValues(
                                 alpha: 0.15,
                               ),
                               borderRadius: BorderRadius.circular(12),
@@ -1191,7 +1192,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                             child: Text(
                               _relationChipLabel(v),
                               style: const TextStyle(
-                                color: AppTheme.primaryColor,
+                                color: AppTheme.primaryAccent,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1229,12 +1230,12 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                           Icon(
                             Icons.hub,
                             size: 18,
-                            color: AppTheme.primaryColor.withValues(alpha: 0.6),
+                            color: AppTheme.primaryAccent.withValues(alpha: 0.6),
                           ),
                         ],
                       ),
                     ),
-                  ).animate().slideX(delay: (index * 80).ms).fadeIn();
+                  );
                 }).toList(),
               );
             },
@@ -1259,7 +1260,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
           ),
         ],
       ),
-    ).animate().slideY(begin: 0.15, end: 0, duration: 500.ms).fadeIn();
+    );
   }
 
   /// Builds a short chip label describing a [KnowledgeVariant].

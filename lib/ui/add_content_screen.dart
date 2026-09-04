@@ -526,7 +526,7 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
                     color: AppTheme.surfaceColor.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                      color: AppTheme.primaryAccent.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Column(
@@ -667,7 +667,7 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
                         title: 'AES-256 Encryption',
                         description:
                             'When enabled, your file is encrypted client-side before upload. The key is wrapped with your Master Key. Without the key, the IPFS CID contains only random noise.',
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primaryAccent,
                       ),
                     ),
                   ],
@@ -699,7 +699,7 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
                         title: 'EXIF Stripping',
                         description:
                             'EXIF metadata in images can reveal your location, device, and identity. This strips GPS coordinates, camera serial numbers, and author fields before preservation.',
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primaryAccent,
                       ),
                     ),
                   ],

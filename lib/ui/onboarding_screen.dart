@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/identity_service.dart';
 import '../services/mnemonic_service.dart';
@@ -96,26 +95,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const Icon(
             Icons.local_library,
             size: 120,
-            color: AppTheme.primaryColor,
-          ).animate().scale(duration: 600.ms),
+            color: AppTheme.primaryAccent,
+          ),
           const SizedBox(height: 32),
           Text(
-            'ALEXANDRIA',
+            'Alexandria',
             style: GoogleFonts.orbitron(
               fontSize: 36,
               fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
-              letterSpacing: 4,
+              color: AppTheme.primaryAccent,
+              letterSpacing: 0,
             ),
-          ).animate().fadeIn(delay: 200.ms),
+          ),
           const SizedBox(height: 16),
           Text(
             'Preserve Human Knowledge',
             style: Theme.of(
               context,
-            ).textTheme.titleLarge?.copyWith(color: Colors.white70),
+            ).textTheme.titleLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             textAlign: TextAlign.center,
-          ).animate().fadeIn(delay: 400.ms),
+          ),
           const SizedBox(height: 48),
           Text(
             'A decentralized library where every piece of knowledge is immutable, verifiable, and eternal.',
@@ -123,18 +124,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               context,
             ).textTheme.bodyLarge?.copyWith(color: Colors.white54),
             textAlign: TextAlign.center,
-          ).animate().fadeIn(delay: 600.ms),
+          ),
           const SizedBox(height: 64),
           ElevatedButton(
             onPressed: () => ref.read(onboardingStepProvider.notifier).state =
                 OnboardingStep.identity,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.primaryAccent,
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
             ),
-            child: const Text('BEGIN', style: TextStyle(letterSpacing: 2)),
-          ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.2),
+            child: const Text('Begin', style: TextStyle(letterSpacing: 0)),
+          ),
         ],
       ),
     );
@@ -150,7 +151,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const Icon(
             Icons.person_outline,
             size: 80,
-            color: AppTheme.primaryColor,
+            color: AppTheme.primaryAccent,
           ),
           const SizedBox(height: 24),
           Text(
@@ -179,12 +180,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                      color: AppTheme.primaryAccent.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
                       Icons.add_circle_outline,
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.primaryAccent,
                       size: 32,
                     ),
                   ),
@@ -306,7 +307,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               color: AppTheme.surfaceColor,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                color: AppTheme.primaryAccent.withValues(alpha: 0.3),
               ),
             ),
             child: Row(
@@ -317,7 +318,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 Text(
                   'Ed25519 Keypair Generated',
                   style: GoogleFonts.firaCode(
-                    color: Colors.white70,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 14,
                   ),
                 ),
@@ -329,13 +330,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             onPressed: () => ref.read(onboardingStepProvider.notifier).state =
                 OnboardingStep.mnemonic,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.primaryAccent,
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
             ),
             child: const Text(
-              'BACKUP YOUR KEY',
-              style: TextStyle(letterSpacing: 2),
+              'Backup your key',
+              style: TextStyle(letterSpacing: 0),
             ),
           ),
           const SizedBox(height: 16),
@@ -470,7 +471,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           icon: const Icon(Icons.copy, size: 16),
                           label: const Text('Copy'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white70,
+                            foregroundColor:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -483,7 +485,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                 OnboardingStep.biometric;
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
+                            backgroundColor: AppTheme.primaryAccent,
                             foregroundColor: Colors.black,
                           ),
                           child: const Text('I\'ve Saved It'),
@@ -509,7 +511,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const Icon(
             Icons.fingerprint,
             size: 100,
-            color: AppTheme.primaryColor,
+            color: AppTheme.primaryAccent,
           ),
           const SizedBox(height: 32),
           Text(
@@ -533,7 +535,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             icon: const Icon(Icons.fingerprint),
             label: const Text('Enable Biometrics'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.primaryAccent,
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             ),
@@ -567,7 +569,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               size: 80,
               color: AppTheme.honorColor,
             ),
-          ).animate().scale(duration: 400.ms),
+          ),
           const SizedBox(height: 32),
           Text(
             'Welcome, Archivist',
@@ -575,7 +577,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
-          ).animate().fadeIn(delay: 200.ms),
+          ),
           const SizedBox(height: 16),
           Text(
             'You are now part of the eternal library. Your contributions will be immutable and verifiable forever.',
@@ -583,7 +585,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               context,
             ).textTheme.bodyLarge?.copyWith(color: Colors.white54),
             textAlign: TextAlign.center,
-          ).animate().fadeIn(delay: 400.ms),
+          ),
           const SizedBox(height: 48),
           ElevatedButton(
             onPressed: () async {
@@ -598,15 +600,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.primaryAccent,
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
             ),
             child: const Text(
-              'ENTER THE LIBRARY',
-              style: TextStyle(letterSpacing: 2),
+              'Enter the library',
+              style: TextStyle(letterSpacing: 0),
             ),
-          ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.2),
+          ),
         ],
       ),
     );
@@ -674,9 +676,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           height: 400,
           child: Column(
             children: [
-              const Text(
+              Text(
                 'Enter your 24-word recovery phrase:',
-                style: TextStyle(color: Colors.white70),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 16),
               Expanded(

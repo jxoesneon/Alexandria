@@ -88,9 +88,9 @@ class ContributionGraph extends StatelessWidget {
 
   Color _getColorForCount(int count) {
     if (count == 0) return AppTheme.surfaceColor.withValues(alpha: 0.5);
-    if (count == 1) return AppTheme.primaryColor.withValues(alpha: 0.3);
-    if (count <= 3) return AppTheme.primaryColor.withValues(alpha: 0.6);
-    return AppTheme.primaryColor;
+    if (count == 1) return AppTheme.primaryAccent.withValues(alpha: 0.3);
+    if (count <= 3) return AppTheme.primaryAccent.withValues(alpha: 0.6);
+    return AppTheme.primaryAccent;
   }
 
   String _formatDate(DateTime date) {
