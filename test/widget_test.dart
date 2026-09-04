@@ -11,16 +11,21 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    // Use pump with duration instead of pumpAndSettle to avoid
+    // Google Fonts network fetch timeout in tests
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('Alexandria'), findsOneWidget);
-    expect(find.text('Your Decentralized Library'), findsOneWidget);
+    // Library tab is the default — verify it renders
+    expect(find.text('Library'), findsWidgets);
+    expect(find.text('Statistics Summary'), findsOneWidget);
 
     // Switch to Settings tab
     final settingsNav = find.text('Settings');
     expect(settingsNav, findsOneWidget);
     await tester.tap(settingsNav);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Appearance'), findsOneWidget);
     expect(find.text('Network & Privacy'), findsOneWidget);

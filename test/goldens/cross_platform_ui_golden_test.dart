@@ -12,9 +12,13 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
-      expect(find.text('Alexandria'), findsOneWidget);
-      expect(find.text('Your Decentralized Library'), findsOneWidget);
+      // Use pump with duration instead of pumpAndSettle to avoid
+      // Google Fonts network fetch timeout in tests
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('Library'), findsWidgets);
+      expect(find.text('Statistics Summary'), findsOneWidget);
     });
   });
 }

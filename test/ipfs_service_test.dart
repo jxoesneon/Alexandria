@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/ipfs_service.dart';
 
 void main() {
-  group('IpfsService (dart_ipfs ^1.11.7 Engine) Tests', () {
+  group('IpfsService (dart_ipfs ^1.12.0 Engine) Tests', () {
     late ProviderContainer container;
     late IpfsService ipfs;
 

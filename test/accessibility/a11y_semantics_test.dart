@@ -56,7 +56,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.text('Appearance'), findsOneWidget);
       expect(find.text('Network & Privacy'), findsOneWidget);
       expect(find.text('Storage & Maintenance'), findsOneWidget);
