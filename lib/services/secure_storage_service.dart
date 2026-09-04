@@ -4,7 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final secureStorageServiceProvider = Provider((ref) => SecureStorageService());
 
 class SecureStorageService {
-  final _storage = const FlutterSecureStorage();
+  final _storage = const FlutterSecureStorage(
+    mOptions: MacOsOptions(
+      usesDataProtectionKeychain: false,
+    ),
+  );
 
   Future<String?> read(String key) async => await _storage.read(key: key);
   Future<void> write(String key, String value) async =>

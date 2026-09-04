@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/scaffold/main_scaffold.dart';
+import 'services/ipfs_service.dart';
 import 'services/preservation_service.dart';
+import 'services/web_node_service.dart';
 
 void main() {
   runApp(const ProviderScope(child: AlexandriaApp()));
@@ -19,7 +21,9 @@ class _AlexandriaAppState extends ConsumerState<AlexandriaApp> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(ipfsServiceProvider).startNode();
+      await ref.read(webNodeServiceProvider).initializeWebNode();
       ref.read(preservationServiceProvider).startBackgroundPreservation();
     });
   }

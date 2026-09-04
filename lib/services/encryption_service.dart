@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,5 +35,14 @@ class EncryptionService {
     );
     final decrypted = await _algorithm.decrypt(secretBox, secretKey: key);
     return Uint8List.fromList(decrypted);
+  }
+
+  /// Encrypt data for a peer using a deterministic key derived from the
+  /// peer's public key identifier.
+  Future<Uint8List> encryptForPeer(Uint8List data, String peerPublicKey) async {
+    final keyBytes = sha256.convert(utf8.encode(peerPublicKey)).bytes;
+    final key = SecretKey(keyBytes);
+    final secretBox = await _algorithm.encrypt(data, secretKey: key);
+    return Uint8List.fromList(secretBox.concatenation());
   }
 }

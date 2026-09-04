@@ -31,7 +31,7 @@ class IndexedDbBlockStore {
   Future<Uint8List?> getBlock(String cid) async => _blocks[cid];
   Future<bool> hasBlock(String cid) async => _blocks.containsKey(cid);
   Future<void> clear() async {
-    _blocks.clear;
+    _blocks.clear();
     _currentUsageBytes = 0;
   }
 }

@@ -23,6 +23,15 @@ class TorService {
   TorStatus get status => _status;
   bool get isEnabled => _isEnabled;
   String get proxyAddress => '$_proxyHost:$_proxyPort';
+  String get proxyHost => _proxyHost;
+  int get proxyPort => _proxyPort;
+
+  Future<void> setProxy(String host, int port) async {
+    _proxyHost = host.isNotEmpty ? host : '127.0.0.1';
+    _proxyPort = port;
+    await _storage.write('tor_host', _proxyHost);
+    await _storage.write('tor_port', _proxyPort.toString());
+  }
 
   Future<void> init() async {
     final enabled = await _storage.read('tor_enabled');

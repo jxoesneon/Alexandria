@@ -19,9 +19,12 @@ class IpfsService {
   Stream<Map<String, String>> get pubsubStream => _pubsubController.stream;
   Set<String> get pinnedCids => _pinnedCids;
 
+  int get storedBytes =>
+      _localStore.values.fold<int>(0, (sum, data) => sum + data.length);
+
   Future<void> startNode() async {
     _isStarted = true;
-    debugPrint('dart_ipfs node started successfully (v1.11.7 backend)');
+    debugPrint('dart_ipfs node started successfully (v1.12.0 backend)');
   }
 
   Future<void> stopNode() async {
