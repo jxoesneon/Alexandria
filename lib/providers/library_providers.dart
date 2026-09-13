@@ -55,10 +55,14 @@ final libraryDashboardProvider = FutureProvider<LibraryStats>((ref) async {
   );
 });
 
-/// Items the user has recently been reading (progress > 0).
+/// Items the user has recently been reading (progress > 0), or featured additions.
 final recentItemsProvider = FutureProvider<List<LibraryItem>>((ref) async {
   final items = await _fetchLibraryItems(ref);
-  return items.where((item) => item.progress > 0).take(10).toList();
+  final withProgress = items.where((item) => item.progress > 0).take(10).toList();
+  if (withProgress.isNotEmpty) {
+    return withProgress;
+  }
+  return items.take(5).toList();
 });
 
 /// Latest additions to the local library.

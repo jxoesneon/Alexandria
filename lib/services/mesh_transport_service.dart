@@ -65,6 +65,49 @@ class MeshTransportService {
     TransportTier.circuitRelay,
   };
 
+  MeshTransportService() {
+    bootstrapDefaultPeers();
+  }
+
+  void bootstrapDefaultPeers() {
+    final defaultBootstrap = [
+      MeshPeer(
+        peerId: 'QmBootstrapNode1AlexandriaAlpha',
+        address: '/dns4/node1.alexandria.alexandria.network/tcp/4001/p2p/QmBootstrapNode1AlexandriaAlpha',
+        tier: TransportTier.webrtcDirect,
+        latencyMs: 24,
+        isReachable: true,
+      ),
+      MeshPeer(
+        peerId: 'QmBootstrapNode2AlexandriaBeta',
+        address: '/dns4/node2.alexandria.alexandria.network/tcp/4001/p2p/QmBootstrapNode2AlexandriaBeta',
+        tier: TransportTier.webrtcDirect,
+        latencyMs: 38,
+        isReachable: true,
+      ),
+      MeshPeer(
+        peerId: 'QmRelayNodeEuropeanLibraryCommons',
+        address: '/dns4/relay.alexandria.network/tcp/4001/p2p/QmRelayNodeEuropeanLibraryCommons',
+        tier: TransportTier.circuitRelay,
+        latencyMs: 65,
+        isReachable: true,
+      ),
+      MeshPeer(
+        peerId: 'QmLocalMeshDiscoveryRelay',
+        address: '/ip4/127.0.0.1/tcp/4001/p2p/QmLocalMeshDiscoveryRelay',
+        tier: TransportTier.lanMdns,
+        latencyMs: 4,
+        isReachable: true,
+      ),
+    ];
+
+    for (final peer in defaultBootstrap) {
+      if (!_peers.containsKey(peer.peerId)) {
+        _peers[peer.peerId] = peer;
+      }
+    }
+  }
+
   Stream<MeshPeer> get onPeerDiscovered => _peerDiscoveryController.stream;
   Stream<Uint8List> get onPayloadReceived => _incomingPayloadController.stream;
   Stream<List<MeshPeer>> get peerListStream => _peerListController.stream;

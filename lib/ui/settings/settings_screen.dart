@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../logic/settings_logic.dart';
 import '../../services/tor_service.dart';
+import '../agent/agent_network_dialog.dart';
+import '../credits/credit_wallet_dialog.dart';
+import '../plugin_screen.dart';
 import '../widgets/glass_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -18,6 +21,35 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.smart_toy_outlined),
+            tooltip: 'Autonomous Agent Network (Moltbook & MCP)',
+            onPressed: () => AgentNetworkDialog.show(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            tooltip: 'Common Heritage Wallet (Credits & PoCH)',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => const CreditWalletDialog(),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.extension_outlined),
+            tooltip: 'The Garden (Plugins & Themes)',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PluginScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),

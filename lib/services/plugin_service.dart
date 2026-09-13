@@ -1,8 +1,15 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'plugins/doi_harvester_plugin.dart';
+import 'plugins/plugin_interface.dart';
+
+export 'plugins/doi_harvester_plugin.dart';
+export 'plugins/plugin_interface.dart';
+
 /// Provider for the PluginService
-final pluginServiceProvider = Provider((ref) => PluginService());
+final pluginServiceProvider = Provider((ref) => PluginService(ref));
 
 /// Plugin permissions (Spec §19.2)
 enum PluginPermission {
@@ -52,7 +59,7 @@ class PluginManifest {
   final int maxMemoryMb;
   final int timeoutMs;
 
-  PluginManifest({
+  const PluginManifest({
     required this.id,
     required this.name,
     required this.version,
@@ -175,18 +182,41 @@ class ThemeManifest {
   }
 }
 
-/// Plugin service for The Garden
+/// Plugin service for The Garden.
+///
+/// Orchestrates Alexandria's extensible plugin system, managing built-in
+/// executable plugins (such as [DoiHarvesterPlugin]), dynamic manifest installations,
+/// theme switching, and lifecycle hook dispatching.
 class PluginService {
+  final Ref? _ref;
   final List<InstalledPlugin> _plugins = [];
+  final Map<String, AlexandriaPlugin> _executablePlugins = {};
   final List<ThemeManifest> _themes = [];
   String? _activeThemeId;
 
-  /// Get installed plugins
+  PluginService([this._ref]) {
+    _initBuiltinPlugins();
+  }
+
+  void _initBuiltinPlugins() {
+    // Register the Flagship First Plugin: DOI Scientific Harvester
+    final doiPlugin = DoiHarvesterPlugin();
+    registerPlugin(doiPlugin);
+  }
+
+  /// Get all installed plugins
   List<InstalledPlugin> get plugins => List.unmodifiable(_plugins);
 
   /// Get enabled plugins
   List<InstalledPlugin> get enabledPlugins =>
       _plugins.where((p) => p.enabled).toList();
+
+  /// Get executable plugins
+  List<AlexandriaPlugin> get executablePlugins =>
+      _executablePlugins.values.toList();
+
+  /// Retrieve an executable plugin by its ID
+  AlexandriaPlugin? getExecutablePlugin(String id) => _executablePlugins[id];
 
   /// Get available themes
   List<ThemeManifest> get themes => List.unmodifiable(_themes);
@@ -194,6 +224,66 @@ class PluginService {
   /// Get active theme
   ThemeManifest? get activeTheme =>
       _themes.where((t) => t.id == _activeThemeId).firstOrNull;
+
+  /// Register an executable plugin
+  void registerPlugin(AlexandriaPlugin plugin) {
+    _executablePlugins[plugin.manifest.id] = plugin;
+
+    // Initialize with context
+    final context = PluginContext(
+      ref: _ref,
+      pluginId: plugin.manifest.id,
+    );
+    plugin.initialize(context);
+
+    // Sync into installed plugins list
+    final existingIndex =
+        _plugins.indexWhere((p) => p.id == plugin.manifest.id);
+    if (existingIndex >= 0) {
+      _plugins[existingIndex].enabled = plugin.isEnabled;
+    } else {
+      _plugins.add(InstalledPlugin(
+        manifest: plugin.manifest,
+        installedAt: DateTime.now(),
+        enabled: plugin.isEnabled,
+      ));
+    }
+  }
+
+  /// Execute an action on a registered plugin
+  Future<PluginActionResult> executeAction(
+    String pluginId,
+    String actionId, [
+    Map<String, dynamic> parameters = const {},
+  ]) async {
+    final plugin = _executablePlugins[pluginId];
+    if (plugin == null) {
+      return PluginActionResult.error('Plugin not found: $pluginId');
+    }
+    if (!plugin.isEnabled) {
+      return PluginActionResult.error('Plugin $pluginId is disabled.');
+    }
+
+    try {
+      return await plugin.executeAction(actionId, parameters);
+    } catch (e, stack) {
+      debugPrint('Plugin execution error [$pluginId:$actionId]: $e\n$stack');
+      return PluginActionResult.error('Execution exception: $e');
+    }
+  }
+
+  /// Dispatch a lifecycle hook to all active, capable plugins
+  Future<void> dispatchHook(PluginHook hook, [dynamic payload]) async {
+    for (final plugin in _executablePlugins.values) {
+      if (plugin.isEnabled && plugin.manifest.hooks.contains(hook)) {
+        try {
+          await plugin.onHook(hook, payload);
+        } catch (e) {
+          debugPrint('Hook error in ${plugin.manifest.id} on $hook: $e');
+        }
+      }
+    }
+  }
 
   /// Install a plugin from manifest JSON
   InstalledPlugin? installPlugin(String manifestJson) {
@@ -229,6 +319,7 @@ class PluginService {
     if (index == -1) return false;
 
     _plugins.removeAt(index);
+    _executablePlugins.remove(pluginId);
     return true;
   }
 
@@ -238,6 +329,9 @@ class PluginService {
     if (plugin == null) return false;
 
     plugin.enabled = enabled;
+    if (_executablePlugins.containsKey(pluginId)) {
+      _executablePlugins[pluginId]!.isEnabled = enabled;
+    }
     return true;
   }
 
@@ -282,8 +376,6 @@ class PluginService {
 
   /// Validate that permissions are allowed
   bool _validatePermissions(List<PluginPermission> permissions) {
-    // For now, allow all permissions
-    // In production, could show user approval dialog
     return true;
   }
 

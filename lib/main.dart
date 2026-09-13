@@ -5,6 +5,11 @@ import 'ui/scaffold/main_scaffold.dart';
 import 'services/ipfs_service.dart';
 import 'services/preservation_service.dart';
 import 'services/web_node_service.dart';
+import 'data/database.dart';
+import 'services/seed/starter_seed_service.dart';
+
+import 'providers/library_providers.dart';
+import 'providers/workspace_providers.dart';
 
 void main() {
   runApp(const ProviderScope(child: AlexandriaApp()));
@@ -25,6 +30,19 @@ class _AlexandriaAppState extends ConsumerState<AlexandriaApp> {
       await ref.read(ipfsServiceProvider).startNode();
       await ref.read(webNodeServiceProvider).initializeWebNode();
       ref.read(preservationServiceProvider).startBackgroundPreservation();
+
+      // Bootstrap initial landmark content if library is empty
+      final db = ref.read(databaseProvider);
+      final manifests = await db.getAllManifests();
+      if (manifests.isEmpty) {
+        final seedService = ref.read(starterSeedServiceProvider);
+        await seedService.ingestSeedPack('open-science-landmarks');
+        await seedService.ingestSeedPack('classical-commons');
+        ref.invalidate(libraryDashboardProvider);
+        ref.invalidate(recentItemsProvider);
+        ref.invalidate(newArrivalsProvider);
+        ref.invalidate(activeWorkspacesProvider);
+      }
     });
   }
 

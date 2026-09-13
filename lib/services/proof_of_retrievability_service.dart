@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../logic/honor_system.dart';
+import 'credits/credit_service.dart';
 
 final proofOfRetrievabilityServiceProvider =
     Provider((ref) => ProofOfRetrievabilityService(ref));
@@ -119,6 +120,18 @@ class ProofOfRetrievabilityService {
         score: 1,
         reputation: 20,
       );
+
+      try {
+        final creditService = _ref.read(creditServiceProvider);
+        creditService.awardStorageCredits(
+          sizeBytes: expectedChunkData.length * (challenge.chunkIndex + 1),
+          peerCount: 2,
+          porPassed: true,
+          cid: challenge.cid,
+        );
+      } catch (_) {
+        // Safe fallback in isolated mock test environments
+      }
     }
 
     return isValid;

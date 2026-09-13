@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/plugin_service.dart';
+import 'plugins/doi_harvester_dialog.dart';
 import 'theme/app_theme.dart';
 import 'widgets/glass_card.dart';
 import 'widgets/info_glass.dart';
@@ -21,20 +22,7 @@ class PluginScreen extends ConsumerWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Row(
-          children: [
-            Text('THE GARDEN'),
-            SizedBox(width: 8),
-            InfoGlass(
-              title: 'Plugins & Themes',
-              description:
-                  'Extend Alexandria with community plugins and customize '
-                  'your experience with themes.',
-              small: true,
-              color: AppTheme.primaryAccent,
-            ),
-          ],
-        ),
+        title: const Text('THE GARDEN'),
         backgroundColor: Colors.transparent,
       ),
       body: Container(
@@ -51,6 +39,17 @@ class PluginScreen extends ConsumerWidget {
         child: SafeArea(
           child: Column(
             children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: InfoGlass(
+                  title: 'Plugins & Themes',
+                  description:
+                      'Extend Alexandria with community plugins and customize '
+                      'your experience with themes.',
+                  small: true,
+                  color: AppTheme.primaryAccent,
+                ),
+              ),
               // Tab Bar
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -337,8 +336,10 @@ class _PluginCard extends ConsumerWidget {
                 color: AppTheme.primaryAccent.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.extension,
+              child: Icon(
+                plugin.id == 'org.alexandria.plugin.doi-harvester'
+                    ? Icons.science_outlined
+                    : Icons.extension,
                 color: AppTheme.primaryAccent,
                 size: 28,
               ),
@@ -366,11 +367,29 @@ class _PluginCard extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       _PermissionChip(label: 'v${plugin.manifest.version}'),
                       ...plugin.manifest.permissions
                           .take(2)
                           .map((p) => _PermissionChip(label: p.name)),
+                      if (plugin.id == 'org.alexandria.plugin.doi-harvester' && plugin.enabled)
+                        TextButton.icon(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const DoiHarvesterDialog(),
+                            );
+                          },
+                          icon: const Icon(Icons.download_for_offline, size: 14),
+                          label: const Text('Launch Harvester', style: TextStyle(fontSize: 11)),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.primaryAccent,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
                     ],
                   ),
                 ],
