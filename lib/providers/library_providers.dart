@@ -88,7 +88,12 @@ Future<List<LibraryItem>> _fetchLibraryItems(Ref ref) async {
 
   return manifests.map((manifest) {
     final manifestVersions = versionMap[manifest.id];
-    final version = manifestVersions?.firstOrNull;
+    final version = manifestVersions != null && manifestVersions.isNotEmpty
+        ? manifestVersions.firstWhere(
+            (v) => v.format == 'md-unabridged',
+            orElse: () => manifestVersions.first,
+          )
+        : null;
     final cid = version?.cid ?? manifest.uuid;
     final progress = progressMap[cid] ?? 0.0;
     return LibraryItem(
@@ -156,29 +161,73 @@ final availableTagsProvider = FutureProvider<List<String>>((ref) async {
   return (tags.toList()..sort()).toList();
 });
 
+/// All content versions linked to a specific manifest or document CID
+final documentVersionsProvider =
+    FutureProvider.family<List<ContentVersion>, String>((ref, documentCidOrUuid) async {
+  final db = ref.read(databaseProvider);
+  int? manifestId;
+
+  final versionMap = await db.getVersionByCid(documentCidOrUuid);
+  if (versionMap != null) {
+    manifestId = versionMap['manifestId'] as int?;
+  } else {
+    final manifestMap = await db.getManifestByUuid(documentCidOrUuid);
+    if (manifestMap != null) {
+      manifestId = manifestMap['id'] as int?;
+    }
+  }
+
+  if (manifestId == null) return const [];
+  return db.getVersionsForManifest(manifestId);
+});
+
+/// In-reader selected active version CID (overriding default)
+final activeVersionCidProvider =
+    StateProvider.family<String?, String>((ref, documentCidOrUuid) => null);
+
 /// Loads a document by CID (or manifest UUID) and decodes its bytes.
 final currentDocumentProvider =
     FutureProvider.family<DocumentStream, String>((ref, documentCid) async {
   final db = ref.read(databaseProvider);
   final repository = ref.read(contentRepositoryProvider);
+  final activeVersionCid = ref.watch(activeVersionCidProvider(documentCid));
 
   ContentVersion? version;
   ContentManifest? manifest;
 
-  final versionMap = await db.getVersionByCid(documentCid);
-  if (versionMap != null) {
-    version = ContentVersion.fromJson(versionMap);
-    final manifests = await db.getAllManifests();
-    manifest = manifests.cast<ContentManifest?>().firstWhere(
-          (m) => m?.id == version!.manifestId,
-          orElse: () => null,
-        );
-  } else {
-    final manifestMap = await db.getManifestByUuid(documentCid);
-    if (manifestMap != null) {
-      manifest = ContentManifest.fromJson(manifestMap);
-      final versions = await db.getVersionsForManifest(manifest.id);
-      version = versions.firstOrNull;
+  if (activeVersionCid != null) {
+    final versionMap = await db.getVersionByCid(activeVersionCid);
+    if (versionMap != null) {
+      version = ContentVersion.fromJson(versionMap);
+      final manifests = await db.getAllManifests();
+      manifest = manifests.cast<ContentManifest?>().firstWhere(
+            (m) => m?.id == version!.manifestId,
+            orElse: () => null,
+          );
+    }
+  }
+
+  if (version == null || manifest == null) {
+    final versionMap = await db.getVersionByCid(documentCid);
+    if (versionMap != null) {
+      version = ContentVersion.fromJson(versionMap);
+      final manifests = await db.getAllManifests();
+      manifest = manifests.cast<ContentManifest?>().firstWhere(
+            (m) => m?.id == version!.manifestId,
+            orElse: () => null,
+          );
+    } else {
+      final manifestMap = await db.getManifestByUuid(documentCid);
+      if (manifestMap != null) {
+        manifest = ContentManifest.fromJson(manifestMap);
+        final versions = await db.getVersionsForManifest(manifest.id);
+        if (versions.isNotEmpty) {
+          version = versions.firstWhere(
+            (v) => v.format == 'md-unabridged',
+            orElse: () => versions.first,
+          );
+        }
+      }
     }
   }
 
@@ -189,7 +238,13 @@ final currentDocumentProvider =
   final bytes = await repository.retrieveContent(version.cid);
   final content = _decodeContent(bytes);
 
-  return DocumentStream(title: manifest.title, content: content);
+  return DocumentStream(
+    title: manifest.title,
+    content: content,
+    format: version.format,
+    cid: version.cid,
+    sizeBytes: version.sizeBytes,
+  );
 });
 
 /// Annotations for a document, derived from collection item notes.

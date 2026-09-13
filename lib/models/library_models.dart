@@ -48,8 +48,17 @@ class SearchResult {
 class DocumentStream {
   final String title;
   final String content;
+  final String? format;
+  final String? cid;
+  final int? sizeBytes;
 
-  const DocumentStream({required this.title, required this.content});
+  const DocumentStream({
+    required this.title,
+    required this.content,
+    this.format,
+    this.cid,
+    this.sizeBytes,
+  });
 }
 
 class Annotation {

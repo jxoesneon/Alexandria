@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/database.dart';
 import '../../models/library_models.dart';
 import '../../providers/library_providers.dart';
 
@@ -167,7 +168,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildDocumentHeader(context, doc.title, zoomLevel, useOpenDyslexic),
+                          _buildDocumentHeader(context, doc, zoomLevel, useOpenDyslexic),
                           const SizedBox(height: 24),
                           ...blocks.map((block) => _buildBlockWidget(
                                 context,
@@ -245,37 +246,57 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   }
 
   Widget _buildDocumentHeader(
-      BuildContext context, String title, double zoom, bool dyslexic) {
+      BuildContext context, DocumentStream doc, double zoom, bool dyslexic) {
+    final versionsAsync = ref.watch(documentVersionsProvider(widget.documentCid));
+    final activeCid = doc.cid;
+    final isBrief = doc.format == 'md-brief';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.amber.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.verified, size: 14, color: Colors.amber),
-              SizedBox(width: 6),
-              Text(
-                'AUTHENTIC UNABRIDGED PRESERVATION RECORD • 17 U.S.C. § 108',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
-                  color: Colors.amber,
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: isBrief
+                    ? Colors.lightBlueAccent.withValues(alpha: 0.15)
+                    : Colors.amber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: isBrief
+                      ? Colors.lightBlueAccent.withValues(alpha: 0.5)
+                      : Colors.amber.withValues(alpha: 0.4),
                 ),
               ),
-            ],
-          ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isBrief ? Icons.flash_on : Icons.verified,
+                    size: 14,
+                    color: isBrief ? Colors.lightBlueAccent : Colors.amber,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    isBrief
+                        ? 'AUTHENTIC EXECUTIVE BRIEF • 17 U.S.C. § 108'
+                        : 'AUTHENTIC UNABRIDGED PRESERVATION RECORD • 17 U.S.C. § 108',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                      color: isBrief ? Colors.lightBlueAccent : Colors.amber,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
         Text(
-          title,
+          doc.title,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontFamily: dyslexic ? 'OpenDyslexic' : null,
                 fontSize: 28 * zoom,
@@ -283,10 +304,105 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                 height: 1.25,
               ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
+        // Multi-version Edition Switcher (Zero catalog duplication)
+        versionsAsync.when(
+          data: (versions) {
+            if (versions.length <= 1) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(top: 2.0, bottom: 8.0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Text(
+                    'Available Editions:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  for (final v in versions)
+                    _buildVersionChip(
+                      context,
+                      v,
+                      isSelected: v.cid == (activeCid ?? versions.first.cid),
+                    ),
+                ],
+              ),
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
+        const SizedBox(height: 4),
         Divider(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
       ],
     );
+  }
+
+  Widget _buildVersionChip(BuildContext context, ContentVersion v,
+      {required bool isSelected}) {
+    final isBrief = v.format == 'md-brief';
+    final label = isBrief
+        ? '⚡ Executive Brief (${_formatSize(v.sizeBytes)})'
+        : '📜 Full Unabridged (${_formatSize(v.sizeBytes)})';
+
+    return InkWell(
+      onTap: () {
+        ref.read(activeVersionCidProvider(widget.documentCid).notifier).state =
+            v.cid;
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+        }
+        ref.read(readerProgressProvider.notifier).state = 0.0;
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Colors.amber.withValues(alpha: 0.2)
+              : Colors.black12,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected
+                ? Colors.amber
+                : Theme.of(context).dividerColor.withValues(alpha: 0.4),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+              size: 13,
+              color: isSelected ? Colors.amber : Colors.grey,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected
+                    ? Colors.amber
+                    : Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   Widget _buildBlockWidget(
@@ -750,6 +866,9 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   }
 
   Widget _buildSafeHarborView(BuildContext context) {
+    final versionsAsync = ref.watch(documentVersionsProvider(widget.documentCid));
+    final activeCid = ref.watch(activeVersionCidProvider(widget.documentCid));
+
     return ListView(
       padding: const EdgeInsets.all(20.0),
       children: [
@@ -769,21 +888,147 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
           style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.5),
         ),
         const SizedBox(height: 20),
-        const Text('Multihash & Provenance:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.black26,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: SelectableText(
-            widget.documentCid,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Colors.cyanAccent),
-          ),
+        const Text(
+          'Linked Editions & CIDs (Zero Duplication):',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        versionsAsync.when(
+          data: (versions) {
+            if (versions.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: SelectableText(
+                  widget.documentCid,
+                  style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      color: Colors.cyanAccent),
+                ),
+              );
+            }
+            final currentActive = activeCid ??
+                (versions.any((v) => v.format == 'md-unabridged')
+                    ? versions.firstWhere((v) => v.format == 'md-unabridged').cid
+                    : versions.first.cid);
+
+            return Column(
+              children: versions.map((v) {
+                final isCurrent = v.cid == currentActive;
+                final isBrief = v.format == 'md-brief';
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isCurrent
+                        ? (isBrief
+                            ? Colors.lightBlueAccent.withValues(alpha: 0.12)
+                            : Colors.amber.withValues(alpha: 0.12))
+                        : Colors.black26,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isCurrent
+                          ? (isBrief
+                              ? Colors.lightBlueAccent.withValues(alpha: 0.6)
+                              : Colors.amber.withValues(alpha: 0.6))
+                          : Colors.white10,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            isBrief ? Icons.flash_on : Icons.article,
+                            size: 14,
+                            color:
+                                isBrief ? Colors.lightBlueAccent : Colors.amber,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            isBrief ? 'Executive Brief' : 'Full Unabridged',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isCurrent
+                                  ? (isBrief
+                                      ? Colors.lightBlueAccent
+                                      : Colors.amber)
+                                  : Colors.white70,
+                            ),
+                          ),
+                          if (isCurrent) ...[
+                            const SizedBox(width: 6),
+                            const Text(
+                              '[ACTIVE]',
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.greenAccent),
+                            ),
+                          ],
+                          const Spacer(),
+                          Text(
+                            _formatSize(v.sizeBytes),
+                            style:
+                                const TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      SelectableText(
+                        v.cid,
+                        style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 10,
+                            color: Colors.cyanAccent),
+                      ),
+                      if (!isCurrent) ...[
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                            ),
+                            icon: const Icon(Icons.swap_horiz, size: 14),
+                            label: const Text('Switch Edition',
+                                style: TextStyle(fontSize: 11)),
+                            onPressed: () {
+                              ref
+                                  .read(activeVersionCidProvider(widget.documentCid)
+                                      .notifier)
+                                  .state = v.cid;
+                              if (_scrollController.hasClients) {
+                                _scrollController.jumpTo(0);
+                              }
+                              ref
+                                  .read(readerProgressProvider.notifier)
+                                  .state = 0.0;
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }).toList(),
+            );
+          },
+          loading: () => const LinearProgressIndicator(),
+          error: (_, __) => const SizedBox.shrink(),
         ),
         const SizedBox(height: 16),
+        _buildMetaRow('Multi-Version Model', '1 Manifest → N CIDs'),
+        _buildMetaRow('Catalog Duplication', 'Zero (Deduped by Work UUID)'),
         _buildMetaRow('P2P Redundancy', '4 Seed Peers Active'),
         _buildMetaRow('Integrity Check', 'SHA-256 Merkle-Root OK'),
         _buildMetaRow('Access Mode', 'Air-gapped / Local-First'),

@@ -129,6 +129,30 @@ class ContentRepository {
     });
   }
 
+  /// Adds a new content-addressed file payload as an edition/version to an existing manifest
+  Future<String> addContentVersion({
+    required String manifestUuid,
+    required Uint8List fileData,
+    String language = 'en',
+    String format = 'bin',
+  }) async {
+    final manifest = await getManifestByUuid(manifestUuid);
+    if (manifest == null) {
+      throw ArgumentError('Manifest not found for UUID: $manifestUuid');
+    }
+    final cid = await _ipfs.addFile(fileData);
+    final db = _ref.read(databaseProvider);
+    await db.insertVersion({
+      'manifestId': manifest.id,
+      'cid': cid,
+      'language': language,
+      'format': format,
+      'sizeBytes': fileData.length,
+      'createdData': DateTime.now(),
+    });
+    return cid;
+  }
+
   Future<List<ContentManifest>> getAllManifests() async {
     final db = _ref.read(databaseProvider);
     return db.select(db.contentManifests).get();

@@ -17,6 +17,7 @@ class StarterSeedDocument {
   final String description;
   final List<String> tags;
   final String contentMarkdown;
+  final String? briefMarkdown;
 
   const StarterSeedDocument({
     required this.id,
@@ -28,6 +29,7 @@ class StarterSeedDocument {
     required this.description,
     required this.tags,
     required this.contentMarkdown,
+    this.briefMarkdown,
   });
 }
 
@@ -80,6 +82,7 @@ class StarterSeedService {
                 'Einstein proposes the light quantum hypothesis to explain the photoelectric effect, leading directly to quantum mechanics and his 1921 Nobel Prize in Physics.',
             tags: ['physics', 'quantum', 'photoelectric', 'nobel'],
             contentMarkdown: SeedDataTexts.einstein1905PhotoelectricFullText,
+            briefMarkdown: SeedDataTexts.einstein1905PhotoelectricBrief,
           ),
           StarterSeedDocument(
             id: 'doi_watson_crick_1953',
@@ -92,6 +95,7 @@ class StarterSeedService {
                 'The groundbreaking double-helix model of DNA that unlocked the physical mechanism for genetic replication and modern molecular genetics.',
             tags: ['genetics', 'dna', 'molecular-biology', 'nature'],
             contentMarkdown: SeedDataTexts.watsonCrick1953DnaFullText,
+            briefMarkdown: SeedDataTexts.watsonCrick1953DnaBrief,
           ),
           StarterSeedDocument(
             id: 'doi_turing_1936',
@@ -104,6 +108,7 @@ class StarterSeedService {
                 'Introduces the Universal Turing Machine, computability theory, and proves the undecidability of the halting problem, forming the foundation of computer science.',
             tags: ['computing', 'turing-machine', 'algorithms', 'mathematics'],
             contentMarkdown: SeedDataTexts.turing1936ComputableNumbersFullText,
+            briefMarkdown: SeedDataTexts.turing1936ComputableNumbersBrief,
           ),
         ],
       ),
@@ -125,6 +130,7 @@ class StarterSeedService {
                 'The seminal Socratic dialogue examining justice, the order and character of the just city-state, and the nature of knowledge.',
             tags: ['philosophy', 'ethics', 'classics', 'epistemology'],
             contentMarkdown: SeedDataTexts.platoRepublicCaveFullText,
+            briefMarkdown: SeedDataTexts.platoRepublicCaveBrief,
           ),
           StarterSeedDocument(
             id: 'heritage_newton_principia',
@@ -136,6 +142,7 @@ class StarterSeedService {
                 'Sets forth the three laws of motion and the law of universal gravitation, synthesizing classical mechanics and calculus.',
             tags: ['physics', 'mechanics', 'gravitation', 'calculus'],
             contentMarkdown: SeedDataTexts.newtonPrincipiaFullText,
+            briefMarkdown: SeedDataTexts.newtonPrincipiaBrief,
           ),
         ],
       ),
@@ -156,13 +163,13 @@ class StarterSeedService {
     int count = 0;
     for (final doc in pack.documents) {
       final bytes = Uint8List.fromList(utf8.encode(doc.contentMarkdown));
-      await contentRepo.createContent(
+      final uuid = await contentRepo.createContent(
         title: doc.title,
         author: doc.author,
         description: doc.description,
         fileData: bytes,
         category: doc.category,
-        format: 'md',
+        format: 'md-unabridged',
         tags: doc.tags,
         extraMetadata: {
           'year': doc.year,
@@ -171,6 +178,17 @@ class StarterSeedService {
           'license': 'Public Domain / Open Access',
         },
       );
+
+      // Ingest the companion executive brief as a secondary version under the SAME manifest
+      if (doc.briefMarkdown != null) {
+        final briefBytes = Uint8List.fromList(utf8.encode(doc.briefMarkdown!));
+        await contentRepo.addContentVersion(
+          manifestUuid: uuid,
+          fileData: briefBytes,
+          language: 'en',
+          format: 'md-brief',
+        );
+      }
 
       // Reward storage & verification credits for seeding
       creditService.awardStorageCredits(
