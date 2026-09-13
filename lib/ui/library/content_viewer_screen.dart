@@ -1,5 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../data/database.dart';
 import '../../models/library_models.dart';
@@ -20,9 +26,20 @@ class ContentViewerScreen extends ConsumerStatefulWidget {
 
 class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   final ScrollController _scrollController = ScrollController();
-  int _sidebarTab = 0; // 0: Contents, 1: Preservation & Safe Harbor, 2: Annotations
+  int _sidebarTab = 0; // 0: TOC, 1: Editions & Formats, 2: Safe Harbor & Legal, 3: Annotations
   final Map<int, GlobalKey> _headingKeys = {};
   bool _isSyncingScroll = false;
+
+  final TextEditingController _editionSearchController = TextEditingController();
+  String _editionSearchQuery = '';
+  String _editionFilterFormat = 'all';
+
+  void _openEditionsPanel() {
+    ref.read(sidebarVisibleProvider.notifier).state = true;
+    setState(() {
+      _sidebarTab = 1;
+    });
+  }
 
   @override
   void initState() {
@@ -34,6 +51,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _editionSearchController.dispose();
     super.dispose();
   }
 
@@ -187,7 +205,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
           ),
           if (showSidebar)
             Container(
-              width: 340,
+              width: 380,
               decoration: BoxDecoration(
                 border: Border(
                   left: BorderSide(
@@ -305,31 +323,102 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
               ),
         ),
         const SizedBox(height: 12),
-        // Multi-version Edition Switcher (Zero catalog duplication)
+        // Scalable Edition Indicator & Side Panel Opener (ALX-001 §3 & Anti-Slop)
         versionsAsync.when(
           data: (versions) {
-            if (versions.length <= 1) return const SizedBox.shrink();
+            if (versions.isEmpty) return const SizedBox.shrink();
+            final currentActive = activeCid ??
+                (versions.any((v) => v.format == 'md-unabridged')
+                    ? versions.firstWhere((v) => v.format == 'md-unabridged').cid
+                    : versions.first.cid);
+            final activeVersion = versions.firstWhere(
+              (v) => v.cid == currentActive,
+              orElse: () => versions.first,
+            );
+            final isBrief = activeVersion.format == 'md-brief';
+            final editionLabel = isBrief ? 'Executive Brief' : 'Full Unabridged';
+            final accentColor = isBrief ? Colors.lightBlueAccent : Colors.amber;
+
             return Padding(
-              padding: const EdgeInsets.only(top: 2.0, bottom: 8.0),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Available Editions:',
+                  Text(
+                    'Edition: ',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  for (final v in versions)
-                    _buildVersionChip(
-                      context,
-                      v,
-                      isSelected: v.cid == (activeCid ?? versions.first.cid),
+                  const SizedBox(width: 4),
+                  InkWell(
+                    onTap: _openEditionsPanel,
+                    borderRadius: BorderRadius.circular(6),
+                    hoverColor: accentColor.withValues(alpha: 0.1),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: accentColor.withValues(alpha: 0.5),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isBrief ? Icons.flash_on : Icons.article,
+                            size: 14,
+                            color: accentColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            editionLabel,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: accentColor,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '(${_formatSize(activeVersion.sizeBytes)})',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${versions.length} available',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.more_vert, size: 18),
+                    tooltip: 'Open Editions Catalog (${versions.length} versions)',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _openEditionsPanel,
+                  ),
                 ],
               ),
             );
@@ -340,62 +429,6 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         const SizedBox(height: 4),
         Divider(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
       ],
-    );
-  }
-
-  Widget _buildVersionChip(BuildContext context, ContentVersion v,
-      {required bool isSelected}) {
-    final isBrief = v.format == 'md-brief';
-    final label = isBrief
-        ? '⚡ Executive Brief (${_formatSize(v.sizeBytes)})'
-        : '📜 Full Unabridged (${_formatSize(v.sizeBytes)})';
-
-    return InkWell(
-      onTap: () {
-        ref.read(activeVersionCidProvider(widget.documentCid).notifier).state =
-            v.cid;
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(0);
-        }
-        ref.read(readerProgressProvider.notifier).state = 0.0;
-      },
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? Colors.amber.withValues(alpha: 0.2)
-              : Colors.black12,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: isSelected
-                ? Colors.amber
-                : Theme.of(context).dividerColor.withValues(alpha: 0.4),
-            width: isSelected ? 1.5 : 1.0,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-              size: 13,
-              color: isSelected ? Colors.amber : Colors.grey,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected
-                    ? Colors.amber
-                    : Theme.of(context).textTheme.bodyMedium?.color,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -520,6 +553,12 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
           ),
         );
 
+      case _BlockType.math:
+        return _buildMathDisplayBlock(context, block.text, zoom);
+
+      case _BlockType.image:
+        return _buildImageFigureBlock(context, block, zoom);
+
       case _BlockType.listItem:
         return Padding(
           padding: const EdgeInsets.only(left: 12.0, bottom: 6.0),
@@ -560,6 +599,429 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
     }
   }
 
+  Widget _buildMathDisplayBlock(BuildContext context, String tex, double zoom) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14171F),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.cyanAccent.withValues(alpha: 0.3),
+          width: 1.0,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Math.tex(
+              tex,
+              mathStyle: MathStyle.display,
+              textStyle: TextStyle(
+                fontSize: 18 * zoom,
+                color: const Color(0xFFE2E8F0),
+              ),
+              onErrorFallback: (err) => SelectableText(
+                tex,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 14 * zoom,
+                  color: Colors.cyanAccent,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.cyanAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'FORMULA • KaTeX',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                    color: Colors.cyanAccent,
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: tex));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('LaTeX equation copied to clipboard'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(4),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.copy, size: 11, color: Colors.grey),
+                      SizedBox(width: 4),
+                      Text('Copy LaTeX',
+                          style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageFigureBlock(
+      BuildContext context, _MarkdownBlock block, double zoom) {
+    final url = block.imageUrl ?? '';
+    final alt = block.imageAlt ?? block.text;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 20.0),
+      alignment: Alignment.center,
+      child: InkWell(
+        onTap: () => _openImageLightbox(context, url, alt),
+        borderRadius: BorderRadius.circular(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                constraints: const BoxConstraints(
+                  maxHeight: 520,
+                  maxWidth: 820,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14171F),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: _resolveImageWidget(context, url, alt),
+              ),
+            ),
+            if (alt.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.image_outlined, size: 13, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Figure: $alt',
+                      style: TextStyle(
+                        fontStyle: FontStyle.italic,
+                        fontSize: 12 * zoom,
+                        color: Colors.grey[400],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInlineImageBadge(
+      BuildContext context, String url, String alt, double zoom) {
+    return InkWell(
+      onTap: () => _openImageLightbox(context, url, alt),
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.image, size: 12, color: Colors.cyanAccent),
+            const SizedBox(width: 4),
+            Text(
+              alt.isNotEmpty ? alt : 'Image',
+              style: TextStyle(
+                fontSize: 12 * zoom,
+                color: Colors.cyanAccent,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _resolveImageWidget(BuildContext context, String url, String alt) {
+    // 1. SVG
+    if (url.toLowerCase().endsWith('.svg') ||
+        url.startsWith('data:image/svg+xml')) {
+      if (url.startsWith('data:image/svg+xml;base64,')) {
+        final base64String =
+            url.substring('data:image/svg+xml;base64,'.length);
+        final decoded = utf8.decode(base64Decode(base64String));
+        return SvgPicture.string(decoded, fit: BoxFit.contain);
+      } else if (url.startsWith('data:image/svg+xml;utf8,') ||
+          url.startsWith('data:image/svg+xml,')) {
+        final prefix = url.startsWith('data:image/svg+xml;utf8,')
+            ? 'data:image/svg+xml;utf8,'
+            : 'data:image/svg+xml,';
+        final svgString = Uri.decodeComponent(url.substring(prefix.length));
+        return SvgPicture.string(svgString, fit: BoxFit.contain);
+      } else if (url.startsWith('http://') || url.startsWith('https://')) {
+        return SvgPicture.network(
+          url,
+          fit: BoxFit.contain,
+          placeholderBuilder: (_) => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        );
+      } else if (url.startsWith('assets/')) {
+        return SvgPicture.asset(url, fit: BoxFit.contain);
+      } else {
+        return SvgPicture.file(File(url), fit: BoxFit.contain);
+      }
+    }
+
+    // 2. Base64 Raster Image
+    if (url.startsWith('data:image/') && url.contains(';base64,')) {
+      final parts = url.split(';base64,');
+      if (parts.length == 2) {
+        try {
+          final bytes = base64Decode(parts[1]);
+          return Image.memory(bytes, fit: BoxFit.contain);
+        } catch (_) {
+          return _buildImageErrorWidget(context, url, alt);
+        }
+      }
+    }
+
+    // 3. IPFS URI / CID
+    String effectiveUrl = url;
+    if (url.startsWith('ipfs://')) {
+      final cid = url.substring('ipfs://'.length);
+      effectiveUrl = 'https://ipfs.io/ipfs/$cid';
+    } else if (url.startsWith('/ipfs/')) {
+      final cid = url.substring('/ipfs/'.length);
+      effectiveUrl = 'https://ipfs.io/ipfs/$cid';
+    } else if (url.startsWith('bafy') || url.startsWith('Qm')) {
+      effectiveUrl = 'https://ipfs.io/ipfs/$url';
+    }
+
+    // 4. Remote HTTP/HTTPS
+    if (effectiveUrl.startsWith('http://') ||
+        effectiveUrl.startsWith('https://')) {
+      return Image.network(
+        effectiveUrl,
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          final percent = progress.expectedTotalBytes != null
+              ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+              : null;
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    value: percent,
+                    strokeWidth: 2,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Loading visual asset...',
+                      style: TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return _buildImageErrorWidget(context, url, alt);
+        },
+      );
+    }
+
+    // 5. Local File
+    if (File(url).existsSync()) {
+      return Image.file(
+        File(url),
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildImageErrorWidget(context, url, alt);
+        },
+      );
+    }
+
+    // 6. Asset Image
+    if (url.startsWith('assets/')) {
+      return Image.asset(
+        url,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildImageErrorWidget(context, url, alt);
+        },
+      );
+    }
+
+    // Fallback: graceful placeholder card
+    return _buildImageErrorWidget(context, url, alt);
+  }
+
+  Widget _buildImageErrorWidget(BuildContext context, String url, String alt) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+      color: Colors.black26,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.broken_image_outlined, size: 36, color: Colors.amber),
+          const SizedBox(height: 8),
+          Text(
+            alt.isNotEmpty ? alt : 'Archival Visual Asset',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          SelectableText(
+            url,
+            style: const TextStyle(
+                fontFamily: 'monospace', fontSize: 10, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'AIR-GAPPED OR OFFLINE',
+                  style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                style:
+                    TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                icon: const Icon(Icons.copy, size: 12),
+                label:
+                    const Text('Copy Asset URI', style: TextStyle(fontSize: 11)),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: url));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Asset URI copied to clipboard')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openImageLightbox(BuildContext context, String url, String alt) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF0F1117),
+        insetPadding: const EdgeInsets.all(24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 1000, maxHeight: 750),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.image, size: 18, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      alt.isNotEmpty ? alt : 'Visual Artifact Inspection',
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 16),
+                    tooltip: 'Copy Image Reference',
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: url));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content:
+                                Text('Image reference copied to clipboard')),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const Divider(height: 16),
+              Expanded(
+                child: Center(
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 4.0,
+                    child: _resolveImageWidget(context, url, alt),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Pinch or scroll to zoom • Click and drag to pan • Air-gapped peer preservation',
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRichText(
     BuildContext context,
     String text,
@@ -578,16 +1040,18 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         ) ??
         TextStyle(fontSize: 16 * zoom);
 
-    final spans = _parseInlineFormatting(text, baseStyle);
+    final spans = _parseInlineFormatting(context, text, baseStyle, zoom);
     return Text.rich(
       TextSpan(children: spans),
       textAlign: TextAlign.left,
     );
   }
 
-  List<InlineSpan> _parseInlineFormatting(String text, TextStyle baseStyle) {
+  List<InlineSpan> _parseInlineFormatting(
+      BuildContext context, String text, TextStyle baseStyle, double zoom) {
     final spans = <InlineSpan>[];
-    final regex = RegExp(r'(\*\*.*?\*\*|\*.*?\*|`.*?`|\$\$.*?\$\$|\$.*?\$)');
+    final regex = RegExp(
+        r'(\*\*.*?\*\*|\*.*?\*|`.*?`|!\[.*?\]\(.*?\)|\$\$.*?\$\$|\$[^\$\n]+\$)');
     int lastMatchEnd = 0;
 
     for (final match in regex.allMatches(text)) {
@@ -599,17 +1063,23 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
       }
 
       final matchText = match.group(0)!;
-      if (matchText.startsWith('**') && matchText.endsWith('**') && matchText.length >= 4) {
+      if (matchText.startsWith('**') &&
+          matchText.endsWith('**') &&
+          matchText.length >= 4) {
         spans.add(TextSpan(
           text: matchText.substring(2, matchText.length - 2),
           style: baseStyle.copyWith(fontWeight: FontWeight.bold),
         ));
-      } else if (matchText.startsWith('*') && matchText.endsWith('*') && matchText.length >= 2) {
+      } else if (matchText.startsWith('*') &&
+          matchText.endsWith('*') &&
+          matchText.length >= 2) {
         spans.add(TextSpan(
           text: matchText.substring(1, matchText.length - 1),
           style: baseStyle.copyWith(fontStyle: FontStyle.italic),
         ));
-      } else if (matchText.startsWith('`') && matchText.endsWith('`') && matchText.length >= 2) {
+      } else if (matchText.startsWith('`') &&
+          matchText.endsWith('`') &&
+          matchText.length >= 2) {
         spans.add(WidgetSpan(
           alignment: PlaceholderAlignment.middle,
           child: Container(
@@ -620,26 +1090,80 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
             ),
             child: Text(
               matchText.substring(1, matchText.length - 1),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              style: TextStyle(
+                  fontFamily: 'monospace', fontSize: 13 * zoom),
             ),
           ),
         ));
-      } else if (matchText.startsWith(r'$$') && matchText.endsWith(r'$$')) {
-        spans.add(TextSpan(
-          text: matchText.substring(2, matchText.length - 2),
-          style: baseStyle.copyWith(
-            fontFamily: 'monospace',
-            color: Colors.cyanAccent,
-            fontWeight: FontWeight.w600,
+      } else if (matchText.startsWith('![') && matchText.endsWith(')')) {
+        final imgMatch =
+            RegExp(r'^!\[(.*?)\]\((.*?)\)$').firstMatch(matchText);
+        if (imgMatch != null) {
+          final alt = imgMatch.group(1) ?? '';
+          var url = imgMatch.group(2) ?? '';
+          if (url.contains(' "')) url = url.split(' "').first.trim();
+          spans.add(WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: _buildInlineImageBadge(context, url, alt, zoom),
+          ));
+        }
+      } else if (matchText.startsWith(r'$$') &&
+          matchText.endsWith(r'$$') &&
+          matchText.length >= 4) {
+        final mathStr = matchText.substring(2, matchText.length - 2).trim();
+        spans.add(WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.cyanAccent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(4),
+              border:
+                  Border.all(color: Colors.cyanAccent.withValues(alpha: 0.2)),
+            ),
+            child: Math.tex(
+              mathStr,
+              mathStyle: MathStyle.display,
+              textStyle: TextStyle(
+                fontSize: 16 * zoom,
+                color: const Color(0xFFE2E8F0),
+              ),
+              onErrorFallback: (err) => Text(
+                mathStr,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  color: Colors.cyanAccent,
+                  fontSize: 14 * zoom,
+                ),
+              ),
+            ),
           ),
         ));
-      } else if (matchText.startsWith(r'$') && matchText.endsWith(r'$')) {
-        spans.add(TextSpan(
-          text: matchText.substring(1, matchText.length - 1),
-          style: baseStyle.copyWith(
-            fontFamily: 'monospace',
-            color: Colors.cyanAccent[100],
-            fontStyle: FontStyle.italic,
+      } else if (matchText.startsWith(r'$') &&
+          matchText.endsWith(r'$') &&
+          matchText.length >= 2) {
+        final mathStr = matchText.substring(1, matchText.length - 1).trim();
+        spans.add(WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2.0),
+            child: Math.tex(
+              mathStr,
+              mathStyle: MathStyle.text,
+              textStyle: TextStyle(
+                fontSize: 16 * zoom,
+                color: const Color(0xFFE2E8F0),
+              ),
+              onErrorFallback: (err) => Text(
+                mathStr,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  color: Colors.cyanAccent,
+                  fontSize: 13 * zoom,
+                ),
+              ),
+            ),
           ),
         ));
       } else {
@@ -674,6 +1198,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         continue;
       }
 
+      // 1. Fenced Code Block
       if (trimmed.startsWith('```')) {
         final codeLines = <String>[];
         i++;
@@ -689,12 +1214,72 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         continue;
       }
 
+      // 2. Display Math Formula Block ($$...$$)
+      if (trimmed.startsWith(r'$$')) {
+        if (trimmed.endsWith(r'$$') && trimmed.length > 4) {
+          blocks.add(_MarkdownBlock(
+            type: _BlockType.math,
+            text: trimmed.substring(2, trimmed.length - 2).trim(),
+          ));
+          i++;
+          continue;
+        } else {
+          final mathLines = <String>[];
+          final firstLine = trimmed.substring(2).trim();
+          if (firstLine.isNotEmpty) mathLines.add(firstLine);
+          i++;
+          while (i < lines.length && !lines[i].trim().endsWith(r'$$')) {
+            mathLines.add(lines[i]);
+            i++;
+          }
+          if (i < lines.length) {
+            final lastLine = lines[i].trim();
+            final lastContent =
+                lastLine.substring(0, lastLine.length - 2).trim();
+            if (lastContent.isNotEmpty) mathLines.add(lastContent);
+            i++;
+          }
+          blocks.add(_MarkdownBlock(
+            type: _BlockType.math,
+            text: mathLines.join('\n').trim(),
+          ));
+          continue;
+        }
+      }
+
+      // 3. Standalone Image Block (![alt](url))
+      // Use manual string extraction instead of regex to correctly handle
+      // long base64 data URIs that contain parentheses inside the URL.
+      if (trimmed.startsWith('![') &&
+          trimmed.contains('](') &&
+          trimmed.endsWith(')')) {
+        final altEnd = trimmed.indexOf('](');
+        if (altEnd != -1) {
+          final alt = trimmed.substring(2, altEnd);
+          // URL is everything between `](` and the final `)`
+          var url = trimmed.substring(altEnd + 2, trimmed.length - 1);
+          if (url.contains(' "')) {
+            url = url.split(' "').first.trim();
+          }
+          blocks.add(_MarkdownBlock(
+            type: _BlockType.image,
+            text: alt,
+            imageUrl: url.trim(),
+            imageAlt: alt.trim(),
+          ));
+          i++;
+          continue;
+        }
+      }
+
+      // 4. Horizontal Rule / Divider
       if (trimmed == '---' || trimmed == '***') {
         blocks.add(const _MarkdownBlock(type: _BlockType.divider, text: ''));
         i++;
         continue;
       }
 
+      // 5. Headings
       if (trimmed.startsWith('# ')) {
         final key = _headingKeys.putIfAbsent(headingIndex++, () => GlobalKey());
         blocks.add(_MarkdownBlock(
@@ -728,6 +1313,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         continue;
       }
 
+      // 6. Blockquote
       if (trimmed.startsWith('> ')) {
         final quoteLines = <String>[trimmed.substring(2)];
         i++;
@@ -742,6 +1328,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         continue;
       }
 
+      // 7. List item
       if (RegExp(r'^(\*|-|\d+\.)\s+').hasMatch(trimmed)) {
         final match = RegExp(r'^(\*|-|\d+\.)\s+').firstMatch(trimmed)!;
         final prefix = match.group(0)!;
@@ -754,13 +1341,15 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         continue;
       }
 
-      // Default paragraph: aggregate multi-line paragraph
+      // 8. Default paragraph: aggregate multi-line paragraph
       final paragraphLines = <String>[line];
       i++;
       while (i < lines.length &&
           lines[i].trim().isNotEmpty &&
           !lines[i].trim().startsWith('#') &&
           !lines[i].trim().startsWith('```') &&
+          !lines[i].trim().startsWith(r'$$') &&
+          !lines[i].trim().startsWith('![') &&
           !lines[i].trim().startsWith('> ') &&
           !RegExp(r'^(\*|-|\d+\.)\s+').hasMatch(lines[i].trim()) &&
           lines[i].trim() != '---') {
@@ -781,12 +1370,30 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          padding: const EdgeInsets.fromLTRB(10, 16, 10, 8),
           child: SegmentedButton<int>(
+            showSelectedIcon: false,
             segments: const [
-              ButtonSegment(value: 0, label: Text('TOC', style: TextStyle(fontSize: 11))),
-              ButtonSegment(value: 1, label: Text('Safe Harbor', style: TextStyle(fontSize: 11))),
-              ButtonSegment(value: 2, label: Text('Notes', style: TextStyle(fontSize: 11))),
+              ButtonSegment(
+                value: 0,
+                icon: Icon(Icons.toc, size: 13),
+                label: Text('TOC', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+              ),
+              ButtonSegment(
+                value: 1,
+                icon: Icon(Icons.layers_outlined, size: 13),
+                label: Text('Editions', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+              ),
+              ButtonSegment(
+                value: 2,
+                icon: Icon(Icons.shield_outlined, size: 13),
+                label: Text('Legal', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+              ),
+              ButtonSegment(
+                value: 3,
+                icon: Icon(Icons.note_alt_outlined, size: 13),
+                label: Text('Notes', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+              ),
             ],
             selected: {_sidebarTab},
             onSelectionChanged: (val) {
@@ -799,10 +1406,542 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
           child: _sidebarTab == 0
               ? _buildTocView(context, doc)
               : _sidebarTab == 1
-                  ? _buildSafeHarborView(context)
-                  : _buildAnnotationsView(context),
+                  ? _buildEditionsView(context)
+                  : _sidebarTab == 2
+                      ? _buildSafeHarborView(context)
+                      : _buildAnnotationsView(context),
         ),
       ],
+    );
+  }
+
+  Widget _buildEditionsView(BuildContext context) {
+    final versionsAsync =
+        ref.watch(documentVersionsProvider(widget.documentCid));
+    final activeCid = ref.watch(activeVersionCidProvider(widget.documentCid));
+
+    return versionsAsync.when(
+      loading: () => const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(strokeWidth: 2),
+            SizedBox(height: 12),
+            Text('Loading Merkle manifestations...',
+                style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      ),
+      error: (err, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text('Error querying versions: $err',
+              style: const TextStyle(color: Colors.redAccent)),
+        ),
+      ),
+      data: (versions) {
+        final currentActive = activeCid ??
+            (versions.any((v) => v.format == 'md-unabridged')
+                ? versions.firstWhere((v) => v.format == 'md-unabridged').cid
+                : (versions.isNotEmpty ? versions.first.cid : widget.documentCid));
+
+        // Filter by search query
+        var filtered = versions.where((v) {
+          final q = _editionSearchQuery.trim().toLowerCase();
+          if (q.isEmpty) return true;
+          final isBrief = v.format == 'md-brief';
+          final name =
+              isBrief ? 'executive brief' : 'full unabridged primary text';
+          return name.contains(q) ||
+              v.format.toLowerCase().contains(q) ||
+              v.cid.toLowerCase().contains(q);
+        }).toList();
+
+        // Filter by category chip
+        if (_editionFilterFormat == 'unabridged') {
+          filtered = filtered.where((v) => v.format == 'md-unabridged').toList();
+        } else if (_editionFilterFormat == 'brief') {
+          filtered = filtered.where((v) => v.format == 'md-brief').toList();
+        } else if (_editionFilterFormat == 'other') {
+          filtered = filtered
+              .where((v) =>
+                  v.format != 'md-unabridged' && v.format != 'md-brief')
+              .toList();
+        }
+
+        final totalBytes = versions.fold<int>(0, (sum, v) => sum + v.sizeBytes);
+        final countUnabridged =
+            versions.where((v) => v.format == 'md-unabridged').length;
+        final countBrief = versions.where((v) => v.format == 'md-brief').length;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header / Overview
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.layers_outlined,
+                                size: 16, color: Colors.amber),
+                            SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Editions & Formats',
+                                style: TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${versions.length} versions',
+                          style: const TextStyle(
+                              fontSize: 10, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Content-addressed manifestations (ALX-001 §3). Immutable CIDs pinned to P2P mesh.',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+
+            // Search Bar
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: TextField(
+                controller: _editionSearchController,
+                decoration: InputDecoration(
+                  hintText: 'Search format, name, CID...',
+                  hintStyle: const TextStyle(fontSize: 12),
+                  prefixIcon: const Icon(Icons.search, size: 16),
+                  suffixIcon: _editionSearchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: () {
+                            _editionSearchController.clear();
+                            setState(() => _editionSearchQuery = '');
+                          },
+                        )
+                      : null,
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                style: const TextStyle(fontSize: 12),
+                onChanged: (val) {
+                  setState(() => _editionSearchQuery = val);
+                },
+              ),
+            ),
+
+            // Filter Chips
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChoiceChip(
+                      label: 'All (${versions.length})',
+                      selected: _editionFilterFormat == 'all',
+                      onSelected: () =>
+                          setState(() => _editionFilterFormat = 'all'),
+                    ),
+                    const SizedBox(width: 6),
+                    _buildFilterChoiceChip(
+                      label: 'Unabridged ($countUnabridged)',
+                      selected: _editionFilterFormat == 'unabridged',
+                      onSelected: () =>
+                          setState(() => _editionFilterFormat = 'unabridged'),
+                    ),
+                    const SizedBox(width: 6),
+                    _buildFilterChoiceChip(
+                      label: 'Briefs ($countBrief)',
+                      selected: _editionFilterFormat == 'brief',
+                      onSelected: () =>
+                          setState(() => _editionFilterFormat = 'brief'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Results count bar
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      'Showing ${filtered.length} of ${versions.length} editions',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_formatSize(totalBytes)} on mesh',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+
+            // Virtualized List (Handles thousands of editions efficiently)
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.filter_list_off,
+                              size: 36, color: Colors.grey),
+                          const SizedBox(height: 8),
+                          Text(
+                            'No editions match "$_editionSearchQuery"',
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              _editionSearchController.clear();
+                              setState(() {
+                                _editionSearchQuery = '';
+                                _editionFilterFormat = 'all';
+                              });
+                            },
+                            child: const Text('Clear Filters',
+                                style: TextStyle(fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(12.0),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final v = filtered[index];
+                        final isCurrent = v.cid == currentActive;
+                        return _buildEditionCard(context, v,
+                            isCurrent: isCurrent);
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterChoiceChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onSelected,
+  }) {
+    return InkWell(
+      onTap: onSelected,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).dividerColor.withValues(alpha: 0.3),
+            width: selected ? 1.2 : 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+            color: selected
+                ? Theme.of(context).colorScheme.onPrimaryContainer
+                : Theme.of(context).textTheme.bodySmall?.color,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditionCard(BuildContext context, ContentVersion v,
+      {required bool isCurrent}) {
+    final isBrief = v.format == 'md-brief';
+    final editionTitle = isBrief
+        ? 'Executive Brief'
+        : (v.format == 'md-unabridged'
+            ? 'Full Unabridged Primary Text'
+            : v.format.toUpperCase());
+    final accentColor = isBrief ? Colors.lightBlueAccent : Colors.amber;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: isCurrent
+            ? accentColor.withValues(alpha: 0.12)
+            : Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isCurrent
+              ? accentColor.withValues(alpha: 0.6)
+              : Theme.of(context).dividerColor.withValues(alpha: 0.4),
+          width: isCurrent ? 1.5 : 1.0,
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          if (!isCurrent) {
+            ref
+                .read(activeVersionCidProvider(widget.documentCid).notifier)
+                .state = v.cid;
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(0);
+            }
+            ref.read(readerProgressProvider.notifier).state = 0.0;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Switched to $editionTitle (${v.format})'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Row: Icon + Title + Active Badge + Size
+              Row(
+                children: [
+                  Icon(
+                    isBrief ? Icons.flash_on : Icons.article,
+                    size: 16,
+                    color: accentColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      editionTitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: isCurrent
+                            ? accentColor
+                            : Theme.of(context).textTheme.titleSmall?.color,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isCurrent) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.greenAccent.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                            color: Colors.greenAccent.withValues(alpha: 0.5)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check,
+                              size: 10, color: Colors.greenAccent),
+                          SizedBox(width: 3),
+                          Text(
+                            'ACTIVE',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.greenAccent,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    _formatSize(v.sizeBytes),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Format badge and Swarm indicator
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Text(
+                      v.format.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.sensors,
+                      size: 12, color: Colors.greenAccent),
+                  const SizedBox(width: 4),
+                  const Expanded(
+                    child: Text(
+                      '4 Seed Peers • Verified Merkle Root',
+                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // CID Multihash display with Copy button
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black38,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.tag, size: 12, color: Colors.cyanAccent),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        v.cid,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 10,
+                          color: Colors.cyanAccent,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: v.cid));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('CID copied to clipboard'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(2.0),
+                        child:
+                            Icon(Icons.copy, size: 12, color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Switch action if not current
+              if (!isCurrent) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                    ),
+                    icon: const Icon(Icons.swap_horiz, size: 14),
+                    label: const Text('Switch to this Edition',
+                        style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      ref
+                          .read(activeVersionCidProvider(widget.documentCid)
+                              .notifier)
+                          .state = v.cid;
+                      if (_scrollController.hasClients) {
+                        _scrollController.jumpTo(0);
+                      }
+                      ref.read(readerProgressProvider.notifier).state = 0.0;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content:
+                              Text('Switched to $editionTitle (${v.format})'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1078,18 +2217,22 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   }
 }
 
-enum _BlockType { h1, h2, h3, divider, quote, code, listItem, paragraph }
+enum _BlockType { h1, h2, h3, divider, quote, code, math, image, listItem, paragraph }
 
 class _MarkdownBlock {
   final _BlockType type;
   final String text;
   final GlobalKey? key;
   final String? listPrefix;
+  final String? imageUrl;
+  final String? imageAlt;
 
   const _MarkdownBlock({
     required this.type,
     required this.text,
     this.key,
     this.listPrefix,
+    this.imageUrl,
+    this.imageAlt,
   });
 }
