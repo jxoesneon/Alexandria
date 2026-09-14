@@ -23,6 +23,11 @@ class CreditTransaction {
   final String? referenceId;
   final String hash;
 
+  /// TRUE only when this credit derives from a verifier-signed work receipt
+  /// whose verifier pubkey differs from the local identity (ALX-010
+  /// self-dealing guard). Locally self-certified mints are always FALSE.
+  final bool isAttested;
+
   CreditTransaction({
     required this.id,
     required this.timestamp,
@@ -31,6 +36,7 @@ class CreditTransaction {
     required this.description,
     this.referenceId,
     required this.hash,
+    this.isAttested = false,
   });
 
   static String computeHash({
@@ -40,8 +46,9 @@ class CreditTransaction {
     required double amount,
     required String description,
     String? referenceId,
+    bool isAttested = false,
   }) {
-    final raw = '$id|${timestamp.toIso8601String()}|${type.name}|$amount|$description|${referenceId ?? ''}';
+    final raw = '$id|${timestamp.toIso8601String()}|${type.name}|$amount|$description|${referenceId ?? ''}|$isAttested';
     return sha256.convert(utf8.encode(raw)).toString().substring(0, 16);
   }
 
@@ -53,12 +60,17 @@ class CreditTransaction {
         'description': description,
         'referenceId': referenceId,
         'hash': hash,
+        'isAttested': isAttested,
       };
 
   factory CreditTransaction.fromJson(Map<String, dynamic> json) {
+    final rawTimestamp = json['timestamp'];
     return CreditTransaction(
       id: json['id'] as String,
-      timestamp: DateTime.parse(json['timestamp'] as String),
+      // Drift rows hand back DateTime; JSON blobs hand back ISO strings.
+      timestamp: rawTimestamp is DateTime
+          ? rawTimestamp
+          : DateTime.parse(rawTimestamp as String),
       type: CreditType.values.firstWhere(
         (e) => e.name == json['type'],
         orElse: () => CreditType.storageReward,
@@ -67,6 +79,7 @@ class CreditTransaction {
       description: json['description'] as String,
       referenceId: json['referenceId'] as String?,
       hash: json['hash'] as String,
+      isAttested: json['isAttested'] as bool? ?? false,
     );
   }
 }

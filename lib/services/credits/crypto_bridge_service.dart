@@ -145,6 +145,59 @@ class CryptoBridgeService extends ChangeNotifier {
   /// Satoshis per Archival Credit (1 ℭ = 10 sats)
   static const int satsPerCredit = 10;
 
+  /// Service-level kill switch for every ℭ→external-value path (ALX-010).
+  /// Stays closed until verifier-signed work receipts exist and
+  /// [CreditService.attestedBalance] reflects foreign-verified value. The MCP
+  /// layer keeps its own flag as belt; this is the load-bearing suspender —
+  /// direct callers (e.g. the human wallet dialog) cannot route around it.
+  static const bool payoutsEnabled = false;
+
+  /// Reason surfaced to callers/UI when egress is blocked by [payoutsEnabled].
+  static const String payoutsDisabledReason =
+      'Payout rails are disabled until the cross-verified attestation layer '
+      'ships (ALX-010). Credits remain spendable inside Alexandria.';
+
+  /// Reason voucher redemption is disabled: without real mint verification
+  /// (NUT-03 swap + /v1/checkstate) fabricated proofs would mint unbacked ℭ.
+  static const String redemptionDisabledReason =
+      'Cashu voucher redemption is disabled until real mint verification '
+      '(NUT-03 swap + /v1/checkstate) is implemented.';
+
+  /// Runtime view of the compile-time kill switch [payoutsEnabled]. Control
+  /// flow must read the gate through this getter so the analyzer does not
+  /// constant-fold the flag and flag the attested-balance invariant inside
+  /// [egressRejectionReason] as dead code while the feature is dark.
+  final bool? _overridePayoutsAllowed;
+  bool get _payoutsAllowed => _overridePayoutsAllowed ?? payoutsEnabled;
+
+  /// Returns a human-readable reason an egress of [credits] ℭ is barred, or
+  /// null when it may proceed. Only verifier-signed attested credits may ever
+  /// leave Alexandria (ALX-010); self-certified value stays internal-only.
+  String? egressRejectionReason(double credits) {
+    // Fail closed on non-finite / non-positive input BEFORE any comparison:
+    // `NaN > x` is always false, so NaN and -Infinity would otherwise slip
+    // past the attested-balance check and crash later on
+    // `(credits * satsPerCredit).toInt()` (UnsupportedError outside the try
+    // in sweepToLightningAddressLive).
+    if (!credits.isFinite || credits <= 0) {
+      return 'Invalid egress amount.';
+    }
+    if (!_payoutsAllowed) {
+      return payoutsDisabledReason;
+    }
+    // Invariant wired NOW behind the gate: when payouts eventually open, only
+    // verifier-signed attested credit may egress — never self-certified value.
+    // Contract: [CreditService.attestedBalance] must be NET of attested
+    // spending (attested debit transactions decrement it) — a gross sum would
+    // let the same attested credit egress twice. See credit_service.dart.
+    if (credits > _creditService.attestedBalance) {
+      return 'Only verifier-signed attested credits may egress (ALX-010): '
+          'requested ${credits.toStringAsFixed(1)} ℭ exceeds attested balance '
+          'of ${_creditService.attestedBalance.toStringAsFixed(1)} ℭ.';
+    }
+    return null;
+  }
+
   final Set<String> _spentCashuSecrets = {};
   final List<String> _exportedTokensHistory = [];
 
@@ -152,9 +205,11 @@ class CryptoBridgeService extends ChangeNotifier {
     required CreditService creditService,
     LnurlService? lnurlService,
     CashuMintClient? mintClient,
+    bool? overridePayoutsAllowed,
   })  : _creditService = creditService,
         _lnurlService = lnurlService ?? LnurlService(),
-        _mintClient = mintClient ?? CashuMintClient();
+        _mintClient = mintClient ?? CashuMintClient(),
+        _overridePayoutsAllowed = overridePayoutsAllowed;
 
   String get lightningAddress => _lightningAddress;
   String get preferredCashuMint => _preferredCashuMint;
@@ -179,6 +234,11 @@ class CryptoBridgeService extends ChangeNotifier {
 
   /// Exports a specified amount of Archival Credits into an anonymous Chaumian E-Cash bearer token
   CashuToken? exportCreditsAsCashuToken(double creditsToExport) {
+    // ALX-010 service gate: no egress while payouts are disabled; when enabled,
+    // only attested (verifier-signed) credit may leave. Reason is available to
+    // callers via [egressRejectionReason]. Never debits when rejected.
+    if (egressRejectionReason(creditsToExport) != null) return null;
+
     if (creditsToExport <= 0 || _creditService.balance < creditsToExport) {
       return null;
     }
@@ -210,36 +270,25 @@ class CryptoBridgeService extends ChangeNotifier {
   }
 
   /// Redeems an incoming Chaumian E-Cash token voucher and deposits credits into the local wallet
+  ///
+  /// DISABLED (ALX-010): always returns 0. Until proofs are verified against a
+  /// real mint (NUT-03 swap + /v1/checkstate), crediting ℭ here would mint
+  /// unbacked value for fabricated tokens — a local spent-set is not proof of
+  /// mint backing. See [redemptionDisabledReason].
   double redeemCashuToken(String tokenString) {
     final token = CashuToken.deserialize(tokenString);
     if (token == null || token.proofs.isEmpty) {
       return 0.0;
     }
 
-    // Check for double-spend against spent secrets
-    int unspentSats = 0;
+    // Well-formed vouchers are still rejected. Their secrets are absorbed into
+    // the spent-set (never credited) so vouchers submitted while disabled can
+    // never be replayed once real mint verification lands.
     for (final proof in token.proofs) {
-      if (!_spentCashuSecrets.contains(proof.secret)) {
-        unspentSats += proof.amount;
-        _spentCashuSecrets.add(proof.secret);
-      }
+      _spentCashuSecrets.add(proof.secret);
     }
-
-    if (unspentSats <= 0) {
-      return 0.0; // All proofs already spent
-    }
-
-    // Convert unspent sats to Archival Credits
-    final creditsAwarded = unspentSats / satsPerCredit;
-
-    _creditService.awardVerificationCredits(
-      action: 'Redeemed Cashu E-Cash Voucher ($unspentSats Sats from ${token.mint})',
-      targetId: 'cashu_${token.proofs.first.id}',
-      amount: creditsAwarded,
-    );
-
-    notifyListeners();
-    return creditsAwarded;
+    debugPrint('redeemCashuToken rejected: $redemptionDisabledReason');
+    return 0.0;
   }
 
   /// Simulates a non-custodial Lightning payment sweep to the user's configured Lightning Address
@@ -247,6 +296,10 @@ class CryptoBridgeService extends ChangeNotifier {
     required double creditsToSweep,
     String? customAddress,
   }) {
+    // ALX-010 service gate: a simulated payout is still a ℭ→external-value
+    // path (it burns real credits for a pretend payment) — gated identically.
+    if (egressRejectionReason(creditsToSweep) != null) return false;
+
     final target = customAddress ?? _lightningAddress;
     if (!isValidLightningAddress(target)) return false;
     if (creditsToSweep <= 0 || _creditService.balance < creditsToSweep) return false;
@@ -272,6 +325,18 @@ class CryptoBridgeService extends ChangeNotifier {
     String? customAddress,
     String? preferredMint,
   }) async {
+    // ALX-010 service gate — fail closed before any network IO. The reason is
+    // surfaced verbatim so callers (MCP tools, wallet UI) can display it.
+    final rejection = egressRejectionReason(creditsToSweep);
+    if (rejection != null) {
+      return SweepResult(
+        success: false,
+        status: 'failed',
+        sats: 0,
+        error: rejection,
+      );
+    }
+
     final target = customAddress ?? _lightningAddress;
     if (!isValidLightningAddress(target)) {
       return const SweepResult(
@@ -318,13 +383,27 @@ class CryptoBridgeService extends ChangeNotifier {
       );
 
       if (meltResult.paid) {
-        // 5. Deduct credits on successful payment confirmation
-        _creditService.spendCredits(
+        // 5. Deduct credits on successful payment confirmation. The result is
+        // captured: sats already left on the wire, so a failed local debit is
+        // a reconciliation event — never report 'confirmed' on a stale ledger.
+        final debited = _creditService.spendCredits(
           amount: creditsToSweep,
           reason: 'Live Lightning Payout to $target ($sats Sats)',
           referenceId: meltResult.paymentPreimage ?? invoice.pr,
           debitType: CreditType.priorityAccessDebit,
         );
+
+        if (!debited) {
+          return SweepResult(
+            success: false,
+            status: 'failed',
+            sats: sats,
+            bolt11: invoice.pr,
+            paymentPreimage: meltResult.paymentPreimage,
+            error: 'Payment settled but local debit failed — manual '
+                'reconciliation required',
+          );
+        }
 
         notifyListeners();
         return SweepResult(

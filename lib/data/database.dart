@@ -61,13 +61,88 @@ class HonorValidations extends Table {
   TextColumn get signature => text()();
 }
 
-@DriftDatabase(
-    tables: [ContentManifests, ContentVersions, UserProfiles, HonorValidations])
+/// Persistent ledger of every Archival Credit mint/spend (ALX-005).
+/// [isAttested] is TRUE only when the credit derives from a verifier-signed
+/// work receipt whose verifier pubkey differs from the local identity
+/// (self-dealing guard, ALX-010).
+class CreditTransactions extends Table {
+  TextColumn get id => text()();
+  DateTimeColumn get timestamp => dateTime()();
+  TextColumn get type => text()();
+  RealColumn get amount => real()();
+  TextColumn get description => text()();
+  TextColumn get referenceId => text().nullable()();
+  TextColumn get hash => text()();
+  BoolColumn get isAttested =>
+      boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Persisted daily mint-cap counters, keyed by UTC day ('YYYY-MM-DD') and
+/// CreditType name, so daily accrual caps survive restarts (ALX-005 §6.1).
+class DailyMinted extends Table {
+  TextColumn get dayKey => text()();
+  TextColumn get creditType => text()();
+  RealColumn get amount => real()();
+
+  @override
+  Set<Column> get primaryKey => {dayKey, creditType};
+}
+
+/// Permanent registry of DOIs that already received a verification reward,
+/// preventing duplicate minting across restarts.
+class AwardedDois extends Table {
+  TextColumn get doi => text()();
+  DateTimeColumn get awardedAt => dateTime()();
+  TextColumn get cid => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {doi};
+}
+
+/// Verifier-signed work receipts (ALX-010 / P1). [receiptId] is the sha256 of
+/// the canonical receipt body; [verifierSig] is a base64 Ed25519 signature
+/// over it. [spent] is the spend-dedup flag set once the receipt is claimed.
+class WorkReceipts extends Table {
+  TextColumn get receiptId => text()();
+  TextColumn get workType => text()(); // 'storage' | 'compute' | 'verification'
+  TextColumn get proverPubkey => text()(); // base58 Ed25519
+  TextColumn get verifierPubkey => text()(); // base58 Ed25519
+  TextColumn get cid => text().nullable()();
+  TextColumn get chunkIndices => text()(); // JSON array of ints
+  TextColumn get challengeNonce => text()(); // hex
+  TextColumn get responseTag => text()(); // hex HMAC
+  RealColumn get workUnits => real()();
+  RealColumn get amount => real()();
+  TextColumn get epoch => text()(); // UTC day
+  IntColumn get expiresAt => integer()(); // epoch millis
+  TextColumn get evidenceHash => text().nullable()();
+  TextColumn get verifierSig => text()(); // base64 Ed25519 signature
+  TextColumn get proverSig => text().nullable()(); // prover counter-signature
+  BoolColumn get spent => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {receiptId};
+}
+
+@DriftDatabase(tables: [
+  ContentManifests,
+  ContentVersions,
+  UserProfiles,
+  HonorValidations,
+  CreditTransactions,
+  DailyMinted,
+  AwardedDois,
+  WorkReceipts,
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -76,6 +151,12 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(contentVersions, contentVersions.publisherPubkey);
             await m.addColumn(contentVersions, contentVersions.signature);
             await m.addColumn(contentVersions, contentVersions.flaggedReason);
+          }
+          if (from < 3) {
+            await m.createTable(creditTransactions);
+            await m.createTable(dailyMinted);
+            await m.createTable(awardedDois);
+            await m.createTable(workReceipts);
           }
         },
       );
@@ -153,6 +234,131 @@ class AppDatabase extends _$AppDatabase {
       ..where((p) => p.publicKey.equals(publicKey));
     return query.getSingleOrNull();
   }
+
+  Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
+    await into(creditTransactions).insert(
+      CreditTransactionsCompanion.insert(
+        id: data['id'] as String,
+        timestamp: (data['timestamp'] as DateTime?) ?? DateTime.now(),
+        type: data['type'] as String,
+        amount: (data['amount'] as num).toDouble(),
+        description: data['description'] as String,
+        hash: data['hash'] as String,
+        referenceId: Value(data['referenceId'] as String?),
+        isAttested: Value(data['isAttested'] as bool? ?? false),
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getCreditTransactions(
+      {int limit = 200}) async {
+    final query = select(creditTransactions)
+      ..orderBy([(t) => OrderingTerm.desc(t.timestamp)])
+      ..limit(limit);
+    final rows = await query.get();
+    return rows.map(_creditTransactionToMap).toList();
+  }
+
+  /// Returns persisted daily mint totals for [dayKey] as type → amount.
+  Future<Map<String, double>> getDailyMinted(String dayKey) async {
+    final query = select(dailyMinted)..where((d) => d.dayKey.equals(dayKey));
+    final rows = await query.get();
+    return {for (final row in rows) row.creditType: row.amount};
+  }
+
+  Future<void> upsertDailyMinted(
+      String dayKey, String creditType, double amount) async {
+    await into(dailyMinted).insertOnConflictUpdate(
+      DailyMintedCompanion.insert(
+        dayKey: dayKey,
+        creditType: creditType,
+        amount: amount,
+      ),
+    );
+  }
+
+  Future<void> insertAwardedDoi(String doi, {String? cid}) async {
+    await into(awardedDois).insert(
+      AwardedDoisCompanion.insert(
+        doi: doi,
+        awardedAt: DateTime.now(),
+        cid: Value(cid),
+      ),
+    );
+  }
+
+  Future<bool> hasAwardedDoi(String doi) async {
+    final query = select(awardedDois)..where((d) => d.doi.equals(doi));
+    final row = await query.getSingleOrNull();
+    return row != null;
+  }
+
+  Future<void> insertWorkReceipt(Map<String, dynamic> data) async {
+    await into(workReceipts).insert(
+      WorkReceiptsCompanion.insert(
+        receiptId: data['receiptId'] as String,
+        workType: data['workType'] as String,
+        proverPubkey: data['proverPubkey'] as String,
+        verifierPubkey: data['verifierPubkey'] as String,
+        chunkIndices: data['chunkIndices'] as String,
+        challengeNonce: data['challengeNonce'] as String,
+        responseTag: data['responseTag'] as String,
+        workUnits: (data['workUnits'] as num).toDouble(),
+        amount: (data['amount'] as num).toDouble(),
+        epoch: data['epoch'] as String,
+        expiresAt: data['expiresAt'] as int,
+        verifierSig: data['verifierSig'] as String,
+        createdAt: (data['createdAt'] as DateTime?) ?? DateTime.now(),
+        cid: Value(data['cid'] as String?),
+        evidenceHash: Value(data['evidenceHash'] as String?),
+        proverSig: Value(data['proverSig'] as String?),
+        spent: Value(data['spent'] as bool? ?? false),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>?> getWorkReceipt(String receiptId) async {
+    final query = select(workReceipts)
+      ..where((r) => r.receiptId.equals(receiptId));
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _workReceiptToMap(row);
+  }
+
+  Future<void> markReceiptSpent(String receiptId) async {
+    await (update(workReceipts)..where((r) => r.receiptId.equals(receiptId)))
+        .write(const WorkReceiptsCompanion(spent: Value(true)));
+  }
+
+  static Map<String, dynamic> _creditTransactionToMap(CreditTransaction t) => {
+        'id': t.id,
+        'timestamp': t.timestamp,
+        'type': t.type,
+        'amount': t.amount,
+        'description': t.description,
+        'referenceId': t.referenceId,
+        'hash': t.hash,
+        'isAttested': t.isAttested,
+      };
+
+  static Map<String, dynamic> _workReceiptToMap(WorkReceipt r) => {
+        'receiptId': r.receiptId,
+        'workType': r.workType,
+        'proverPubkey': r.proverPubkey,
+        'verifierPubkey': r.verifierPubkey,
+        'cid': r.cid,
+        'chunkIndices': r.chunkIndices,
+        'challengeNonce': r.challengeNonce,
+        'responseTag': r.responseTag,
+        'workUnits': r.workUnits,
+        'amount': r.amount,
+        'epoch': r.epoch,
+        'expiresAt': r.expiresAt,
+        'evidenceHash': r.evidenceHash,
+        'verifierSig': r.verifierSig,
+        'proverSig': r.proverSig,
+        'spent': r.spent,
+        'createdAt': r.createdAt,
+      };
 
   static Map<String, dynamic> _manifestToMap(ContentManifest m) => {
         'id': m.id,

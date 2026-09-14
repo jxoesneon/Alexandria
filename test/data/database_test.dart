@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart' hide isNull, isNotNull;
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/data/database.dart';
@@ -14,8 +16,8 @@ void main() {
       await db.close();
     });
 
-    test('schemaVersion is 2', () {
-      expect(db.schemaVersion, equals(2));
+    test('schemaVersion is 3', () {
+      expect(db.schemaVersion, equals(3));
     });
 
     test('insert and retrieve a manifest by uuid', () async {
@@ -259,5 +261,121 @@ void main() {
       final versions = await db.getVersionsForManifest(999999);
       expect(versions, isEmpty);
     });
+
+    test('credit transactions CRUD and query', () async {
+      final now = DateTime.now();
+      await db.insertCreditTransaction({
+        'id': 'ctx_1',
+        'timestamp': now,
+        'type': 'storageReward',
+        'amount': 50.0,
+        'description': 'Daily storage reward',
+        'hash': 'h123',
+        'referenceId': 'ref_1',
+        'isAttested': true,
+      });
+
+      final list = await db.getCreditTransactions(limit: 10);
+      expect(list.length, 1);
+      expect(list.first['id'], 'ctx_1');
+      expect(list.first['amount'], 50.0);
+      expect(list.first['isAttested'], isTrue);
+    });
+
+    test('daily minted tracking and upsert', () async {
+      await db.upsertDailyMinted('2026-01-01', 'storageReward', 10.0);
+      var daily = await db.getDailyMinted('2026-01-01');
+      expect(daily['storageReward'], 10.0);
+
+      await db.upsertDailyMinted('2026-01-01', 'storageReward', 25.0);
+      daily = await db.getDailyMinted('2026-01-01');
+      expect(daily['storageReward'], 25.0);
+    });
+
+    test('awarded DOIs tracking', () async {
+      expect(await db.hasAwardedDoi('10.1038/s41586-020-2649-2'), isFalse);
+      await db.insertAwardedDoi('10.1038/s41586-020-2649-2', cid: 'bafy_doi');
+      expect(await db.hasAwardedDoi('10.1038/s41586-020-2649-2'), isTrue);
+    });
+
+    test('work receipt insertion, retrieval and marking spent', () async {
+      await db.insertWorkReceipt({
+        'receiptId': 'rcpt_001',
+        'workType': 'por',
+        'proverPubkey': 'pub_prover',
+        'verifierPubkey': 'pub_verifier',
+        'chunkIndices': '0,1,2',
+        'challengeNonce': 'nonce123',
+        'responseTag': 'tag456',
+        'workUnits': 1.0,
+        'amount': 10.0,
+        'epoch': '2026-01-01',
+        'expiresAt': 1767225600,
+        'verifierSig': 'sig_ver',
+      });
+
+      final rcpt = await db.getWorkReceipt('rcpt_001');
+      expect(rcpt, isNotNull);
+      expect(rcpt!['receiptId'], 'rcpt_001');
+      expect(rcpt['spent'], isFalse);
+
+      await db.markReceiptSpent('rcpt_001');
+      final updated = await db.getWorkReceipt('rcpt_001');
+      expect(updated!['spent'], isTrue);
+
+      expect(await db.getWorkReceipt('unknown'), isNull);
+    });
+
+    test('user profiles, activity dates and endangered versions', () async {
+      expect(await db.getUserActivityDates('pubkey_1'), isEmpty);
+      expect(await db.getProfileByPublicKey('pubkey_missing'), isNull);
+
+      final endangered = await db.getEndangeredVersions(5);
+      expect(endangered, isA<List<ContentVersion>>());
+    });
+
+
+
+    test('migration strategy executes onUpgrade logic', () async {
+      final strategy = db.migration;
+      final calledTables = <String>[];
+      final calledColumns = <String>[];
+
+      // Custom test migrator tracking invocations
+      final fakeMigrator = _FakeMigrator(
+        onAddCol: (tbl, col) => calledColumns.add('${tbl.entityName}.${col.$name}'),
+        onCreateTbl: (tbl) => calledTables.add(tbl.entityName),
+      );
+
+      await strategy.onUpgrade(fakeMigrator, 1, 3);
+      expect(calledColumns.length, equals(3));
+      expect(calledTables.length, equals(4));
+
+      calledColumns.clear();
+      calledTables.clear();
+
+      await strategy.onUpgrade(fakeMigrator, 2, 3);
+      expect(calledColumns, isEmpty);
+      expect(calledTables.length, equals(4));
+    });
   });
 }
+
+class _FakeMigrator extends Migrator {
+  final void Function(TableInfo, GeneratedColumn) onAddCol;
+  final void Function(TableInfo) onCreateTbl;
+
+  _FakeMigrator({required this.onAddCol, required this.onCreateTbl})
+      : super(AppDatabase(NativeDatabase.memory()));
+
+  @override
+  Future<void> addColumn(TableInfo table, GeneratedColumn column) async {
+    onAddCol(table, column);
+  }
+
+  @override
+  Future<void> createTable(TableInfo table) async {
+    onCreateTbl(table);
+  }
+}
+

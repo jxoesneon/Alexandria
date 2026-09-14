@@ -1777,6 +1777,1713 @@ class HonorValidationsCompanion extends UpdateCompanion<HonorValidation> {
   }
 }
 
+class $CreditTransactionsTable extends CreditTransactions
+    with TableInfo<$CreditTransactionsTable, CreditTransaction> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CreditTransactionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _timestampMeta =
+      const VerificationMeta('timestamp');
+  @override
+  late final GeneratedColumn<DateTime> timestamp = GeneratedColumn<DateTime>(
+      'timestamp', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _referenceIdMeta =
+      const VerificationMeta('referenceId');
+  @override
+  late final GeneratedColumn<String> referenceId = GeneratedColumn<String>(
+      'reference_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _hashMeta = const VerificationMeta('hash');
+  @override
+  late final GeneratedColumn<String> hash = GeneratedColumn<String>(
+      'hash', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _isAttestedMeta =
+      const VerificationMeta('isAttested');
+  @override
+  late final GeneratedColumn<bool> isAttested = GeneratedColumn<bool>(
+      'is_attested', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_attested" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, timestamp, type, amount, description, referenceId, hash, isAttested];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'credit_transactions';
+  @override
+  VerificationContext validateIntegrity(Insertable<CreditTransaction> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(_timestampMeta,
+          timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta));
+    } else if (isInserting) {
+      context.missing(_timestampMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    } else if (isInserting) {
+      context.missing(_descriptionMeta);
+    }
+    if (data.containsKey('reference_id')) {
+      context.handle(
+          _referenceIdMeta,
+          referenceId.isAcceptableOrUnknown(
+              data['reference_id']!, _referenceIdMeta));
+    }
+    if (data.containsKey('hash')) {
+      context.handle(
+          _hashMeta, hash.isAcceptableOrUnknown(data['hash']!, _hashMeta));
+    } else if (isInserting) {
+      context.missing(_hashMeta);
+    }
+    if (data.containsKey('is_attested')) {
+      context.handle(
+          _isAttestedMeta,
+          isAttested.isAcceptableOrUnknown(
+              data['is_attested']!, _isAttestedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CreditTransaction map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CreditTransaction(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      timestamp: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}timestamp'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
+      referenceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}reference_id']),
+      hash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}hash'])!,
+      isAttested: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_attested'])!,
+    );
+  }
+
+  @override
+  $CreditTransactionsTable createAlias(String alias) {
+    return $CreditTransactionsTable(attachedDatabase, alias);
+  }
+}
+
+class CreditTransaction extends DataClass
+    implements Insertable<CreditTransaction> {
+  final String id;
+  final DateTime timestamp;
+  final String type;
+  final double amount;
+  final String description;
+  final String? referenceId;
+  final String hash;
+  final bool isAttested;
+  const CreditTransaction(
+      {required this.id,
+      required this.timestamp,
+      required this.type,
+      required this.amount,
+      required this.description,
+      this.referenceId,
+      required this.hash,
+      required this.isAttested});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['timestamp'] = Variable<DateTime>(timestamp);
+    map['type'] = Variable<String>(type);
+    map['amount'] = Variable<double>(amount);
+    map['description'] = Variable<String>(description);
+    if (!nullToAbsent || referenceId != null) {
+      map['reference_id'] = Variable<String>(referenceId);
+    }
+    map['hash'] = Variable<String>(hash);
+    map['is_attested'] = Variable<bool>(isAttested);
+    return map;
+  }
+
+  CreditTransactionsCompanion toCompanion(bool nullToAbsent) {
+    return CreditTransactionsCompanion(
+      id: Value(id),
+      timestamp: Value(timestamp),
+      type: Value(type),
+      amount: Value(amount),
+      description: Value(description),
+      referenceId: referenceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenceId),
+      hash: Value(hash),
+      isAttested: Value(isAttested),
+    );
+  }
+
+  factory CreditTransaction.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CreditTransaction(
+      id: serializer.fromJson<String>(json['id']),
+      timestamp: serializer.fromJson<DateTime>(json['timestamp']),
+      type: serializer.fromJson<String>(json['type']),
+      amount: serializer.fromJson<double>(json['amount']),
+      description: serializer.fromJson<String>(json['description']),
+      referenceId: serializer.fromJson<String?>(json['referenceId']),
+      hash: serializer.fromJson<String>(json['hash']),
+      isAttested: serializer.fromJson<bool>(json['isAttested']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'timestamp': serializer.toJson<DateTime>(timestamp),
+      'type': serializer.toJson<String>(type),
+      'amount': serializer.toJson<double>(amount),
+      'description': serializer.toJson<String>(description),
+      'referenceId': serializer.toJson<String?>(referenceId),
+      'hash': serializer.toJson<String>(hash),
+      'isAttested': serializer.toJson<bool>(isAttested),
+    };
+  }
+
+  CreditTransaction copyWith(
+          {String? id,
+          DateTime? timestamp,
+          String? type,
+          double? amount,
+          String? description,
+          Value<String?> referenceId = const Value.absent(),
+          String? hash,
+          bool? isAttested}) =>
+      CreditTransaction(
+        id: id ?? this.id,
+        timestamp: timestamp ?? this.timestamp,
+        type: type ?? this.type,
+        amount: amount ?? this.amount,
+        description: description ?? this.description,
+        referenceId: referenceId.present ? referenceId.value : this.referenceId,
+        hash: hash ?? this.hash,
+        isAttested: isAttested ?? this.isAttested,
+      );
+  CreditTransaction copyWithCompanion(CreditTransactionsCompanion data) {
+    return CreditTransaction(
+      id: data.id.present ? data.id.value : this.id,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      type: data.type.present ? data.type.value : this.type,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      description:
+          data.description.present ? data.description.value : this.description,
+      referenceId:
+          data.referenceId.present ? data.referenceId.value : this.referenceId,
+      hash: data.hash.present ? data.hash.value : this.hash,
+      isAttested:
+          data.isAttested.present ? data.isAttested.value : this.isAttested,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CreditTransaction(')
+          ..write('id: $id, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('type: $type, ')
+          ..write('amount: $amount, ')
+          ..write('description: $description, ')
+          ..write('referenceId: $referenceId, ')
+          ..write('hash: $hash, ')
+          ..write('isAttested: $isAttested')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, timestamp, type, amount, description, referenceId, hash, isAttested);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CreditTransaction &&
+          other.id == this.id &&
+          other.timestamp == this.timestamp &&
+          other.type == this.type &&
+          other.amount == this.amount &&
+          other.description == this.description &&
+          other.referenceId == this.referenceId &&
+          other.hash == this.hash &&
+          other.isAttested == this.isAttested);
+}
+
+class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
+  final Value<String> id;
+  final Value<DateTime> timestamp;
+  final Value<String> type;
+  final Value<double> amount;
+  final Value<String> description;
+  final Value<String?> referenceId;
+  final Value<String> hash;
+  final Value<bool> isAttested;
+  final Value<int> rowid;
+  const CreditTransactionsCompanion({
+    this.id = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.type = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.description = const Value.absent(),
+    this.referenceId = const Value.absent(),
+    this.hash = const Value.absent(),
+    this.isAttested = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CreditTransactionsCompanion.insert({
+    required String id,
+    required DateTime timestamp,
+    required String type,
+    required double amount,
+    required String description,
+    this.referenceId = const Value.absent(),
+    required String hash,
+    this.isAttested = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        timestamp = Value(timestamp),
+        type = Value(type),
+        amount = Value(amount),
+        description = Value(description),
+        hash = Value(hash);
+  static Insertable<CreditTransaction> custom({
+    Expression<String>? id,
+    Expression<DateTime>? timestamp,
+    Expression<String>? type,
+    Expression<double>? amount,
+    Expression<String>? description,
+    Expression<String>? referenceId,
+    Expression<String>? hash,
+    Expression<bool>? isAttested,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (type != null) 'type': type,
+      if (amount != null) 'amount': amount,
+      if (description != null) 'description': description,
+      if (referenceId != null) 'reference_id': referenceId,
+      if (hash != null) 'hash': hash,
+      if (isAttested != null) 'is_attested': isAttested,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CreditTransactionsCompanion copyWith(
+      {Value<String>? id,
+      Value<DateTime>? timestamp,
+      Value<String>? type,
+      Value<double>? amount,
+      Value<String>? description,
+      Value<String?>? referenceId,
+      Value<String>? hash,
+      Value<bool>? isAttested,
+      Value<int>? rowid}) {
+    return CreditTransactionsCompanion(
+      id: id ?? this.id,
+      timestamp: timestamp ?? this.timestamp,
+      type: type ?? this.type,
+      amount: amount ?? this.amount,
+      description: description ?? this.description,
+      referenceId: referenceId ?? this.referenceId,
+      hash: hash ?? this.hash,
+      isAttested: isAttested ?? this.isAttested,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<DateTime>(timestamp.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (referenceId.present) {
+      map['reference_id'] = Variable<String>(referenceId.value);
+    }
+    if (hash.present) {
+      map['hash'] = Variable<String>(hash.value);
+    }
+    if (isAttested.present) {
+      map['is_attested'] = Variable<bool>(isAttested.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CreditTransactionsCompanion(')
+          ..write('id: $id, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('type: $type, ')
+          ..write('amount: $amount, ')
+          ..write('description: $description, ')
+          ..write('referenceId: $referenceId, ')
+          ..write('hash: $hash, ')
+          ..write('isAttested: $isAttested, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DailyMintedTable extends DailyMinted
+    with TableInfo<$DailyMintedTable, DailyMintedData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyMintedTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dayKeyMeta = const VerificationMeta('dayKey');
+  @override
+  late final GeneratedColumn<String> dayKey = GeneratedColumn<String>(
+      'day_key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _creditTypeMeta =
+      const VerificationMeta('creditType');
+  @override
+  late final GeneratedColumn<String> creditType = GeneratedColumn<String>(
+      'credit_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [dayKey, creditType, amount];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_minted';
+  @override
+  VerificationContext validateIntegrity(Insertable<DailyMintedData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('day_key')) {
+      context.handle(_dayKeyMeta,
+          dayKey.isAcceptableOrUnknown(data['day_key']!, _dayKeyMeta));
+    } else if (isInserting) {
+      context.missing(_dayKeyMeta);
+    }
+    if (data.containsKey('credit_type')) {
+      context.handle(
+          _creditTypeMeta,
+          creditType.isAcceptableOrUnknown(
+              data['credit_type']!, _creditTypeMeta));
+    } else if (isInserting) {
+      context.missing(_creditTypeMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {dayKey, creditType};
+  @override
+  DailyMintedData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyMintedData(
+      dayKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}day_key'])!,
+      creditType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}credit_type'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+    );
+  }
+
+  @override
+  $DailyMintedTable createAlias(String alias) {
+    return $DailyMintedTable(attachedDatabase, alias);
+  }
+}
+
+class DailyMintedData extends DataClass implements Insertable<DailyMintedData> {
+  final String dayKey;
+  final String creditType;
+  final double amount;
+  const DailyMintedData(
+      {required this.dayKey, required this.creditType, required this.amount});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['day_key'] = Variable<String>(dayKey);
+    map['credit_type'] = Variable<String>(creditType);
+    map['amount'] = Variable<double>(amount);
+    return map;
+  }
+
+  DailyMintedCompanion toCompanion(bool nullToAbsent) {
+    return DailyMintedCompanion(
+      dayKey: Value(dayKey),
+      creditType: Value(creditType),
+      amount: Value(amount),
+    );
+  }
+
+  factory DailyMintedData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyMintedData(
+      dayKey: serializer.fromJson<String>(json['dayKey']),
+      creditType: serializer.fromJson<String>(json['creditType']),
+      amount: serializer.fromJson<double>(json['amount']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'dayKey': serializer.toJson<String>(dayKey),
+      'creditType': serializer.toJson<String>(creditType),
+      'amount': serializer.toJson<double>(amount),
+    };
+  }
+
+  DailyMintedData copyWith(
+          {String? dayKey, String? creditType, double? amount}) =>
+      DailyMintedData(
+        dayKey: dayKey ?? this.dayKey,
+        creditType: creditType ?? this.creditType,
+        amount: amount ?? this.amount,
+      );
+  DailyMintedData copyWithCompanion(DailyMintedCompanion data) {
+    return DailyMintedData(
+      dayKey: data.dayKey.present ? data.dayKey.value : this.dayKey,
+      creditType:
+          data.creditType.present ? data.creditType.value : this.creditType,
+      amount: data.amount.present ? data.amount.value : this.amount,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyMintedData(')
+          ..write('dayKey: $dayKey, ')
+          ..write('creditType: $creditType, ')
+          ..write('amount: $amount')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(dayKey, creditType, amount);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyMintedData &&
+          other.dayKey == this.dayKey &&
+          other.creditType == this.creditType &&
+          other.amount == this.amount);
+}
+
+class DailyMintedCompanion extends UpdateCompanion<DailyMintedData> {
+  final Value<String> dayKey;
+  final Value<String> creditType;
+  final Value<double> amount;
+  final Value<int> rowid;
+  const DailyMintedCompanion({
+    this.dayKey = const Value.absent(),
+    this.creditType = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DailyMintedCompanion.insert({
+    required String dayKey,
+    required String creditType,
+    required double amount,
+    this.rowid = const Value.absent(),
+  })  : dayKey = Value(dayKey),
+        creditType = Value(creditType),
+        amount = Value(amount);
+  static Insertable<DailyMintedData> custom({
+    Expression<String>? dayKey,
+    Expression<String>? creditType,
+    Expression<double>? amount,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (dayKey != null) 'day_key': dayKey,
+      if (creditType != null) 'credit_type': creditType,
+      if (amount != null) 'amount': amount,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DailyMintedCompanion copyWith(
+      {Value<String>? dayKey,
+      Value<String>? creditType,
+      Value<double>? amount,
+      Value<int>? rowid}) {
+    return DailyMintedCompanion(
+      dayKey: dayKey ?? this.dayKey,
+      creditType: creditType ?? this.creditType,
+      amount: amount ?? this.amount,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (dayKey.present) {
+      map['day_key'] = Variable<String>(dayKey.value);
+    }
+    if (creditType.present) {
+      map['credit_type'] = Variable<String>(creditType.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyMintedCompanion(')
+          ..write('dayKey: $dayKey, ')
+          ..write('creditType: $creditType, ')
+          ..write('amount: $amount, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AwardedDoisTable extends AwardedDois
+    with TableInfo<$AwardedDoisTable, AwardedDoi> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AwardedDoisTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _doiMeta = const VerificationMeta('doi');
+  @override
+  late final GeneratedColumn<String> doi = GeneratedColumn<String>(
+      'doi', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _awardedAtMeta =
+      const VerificationMeta('awardedAt');
+  @override
+  late final GeneratedColumn<DateTime> awardedAt = GeneratedColumn<DateTime>(
+      'awarded_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _cidMeta = const VerificationMeta('cid');
+  @override
+  late final GeneratedColumn<String> cid = GeneratedColumn<String>(
+      'cid', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [doi, awardedAt, cid];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'awarded_dois';
+  @override
+  VerificationContext validateIntegrity(Insertable<AwardedDoi> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('doi')) {
+      context.handle(
+          _doiMeta, doi.isAcceptableOrUnknown(data['doi']!, _doiMeta));
+    } else if (isInserting) {
+      context.missing(_doiMeta);
+    }
+    if (data.containsKey('awarded_at')) {
+      context.handle(_awardedAtMeta,
+          awardedAt.isAcceptableOrUnknown(data['awarded_at']!, _awardedAtMeta));
+    } else if (isInserting) {
+      context.missing(_awardedAtMeta);
+    }
+    if (data.containsKey('cid')) {
+      context.handle(
+          _cidMeta, cid.isAcceptableOrUnknown(data['cid']!, _cidMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {doi};
+  @override
+  AwardedDoi map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AwardedDoi(
+      doi: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}doi'])!,
+      awardedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}awarded_at'])!,
+      cid: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cid']),
+    );
+  }
+
+  @override
+  $AwardedDoisTable createAlias(String alias) {
+    return $AwardedDoisTable(attachedDatabase, alias);
+  }
+}
+
+class AwardedDoi extends DataClass implements Insertable<AwardedDoi> {
+  final String doi;
+  final DateTime awardedAt;
+  final String? cid;
+  const AwardedDoi({required this.doi, required this.awardedAt, this.cid});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['doi'] = Variable<String>(doi);
+    map['awarded_at'] = Variable<DateTime>(awardedAt);
+    if (!nullToAbsent || cid != null) {
+      map['cid'] = Variable<String>(cid);
+    }
+    return map;
+  }
+
+  AwardedDoisCompanion toCompanion(bool nullToAbsent) {
+    return AwardedDoisCompanion(
+      doi: Value(doi),
+      awardedAt: Value(awardedAt),
+      cid: cid == null && nullToAbsent ? const Value.absent() : Value(cid),
+    );
+  }
+
+  factory AwardedDoi.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AwardedDoi(
+      doi: serializer.fromJson<String>(json['doi']),
+      awardedAt: serializer.fromJson<DateTime>(json['awardedAt']),
+      cid: serializer.fromJson<String?>(json['cid']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'doi': serializer.toJson<String>(doi),
+      'awardedAt': serializer.toJson<DateTime>(awardedAt),
+      'cid': serializer.toJson<String?>(cid),
+    };
+  }
+
+  AwardedDoi copyWith(
+          {String? doi,
+          DateTime? awardedAt,
+          Value<String?> cid = const Value.absent()}) =>
+      AwardedDoi(
+        doi: doi ?? this.doi,
+        awardedAt: awardedAt ?? this.awardedAt,
+        cid: cid.present ? cid.value : this.cid,
+      );
+  AwardedDoi copyWithCompanion(AwardedDoisCompanion data) {
+    return AwardedDoi(
+      doi: data.doi.present ? data.doi.value : this.doi,
+      awardedAt: data.awardedAt.present ? data.awardedAt.value : this.awardedAt,
+      cid: data.cid.present ? data.cid.value : this.cid,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AwardedDoi(')
+          ..write('doi: $doi, ')
+          ..write('awardedAt: $awardedAt, ')
+          ..write('cid: $cid')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(doi, awardedAt, cid);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AwardedDoi &&
+          other.doi == this.doi &&
+          other.awardedAt == this.awardedAt &&
+          other.cid == this.cid);
+}
+
+class AwardedDoisCompanion extends UpdateCompanion<AwardedDoi> {
+  final Value<String> doi;
+  final Value<DateTime> awardedAt;
+  final Value<String?> cid;
+  final Value<int> rowid;
+  const AwardedDoisCompanion({
+    this.doi = const Value.absent(),
+    this.awardedAt = const Value.absent(),
+    this.cid = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AwardedDoisCompanion.insert({
+    required String doi,
+    required DateTime awardedAt,
+    this.cid = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : doi = Value(doi),
+        awardedAt = Value(awardedAt);
+  static Insertable<AwardedDoi> custom({
+    Expression<String>? doi,
+    Expression<DateTime>? awardedAt,
+    Expression<String>? cid,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (doi != null) 'doi': doi,
+      if (awardedAt != null) 'awarded_at': awardedAt,
+      if (cid != null) 'cid': cid,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AwardedDoisCompanion copyWith(
+      {Value<String>? doi,
+      Value<DateTime>? awardedAt,
+      Value<String?>? cid,
+      Value<int>? rowid}) {
+    return AwardedDoisCompanion(
+      doi: doi ?? this.doi,
+      awardedAt: awardedAt ?? this.awardedAt,
+      cid: cid ?? this.cid,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (doi.present) {
+      map['doi'] = Variable<String>(doi.value);
+    }
+    if (awardedAt.present) {
+      map['awarded_at'] = Variable<DateTime>(awardedAt.value);
+    }
+    if (cid.present) {
+      map['cid'] = Variable<String>(cid.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AwardedDoisCompanion(')
+          ..write('doi: $doi, ')
+          ..write('awardedAt: $awardedAt, ')
+          ..write('cid: $cid, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WorkReceiptsTable extends WorkReceipts
+    with TableInfo<$WorkReceiptsTable, WorkReceipt> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WorkReceiptsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _receiptIdMeta =
+      const VerificationMeta('receiptId');
+  @override
+  late final GeneratedColumn<String> receiptId = GeneratedColumn<String>(
+      'receipt_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _workTypeMeta =
+      const VerificationMeta('workType');
+  @override
+  late final GeneratedColumn<String> workType = GeneratedColumn<String>(
+      'work_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _proverPubkeyMeta =
+      const VerificationMeta('proverPubkey');
+  @override
+  late final GeneratedColumn<String> proverPubkey = GeneratedColumn<String>(
+      'prover_pubkey', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _verifierPubkeyMeta =
+      const VerificationMeta('verifierPubkey');
+  @override
+  late final GeneratedColumn<String> verifierPubkey = GeneratedColumn<String>(
+      'verifier_pubkey', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _cidMeta = const VerificationMeta('cid');
+  @override
+  late final GeneratedColumn<String> cid = GeneratedColumn<String>(
+      'cid', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _chunkIndicesMeta =
+      const VerificationMeta('chunkIndices');
+  @override
+  late final GeneratedColumn<String> chunkIndices = GeneratedColumn<String>(
+      'chunk_indices', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _challengeNonceMeta =
+      const VerificationMeta('challengeNonce');
+  @override
+  late final GeneratedColumn<String> challengeNonce = GeneratedColumn<String>(
+      'challenge_nonce', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _responseTagMeta =
+      const VerificationMeta('responseTag');
+  @override
+  late final GeneratedColumn<String> responseTag = GeneratedColumn<String>(
+      'response_tag', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _workUnitsMeta =
+      const VerificationMeta('workUnits');
+  @override
+  late final GeneratedColumn<double> workUnits = GeneratedColumn<double>(
+      'work_units', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _epochMeta = const VerificationMeta('epoch');
+  @override
+  late final GeneratedColumn<String> epoch = GeneratedColumn<String>(
+      'epoch', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _expiresAtMeta =
+      const VerificationMeta('expiresAt');
+  @override
+  late final GeneratedColumn<int> expiresAt = GeneratedColumn<int>(
+      'expires_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _evidenceHashMeta =
+      const VerificationMeta('evidenceHash');
+  @override
+  late final GeneratedColumn<String> evidenceHash = GeneratedColumn<String>(
+      'evidence_hash', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _verifierSigMeta =
+      const VerificationMeta('verifierSig');
+  @override
+  late final GeneratedColumn<String> verifierSig = GeneratedColumn<String>(
+      'verifier_sig', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _proverSigMeta =
+      const VerificationMeta('proverSig');
+  @override
+  late final GeneratedColumn<String> proverSig = GeneratedColumn<String>(
+      'prover_sig', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _spentMeta = const VerificationMeta('spent');
+  @override
+  late final GeneratedColumn<bool> spent = GeneratedColumn<bool>(
+      'spent', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("spent" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        receiptId,
+        workType,
+        proverPubkey,
+        verifierPubkey,
+        cid,
+        chunkIndices,
+        challengeNonce,
+        responseTag,
+        workUnits,
+        amount,
+        epoch,
+        expiresAt,
+        evidenceHash,
+        verifierSig,
+        proverSig,
+        spent,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'work_receipts';
+  @override
+  VerificationContext validateIntegrity(Insertable<WorkReceipt> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('receipt_id')) {
+      context.handle(_receiptIdMeta,
+          receiptId.isAcceptableOrUnknown(data['receipt_id']!, _receiptIdMeta));
+    } else if (isInserting) {
+      context.missing(_receiptIdMeta);
+    }
+    if (data.containsKey('work_type')) {
+      context.handle(_workTypeMeta,
+          workType.isAcceptableOrUnknown(data['work_type']!, _workTypeMeta));
+    } else if (isInserting) {
+      context.missing(_workTypeMeta);
+    }
+    if (data.containsKey('prover_pubkey')) {
+      context.handle(
+          _proverPubkeyMeta,
+          proverPubkey.isAcceptableOrUnknown(
+              data['prover_pubkey']!, _proverPubkeyMeta));
+    } else if (isInserting) {
+      context.missing(_proverPubkeyMeta);
+    }
+    if (data.containsKey('verifier_pubkey')) {
+      context.handle(
+          _verifierPubkeyMeta,
+          verifierPubkey.isAcceptableOrUnknown(
+              data['verifier_pubkey']!, _verifierPubkeyMeta));
+    } else if (isInserting) {
+      context.missing(_verifierPubkeyMeta);
+    }
+    if (data.containsKey('cid')) {
+      context.handle(
+          _cidMeta, cid.isAcceptableOrUnknown(data['cid']!, _cidMeta));
+    }
+    if (data.containsKey('chunk_indices')) {
+      context.handle(
+          _chunkIndicesMeta,
+          chunkIndices.isAcceptableOrUnknown(
+              data['chunk_indices']!, _chunkIndicesMeta));
+    } else if (isInserting) {
+      context.missing(_chunkIndicesMeta);
+    }
+    if (data.containsKey('challenge_nonce')) {
+      context.handle(
+          _challengeNonceMeta,
+          challengeNonce.isAcceptableOrUnknown(
+              data['challenge_nonce']!, _challengeNonceMeta));
+    } else if (isInserting) {
+      context.missing(_challengeNonceMeta);
+    }
+    if (data.containsKey('response_tag')) {
+      context.handle(
+          _responseTagMeta,
+          responseTag.isAcceptableOrUnknown(
+              data['response_tag']!, _responseTagMeta));
+    } else if (isInserting) {
+      context.missing(_responseTagMeta);
+    }
+    if (data.containsKey('work_units')) {
+      context.handle(_workUnitsMeta,
+          workUnits.isAcceptableOrUnknown(data['work_units']!, _workUnitsMeta));
+    } else if (isInserting) {
+      context.missing(_workUnitsMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('epoch')) {
+      context.handle(
+          _epochMeta, epoch.isAcceptableOrUnknown(data['epoch']!, _epochMeta));
+    } else if (isInserting) {
+      context.missing(_epochMeta);
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(_expiresAtMeta,
+          expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta));
+    } else if (isInserting) {
+      context.missing(_expiresAtMeta);
+    }
+    if (data.containsKey('evidence_hash')) {
+      context.handle(
+          _evidenceHashMeta,
+          evidenceHash.isAcceptableOrUnknown(
+              data['evidence_hash']!, _evidenceHashMeta));
+    }
+    if (data.containsKey('verifier_sig')) {
+      context.handle(
+          _verifierSigMeta,
+          verifierSig.isAcceptableOrUnknown(
+              data['verifier_sig']!, _verifierSigMeta));
+    } else if (isInserting) {
+      context.missing(_verifierSigMeta);
+    }
+    if (data.containsKey('prover_sig')) {
+      context.handle(_proverSigMeta,
+          proverSig.isAcceptableOrUnknown(data['prover_sig']!, _proverSigMeta));
+    }
+    if (data.containsKey('spent')) {
+      context.handle(
+          _spentMeta, spent.isAcceptableOrUnknown(data['spent']!, _spentMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {receiptId};
+  @override
+  WorkReceipt map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WorkReceipt(
+      receiptId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}receipt_id'])!,
+      workType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}work_type'])!,
+      proverPubkey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}prover_pubkey'])!,
+      verifierPubkey: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}verifier_pubkey'])!,
+      cid: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cid']),
+      chunkIndices: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chunk_indices'])!,
+      challengeNonce: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}challenge_nonce'])!,
+      responseTag: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}response_tag'])!,
+      workUnits: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}work_units'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+      epoch: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}epoch'])!,
+      expiresAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}expires_at'])!,
+      evidenceHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}evidence_hash']),
+      verifierSig: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}verifier_sig'])!,
+      proverSig: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}prover_sig']),
+      spent: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}spent'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $WorkReceiptsTable createAlias(String alias) {
+    return $WorkReceiptsTable(attachedDatabase, alias);
+  }
+}
+
+class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
+  final String receiptId;
+  final String workType;
+  final String proverPubkey;
+  final String verifierPubkey;
+  final String? cid;
+  final String chunkIndices;
+  final String challengeNonce;
+  final String responseTag;
+  final double workUnits;
+  final double amount;
+  final String epoch;
+  final int expiresAt;
+  final String? evidenceHash;
+  final String verifierSig;
+  final String? proverSig;
+  final bool spent;
+  final DateTime createdAt;
+  const WorkReceipt(
+      {required this.receiptId,
+      required this.workType,
+      required this.proverPubkey,
+      required this.verifierPubkey,
+      this.cid,
+      required this.chunkIndices,
+      required this.challengeNonce,
+      required this.responseTag,
+      required this.workUnits,
+      required this.amount,
+      required this.epoch,
+      required this.expiresAt,
+      this.evidenceHash,
+      required this.verifierSig,
+      this.proverSig,
+      required this.spent,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['receipt_id'] = Variable<String>(receiptId);
+    map['work_type'] = Variable<String>(workType);
+    map['prover_pubkey'] = Variable<String>(proverPubkey);
+    map['verifier_pubkey'] = Variable<String>(verifierPubkey);
+    if (!nullToAbsent || cid != null) {
+      map['cid'] = Variable<String>(cid);
+    }
+    map['chunk_indices'] = Variable<String>(chunkIndices);
+    map['challenge_nonce'] = Variable<String>(challengeNonce);
+    map['response_tag'] = Variable<String>(responseTag);
+    map['work_units'] = Variable<double>(workUnits);
+    map['amount'] = Variable<double>(amount);
+    map['epoch'] = Variable<String>(epoch);
+    map['expires_at'] = Variable<int>(expiresAt);
+    if (!nullToAbsent || evidenceHash != null) {
+      map['evidence_hash'] = Variable<String>(evidenceHash);
+    }
+    map['verifier_sig'] = Variable<String>(verifierSig);
+    if (!nullToAbsent || proverSig != null) {
+      map['prover_sig'] = Variable<String>(proverSig);
+    }
+    map['spent'] = Variable<bool>(spent);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  WorkReceiptsCompanion toCompanion(bool nullToAbsent) {
+    return WorkReceiptsCompanion(
+      receiptId: Value(receiptId),
+      workType: Value(workType),
+      proverPubkey: Value(proverPubkey),
+      verifierPubkey: Value(verifierPubkey),
+      cid: cid == null && nullToAbsent ? const Value.absent() : Value(cid),
+      chunkIndices: Value(chunkIndices),
+      challengeNonce: Value(challengeNonce),
+      responseTag: Value(responseTag),
+      workUnits: Value(workUnits),
+      amount: Value(amount),
+      epoch: Value(epoch),
+      expiresAt: Value(expiresAt),
+      evidenceHash: evidenceHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(evidenceHash),
+      verifierSig: Value(verifierSig),
+      proverSig: proverSig == null && nullToAbsent
+          ? const Value.absent()
+          : Value(proverSig),
+      spent: Value(spent),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory WorkReceipt.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WorkReceipt(
+      receiptId: serializer.fromJson<String>(json['receiptId']),
+      workType: serializer.fromJson<String>(json['workType']),
+      proverPubkey: serializer.fromJson<String>(json['proverPubkey']),
+      verifierPubkey: serializer.fromJson<String>(json['verifierPubkey']),
+      cid: serializer.fromJson<String?>(json['cid']),
+      chunkIndices: serializer.fromJson<String>(json['chunkIndices']),
+      challengeNonce: serializer.fromJson<String>(json['challengeNonce']),
+      responseTag: serializer.fromJson<String>(json['responseTag']),
+      workUnits: serializer.fromJson<double>(json['workUnits']),
+      amount: serializer.fromJson<double>(json['amount']),
+      epoch: serializer.fromJson<String>(json['epoch']),
+      expiresAt: serializer.fromJson<int>(json['expiresAt']),
+      evidenceHash: serializer.fromJson<String?>(json['evidenceHash']),
+      verifierSig: serializer.fromJson<String>(json['verifierSig']),
+      proverSig: serializer.fromJson<String?>(json['proverSig']),
+      spent: serializer.fromJson<bool>(json['spent']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'receiptId': serializer.toJson<String>(receiptId),
+      'workType': serializer.toJson<String>(workType),
+      'proverPubkey': serializer.toJson<String>(proverPubkey),
+      'verifierPubkey': serializer.toJson<String>(verifierPubkey),
+      'cid': serializer.toJson<String?>(cid),
+      'chunkIndices': serializer.toJson<String>(chunkIndices),
+      'challengeNonce': serializer.toJson<String>(challengeNonce),
+      'responseTag': serializer.toJson<String>(responseTag),
+      'workUnits': serializer.toJson<double>(workUnits),
+      'amount': serializer.toJson<double>(amount),
+      'epoch': serializer.toJson<String>(epoch),
+      'expiresAt': serializer.toJson<int>(expiresAt),
+      'evidenceHash': serializer.toJson<String?>(evidenceHash),
+      'verifierSig': serializer.toJson<String>(verifierSig),
+      'proverSig': serializer.toJson<String?>(proverSig),
+      'spent': serializer.toJson<bool>(spent),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  WorkReceipt copyWith(
+          {String? receiptId,
+          String? workType,
+          String? proverPubkey,
+          String? verifierPubkey,
+          Value<String?> cid = const Value.absent(),
+          String? chunkIndices,
+          String? challengeNonce,
+          String? responseTag,
+          double? workUnits,
+          double? amount,
+          String? epoch,
+          int? expiresAt,
+          Value<String?> evidenceHash = const Value.absent(),
+          String? verifierSig,
+          Value<String?> proverSig = const Value.absent(),
+          bool? spent,
+          DateTime? createdAt}) =>
+      WorkReceipt(
+        receiptId: receiptId ?? this.receiptId,
+        workType: workType ?? this.workType,
+        proverPubkey: proverPubkey ?? this.proverPubkey,
+        verifierPubkey: verifierPubkey ?? this.verifierPubkey,
+        cid: cid.present ? cid.value : this.cid,
+        chunkIndices: chunkIndices ?? this.chunkIndices,
+        challengeNonce: challengeNonce ?? this.challengeNonce,
+        responseTag: responseTag ?? this.responseTag,
+        workUnits: workUnits ?? this.workUnits,
+        amount: amount ?? this.amount,
+        epoch: epoch ?? this.epoch,
+        expiresAt: expiresAt ?? this.expiresAt,
+        evidenceHash:
+            evidenceHash.present ? evidenceHash.value : this.evidenceHash,
+        verifierSig: verifierSig ?? this.verifierSig,
+        proverSig: proverSig.present ? proverSig.value : this.proverSig,
+        spent: spent ?? this.spent,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  WorkReceipt copyWithCompanion(WorkReceiptsCompanion data) {
+    return WorkReceipt(
+      receiptId: data.receiptId.present ? data.receiptId.value : this.receiptId,
+      workType: data.workType.present ? data.workType.value : this.workType,
+      proverPubkey: data.proverPubkey.present
+          ? data.proverPubkey.value
+          : this.proverPubkey,
+      verifierPubkey: data.verifierPubkey.present
+          ? data.verifierPubkey.value
+          : this.verifierPubkey,
+      cid: data.cid.present ? data.cid.value : this.cid,
+      chunkIndices: data.chunkIndices.present
+          ? data.chunkIndices.value
+          : this.chunkIndices,
+      challengeNonce: data.challengeNonce.present
+          ? data.challengeNonce.value
+          : this.challengeNonce,
+      responseTag:
+          data.responseTag.present ? data.responseTag.value : this.responseTag,
+      workUnits: data.workUnits.present ? data.workUnits.value : this.workUnits,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      epoch: data.epoch.present ? data.epoch.value : this.epoch,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+      evidenceHash: data.evidenceHash.present
+          ? data.evidenceHash.value
+          : this.evidenceHash,
+      verifierSig:
+          data.verifierSig.present ? data.verifierSig.value : this.verifierSig,
+      proverSig: data.proverSig.present ? data.proverSig.value : this.proverSig,
+      spent: data.spent.present ? data.spent.value : this.spent,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkReceipt(')
+          ..write('receiptId: $receiptId, ')
+          ..write('workType: $workType, ')
+          ..write('proverPubkey: $proverPubkey, ')
+          ..write('verifierPubkey: $verifierPubkey, ')
+          ..write('cid: $cid, ')
+          ..write('chunkIndices: $chunkIndices, ')
+          ..write('challengeNonce: $challengeNonce, ')
+          ..write('responseTag: $responseTag, ')
+          ..write('workUnits: $workUnits, ')
+          ..write('amount: $amount, ')
+          ..write('epoch: $epoch, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('evidenceHash: $evidenceHash, ')
+          ..write('verifierSig: $verifierSig, ')
+          ..write('proverSig: $proverSig, ')
+          ..write('spent: $spent, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      receiptId,
+      workType,
+      proverPubkey,
+      verifierPubkey,
+      cid,
+      chunkIndices,
+      challengeNonce,
+      responseTag,
+      workUnits,
+      amount,
+      epoch,
+      expiresAt,
+      evidenceHash,
+      verifierSig,
+      proverSig,
+      spent,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WorkReceipt &&
+          other.receiptId == this.receiptId &&
+          other.workType == this.workType &&
+          other.proverPubkey == this.proverPubkey &&
+          other.verifierPubkey == this.verifierPubkey &&
+          other.cid == this.cid &&
+          other.chunkIndices == this.chunkIndices &&
+          other.challengeNonce == this.challengeNonce &&
+          other.responseTag == this.responseTag &&
+          other.workUnits == this.workUnits &&
+          other.amount == this.amount &&
+          other.epoch == this.epoch &&
+          other.expiresAt == this.expiresAt &&
+          other.evidenceHash == this.evidenceHash &&
+          other.verifierSig == this.verifierSig &&
+          other.proverSig == this.proverSig &&
+          other.spent == this.spent &&
+          other.createdAt == this.createdAt);
+}
+
+class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
+  final Value<String> receiptId;
+  final Value<String> workType;
+  final Value<String> proverPubkey;
+  final Value<String> verifierPubkey;
+  final Value<String?> cid;
+  final Value<String> chunkIndices;
+  final Value<String> challengeNonce;
+  final Value<String> responseTag;
+  final Value<double> workUnits;
+  final Value<double> amount;
+  final Value<String> epoch;
+  final Value<int> expiresAt;
+  final Value<String?> evidenceHash;
+  final Value<String> verifierSig;
+  final Value<String?> proverSig;
+  final Value<bool> spent;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const WorkReceiptsCompanion({
+    this.receiptId = const Value.absent(),
+    this.workType = const Value.absent(),
+    this.proverPubkey = const Value.absent(),
+    this.verifierPubkey = const Value.absent(),
+    this.cid = const Value.absent(),
+    this.chunkIndices = const Value.absent(),
+    this.challengeNonce = const Value.absent(),
+    this.responseTag = const Value.absent(),
+    this.workUnits = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.epoch = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.evidenceHash = const Value.absent(),
+    this.verifierSig = const Value.absent(),
+    this.proverSig = const Value.absent(),
+    this.spent = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WorkReceiptsCompanion.insert({
+    required String receiptId,
+    required String workType,
+    required String proverPubkey,
+    required String verifierPubkey,
+    this.cid = const Value.absent(),
+    required String chunkIndices,
+    required String challengeNonce,
+    required String responseTag,
+    required double workUnits,
+    required double amount,
+    required String epoch,
+    required int expiresAt,
+    this.evidenceHash = const Value.absent(),
+    required String verifierSig,
+    this.proverSig = const Value.absent(),
+    this.spent = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  })  : receiptId = Value(receiptId),
+        workType = Value(workType),
+        proverPubkey = Value(proverPubkey),
+        verifierPubkey = Value(verifierPubkey),
+        chunkIndices = Value(chunkIndices),
+        challengeNonce = Value(challengeNonce),
+        responseTag = Value(responseTag),
+        workUnits = Value(workUnits),
+        amount = Value(amount),
+        epoch = Value(epoch),
+        expiresAt = Value(expiresAt),
+        verifierSig = Value(verifierSig),
+        createdAt = Value(createdAt);
+  static Insertable<WorkReceipt> custom({
+    Expression<String>? receiptId,
+    Expression<String>? workType,
+    Expression<String>? proverPubkey,
+    Expression<String>? verifierPubkey,
+    Expression<String>? cid,
+    Expression<String>? chunkIndices,
+    Expression<String>? challengeNonce,
+    Expression<String>? responseTag,
+    Expression<double>? workUnits,
+    Expression<double>? amount,
+    Expression<String>? epoch,
+    Expression<int>? expiresAt,
+    Expression<String>? evidenceHash,
+    Expression<String>? verifierSig,
+    Expression<String>? proverSig,
+    Expression<bool>? spent,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (receiptId != null) 'receipt_id': receiptId,
+      if (workType != null) 'work_type': workType,
+      if (proverPubkey != null) 'prover_pubkey': proverPubkey,
+      if (verifierPubkey != null) 'verifier_pubkey': verifierPubkey,
+      if (cid != null) 'cid': cid,
+      if (chunkIndices != null) 'chunk_indices': chunkIndices,
+      if (challengeNonce != null) 'challenge_nonce': challengeNonce,
+      if (responseTag != null) 'response_tag': responseTag,
+      if (workUnits != null) 'work_units': workUnits,
+      if (amount != null) 'amount': amount,
+      if (epoch != null) 'epoch': epoch,
+      if (expiresAt != null) 'expires_at': expiresAt,
+      if (evidenceHash != null) 'evidence_hash': evidenceHash,
+      if (verifierSig != null) 'verifier_sig': verifierSig,
+      if (proverSig != null) 'prover_sig': proverSig,
+      if (spent != null) 'spent': spent,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WorkReceiptsCompanion copyWith(
+      {Value<String>? receiptId,
+      Value<String>? workType,
+      Value<String>? proverPubkey,
+      Value<String>? verifierPubkey,
+      Value<String?>? cid,
+      Value<String>? chunkIndices,
+      Value<String>? challengeNonce,
+      Value<String>? responseTag,
+      Value<double>? workUnits,
+      Value<double>? amount,
+      Value<String>? epoch,
+      Value<int>? expiresAt,
+      Value<String?>? evidenceHash,
+      Value<String>? verifierSig,
+      Value<String?>? proverSig,
+      Value<bool>? spent,
+      Value<DateTime>? createdAt,
+      Value<int>? rowid}) {
+    return WorkReceiptsCompanion(
+      receiptId: receiptId ?? this.receiptId,
+      workType: workType ?? this.workType,
+      proverPubkey: proverPubkey ?? this.proverPubkey,
+      verifierPubkey: verifierPubkey ?? this.verifierPubkey,
+      cid: cid ?? this.cid,
+      chunkIndices: chunkIndices ?? this.chunkIndices,
+      challengeNonce: challengeNonce ?? this.challengeNonce,
+      responseTag: responseTag ?? this.responseTag,
+      workUnits: workUnits ?? this.workUnits,
+      amount: amount ?? this.amount,
+      epoch: epoch ?? this.epoch,
+      expiresAt: expiresAt ?? this.expiresAt,
+      evidenceHash: evidenceHash ?? this.evidenceHash,
+      verifierSig: verifierSig ?? this.verifierSig,
+      proverSig: proverSig ?? this.proverSig,
+      spent: spent ?? this.spent,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (receiptId.present) {
+      map['receipt_id'] = Variable<String>(receiptId.value);
+    }
+    if (workType.present) {
+      map['work_type'] = Variable<String>(workType.value);
+    }
+    if (proverPubkey.present) {
+      map['prover_pubkey'] = Variable<String>(proverPubkey.value);
+    }
+    if (verifierPubkey.present) {
+      map['verifier_pubkey'] = Variable<String>(verifierPubkey.value);
+    }
+    if (cid.present) {
+      map['cid'] = Variable<String>(cid.value);
+    }
+    if (chunkIndices.present) {
+      map['chunk_indices'] = Variable<String>(chunkIndices.value);
+    }
+    if (challengeNonce.present) {
+      map['challenge_nonce'] = Variable<String>(challengeNonce.value);
+    }
+    if (responseTag.present) {
+      map['response_tag'] = Variable<String>(responseTag.value);
+    }
+    if (workUnits.present) {
+      map['work_units'] = Variable<double>(workUnits.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (epoch.present) {
+      map['epoch'] = Variable<String>(epoch.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<int>(expiresAt.value);
+    }
+    if (evidenceHash.present) {
+      map['evidence_hash'] = Variable<String>(evidenceHash.value);
+    }
+    if (verifierSig.present) {
+      map['verifier_sig'] = Variable<String>(verifierSig.value);
+    }
+    if (proverSig.present) {
+      map['prover_sig'] = Variable<String>(proverSig.value);
+    }
+    if (spent.present) {
+      map['spent'] = Variable<bool>(spent.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkReceiptsCompanion(')
+          ..write('receiptId: $receiptId, ')
+          ..write('workType: $workType, ')
+          ..write('proverPubkey: $proverPubkey, ')
+          ..write('verifierPubkey: $verifierPubkey, ')
+          ..write('cid: $cid, ')
+          ..write('chunkIndices: $chunkIndices, ')
+          ..write('challengeNonce: $challengeNonce, ')
+          ..write('responseTag: $responseTag, ')
+          ..write('workUnits: $workUnits, ')
+          ..write('amount: $amount, ')
+          ..write('epoch: $epoch, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('evidenceHash: $evidenceHash, ')
+          ..write('verifierSig: $verifierSig, ')
+          ..write('proverSig: $proverSig, ')
+          ..write('spent: $spent, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1787,12 +3494,25 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $UserProfilesTable userProfiles = $UserProfilesTable(this);
   late final $HonorValidationsTable honorValidations =
       $HonorValidationsTable(this);
+  late final $CreditTransactionsTable creditTransactions =
+      $CreditTransactionsTable(this);
+  late final $DailyMintedTable dailyMinted = $DailyMintedTable(this);
+  late final $AwardedDoisTable awardedDois = $AwardedDoisTable(this);
+  late final $WorkReceiptsTable workReceipts = $WorkReceiptsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [contentManifests, contentVersions, userProfiles, honorValidations];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+        contentManifests,
+        contentVersions,
+        userProfiles,
+        honorValidations,
+        creditTransactions,
+        dailyMinted,
+        awardedDois,
+        workReceipts
+      ];
 }
 
 typedef $$ContentManifestsTableCreateCompanionBuilder
@@ -2873,6 +4593,883 @@ typedef $$HonorValidationsTableProcessedTableManager = ProcessedTableManager<
     ),
     HonorValidation,
     PrefetchHooks Function()>;
+typedef $$CreditTransactionsTableCreateCompanionBuilder
+    = CreditTransactionsCompanion Function({
+  required String id,
+  required DateTime timestamp,
+  required String type,
+  required double amount,
+  required String description,
+  Value<String?> referenceId,
+  required String hash,
+  Value<bool> isAttested,
+  Value<int> rowid,
+});
+typedef $$CreditTransactionsTableUpdateCompanionBuilder
+    = CreditTransactionsCompanion Function({
+  Value<String> id,
+  Value<DateTime> timestamp,
+  Value<String> type,
+  Value<double> amount,
+  Value<String> description,
+  Value<String?> referenceId,
+  Value<String> hash,
+  Value<bool> isAttested,
+  Value<int> rowid,
+});
+
+class $$CreditTransactionsTableFilterComposer
+    extends Composer<_$AppDatabase, $CreditTransactionsTable> {
+  $$CreditTransactionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get timestamp => $composableBuilder(
+      column: $table.timestamp, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get referenceId => $composableBuilder(
+      column: $table.referenceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get hash => $composableBuilder(
+      column: $table.hash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isAttested => $composableBuilder(
+      column: $table.isAttested, builder: (column) => ColumnFilters(column));
+}
+
+class $$CreditTransactionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CreditTransactionsTable> {
+  $$CreditTransactionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get timestamp => $composableBuilder(
+      column: $table.timestamp, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get referenceId => $composableBuilder(
+      column: $table.referenceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get hash => $composableBuilder(
+      column: $table.hash, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isAttested => $composableBuilder(
+      column: $table.isAttested, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CreditTransactionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CreditTransactionsTable> {
+  $$CreditTransactionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get timestamp =>
+      $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<String> get referenceId => $composableBuilder(
+      column: $table.referenceId, builder: (column) => column);
+
+  GeneratedColumn<String> get hash =>
+      $composableBuilder(column: $table.hash, builder: (column) => column);
+
+  GeneratedColumn<bool> get isAttested => $composableBuilder(
+      column: $table.isAttested, builder: (column) => column);
+}
+
+class $$CreditTransactionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CreditTransactionsTable,
+    CreditTransaction,
+    $$CreditTransactionsTableFilterComposer,
+    $$CreditTransactionsTableOrderingComposer,
+    $$CreditTransactionsTableAnnotationComposer,
+    $$CreditTransactionsTableCreateCompanionBuilder,
+    $$CreditTransactionsTableUpdateCompanionBuilder,
+    (
+      CreditTransaction,
+      BaseReferences<_$AppDatabase, $CreditTransactionsTable, CreditTransaction>
+    ),
+    CreditTransaction,
+    PrefetchHooks Function()> {
+  $$CreditTransactionsTableTableManager(
+      _$AppDatabase db, $CreditTransactionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CreditTransactionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CreditTransactionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CreditTransactionsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<DateTime> timestamp = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<double> amount = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<String?> referenceId = const Value.absent(),
+            Value<String> hash = const Value.absent(),
+            Value<bool> isAttested = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CreditTransactionsCompanion(
+            id: id,
+            timestamp: timestamp,
+            type: type,
+            amount: amount,
+            description: description,
+            referenceId: referenceId,
+            hash: hash,
+            isAttested: isAttested,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required DateTime timestamp,
+            required String type,
+            required double amount,
+            required String description,
+            Value<String?> referenceId = const Value.absent(),
+            required String hash,
+            Value<bool> isAttested = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CreditTransactionsCompanion.insert(
+            id: id,
+            timestamp: timestamp,
+            type: type,
+            amount: amount,
+            description: description,
+            referenceId: referenceId,
+            hash: hash,
+            isAttested: isAttested,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable<$CreditTransactionsTable, CreditTransaction>(
+                        table),
+                    BaseReferences<_$AppDatabase, $CreditTransactionsTable,
+                        CreditTransaction>(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CreditTransactionsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $CreditTransactionsTable,
+    CreditTransaction,
+    $$CreditTransactionsTableFilterComposer,
+    $$CreditTransactionsTableOrderingComposer,
+    $$CreditTransactionsTableAnnotationComposer,
+    $$CreditTransactionsTableCreateCompanionBuilder,
+    $$CreditTransactionsTableUpdateCompanionBuilder,
+    (
+      CreditTransaction,
+      BaseReferences<_$AppDatabase, $CreditTransactionsTable, CreditTransaction>
+    ),
+    CreditTransaction,
+    PrefetchHooks Function()>;
+typedef $$DailyMintedTableCreateCompanionBuilder = DailyMintedCompanion
+    Function({
+  required String dayKey,
+  required String creditType,
+  required double amount,
+  Value<int> rowid,
+});
+typedef $$DailyMintedTableUpdateCompanionBuilder = DailyMintedCompanion
+    Function({
+  Value<String> dayKey,
+  Value<String> creditType,
+  Value<double> amount,
+  Value<int> rowid,
+});
+
+class $$DailyMintedTableFilterComposer
+    extends Composer<_$AppDatabase, $DailyMintedTable> {
+  $$DailyMintedTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get dayKey => $composableBuilder(
+      column: $table.dayKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get creditType => $composableBuilder(
+      column: $table.creditType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnFilters(column));
+}
+
+class $$DailyMintedTableOrderingComposer
+    extends Composer<_$AppDatabase, $DailyMintedTable> {
+  $$DailyMintedTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get dayKey => $composableBuilder(
+      column: $table.dayKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get creditType => $composableBuilder(
+      column: $table.creditType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnOrderings(column));
+}
+
+class $$DailyMintedTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DailyMintedTable> {
+  $$DailyMintedTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get dayKey =>
+      $composableBuilder(column: $table.dayKey, builder: (column) => column);
+
+  GeneratedColumn<String> get creditType => $composableBuilder(
+      column: $table.creditType, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+}
+
+class $$DailyMintedTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $DailyMintedTable,
+    DailyMintedData,
+    $$DailyMintedTableFilterComposer,
+    $$DailyMintedTableOrderingComposer,
+    $$DailyMintedTableAnnotationComposer,
+    $$DailyMintedTableCreateCompanionBuilder,
+    $$DailyMintedTableUpdateCompanionBuilder,
+    (
+      DailyMintedData,
+      BaseReferences<_$AppDatabase, $DailyMintedTable, DailyMintedData>
+    ),
+    DailyMintedData,
+    PrefetchHooks Function()> {
+  $$DailyMintedTableTableManager(_$AppDatabase db, $DailyMintedTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailyMintedTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DailyMintedTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DailyMintedTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> dayKey = const Value.absent(),
+            Value<String> creditType = const Value.absent(),
+            Value<double> amount = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              DailyMintedCompanion(
+            dayKey: dayKey,
+            creditType: creditType,
+            amount: amount,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String dayKey,
+            required String creditType,
+            required double amount,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              DailyMintedCompanion.insert(
+            dayKey: dayKey,
+            creditType: creditType,
+            amount: amount,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable<$DailyMintedTable, DailyMintedData>(table),
+                    BaseReferences<_$AppDatabase, $DailyMintedTable,
+                        DailyMintedData>(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$DailyMintedTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $DailyMintedTable,
+    DailyMintedData,
+    $$DailyMintedTableFilterComposer,
+    $$DailyMintedTableOrderingComposer,
+    $$DailyMintedTableAnnotationComposer,
+    $$DailyMintedTableCreateCompanionBuilder,
+    $$DailyMintedTableUpdateCompanionBuilder,
+    (
+      DailyMintedData,
+      BaseReferences<_$AppDatabase, $DailyMintedTable, DailyMintedData>
+    ),
+    DailyMintedData,
+    PrefetchHooks Function()>;
+typedef $$AwardedDoisTableCreateCompanionBuilder = AwardedDoisCompanion
+    Function({
+  required String doi,
+  required DateTime awardedAt,
+  Value<String?> cid,
+  Value<int> rowid,
+});
+typedef $$AwardedDoisTableUpdateCompanionBuilder = AwardedDoisCompanion
+    Function({
+  Value<String> doi,
+  Value<DateTime> awardedAt,
+  Value<String?> cid,
+  Value<int> rowid,
+});
+
+class $$AwardedDoisTableFilterComposer
+    extends Composer<_$AppDatabase, $AwardedDoisTable> {
+  $$AwardedDoisTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get doi => $composableBuilder(
+      column: $table.doi, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get awardedAt => $composableBuilder(
+      column: $table.awardedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get cid => $composableBuilder(
+      column: $table.cid, builder: (column) => ColumnFilters(column));
+}
+
+class $$AwardedDoisTableOrderingComposer
+    extends Composer<_$AppDatabase, $AwardedDoisTable> {
+  $$AwardedDoisTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get doi => $composableBuilder(
+      column: $table.doi, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get awardedAt => $composableBuilder(
+      column: $table.awardedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get cid => $composableBuilder(
+      column: $table.cid, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AwardedDoisTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AwardedDoisTable> {
+  $$AwardedDoisTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get doi =>
+      $composableBuilder(column: $table.doi, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get awardedAt =>
+      $composableBuilder(column: $table.awardedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get cid =>
+      $composableBuilder(column: $table.cid, builder: (column) => column);
+}
+
+class $$AwardedDoisTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AwardedDoisTable,
+    AwardedDoi,
+    $$AwardedDoisTableFilterComposer,
+    $$AwardedDoisTableOrderingComposer,
+    $$AwardedDoisTableAnnotationComposer,
+    $$AwardedDoisTableCreateCompanionBuilder,
+    $$AwardedDoisTableUpdateCompanionBuilder,
+    (AwardedDoi, BaseReferences<_$AppDatabase, $AwardedDoisTable, AwardedDoi>),
+    AwardedDoi,
+    PrefetchHooks Function()> {
+  $$AwardedDoisTableTableManager(_$AppDatabase db, $AwardedDoisTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AwardedDoisTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AwardedDoisTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AwardedDoisTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> doi = const Value.absent(),
+            Value<DateTime> awardedAt = const Value.absent(),
+            Value<String?> cid = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AwardedDoisCompanion(
+            doi: doi,
+            awardedAt: awardedAt,
+            cid: cid,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String doi,
+            required DateTime awardedAt,
+            Value<String?> cid = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AwardedDoisCompanion.insert(
+            doi: doi,
+            awardedAt: awardedAt,
+            cid: cid,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable<$AwardedDoisTable, AwardedDoi>(table),
+                    BaseReferences<_$AppDatabase, $AwardedDoisTable,
+                        AwardedDoi>(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AwardedDoisTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AwardedDoisTable,
+    AwardedDoi,
+    $$AwardedDoisTableFilterComposer,
+    $$AwardedDoisTableOrderingComposer,
+    $$AwardedDoisTableAnnotationComposer,
+    $$AwardedDoisTableCreateCompanionBuilder,
+    $$AwardedDoisTableUpdateCompanionBuilder,
+    (AwardedDoi, BaseReferences<_$AppDatabase, $AwardedDoisTable, AwardedDoi>),
+    AwardedDoi,
+    PrefetchHooks Function()>;
+typedef $$WorkReceiptsTableCreateCompanionBuilder = WorkReceiptsCompanion
+    Function({
+  required String receiptId,
+  required String workType,
+  required String proverPubkey,
+  required String verifierPubkey,
+  Value<String?> cid,
+  required String chunkIndices,
+  required String challengeNonce,
+  required String responseTag,
+  required double workUnits,
+  required double amount,
+  required String epoch,
+  required int expiresAt,
+  Value<String?> evidenceHash,
+  required String verifierSig,
+  Value<String?> proverSig,
+  Value<bool> spent,
+  required DateTime createdAt,
+  Value<int> rowid,
+});
+typedef $$WorkReceiptsTableUpdateCompanionBuilder = WorkReceiptsCompanion
+    Function({
+  Value<String> receiptId,
+  Value<String> workType,
+  Value<String> proverPubkey,
+  Value<String> verifierPubkey,
+  Value<String?> cid,
+  Value<String> chunkIndices,
+  Value<String> challengeNonce,
+  Value<String> responseTag,
+  Value<double> workUnits,
+  Value<double> amount,
+  Value<String> epoch,
+  Value<int> expiresAt,
+  Value<String?> evidenceHash,
+  Value<String> verifierSig,
+  Value<String?> proverSig,
+  Value<bool> spent,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+
+class $$WorkReceiptsTableFilterComposer
+    extends Composer<_$AppDatabase, $WorkReceiptsTable> {
+  $$WorkReceiptsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get receiptId => $composableBuilder(
+      column: $table.receiptId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get workType => $composableBuilder(
+      column: $table.workType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get proverPubkey => $composableBuilder(
+      column: $table.proverPubkey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get verifierPubkey => $composableBuilder(
+      column: $table.verifierPubkey,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get cid => $composableBuilder(
+      column: $table.cid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chunkIndices => $composableBuilder(
+      column: $table.chunkIndices, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get challengeNonce => $composableBuilder(
+      column: $table.challengeNonce,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get responseTag => $composableBuilder(
+      column: $table.responseTag, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get workUnits => $composableBuilder(
+      column: $table.workUnits, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get epoch => $composableBuilder(
+      column: $table.epoch, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get expiresAt => $composableBuilder(
+      column: $table.expiresAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get evidenceHash => $composableBuilder(
+      column: $table.evidenceHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get verifierSig => $composableBuilder(
+      column: $table.verifierSig, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get proverSig => $composableBuilder(
+      column: $table.proverSig, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get spent => $composableBuilder(
+      column: $table.spent, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$WorkReceiptsTableOrderingComposer
+    extends Composer<_$AppDatabase, $WorkReceiptsTable> {
+  $$WorkReceiptsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get receiptId => $composableBuilder(
+      column: $table.receiptId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get workType => $composableBuilder(
+      column: $table.workType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get proverPubkey => $composableBuilder(
+      column: $table.proverPubkey,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get verifierPubkey => $composableBuilder(
+      column: $table.verifierPubkey,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get cid => $composableBuilder(
+      column: $table.cid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chunkIndices => $composableBuilder(
+      column: $table.chunkIndices,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get challengeNonce => $composableBuilder(
+      column: $table.challengeNonce,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get responseTag => $composableBuilder(
+      column: $table.responseTag, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get workUnits => $composableBuilder(
+      column: $table.workUnits, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get epoch => $composableBuilder(
+      column: $table.epoch, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get expiresAt => $composableBuilder(
+      column: $table.expiresAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get evidenceHash => $composableBuilder(
+      column: $table.evidenceHash,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get verifierSig => $composableBuilder(
+      column: $table.verifierSig, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get proverSig => $composableBuilder(
+      column: $table.proverSig, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get spent => $composableBuilder(
+      column: $table.spent, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$WorkReceiptsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WorkReceiptsTable> {
+  $$WorkReceiptsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get receiptId =>
+      $composableBuilder(column: $table.receiptId, builder: (column) => column);
+
+  GeneratedColumn<String> get workType =>
+      $composableBuilder(column: $table.workType, builder: (column) => column);
+
+  GeneratedColumn<String> get proverPubkey => $composableBuilder(
+      column: $table.proverPubkey, builder: (column) => column);
+
+  GeneratedColumn<String> get verifierPubkey => $composableBuilder(
+      column: $table.verifierPubkey, builder: (column) => column);
+
+  GeneratedColumn<String> get cid =>
+      $composableBuilder(column: $table.cid, builder: (column) => column);
+
+  GeneratedColumn<String> get chunkIndices => $composableBuilder(
+      column: $table.chunkIndices, builder: (column) => column);
+
+  GeneratedColumn<String> get challengeNonce => $composableBuilder(
+      column: $table.challengeNonce, builder: (column) => column);
+
+  GeneratedColumn<String> get responseTag => $composableBuilder(
+      column: $table.responseTag, builder: (column) => column);
+
+  GeneratedColumn<double> get workUnits =>
+      $composableBuilder(column: $table.workUnits, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get epoch =>
+      $composableBuilder(column: $table.epoch, builder: (column) => column);
+
+  GeneratedColumn<int> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+
+  GeneratedColumn<String> get evidenceHash => $composableBuilder(
+      column: $table.evidenceHash, builder: (column) => column);
+
+  GeneratedColumn<String> get verifierSig => $composableBuilder(
+      column: $table.verifierSig, builder: (column) => column);
+
+  GeneratedColumn<String> get proverSig =>
+      $composableBuilder(column: $table.proverSig, builder: (column) => column);
+
+  GeneratedColumn<bool> get spent =>
+      $composableBuilder(column: $table.spent, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$WorkReceiptsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $WorkReceiptsTable,
+    WorkReceipt,
+    $$WorkReceiptsTableFilterComposer,
+    $$WorkReceiptsTableOrderingComposer,
+    $$WorkReceiptsTableAnnotationComposer,
+    $$WorkReceiptsTableCreateCompanionBuilder,
+    $$WorkReceiptsTableUpdateCompanionBuilder,
+    (
+      WorkReceipt,
+      BaseReferences<_$AppDatabase, $WorkReceiptsTable, WorkReceipt>
+    ),
+    WorkReceipt,
+    PrefetchHooks Function()> {
+  $$WorkReceiptsTableTableManager(_$AppDatabase db, $WorkReceiptsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WorkReceiptsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WorkReceiptsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WorkReceiptsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> receiptId = const Value.absent(),
+            Value<String> workType = const Value.absent(),
+            Value<String> proverPubkey = const Value.absent(),
+            Value<String> verifierPubkey = const Value.absent(),
+            Value<String?> cid = const Value.absent(),
+            Value<String> chunkIndices = const Value.absent(),
+            Value<String> challengeNonce = const Value.absent(),
+            Value<String> responseTag = const Value.absent(),
+            Value<double> workUnits = const Value.absent(),
+            Value<double> amount = const Value.absent(),
+            Value<String> epoch = const Value.absent(),
+            Value<int> expiresAt = const Value.absent(),
+            Value<String?> evidenceHash = const Value.absent(),
+            Value<String> verifierSig = const Value.absent(),
+            Value<String?> proverSig = const Value.absent(),
+            Value<bool> spent = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              WorkReceiptsCompanion(
+            receiptId: receiptId,
+            workType: workType,
+            proverPubkey: proverPubkey,
+            verifierPubkey: verifierPubkey,
+            cid: cid,
+            chunkIndices: chunkIndices,
+            challengeNonce: challengeNonce,
+            responseTag: responseTag,
+            workUnits: workUnits,
+            amount: amount,
+            epoch: epoch,
+            expiresAt: expiresAt,
+            evidenceHash: evidenceHash,
+            verifierSig: verifierSig,
+            proverSig: proverSig,
+            spent: spent,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String receiptId,
+            required String workType,
+            required String proverPubkey,
+            required String verifierPubkey,
+            Value<String?> cid = const Value.absent(),
+            required String chunkIndices,
+            required String challengeNonce,
+            required String responseTag,
+            required double workUnits,
+            required double amount,
+            required String epoch,
+            required int expiresAt,
+            Value<String?> evidenceHash = const Value.absent(),
+            required String verifierSig,
+            Value<String?> proverSig = const Value.absent(),
+            Value<bool> spent = const Value.absent(),
+            required DateTime createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              WorkReceiptsCompanion.insert(
+            receiptId: receiptId,
+            workType: workType,
+            proverPubkey: proverPubkey,
+            verifierPubkey: verifierPubkey,
+            cid: cid,
+            chunkIndices: chunkIndices,
+            challengeNonce: challengeNonce,
+            responseTag: responseTag,
+            workUnits: workUnits,
+            amount: amount,
+            epoch: epoch,
+            expiresAt: expiresAt,
+            evidenceHash: evidenceHash,
+            verifierSig: verifierSig,
+            proverSig: proverSig,
+            spent: spent,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable<$WorkReceiptsTable, WorkReceipt>(table),
+                    BaseReferences<_$AppDatabase, $WorkReceiptsTable,
+                        WorkReceipt>(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$WorkReceiptsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $WorkReceiptsTable,
+    WorkReceipt,
+    $$WorkReceiptsTableFilterComposer,
+    $$WorkReceiptsTableOrderingComposer,
+    $$WorkReceiptsTableAnnotationComposer,
+    $$WorkReceiptsTableCreateCompanionBuilder,
+    $$WorkReceiptsTableUpdateCompanionBuilder,
+    (
+      WorkReceipt,
+      BaseReferences<_$AppDatabase, $WorkReceiptsTable, WorkReceipt>
+    ),
+    WorkReceipt,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2885,4 +5482,12 @@ class $AppDatabaseManager {
       $$UserProfilesTableTableManager(_db, _db.userProfiles);
   $$HonorValidationsTableTableManager get honorValidations =>
       $$HonorValidationsTableTableManager(_db, _db.honorValidations);
+  $$CreditTransactionsTableTableManager get creditTransactions =>
+      $$CreditTransactionsTableTableManager(_db, _db.creditTransactions);
+  $$DailyMintedTableTableManager get dailyMinted =>
+      $$DailyMintedTableTableManager(_db, _db.dailyMinted);
+  $$AwardedDoisTableTableManager get awardedDois =>
+      $$AwardedDoisTableTableManager(_db, _db.awardedDois);
+  $$WorkReceiptsTableTableManager get workReceipts =>
+      $$WorkReceiptsTableTableManager(_db, _db.workReceipts);
 }

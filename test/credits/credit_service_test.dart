@@ -24,6 +24,12 @@ void main() {
       expect(creditService.transactions.first.type, CreditType.verificationReward);
     });
 
+    test('genesis grant is unattested; attested/unattested split is coherent', () {
+      expect(creditService.transactions.first.isAttested, isFalse);
+      expect(creditService.attestedBalance, 0.0);
+      expect(creditService.unattestedBalance, creditService.balance);
+    });
+
     test('awards storage credits with dynamic rarity weighting', () {
       // Test critically endangered work (peerCount = 1 -> 5x multiplier).
       // ALX-010: multipliers above 1.0x require independent attestation —

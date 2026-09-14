@@ -1,15 +1,47 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:cryptography/cryptography.dart' hide Hmac;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:alexandria/data/database.dart' show AppDatabase, databaseProvider;
 import 'package:alexandria/services/agent/alexandria_mcp_server.dart';
+import 'package:alexandria/services/agent/beacon_models.dart';
 import 'package:alexandria/services/agent/moltbook_service.dart';
 import 'package:alexandria/services/credits/credit_service.dart';
 import 'package:alexandria/services/credits/crypto_bridge_service.dart';
 import 'package:alexandria/services/credits/poch_service.dart';
+import 'package:alexandria/services/identity_service.dart';
 import 'package:alexandria/services/ipfs_service.dart';
 import 'package:alexandria/services/proof_of_retrievability_service.dart';
+
+/// Identity stub whose Ed25519 keypair the test controls — the PoR
+/// verifier-of-record the MCP server stamps challenges with and the
+/// service signs receipts under.
+class _FakeIdentityService implements IdentityService {
+  _FakeIdentityService(this.keyPair, this.publicKeyBytes);
+
+  final SimpleKeyPair keyPair;
+  final Uint8List publicKeyBytes;
+
+  String get pubkeyHex => bytesToHex(publicKeyBytes);
+
+  @override
+  Future<AlexandriaIdentity?> getIdentity() async => AlexandriaIdentity(
+        publicKey: publicKeyBytes,
+        privateKey: Uint8List.fromList(await keyPair.extractPrivateKeyBytes()),
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+  @override
+  Future<Uint8List> sign(Uint8List data) async {
+    final sig = await Ed25519().sign(data, keyPair: keyPair);
+    return Uint8List.fromList(sig.bytes);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   group('AlexandriaMcpServer Tool Suite Tests (ALX-006 §5)', () {
@@ -21,17 +53,28 @@ void main() {
     late ProofOfRetrievabilityService porService;
     late IpfsService ipfsService;
     late AlexandriaMcpServer mcpServer;
+    late AppDatabase db;
+    late _FakeIdentityService identity;
 
-    setUp(() {
+    setUp(() async {
+      final keyPair = await Ed25519().newKeyPair();
+      final pub = await keyPair.extractPublicKey();
+      identity =
+          _FakeIdentityService(keyPair, Uint8List.fromList(pub.bytes));
+
       pochService = PoCHService();
+      db = AppDatabase();
       creditService = CreditService(
         pochService: pochService,
         initialBalance: 100.0,
       );
       // verifyProof mints through the container's creditServiceProvider —
-      // override it so the award lands on the instance under test.
+      // override it so the award lands on the instance under test. The PoR
+      // service reads identityServiceProvider for its verifier key.
       container = ProviderContainer(overrides: [
         creditServiceProvider.overrideWith((_) => creditService),
+        databaseProvider.overrideWithValue(db),
+        identityServiceProvider.overrideWithValue(identity),
       ]);
       cryptoBridgeService = CryptoBridgeService(creditService: creditService);
       moltbookService = MoltbookService(creditService: creditService);
@@ -45,7 +88,14 @@ void main() {
         moltbookService: moltbookService,
         porService: porService,
         ipfsService: ipfsService,
+        identityService: identity,
+        db: db,
       );
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await db.close();
     });
 
     test('lists 9 registered MCP tools with input schemas', () {
@@ -110,6 +160,41 @@ void main() {
       expect(invalidRes['isError'], isTrue);
     });
 
+    test('DOI dedupe persists across a new server instance on the same db',
+        () async {
+      // A fresh AlexandriaMcpServer has an empty in-memory dedupe set; only
+      // the persisted AwardedDois table can catch the re-ingest.
+      final secondServer = AlexandriaMcpServer(
+        creditService: creditService,
+        pochService: pochService,
+        cryptoBridgeService: cryptoBridgeService,
+        moltbookService: moltbookService,
+        porService: porService,
+        ipfsService: ipfsService,
+        db: db,
+      );
+
+      final first = await mcpServer.callTool('alexandria_ingest_doi', {
+        'doi': '10.1126/science.persisted-dedupe',
+      });
+      expect(first['isError'], isFalse);
+      expect(
+          jsonDecode((first['content'] as List).first['text'] as String)
+              ['status'],
+          'success');
+      expect(await db.hasAwardedDoi('10.1126/science.persisted-dedupe'),
+          isTrue);
+
+      final second = await secondServer.callTool('alexandria_ingest_doi', {
+        'doi': '10.1126/science.persisted-dedupe',
+      });
+      expect(second['isError'], isFalse);
+      final data = jsonDecode((second['content'] as List).first['text']
+          as String) as Map<String, dynamic>;
+      expect(data['status'], 'duplicate');
+      expect(data['credits_earned'], 0.0);
+    });
+
     test('executes alexandria_get_wallet_balance tool', () async {
       final res = await mcpServer.callTool('alexandria_get_wallet_balance', {});
       expect(res['isError'], isFalse);
@@ -155,6 +240,9 @@ void main() {
           .first['text'] as String) as Map<String, dynamic>;
       final challengeId = challengeData['challenge_id'] as String;
       final nonceHex = challengeData['nonce_hex'] as String;
+      // The verifier-of-record is the node identity key — the same key the
+      // PoR service signs receipts under (no more ephemeral moltbook key).
+      expect(challengeData['challenger_pubkey'], identity.pubkeyHex);
 
       // 2. Compute the tag the prover would produce
       final nonceBytes = Uint8List.fromList(List.generate(
@@ -162,13 +250,34 @@ void main() {
           (i) => int.parse(nonceHex.substring(i * 2, i * 2 + 2), radix: 16)));
       final tag = Hmac(sha256, nonceBytes).convert(payload).toString();
 
-      // 3. Submit — verifies, mints via verifyProof internally
+      // 3. Submit — verifies, issues a verifier-signed work receipt
       final res = await mcpServer.callTool('alexandria_submit_por_challenge', {
         'challenge_id': challengeId,
         'tag': tag,
       });
       expect(res['isError'], isFalse);
       expect(creditService.balance, greaterThan(initialBalance));
+
+      final submitData = jsonDecode((res['content'] as List)
+          .first['text'] as String) as Map<String, dynamic>;
+      expect(submitData['status'], 'verified');
+      final receipt = submitData['receipt'] as Map<String, dynamic>?;
+      expect(receipt, isNotNull);
+      expect(receipt!['receipt_id'], isNotEmpty);
+      // Signed under the IdentityService key — the request→submit
+      // round-trip produces a real verifier-signed receipt.
+      expect(receipt['verifier_pubkey'], identity.pubkeyHex);
+      expect(receipt['verifier_sig'], isNotEmpty);
+      expect(receipt['prover_pubkey'], identity.pubkeyHex);
+      // The MCP harness is challenger AND prover on one node — the receipt
+      // is self-issued, so it must never claim attested (egress) value.
+      expect(submitData['receipt_attested'], isFalse);
+      expect(receipt['self_issued'], isTrue);
+      // Local prover → the receipt was consumed by the local claim, and the
+      // reported spent flag matches the persisted row.
+      expect(receipt['spent'], isTrue);
+      final row = await db.getWorkReceipt(receipt['receipt_id'] as String);
+      expect(row!['spent'], isTrue);
 
       // 4. A wrong tag is rejected — no payout
       final challenge2 = await mcpServer
@@ -187,6 +296,51 @@ void main() {
         'tag': tag,
       });
       expect(forgedRes['isError'], isTrue);
+    });
+
+    test('PoR submit for a foreign prover persists an unspent signed '
+        'claim instrument — no local mint', () async {
+      final payload = Uint8List.fromList(
+          utf8.encode('payload proven for a remote prover agent'));
+      final cid = await ipfsService.addFile(payload);
+      final initialBalance = creditService.balance;
+
+      final challengeRes = await mcpServer
+          .callTool('alexandria_request_por_challenge', {'cid': cid});
+      final challengeData = jsonDecode((challengeRes['content'] as List)
+          .first['text'] as String) as Map<String, dynamic>;
+      final challengeId = challengeData['challenge_id'] as String;
+      final nonceHex = challengeData['nonce_hex'] as String;
+      final nonceBytes = Uint8List.fromList(List.generate(
+          nonceHex.length ~/ 2,
+          (i) => int.parse(nonceHex.substring(i * 2, i * 2 + 2), radix: 16)));
+      final tag = Hmac(sha256, nonceBytes).convert(payload).toString();
+
+      final foreignProver = 'aa'.padRight(64, 'b'); // foreign Ed25519 hex
+      final res = await mcpServer.callTool('alexandria_submit_por_challenge', {
+        'challenge_id': challengeId,
+        'tag': tag,
+        'prover_pubkey': foreignProver,
+      });
+      expect(res['isError'], isFalse);
+
+      final data = jsonDecode((res['content'] as List).first['text']
+          as String) as Map<String, dynamic>;
+      expect(data['status'], 'verified');
+      final receipt = data['receipt'] as Map<String, dynamic>;
+      expect(receipt['verifier_pubkey'], identity.pubkeyHex);
+      expect(receipt['verifier_sig'], isNotEmpty);
+      expect(receipt['prover_pubkey'], foreignProver);
+      expect(receipt['self_issued'], isFalse);
+      // The artifact IS an attested claim — for the prover. This node
+      // neither mints it nor burns it: persisted unspent, balance flat.
+      expect(data['receipt_attested'], isTrue);
+      expect(receipt['spent'], isFalse);
+      expect(creditService.balance, equals(initialBalance));
+
+      final row =
+          await db.getWorkReceipt(receipt['receipt_id'] as String);
+      expect(row!['spent'], isFalse);
     });
 
     test('agent payout rails are disabled until attestation (ALX-010)', () async {

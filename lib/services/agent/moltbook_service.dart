@@ -2,17 +2,22 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../credits/credit_service.dart';
+import '../ipfs_service.dart';
 import 'beacon_models.dart';
 
 /// Riverpod provider for MoltbookService
 final moltbookServiceProvider = ChangeNotifierProvider<MoltbookService>((ref) {
   final creditService = ref.read(creditServiceProvider);
-  return MoltbookService(creditService: creditService);
+  return MoltbookService(
+    creditService: creditService,
+    ipfsService: ref.read(ipfsServiceProvider),
+  );
 });
 
 /// Service managing social agent transport, Moltbook submolt feeds, and Beacon v2 envelopes (ALX-006)
 class MoltbookService extends ChangeNotifier {
   final CreditService _creditService;
+  final IpfsService? _ipfsService;
   final String _baseUrl;
   String? _apiKey;
 
@@ -31,11 +36,19 @@ class MoltbookService extends ChangeNotifier {
 
   final List<PreservationBounty> _bounties = [];
 
+  /// IDs of bounties escrowed by THIS node via [postPreservationBounty].
+  /// The self-claim guard keys off this set — not the mutable [_agentId] —
+  /// so rotating the local keypair can never launder a self-claim on our
+  /// own escrow (ALX-010 / E-T5 #2).
+  final Set<String> _locallyPostedBountyIds = {};
+
   MoltbookService({
     required CreditService creditService,
+    IpfsService? ipfsService,
     String baseUrl = 'https://www.moltbook.com',
     String? apiKey,
   })  : _creditService = creditService,
+        _ipfsService = ipfsService,
         _baseUrl = baseUrl,
         _apiKey = apiKey {
     _seedInitialPosts();
@@ -74,6 +87,17 @@ class MoltbookService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Lazily generates the agent identity when the async [_initKey] hasn't
+  /// completed yet, so callers never observe an empty [_agentId].
+  Future<void> _ensureKeyPair() async {
+    if (_keyPair != null) return;
+    final algorithm = Ed25519();
+    _keyPair = await algorithm.newKeyPair();
+    final pk = await _keyPair!.extractPublicKey();
+    _pubkeyHex = bytesToHex(pk.bytes);
+    _agentId = BeaconEnvelope.deriveAgentId(pk.bytes);
+  }
+
   List<MoltbookPost> getPostsForSubmolt(String submolt) {
     return List.unmodifiable(_submoltPosts[submolt] ?? []);
   }
@@ -97,13 +121,7 @@ class MoltbookService extends ChangeNotifier {
       }
     }
 
-    if (_keyPair == null) {
-      final algorithm = Ed25519();
-      _keyPair = await algorithm.newKeyPair();
-      final pk = await _keyPair!.extractPublicKey();
-      _pubkeyHex = bytesToHex(pk.bytes);
-      _agentId = BeaconEnvelope.deriveAgentId(pk.bytes);
-    }
+    await _ensureKeyPair();
 
     // 2. Sign Beacon v2 envelope
     final envelope = await BeaconEnvelope.create(
@@ -144,17 +162,21 @@ class MoltbookService extends ChangeNotifier {
     String urgency = 'normal',
     bool force = false,
   }) async {
+    // Reject non-positive / non-finite offers before touching the ledger —
+    // a 0 or negative bounty must never be recorded as escrowed (E-T5 #4).
+    if (!offeredCredits.isFinite || offeredCredits <= 0) {
+      throw ArgumentError('Bounty must offer positive credits');
+    }
+
+    // Ensure identity exists BEFORE recording originAgentId — otherwise a
+    // bounty posted during _initKey's async gap would carry an empty
+    // origin id and corrupt the self-claim/echo checks.
+    await _ensureKeyPair();
+
     // Verify node has sufficient credits to escrow bounty
     if (_creditService.balance < offeredCredits) {
       throw StateError('Insufficient credit balance (${_creditService.balance.toStringAsFixed(1)} ℭ) to fund $offeredCredits ℭ bounty.');
     }
-
-    // Deduct credits to escrow the preservation reward
-    _creditService.spendCredits(
-      amount: offeredCredits,
-      reason: 'Bounty Escrow for CID $cid',
-      referenceId: cid,
-    );
 
     final bounty = PreservationBounty(
       id: 'bounty_${DateTime.now().millisecondsSinceEpoch}',
@@ -165,11 +187,14 @@ class MoltbookService extends ChangeNotifier {
       urgency: urgency,
       originAgentId: _agentId,
       createdAt: DateTime.now(),
+      funded: true, // Reward is genuinely escrowed via debitEscrow below
     );
 
-    _bounties.insert(0, bounty);
-
-    // Broadcast post to Moltbook
+    // Broadcast FIRST (E-T5r #2): createPost can throw (e.g. the local
+    // posting cooldown) and must do so BEFORE any ledger mutation. The
+    // previous debit-then-broadcast order permanently burned the escrow
+    // whenever the broadcast threw — the caller saw a StateError while
+    // the credits stayed locked behind a bounty nobody could claim.
     await createPost(
       submolt: 'alexandria-bounties',
       title: '[BOUNTY: $urgency.toUpperCase()] $title',
@@ -178,22 +203,142 @@ class MoltbookService extends ChangeNotifier {
       force: force,
     );
 
+    // Debit credits into escrow. This is a fee-EXEMPT hold, not a spend:
+    // the full amount is owed to the future claimant, so skimming the 5%
+    // treasury fee here would mint unbacked value on payout. debitEscrow
+    // keeps the post+claim cycle net-zero (ALX-010 / E-T5 #5).
+    final escrowed = _creditService.debitEscrow(
+      amount: offeredCredits,
+      referenceId: cid,
+    );
+    if (!escrowed) {
+      // The broadcast already went out, but its `funded` payload flag is
+      // only a claim — remote nodes strip it on ingest until an escrow
+      // attestation exists — so this failed post can mint nothing.
+      throw StateError('Escrow debit failed for $offeredCredits ℭ bounty.');
+    }
+
+    _bounties.insert(0, bounty);
+    _locallyPostedBountyIds.add(bounty.id);
+
     notifyListeners();
     return bounty;
   }
 
-  /// Claims and fulfills an active preservation bounty, rewarding the agent node
+  /// Registers a preservation bounty announced by a FOREIGN agent over the
+  /// Moltbook transport (e.g. parsed out of a Beacon envelope payload).
+  /// This is the only path by which a funded bounty becomes claimable by
+  /// this node: locally posted bounties are permanently barred from local
+  /// claim via [_locallyPostedBountyIds] (self-dealing guard).
+  ///
+  /// TRUST MODEL (E-T5r #1): the announcer-claimed
+  /// [PreservationBounty.funded] flag is NEVER honored — remote `funded`
+  /// flags require an escrow attestation signed by the poster's key.
+  /// Until the attestation transport lands, ingested bounties are
+  /// display-only: they are stored with `funded: false` so a forged
+  /// `funded: true` announcement can never mint unbacked credits through
+  /// [claimBounty].
+  ///
+  /// [escrowAttested] is the seam for that future verification: the
+  /// transport layer may set it ONLY after verifying the poster's signed
+  /// escrow attestation out-of-band. It must never be populated from
+  /// wire data.
+  void ingestBountyAnnouncement(
+    PreservationBounty bounty, {
+    bool escrowAttested = false,
+  }) {
+    // Ignore echoes of our own posts and duplicates.
+    if (_locallyPostedBountyIds.contains(bounty.id)) return;
+    if (bounty.originAgentId == _agentId) return;
+    if (_bounties.any((b) => b.id == bounty.id)) return;
+
+    // Strip the announcer's unverifiable `funded` claim unless the
+    // transport asserts a verified escrow attestation. Stored as a copy
+    // so the caller's object can never be mutated into a funded record.
+    final funded = bounty.funded && escrowAttested;
+    _bounties.insert(
+      0,
+      funded == bounty.funded
+          ? bounty
+          : PreservationBounty(
+              id: bounty.id,
+              cid: bounty.cid,
+              doi: bounty.doi,
+              title: bounty.title,
+              targetShards: bounty.targetShards,
+              offeredCredits: bounty.offeredCredits,
+              urgency: bounty.urgency,
+              originAgentId: bounty.originAgentId,
+              createdAt: bounty.createdAt,
+              isClaimed: bounty.isClaimed,
+              funded: false,
+            ),
+    );
+    notifyListeners();
+  }
+
   /// Claims an active preservation bounty. Payout is the escrowed reward
   /// posted by the originator — not a fabricated mint (ALX-010).
-  /// An agent cannot claim its own bounty (self-dealing / sybil laundering).
-  bool claimBounty(String bountyId) {
-    final index = _bounties.indexWhere((b) => b.id == bountyId && !b.isClaimed);
+  /// An agent cannot claim its own bounty (self-dealing / sybil laundering);
+  /// the guard keys off [_locallyPostedBountyIds], which survives keypair
+  /// rotation, plus the current-identity check for belt-and-suspenders.
+  ///
+  /// Claim preconditions:
+  ///  - The bounty must be [PreservationBounty.funded]: its reward was
+  ///    genuinely escrowed at post time. Seeded/demo announcements carry no
+  ///    escrow and remain listed for display but are unclaimable.
+  ///  - Work evidence: when an [IpfsService] is injected, the claimed CID's
+  ///    bytes must already exist in the local blockstore (non-empty payload),
+  ///    proving the claimant actually replicated the content. When no
+  ///    IpfsService is provided (e.g. unit tests without IPFS), this
+  ///    blockstore check is skipped.
+  ///
+  /// TOCTOU safety (E-T5 #1): [PreservationBounty.isClaimed] is set
+  /// synchronously BEFORE the first `await`, so two overlapping
+  /// `claimBounty()` calls can never both pass the guard and both pay out.
+  /// The flag is reverted if the asynchronous evidence check fails, so a
+  /// claim may be retried after the content is actually replicated.
+  Future<bool> claimBounty(String bountyId) async {
+    final index = _bounties.indexWhere((b) => b.id == bountyId);
     if (index == -1) return false;
 
     final bounty = _bounties[index];
+    if (bounty.isClaimed) return false;
+    if (_locallyPostedBountyIds.contains(bounty.id)) return false;
     if (bounty.originAgentId == _agentId) return false;
+    if (!bounty.funded) return false;
 
+    // Synchronous claim mark: any concurrent call reaching this point now
+    // observes isClaimed == true and bails out above.
     bounty.isClaimed = true;
+
+    final ipfs = _ipfsService;
+    if (ipfs != null) {
+      var hasPayload = false;
+      try {
+        await for (final chunk in ipfs.getFile(bounty.cid)) {
+          if (chunk.isNotEmpty) {
+            hasPayload = true;
+            break;
+          }
+        }
+      } catch (_) {
+        // Blockstore/stream errors must never propagate into callers (the
+        // steward's timer callback has no error handling). Treat as "no
+        // evidence" and release the claim mark (E-T5 #6).
+        hasPayload = false;
+      }
+      // Deliberate absent-vs-empty distinction (E-T5 #7): an empty payload
+      // is treated as "not replicated". This conflates a genuinely stored
+      // 0-byte file with an absent CID, so 0-byte content is unclaimable —
+      // acceptable, since an empty payload carries no preservation value.
+      if (!hasPayload) {
+        bounty.isClaimed = false;
+        notifyListeners();
+        return false;
+      }
+    }
+
     _creditService.awardBountyEscrow(
       amount: bounty.offeredCredits,
       bountyId: bounty.id,

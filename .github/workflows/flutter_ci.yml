@@ -27,3 +27,8 @@ jobs:
 
       - name: Run tests
         run: flutter test
+
+      # Release builds: flutter build --dart-define=BUILD_COMMIT_SHA=${{ github.sha }}
+      # (optional: --dart-define=BUILD_ARTIFACT_DIGEST=<digest> --dart-define=BUILD_TIMESTAMP=<iso8601>)
+      # NOTE: BuildInfo provenance is self-declared "claimed_*" metadata with
+      # zero trust weight (ALX-010) — never gate admission or rewards on it.

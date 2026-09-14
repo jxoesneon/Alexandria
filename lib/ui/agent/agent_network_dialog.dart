@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/agent/agent_steward_service.dart';
 import '../../services/agent/alexandria_mcp_server.dart';
+import '../../services/agent/beacon_models.dart';
 import '../../services/agent/moltbook_service.dart';
+import '../../services/build_info_service.dart';
 import '../common/governance_badge.dart';
 import '../theme/app_theme.dart';
 import 'mcp_config_export_dialog.dart';
@@ -43,6 +45,7 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
     final moltbookService = ref.watch(moltbookServiceProvider);
     final stewardService = ref.watch(agentStewardServiceProvider);
     final mcpServer = ref.watch(alexandriaMcpServerProvider);
+    final buildInfo = ref.watch(buildInfoServiceProvider);
 
     final posts = moltbookService.getPostsForSubmolt(_selectedSubmolt);
     final width = MediaQuery.of(context).size.width.clamp(400.0, 750.0);
@@ -70,7 +73,8 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                     color: Colors.purpleAccent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.smart_toy, color: Colors.purpleAccent, size: 22),
+                  child: const Icon(Icons.smart_toy,
+                      color: Colors.purpleAccent, size: 22),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -88,7 +92,8 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                       ),
                       Text(
                         'Moltbook Social Transport • Beacon v2 Envelopes • MCP Server',
-                        style: TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                        style: TextStyle(
+                            fontSize: 11, color: AppTheme.secondaryColor),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -99,7 +104,8 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                 const SizedBox(width: 8),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, size: 20, color: AppTheme.secondaryColor),
+                  icon: const Icon(Icons.close,
+                      size: 20, color: AppTheme.secondaryColor),
                 ),
               ],
             ),
@@ -154,7 +160,8 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                                 child: Switch(
                                   value: stewardService.isRunning,
                                   activeThumbColor: Colors.greenAccent,
-                                  activeTrackColor: Colors.greenAccent.withValues(alpha: 0.4),
+                                  activeTrackColor:
+                                      Colors.greenAccent.withValues(alpha: 0.4),
                                   onChanged: (val) {
                                     if (val) {
                                       stewardService.startSteward();
@@ -169,7 +176,8 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                           const SizedBox(height: 4),
                           const Text(
                             'Self-governed agent loop: monitors node health, restores PoCH score, performs Cauchy RS compute, and fulfills endangered preservation bounties.',
-                            style: TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                            style: TextStyle(
+                                fontSize: 11, color: AppTheme.secondaryColor),
                           ),
                           const SizedBox(height: 12),
 
@@ -184,13 +192,15 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                               const SizedBox(width: 8),
                               _buildMetricPill(
                                 label: 'Compute Cycles',
-                                value: '${stewardService.totalComputeCyclesExecuted}',
+                                value:
+                                    '${stewardService.totalComputeCyclesExecuted}',
                                 color: Colors.cyanAccent,
                               ),
                               const SizedBox(width: 8),
                               _buildMetricPill(
                                 label: 'Credits Earned',
-                                value: '+${stewardService.totalCreditsEarned.toStringAsFixed(1)} ℭ',
+                                value:
+                                    '+${stewardService.totalCreditsEarned.toStringAsFixed(1)} ℭ',
                                 color: Colors.greenAccent,
                               ),
                             ],
@@ -200,7 +210,10 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                             const SizedBox(height: 12),
                             const Text(
                               'Recent Agent Activity:',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textColor),
                             ),
                             const SizedBox(height: 6),
                             Container(
@@ -213,12 +226,16 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  for (final log in stewardService.activityLog.take(3))
+                                  for (final log
+                                      in stewardService.activityLog.take(3))
                                     Padding(
                                       padding: const EdgeInsets.only(bottom: 2),
                                       child: Text(
                                         log,
-                                        style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: AppTheme.secondaryColor),
+                                        style: const TextStyle(
+                                            fontSize: 10,
+                                            fontFamily: 'monospace',
+                                            color: AppTheme.secondaryColor),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -241,7 +258,8 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.verified_user_outlined, size: 20, color: Colors.cyanAccent),
+                          const Icon(Icons.verified_user_outlined,
+                              size: 20, color: Colors.cyanAccent),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
@@ -249,11 +267,25 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                               children: [
                                 const Text(
                                   'Beacon v2 Agent Identity (Ed25519)',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.textColor),
                                 ),
                                 Text(
                                   'Agent ID: ${moltbookService.agentId.isEmpty ? "Initializing..." : moltbookService.agentId}',
-                                  style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: Colors.cyanAccent),
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontFamily: 'monospace',
+                                      color: Colors.cyanAccent),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                // Self-declared provenance only — never verified (ALX-010)
+                                Text(
+                                  'Claimed build: ${buildInfo.commitShort} (${buildInfo.buildChannel})',
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppTheme.secondaryColor),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],
@@ -262,14 +294,19 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                           const SizedBox(width: 8),
                           OutlinedButton.icon(
                             onPressed: () {
-                              Clipboard.setData(ClipboardData(text: moltbookService.agentId));
+                              Clipboard.setData(
+                                  ClipboardData(text: moltbookService.agentId));
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Agent ID copied to clipboard')),
+                                const SnackBar(
+                                    content:
+                                        Text('Agent ID copied to clipboard')),
                               );
                             },
                             icon: const Icon(Icons.copy, size: 14),
-                            label: const Text('Copy', style: TextStyle(fontSize: 11)),
-                            style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                            label: const Text('Copy',
+                                style: TextStyle(fontSize: 11)),
+                            style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact),
                           ),
                         ],
                       ),
@@ -279,21 +316,27 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                     // Section 3: Moltbook Social Feed Header & Submolts
                     Row(
                       children: [
-                        const Icon(Icons.forum_outlined, size: 18, color: Colors.purpleAccent),
+                        const Icon(Icons.forum_outlined,
+                            size: 18, color: Colors.purpleAccent),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(
                             'Moltbook Agent Social Transport',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textColor),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         ElevatedButton.icon(
                           onPressed: () => _showCreateBountyDialog(context),
                           icon: const Icon(Icons.add, size: 14),
-                          label: const Text('Post Bounty', style: TextStyle(fontSize: 11)),
+                          label: const Text('Post Bounty',
+                              style: TextStyle(fontSize: 11)),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purpleAccent.withValues(alpha: 0.2),
+                            backgroundColor:
+                                Colors.purpleAccent.withValues(alpha: 0.2),
                             foregroundColor: Colors.purpleAccent,
                             visualDensity: VisualDensity.compact,
                           ),
@@ -306,9 +349,11 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                     Wrap(
                       spacing: 8,
                       children: [
-                        _buildSubmoltChip('alexandria-bounties', 'm/alexandria-bounties'),
+                        _buildSubmoltChip(
+                            'alexandria-bounties', 'm/alexandria-bounties'),
                         _buildSubmoltChip('open-science', 'm/open-science'),
-                        _buildSubmoltChip('preservation-alerts', 'm/preservation-alerts'),
+                        _buildSubmoltChip(
+                            'preservation-alerts', 'm/preservation-alerts'),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -318,7 +363,8 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                       const Padding(
                         padding: EdgeInsets.all(20),
                         child: Center(
-                          child: Text('No posts found in this submolt.', style: TextStyle(color: AppTheme.secondaryColor)),
+                          child: Text('No posts found in this submolt.',
+                              style: TextStyle(color: AppTheme.secondaryColor)),
                         ),
                       )
                     else
@@ -345,29 +391,42 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.terminal, size: 18, color: AppTheme.primaryAccent),
+                              const Icon(Icons.terminal,
+                                  size: 18, color: AppTheme.primaryAccent),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'Alexandria MCP Tool Suite (${mcpServer.listTools().length} Registered Tools)',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.textColor),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const Chip(
-                                label: Text('stdio / JSON-RPC 2.0', style: TextStyle(fontSize: 10, color: AppTheme.primaryAccent)),
+                                label: Text('stdio / JSON-RPC 2.0',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: AppTheme.primaryAccent)),
                                 visualDensity: VisualDensity.compact,
                                 padding: EdgeInsets.zero,
                               ),
                               const SizedBox(width: 8),
                               OutlinedButton.icon(
-                                onPressed: () => McpConfigExportDialog.show(context, mcpServer.listTools()),
-                                icon: const Icon(Icons.file_download_outlined, size: 14),
-                                label: const Text('Export Config', style: TextStyle(fontSize: 10)),
+                                onPressed: () => McpConfigExportDialog.show(
+                                    context, mcpServer.listTools()),
+                                icon: const Icon(Icons.file_download_outlined,
+                                    size: 14),
+                                label: const Text('Export Config',
+                                    style: TextStyle(fontSize: 10)),
                                 style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
                                   visualDensity: VisualDensity.compact,
-                                  side: const BorderSide(color: AppTheme.primaryAccent, width: 0.8),
+                                  side: const BorderSide(
+                                      color: AppTheme.primaryAccent,
+                                      width: 0.8),
                                   foregroundColor: AppTheme.primaryAccent,
                                 ),
                               ),
@@ -380,7 +439,8 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                             children: [
                               for (final tool in mcpServer.listTools())
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.05),
                                     borderRadius: BorderRadius.circular(6),
@@ -388,7 +448,10 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                                   ),
                                   child: Text(
                                     tool['name'] as String,
-                                    style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: AppTheme.textColor),
+                                    style: const TextStyle(
+                                        fontSize: 10,
+                                        fontFamily: 'monospace',
+                                        color: AppTheme.textColor),
                                   ),
                                 ),
                             ],
@@ -409,11 +472,15 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
   Widget _buildSubmoltChip(String submoltKey, String label) {
     final isSelected = _selectedSubmolt == submoltKey;
     return ChoiceChip(
-      label: Text(label, style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : AppTheme.secondaryColor)),
+      label: Text(label,
+          style: TextStyle(
+              fontSize: 11,
+              color: isSelected ? Colors.white : AppTheme.secondaryColor)),
       selected: isSelected,
       selectedColor: Colors.purpleAccent.withValues(alpha: 0.3),
       backgroundColor: Colors.white.withValues(alpha: 0.04),
-      side: BorderSide(color: isSelected ? Colors.purpleAccent : Colors.white12),
+      side:
+          BorderSide(color: isSelected ? Colors.purpleAccent : Colors.white12),
       visualDensity: VisualDensity.compact,
       onSelected: (_) => setState(() => _selectedSubmolt = submoltKey),
     );
@@ -435,15 +502,69 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.secondaryColor), overflow: TextOverflow.ellipsis),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 10, color: AppTheme.secondaryColor),
+                overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPostCard(BuildContext context, dynamic post, MoltbookService service) {
+  /// Resolves the [PreservationBounty] announced by a given post, or null
+  /// when the post doesn't correspond to any tracked bounty. Posts created
+  /// via `postPreservationBounty` carry the bounty id inside the signed
+  /// Beacon payload; seeded announcements use the `bounty_<postId>`
+  /// convention; otherwise fall back to matching the CID embedded in the
+  /// post body. Never assumes `activeBounties.first` is the right one.
+  PreservationBounty? _bountyForPost(
+      MoltbookService service, MoltbookPost post) {
+    final bounties = service.activeBounties;
+    final payloadId = post.beaconEnvelope?.payload['id'];
+    if (payloadId is String) {
+      for (final b in bounties) {
+        if (b.id == payloadId) return b;
+      }
+    }
+    final seededId = 'bounty_${post.id}';
+    for (final b in bounties) {
+      if (b.id == seededId) return b;
+    }
+    for (final b in bounties) {
+      if (b.cid.isNotEmpty && post.content.contains(b.cid)) return b;
+    }
+    return null;
+  }
+
+  /// Attempts to claim [bounty] and reports the REAL outcome — the
+  /// service rejects unfunded, self-posted, already-claimed, and
+  /// evidence-less claims, so the snackbar must reflect the result.
+  Future<void> _claimBounty(
+    BuildContext context,
+    MoltbookService service,
+    PreservationBounty bounty,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final success = await service.claimBounty(bounty.id);
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(success
+            ? 'Bounty claimed! +${bounty.offeredCredits.toStringAsFixed(1)} ℭ escrow paid out.'
+            : 'Claim failed — bounty is unfunded, self-posted, already claimed, or missing local replication evidence.'),
+      ),
+    );
+  }
+
+  Widget _buildPostCard(
+      BuildContext context, MoltbookPost post, MoltbookService service) {
+    final matchedBounty = post.submolt == 'alexandria-bounties'
+        ? _bountyForPost(service, post)
+        : null;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -459,14 +580,18 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
               Expanded(
                 child: Text(
                   post.title,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textColor),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),
               if (post.isBeaconVerified)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.greenAccent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
@@ -476,7 +601,11 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                     children: [
                       Icon(Icons.shield, size: 11, color: Colors.greenAccent),
                       SizedBox(width: 4),
-                      Text('Beacon v2', style: TextStyle(fontSize: 9, color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                      Text('Beacon v2',
+                          style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.greenAccent,
+                              fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -485,7 +614,8 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
           const SizedBox(height: 4),
           Text(
             'Posted by ${post.authorAgentId} • ${post.submolt}',
-            style: const TextStyle(fontSize: 10, color: AppTheme.secondaryColor),
+            style:
+                const TextStyle(fontSize: 10, color: AppTheme.secondaryColor),
           ),
           const SizedBox(height: 8),
           Text(
@@ -499,30 +629,42 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                 onTap: () => service.upvotePost(post.id),
                 borderRadius: BorderRadius.circular(4),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                   child: Row(
                     children: [
-                      const Icon(Icons.arrow_upward, size: 14, color: Colors.purpleAccent),
+                      const Icon(Icons.arrow_upward,
+                          size: 14, color: Colors.purpleAccent),
                       const SizedBox(width: 4),
-                      Text('${post.upvotes}', style: const TextStyle(fontSize: 11, color: Colors.purpleAccent, fontWeight: FontWeight.bold)),
+                      Text('${post.upvotes}',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.purpleAccent,
+                              fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
               ),
               const Spacer(),
-              if (post.submolt == 'alexandria-bounties')
+              // Claim button only appears when the post resolves to a
+              // tracked bounty, and is disabled when that bounty carries
+              // no escrow — claiming an unfunded announcement is a no-op
+              // that must not masquerade as success (E-T5 #3).
+              if (matchedBounty != null)
                 TextButton(
-                  onPressed: () {
-                    // Claim bounty
-                    final bounties = service.activeBounties;
-                    if (bounties.isNotEmpty) {
-                      service.claimBounty(bounties.first.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Bounty claimed! Replicating Cauchy RS shards.')),
-                      );
-                    }
-                  },
-                  child: const Text('Claim Bounty', style: TextStyle(fontSize: 11, color: AppTheme.primaryAccent)),
+                  onPressed: matchedBounty.funded
+                      ? () =>
+                          _claimBounty(context, service, matchedBounty)
+                      : null,
+                  child: Text(
+                    matchedBounty.funded ? 'Claim Bounty' : 'Unfunded',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: matchedBounty.funded
+                          ? AppTheme.primaryAccent
+                          : AppTheme.secondaryColor,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -536,26 +678,30 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surfaceColor,
-        title: const Text('Post Preservation Bounty (Moltbook)', style: TextStyle(fontSize: 14, color: AppTheme.textColor)),
+        title: const Text('Post Preservation Bounty (Moltbook)',
+            style: TextStyle(fontSize: 14, color: AppTheme.textColor)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: _bountyTitleController,
-              decoration: const InputDecoration(labelText: 'Title / Paper Name', isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'Title / Paper Name', isDense: true),
               style: const TextStyle(fontSize: 12, color: AppTheme.textColor),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _bountyCidController,
-              decoration: const InputDecoration(labelText: 'Endangered CIDv1', isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'Endangered CIDv1', isDense: true),
               style: const TextStyle(fontSize: 12, color: AppTheme.textColor),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _bountyCreditsController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Offered Credits (ℭ)', isDense: true),
+              decoration: const InputDecoration(
+                  labelText: 'Offered Credits (ℭ)', isDense: true),
               style: const TextStyle(fontSize: 12, color: AppTheme.textColor),
             ),
           ],
@@ -563,13 +709,15 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.secondaryColor)),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppTheme.secondaryColor)),
           ),
           ElevatedButton(
             onPressed: () async {
               final cid = _bountyCidController.text.trim();
               final title = _bountyTitleController.text.trim();
-              final credits = double.tryParse(_bountyCreditsController.text.trim()) ?? 20.0;
+              final credits =
+                  double.tryParse(_bountyCreditsController.text.trim()) ?? 20.0;
 
               if (cid.isNotEmpty && title.isNotEmpty) {
                 try {
@@ -583,7 +731,9 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                   if (ctx.mounted) Navigator.of(ctx).pop();
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Bounty "$title" broadcast to Moltbook!')),
+                      SnackBar(
+                          content:
+                              Text('Bounty "$title" broadcast to Moltbook!')),
                     );
                   }
                 } catch (e) {

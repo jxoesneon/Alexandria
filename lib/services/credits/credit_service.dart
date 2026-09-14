@@ -1,12 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/database.dart' hide CreditTransaction;
 import 'credit_models.dart';
 import 'poch_service.dart';
 
 /// Provider for CreditService
 final creditServiceProvider = ChangeNotifierProvider<CreditService>((ref) {
   final pochService = ref.read(pochServiceProvider);
-  return CreditService(pochService: pochService);
+  final service =
+      CreditService(pochService: pochService, db: ref.read(databaseProvider));
+  // Hydration is kicked off in the constructor; surface it here so the
+  // intent is explicit. Mutators stay gated until it lands (see
+  // [CreditService._hydratedComplete]).
+  unawaited(service.ready);
+  return service;
 });
 
 /// Provider for user credit balance
@@ -25,8 +34,14 @@ final creditTransactionsProvider = Provider<List<CreditTransaction>>((ref) {
 /// and protocol fee allocations (ALX-005).
 class CreditService extends ChangeNotifier {
   final PoCHService? _pochService;
+  final AppDatabase? _db;
 
   double _balance;
+
+  /// Running net of attested value: attested credits add, debits burn the
+  /// unattested portion first and then attested (see [_burnForDebit]).
+  /// Recomputed from the ledger on hydration by [_rebuildBalance].
+  double _attestedBalance = 0.0;
   double _archivalCommonsPool;
   double _protocolTreasury;
 
@@ -39,20 +54,67 @@ class CreditService extends ChangeNotifier {
 
   final List<CreditTransaction> _transactions = [];
 
+  /// Resolves once persisted state (daily mint caps + ledger history) has
+  /// been loaded from [_db]. Never rejects — on failure the service
+  /// degrades gracefully to in-memory operation.
+  late final Future<void> _hydrated;
+
+  /// Set when [_hydrate] has finished (successfully or degraded), and
+  /// immediately in pure in-memory mode. Synchronous mutators cannot
+  /// await [_hydrated], so they refuse to run while this is false in
+  /// persistent mode: acting on phantom state (empty mint-cap counters,
+  /// an un-loaded ledger balance) let pre-hydration calls bypass the
+  /// daily cap and overspend the real ledger (E-T2 #1/#2). The honest
+  /// tradeoff: a caller racing the first milliseconds of startup loses
+  /// the award/spend rather than corrupting persisted state — no
+  /// legitimate flow can reach the service before [ready] resolves.
+  bool _hydratedComplete = false;
+
+  /// Deterministic ledger id for the one-time genesis welcome
+  /// allocation. Two instances racing a fresh database both write this
+  /// id; the second insert violates the primary key, is swallowed by
+  /// [_persistWrite], and the duplicate row is dropped — genesis can
+  /// never be persisted twice (E-T2 #3).
+  static const String _kGenesisTxId = 'tx_genesis';
+
+  /// Description marker identifying genesis rows, including rows written
+  /// by older builds that used a random id.
+  static const String _kGenesisMarker = 'Genesis Common Heritage';
+
+  /// Outstanding best-effort writes to [_db], tracked so tests and
+  /// shutdown paths can await durability via [settled].
+  final Set<Future<void>> _pendingWrites = {};
+
   CreditService({
     PoCHService? pochService,
+    AppDatabase? db,
     double initialBalance = 100.0, // Initial welcome grant for new users
   })  : _pochService = pochService,
-        _balance = initialBalance,
+        _db = db,
+        // Persistent mode starts at 0.0 — never at the phantom
+        // [initialBalance] — so no spend can race the real ledger
+        // balance before hydration rebuilds it (E-T2 #2).
+        _balance = db == null ? initialBalance : 0.0,
         _archivalCommonsPool = 250.0,
         _protocolTreasury = 50.0 {
-    // Record genesis grant if balance > 0
-    if (initialBalance > 0) {
-      _recordTransaction(
-        type: CreditType.verificationReward,
-        amount: initialBalance,
-        description: 'Genesis Common Heritage Welcome Allocation',
-      );
+    if (db == null) {
+      // Pure in-memory mode (backward compatible): genesis is recorded
+      // synchronously so [balance] and [transactions] are immediately sane.
+      _hydrated = Future<void>.value();
+      _hydratedComplete = true;
+      if (initialBalance > 0) {
+        _recordTransaction(
+          id: _kGenesisTxId,
+          type: CreditType.verificationReward,
+          amount: initialBalance,
+          description: '$_kGenesisMarker Welcome Allocation',
+          isAttested: false,
+        );
+      }
+    } else {
+      // Persistent mode: genesis and balance are decided by the ledger,
+      // so they must wait for hydration (see [_hydrate]).
+      _hydrated = _hydrate(initialBalance);
     }
   }
 
@@ -67,6 +129,45 @@ class CreditService extends ChangeNotifier {
   double get totalSpent => _totalSpent;
   double get totalFeesContributed => _totalFeesContributed;
   List<CreditTransaction> get transactions => List.unmodifiable(_transactions.reversed);
+
+  /// Completes when persisted state (daily mint caps + ledger history) has
+  /// been hydrated from the database. Resolves immediately when no
+  /// database is attached. Never rejects. In persistent mode, mutating
+  /// entry points refuse to run until this completes — see
+  /// [_hydratedComplete].
+  Future<void> get ready => _hydrated;
+
+  /// Returns true (after logging) when a mutating call arrived while
+  /// persistent state was still unhydrated — see [_hydratedComplete] for
+  /// why refusing is strictly safer than acting on phantom state.
+  bool _rejectIfUnhydrated(String op) {
+    if (_db == null || _hydratedComplete) return false;
+    debugPrint('CreditService: $op refused — persistent state is not '
+        'hydrated yet; await CreditService.ready before mutating');
+    return true;
+  }
+
+  /// Completes when hydration has finished AND every database write
+  /// queued so far has landed (or failed harmlessly). Awards write through
+  /// unawaited by design, so tests and shutdown paths that need durability
+  /// guarantees should await this rather than [ready].
+  Future<void> get settled =>
+      Future.wait<void>(<Future<void>>[_hydrated, ..._pendingWrites]);
+
+  /// Portion of the balance backed by foreign verifier-signed work
+  /// receipts (verifier pubkey != local identity — ALX-010). This is the
+  /// only value eligible to egress to external systems; the egress gate
+  /// reads this getter. NET of spending — internal debits consume
+  /// unattested value first, then attested, so attestation already spent
+  /// internally can never back a second egress (E-T3 #1).
+  double get attestedBalance =>
+      _attestedBalance.clamp(0.0, _balance < 0.0 ? 0.0 : _balance);
+
+  /// Self-certified value: spendable inside Alexandria (replication fees,
+  /// bounties) but barred from egress. Clamped at zero so a partial ledger
+  /// can never report a negative internal balance.
+  double get unattestedBalance =>
+      (_balance - attestedBalance).clamp(0.0, double.infinity);
 
   /// Protocol micro-fee rate on spendable transactions (5% - ALX-005 §5.2)
   static const double protocolFeeRate = 0.05;
@@ -89,13 +190,23 @@ class CreditService extends ChangeNotifier {
 
   /// Clamps a mint award to the remaining daily allowance for [type].
   /// Returns the effective award (0 when the daily cap is exhausted).
+  /// The counter is written through to [DailyMinted] so caps survive
+  /// restarts (the "~600C/day per restart" farming vector, ALX-005 §6.1).
   double _capDailyMint(CreditType type, double requested) {
     final cap = dailyMintCaps[type];
     if (cap == null) return requested;
-    final key = '${_dayKey()}:${type.name}';
+    final dayKey = _dayKey();
+    final key = '$dayKey:${type.name}';
     final remaining = (cap - (_dailyMinted[key] ?? 0.0)).clamp(0.0, cap);
     final granted = requested.clamp(0.0, remaining);
-    _dailyMinted[key] = (_dailyMinted[key] ?? 0.0) + granted;
+    if (granted > 0) {
+      final total = (_dailyMinted[key] ?? 0.0) + granted;
+      _dailyMinted[key] = total;
+      final db = _db;
+      if (db != null) {
+        _persistWrite(db.upsertDailyMinted(dayKey, type.name, total));
+      }
+    }
     return granted;
   }
 
@@ -119,6 +230,7 @@ class CreditService extends ChangeNotifier {
     String? cid,
     bool rarityAttested = false,
   }) {
+    if (_rejectIfUnhydrated('awardStorageCredits')) return 0.0;
     if (!porPassed) {
       // Slashing penalty for failed PoR challenge
       const penalty = 5.0;
@@ -128,6 +240,7 @@ class CreditService extends ChangeNotifier {
         amount: -penalty,
         description: 'PoR Challenge Failure Penalty (CID: ${cid ?? "unknown"})',
         referenceId: cid,
+        isAttested: false,
       );
       notifyListeners();
       return -penalty;
@@ -150,6 +263,10 @@ class CreditService extends ChangeNotifier {
       amount: earned,
       description: 'PoR Storage Reward (${rarityWeight}x rarity, CID: ${cid ?? "block"})',
       referenceId: cid,
+      // Self-certified PoR: rarityAttested unlocks the multiplier but is
+      // NOT a foreign verifier-signed work receipt, so the minted value
+      // remains unattested.
+      isAttested: false,
     );
 
     notifyListeners();
@@ -164,6 +281,7 @@ class CreditService extends ChangeNotifier {
     String? description,
     String? referenceId,
   }) {
+    if (_rejectIfUnhydrated('awardComputeCredits')) return 0.0;
     // Formula: 2.0 * CRS_MB + 0.5 * CDC_MB + 5.0 * OCR_Pages
     final earned = _capDailyMint(
         CreditType.computeReward, (2.0 * cauchyMb) + (0.5 * fastCdcMb) + (5.0 * ocrPages));
@@ -178,6 +296,7 @@ class CreditService extends ChangeNotifier {
       description: description ??
           'Compute Contribution (${cauchyMb.toStringAsFixed(1)}MB RS, $ocrPages OCR pages)',
       referenceId: referenceId,
+      isAttested: false,
     );
 
     notifyListeners();
@@ -190,6 +309,7 @@ class CreditService extends ChangeNotifier {
     required String targetId,
     double amount = 3.0,
   }) {
+    if (_rejectIfUnhydrated('awardVerificationCredits')) return 0.0;
     amount = _capDailyMint(CreditType.verificationReward, amount);
     if (amount <= 0) return 0.0;
 
@@ -203,6 +323,7 @@ class CreditService extends ChangeNotifier {
       amount: amount,
       description: 'Verification Action: $action',
       referenceId: targetId,
+      isAttested: false,
     );
 
     notifyListeners();
@@ -217,6 +338,7 @@ class CreditService extends ChangeNotifier {
     required String bountyId,
     required String cid,
   }) {
+    if (_rejectIfUnhydrated('awardBountyEscrow')) return 0.0;
     if (amount <= 0) return 0.0;
     _balance += amount;
     _totalVerificationEarned += amount;
@@ -225,6 +347,7 @@ class CreditService extends ChangeNotifier {
       amount: amount,
       description: 'Bounty Escrow Payout ($bountyId, CID: $cid)',
       referenceId: cid,
+      isAttested: false,
     );
     notifyListeners();
     return amount;
@@ -237,6 +360,19 @@ class CreditService extends ChangeNotifier {
     required double grossCredits,
     required double dwellTimeSeconds,
   }) {
+    if (_rejectIfUnhydrated('awardSponsorshipKickback')) {
+      // Honest zeroed receipt — nothing was minted or split.
+      return ImpressionReceipt(
+        campaignId: campaignId,
+        timestamp: DateTime.now(),
+        dwellTimeSeconds: dwellTimeSeconds,
+        nonce: 'unhydrated',
+        grossCredits: grossCredits,
+        clientKickback: 0.0,
+        archivalCommonsPool: 0.0,
+        protocolFee: 0.0,
+      );
+    }
     final clientKickback = _capDailyMint(
         CreditType.sponsorshipKickback, grossCredits * 0.85);
     final seederCut = grossCredits * 0.10;
@@ -255,6 +391,7 @@ class CreditService extends ChangeNotifier {
       amount: clientKickback,
       description: 'Sponsorship Kickback (85% share of ${grossCredits.toStringAsFixed(1)} credits)',
       referenceId: campaignId,
+      isAttested: false,
     );
 
     final receipt = ImpressionReceipt(
@@ -280,11 +417,13 @@ class CreditService extends ChangeNotifier {
     String? referenceId,
     CreditType debitType = CreditType.priorityAccessDebit,
   }) {
+    if (_rejectIfUnhydrated('spendCredits')) return false;
     if (amount <= 0 || _balance < amount) {
       return false;
     }
 
     final fee = amount * protocolFeeRate;
+    _burnForDebit(amount);
     _balance -= amount;
     _protocolTreasury += fee;
     _totalSpent += amount;
@@ -295,37 +434,227 @@ class CreditService extends ChangeNotifier {
       amount: -amount,
       description: '$reason (incl. ${(protocolFeeRate * 100).toInt()}% treasury fee)',
       referenceId: referenceId,
+      isAttested: false,
     );
 
     notifyListeners();
     return true;
   }
 
+  /// Debits credits into a bounty escrow WITHOUT the treasury fee — this is a
+  /// hold, not a spend: the full amount is owed to the future claimant, so
+  /// skimming it here would mint unbacked value on payout (ALX-010, Review
+  /// E-T5 #5: post+claim cycle must be net-zero).
+  bool debitEscrow({required double amount, required String referenceId}) {
+    if (_rejectIfUnhydrated('debitEscrow')) return false;
+    if (amount <= 0 || _balance < amount) {
+      return false;
+    }
+    _burnForDebit(amount);
+    _balance -= amount;
+    _totalSpent += amount;
+    _recordTransaction(
+      type: CreditType.priorityAccessDebit,
+      amount: -amount,
+      description: 'Bounty Escrow Hold ($referenceId)',
+      referenceId: referenceId,
+      isAttested: false,
+    );
+    notifyListeners();
+    return true;
+  }
+
+  /// Consumes [amount] of value for a debit, drawing on the self-certified
+  /// (unattested) portion first and attested value only once that is
+  /// exhausted. MUST be called before [_balance] is reduced — it reads the
+  /// pre-debit balance. Guarantees `_attestedBalance` never goes negative.
+  void _burnForDebit(double amount) {
+    final unattested = _balance - _attestedBalance;
+    final burn = amount - (unattested > 0.0 ? unattested : 0.0);
+    if (burn > 0.0) {
+      _attestedBalance -= burn;
+      if (_attestedBalance < 0.0) _attestedBalance = 0.0;
+    }
+  }
+
   void _recordTransaction({
     required CreditType type,
     required double amount,
     required String description,
+    String? id,
     String? referenceId,
+    bool isAttested = false,
   }) {
-    final id = 'tx_${DateTime.now().microsecondsSinceEpoch}_${_transactions.length}';
+    // [id] is normally time-derived; genesis passes the deterministic
+    // [_kGenesisTxId] so racing instances collapse onto one ledger row.
+    final txId = id ??
+        'tx_${DateTime.now().microsecondsSinceEpoch}_${_transactions.length}';
     final timestamp = DateTime.now();
     final hash = CreditTransaction.computeHash(
-      id: id,
+      id: txId,
       timestamp: timestamp,
       type: type,
       amount: amount,
       description: description,
       referenceId: referenceId,
+      isAttested: isAttested,
     );
 
-    _transactions.add(CreditTransaction(
-      id: id,
+    final tx = CreditTransaction(
+      id: txId,
       timestamp: timestamp,
       type: type,
       amount: amount,
       description: description,
       referenceId: referenceId,
       hash: hash,
-    ));
+      isAttested: isAttested,
+    );
+    _transactions.add(tx);
+    if (isAttested && amount > 0) {
+      _attestedBalance += amount;
+    }
+
+    // Best-effort write-through: a persistence failure must never break
+    // an award, so errors are swallowed inside [_persistWrite].
+    final db = _db;
+    if (db != null) {
+      _persistWrite(db.insertCreditTransaction(<String, dynamic>{
+        'id': tx.id,
+        'timestamp': tx.timestamp,
+        'type': tx.type.name,
+        'amount': tx.amount,
+        'description': tx.description,
+        'referenceId': tx.referenceId,
+        'hash': tx.hash,
+        'isAttested': tx.isAttested,
+      }));
+    }
+  }
+
+  /// Tracks a best-effort database write so [settled] can await it, and
+  /// swallows failures — a broken database must never break a mint.
+  void _persistWrite(Future<void> write) {
+    final tracked = write.catchError((Object e) {
+      debugPrint('CreditService: best-effort ledger write failed: $e');
+    });
+    _pendingWrites.add(tracked);
+    unawaited(tracked.whenComplete(() => _pendingWrites.remove(tracked)));
+  }
+
+  /// Whether any transaction — persisted or recorded locally — is the
+  /// genesis welcome allocation. Matches the deterministic
+  /// [_kGenesisTxId] as well as the description marker used by older
+  /// builds that wrote genesis under a random id.
+  bool get _hasGenesisTx => _transactions.any((t) =>
+      t.id == _kGenesisTxId || t.description.contains(_kGenesisMarker));
+
+  /// Rebuilds [_balance] and [_attestedBalance] by replaying the
+  /// transaction list in chronological order — the ledger (plus any
+  /// locally recorded rows) is the source of truth, so a restart can
+  /// neither reset the balance to a fresh genesis nor re-grant it.
+  /// Debits burn unattested-first, matching [_burnForDebit].
+  void _rebuildBalance() {
+    var b = 0.0;
+    var a = 0.0;
+    for (final tx in _transactions) {
+      if (tx.amount >= 0) {
+        b += tx.amount;
+        if (tx.isAttested) a += tx.amount;
+      } else {
+        final spend = -tx.amount;
+        final unattested = b - a;
+        final burn = spend - (unattested > 0.0 ? unattested : 0.0);
+        if (burn > 0.0) a -= burn;
+        b += tx.amount;
+      }
+    }
+    _balance = b.clamp(0.0, double.infinity);
+    _attestedBalance = a.clamp(0.0, double.infinity);
+  }
+
+  /// Loads persisted state so the credit economy survives restarts:
+  /// today's mint-cap counters and the ledger history. When the ledger
+  /// already contains rows it is treated as the source of truth — the
+  /// balance is rebuilt from it and no second genesis grant is issued.
+  Future<void> _hydrate(double initialBalance) async {
+    final db = _db;
+    if (db == null) {
+      _hydratedComplete = true;
+      return;
+    }
+    try {
+      final dayKey = _dayKey();
+
+      // 1. Restore today's mint-cap counters, keeping the maximum of the
+      // persisted and in-memory values so a counter can never be
+      // clobbered into under-recording the day's mints (E-T2 #1).
+      final minted = await db.getDailyMinted(dayKey);
+      for (final entry in minted.entries) {
+        final key = '$dayKey:${entry.key}';
+        final inMemory = _dailyMinted[key] ?? 0.0;
+        _dailyMinted[key] = entry.value > inMemory ? entry.value : inMemory;
+      }
+
+      // 2. Warm ledger history (query returns newest-first).
+      final rows = await db.getCreditTransactions(limit: 100000);
+      final persisted = rows
+          .map(CreditTransaction.fromJson)
+          .toList()
+          .reversed
+          .toList();
+      final knownIds = _transactions.map((t) => t.id).toSet();
+      _transactions.insertAll(
+          0, persisted.where((t) => !knownIds.contains(t.id)));
+
+      // 3. Genesis is granted iff no genesis row exists anywhere — a
+      // ledger with activity but no genesis row still receives exactly
+      // one (E-T2 #7), and two instances racing a fresh database converge
+      // on a single row via the deterministic [_kGenesisTxId] primary
+      // key (E-T2 #3).
+      if (initialBalance > 0 && !_hasGenesisTx) {
+        _recordTransaction(
+          id: _kGenesisTxId,
+          type: CreditType.verificationReward,
+          amount: initialBalance,
+          description: '$_kGenesisMarker Welcome Allocation',
+          isAttested: false,
+        );
+      }
+      _rebuildBalance();
+    } catch (e, st) {
+      // Degrade to in-memory operation; never let persistence break awards.
+      debugPrint('CreditService: hydration failed, running in-memory: $e\n$st');
+      // Grant genesis when the ledger lacks it — not merely when the
+      // local list is empty — so a partial hydration can never strand
+      // the welcome allocation out of the persisted ledger (E-T2 #7).
+      if (initialBalance > 0 && !_hasGenesisTx) {
+        _recordTransaction(
+          id: _kGenesisTxId,
+          type: CreditType.verificationReward,
+          amount: initialBalance,
+          description: '$_kGenesisMarker Welcome Allocation',
+          isAttested: false,
+        );
+      }
+      _rebuildBalance();
+    }
+    _hydratedComplete = true;
+    notifyListeners();
+  }
+
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
   }
 }
+

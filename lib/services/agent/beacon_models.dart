@@ -59,6 +59,18 @@ class BeaconEnvelope {
     required this.payload,
   });
 
+  /// Self-declared client build provenance, if the author included it.
+  ///
+  /// This value lives inside [payload] under the `client_info` key, so it is
+  /// part of the signed body: the signature proves only that the envelope's
+  /// author *claims* these values. It carries ZERO trust weight and must never
+  /// gate admission, rewards, or verification (ALX-010). Returns null when the
+  /// author did not declare any client info.
+  Map<String, dynamic>? get clientInfo {
+    final raw = payload['client_info'];
+    return raw is Map ? raw.cast<String, dynamic>() : null;
+  }
+
   /// Derives canonical agent_id from public key bytes: bcn_`first 12 hex chars`
   static String deriveAgentId(List<int> pubkeyBytes) {
     final hex = bytesToHex(pubkeyBytes);
@@ -112,7 +124,8 @@ class BeaconEnvelope {
       if (sigBytes.length != 64) return false;
 
       final algorithm = Ed25519();
-      final simplePublicKey = SimplePublicKey(pubkeyBytes, type: KeyPairType.ed25519);
+      final simplePublicKey =
+          SimplePublicKey(pubkeyBytes, type: KeyPairType.ed25519);
       final signature = Signature(sigBytes, publicKey: simplePublicKey);
 
       final preimage = getPreimageBytes();
@@ -156,14 +169,30 @@ class BeaconEnvelope {
     required String kind,
     required SimpleKeyPair keyPair,
     required Map<String, dynamic> payload,
+    Map<String, dynamic>? clientInfo,
     int? timestampSeconds,
     String? nonce,
   }) async {
     final pubKey = await keyPair.extractPublicKey();
     final pubkeyHex = bytesToHex(pubKey.bytes);
     final agentId = deriveAgentId(pubKey.bytes);
-    final ts = timestampSeconds ?? (DateTime.now().millisecondsSinceEpoch ~/ 1000);
-    final n = nonce ?? sha256.convert(utf8.encode('$ts-$agentId-${DateTime.now().microsecondsSinceEpoch}')).toString().substring(0, 20);
+    final ts =
+        timestampSeconds ?? (DateTime.now().millisecondsSinceEpoch ~/ 1000);
+    final n = nonce ??
+        sha256
+            .convert(utf8.encode(
+                '$ts-$agentId-${DateTime.now().microsecondsSinceEpoch}'))
+            .toString()
+            .substring(0, 20);
+
+    // Client provenance is embedded inside the payload so it is signed *as
+    // content*: the signature attests that the author claims these values,
+    // which is the honest semantic for self-declared metadata. Because it
+    // rides inside `payload`, the canonical preimage scheme is unchanged and
+    // envelopes signed before this field existed still verify identically.
+    final signedPayload = clientInfo == null
+        ? payload
+        : <String, dynamic>{...payload, 'client_info': clientInfo};
 
     final unsignedMap = {
       'v': 2,
@@ -172,7 +201,7 @@ class BeaconEnvelope {
       'ts': ts,
       'nonce': n,
       'pubkey': pubkeyHex,
-      'payload': payload,
+      'payload': signedPayload,
     };
 
     final canonicalJson = toCanonicalJson(unsignedMap);
@@ -190,7 +219,7 @@ class BeaconEnvelope {
       nonce: n,
       pubkey: pubkeyHex,
       sig: sigHex,
-      payload: payload,
+      payload: signedPayload,
     );
   }
 }
@@ -263,6 +292,11 @@ class PreservationBounty {
   final DateTime createdAt;
   bool isClaimed;
 
+  /// Whether [offeredCredits] were actually escrowed at post time.
+  /// Bounties posted via `postPreservationBounty` are funded; seeded/demo
+  /// network announcements are unfunded and can never be claimed for payout.
+  final bool funded;
+
   PreservationBounty({
     required this.id,
     required this.cid,
@@ -274,6 +308,7 @@ class PreservationBounty {
     required this.originAgentId,
     required this.createdAt,
     this.isClaimed = false,
+    this.funded = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -287,6 +322,7 @@ class PreservationBounty {
         'origin_agent_id': originAgentId,
         'created_at': createdAt.toIso8601String(),
         'is_claimed': isClaimed,
+        'funded': funded,
       };
 
   factory PreservationBounty.fromJson(Map<String, dynamic> json) {
@@ -303,6 +339,7 @@ class PreservationBounty {
           ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
       isClaimed: json['is_claimed'] as bool? ?? false,
+      funded: json['funded'] as bool? ?? false,
     );
   }
 }

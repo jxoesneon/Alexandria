@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -155,6 +156,11 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                       ),
                                     ),
                                   ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Attested: ${creditService.attestedBalance.toStringAsFixed(1)} ℭ • Unattested: ${creditService.unattestedBalance.toStringAsFixed(1)} ℭ',
+                                  style: const TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
@@ -330,45 +336,49 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            creditService.awardComputeCredits(
-                              cauchyMb: 10.0,
-                              fastCdcMb: 25.0,
-                              ocrPages: 2,
-                              description: 'Simulated Cauchy RS Parity Encoding',
-                            );
-                            ref.read(pochServiceProvider).recordSeedingActivity(50 * 1024 * 1024);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Contributed Cauchy RS compute: +42.5 ℭ earned!')),
-                            );
-                          },
-                          icon: const Icon(Icons.bolt, size: 16),
-                          label: const Text('Simulate Parity Compute', style: TextStyle(fontSize: 12)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryAccent.withValues(alpha: 0.2),
-                            foregroundColor: AppTheme.primaryAccent,
+                        // Debug-only faucets mint ℭ with no real work performed.
+                        // Gated on kDebugMode so they do not exist in release builds.
+                        if (kDebugMode)
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              creditService.awardComputeCredits(
+                                cauchyMb: 10.0,
+                                fastCdcMb: 25.0,
+                                ocrPages: 2,
+                                description: 'Simulated Cauchy RS Parity Encoding',
+                              );
+                              ref.read(pochServiceProvider).recordSeedingActivity(50 * 1024 * 1024);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Contributed Cauchy RS compute: +42.5 ℭ earned!')),
+                              );
+                            },
+                            icon: const Icon(Icons.bolt, size: 16),
+                            label: const Text('Simulate Parity Compute', style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryAccent.withValues(alpha: 0.2),
+                              foregroundColor: AppTheme.primaryAccent,
+                            ),
                           ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            creditService.awardStorageCredits(
-                              sizeBytes: 150 * 1024 * 1024,
-                              peerCount: 1, // Critically endangered
-                              porPassed: true,
-                              cid: 'bafkrei_simulated_endangered_work',
-                            );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Passed Endangered PoR Challenge: +50 ℭ earned!')),
-                            );
-                          },
-                          icon: const Icon(Icons.shield_outlined, size: 16),
-                          label: const Text('Pass PoR Challenge', style: TextStyle(fontSize: 12)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryAccent.withValues(alpha: 0.2),
-                            foregroundColor: AppTheme.primaryAccent,
+                        if (kDebugMode)
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              creditService.awardStorageCredits(
+                                sizeBytes: 150 * 1024 * 1024,
+                                peerCount: 1, // Critically endangered
+                                porPassed: true,
+                                cid: 'bafkrei_simulated_endangered_work',
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Passed Endangered PoR Challenge: +50 ℭ earned!')),
+                              );
+                            },
+                            icon: const Icon(Icons.shield_outlined, size: 16),
+                            label: const Text('Pass PoR Challenge', style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryAccent.withValues(alpha: 0.2),
+                              foregroundColor: AppTheme.primaryAccent,
+                            ),
                           ),
-                        ),
                         OutlinedButton.icon(
                           onPressed: creditService.balance >= 20
                               ? () {
@@ -460,6 +470,17 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               const SnackBar(content: Text('Exported 100 Sats to Cashu token! Copied to clipboard.')),
                                             );
+                                          } else {
+                                            // Surface the service-layer rejection reason
+                                            // verbatim (e.g. ALX-010 payouts disabled).
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  bridge.egressRejectionReason(10.0) ??
+                                                      'Cashu export failed.',
+                                                ),
+                                              ),
+                                            );
                                           }
                                         }
                                       : null,
@@ -500,8 +521,12 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                         SnackBar(content: Text('Voucher redeemed: +${awarded.toStringAsFixed(1)} ℭ credited!')),
                                       );
                                     } else {
+                                      // Redemption is disabled at the service layer
+                                      // (ALX-010) — show the documented reason.
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Invalid or already spent Cashu token.')),
+                                        const SnackBar(
+                                          content: Text(CryptoBridgeService.redemptionDisabledReason),
+                                        ),
                                       );
                                     }
                                   },
@@ -567,20 +592,12 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                               SnackBar(content: Text('Confirmed! Swept ${result.sats} Sats to $addr')),
                                             );
                                           } else {
-                                            // In offline/test environments, record via fallback
-                                            final fallbackSuccess = bridge.sweepToLightningAddress(
-                                              creditsToSweep: 25.0,
-                                              customAddress: addr,
+                                            // NO simulated fallback: a failed live melt must
+                                            // surface its error verbatim. Credits are never
+                                            // debited for a fake success.
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text(result.error ?? 'Lightning sweep failed.')),
                                             );
-                                            if (fallbackSuccess) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('Swept 250 Sats to Lightning Address!')),
-                                              );
-                                            } else {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(content: Text('Sweep failed: ${result.error}')),
-                                              );
-                                            }
                                           }
                                         }
                                       : null,

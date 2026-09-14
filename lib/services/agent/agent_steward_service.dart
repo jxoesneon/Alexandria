@@ -83,17 +83,32 @@ class AgentStewardService extends ChangeNotifier {
       _logActivity('Autonomous compute complete: PoCH restored (unverified — no credit minted).');
     }
 
-    // 2. Scan Moltbook active bounties and claim endangered tasks
-    final activeBounties = _moltbookService.activeBounties;
-    if (activeBounties.isNotEmpty) {
+    // 2. Scan Moltbook active bounties and claim endangered tasks.
+    // Only funded bounties are claimable — unfunded entries are seeded
+    // demos or unattested remote announcements: ingestBountyAnnouncement
+    // strips announcer-claimed `funded` flags until a verified escrow
+    // attestation exists (E-T5r #1), so remote bounties simply never
+    // qualify here until the attestation transport lands.
+    final claimableBounties = _moltbookService.activeBounties
+        .where((b) => b.funded)
+        .toList();
+    if (claimableBounties.isNotEmpty) {
       // Prioritize critical urgency bounties
-      final targetBounty = activeBounties.firstWhere(
+      final targetBounty = claimableBounties.firstWhere(
         (b) => b.urgency == 'critical',
-        orElse: () => activeBounties.first,
+        orElse: () => claimableBounties.first,
       );
 
       final balanceBefore = _creditService.balance;
-      final success = _moltbookService.claimBounty(targetBounty.id);
+      // Defensive: this runs inside a periodic timer callback with no
+      // surrounding error handling, so a claim failure must be contained
+      // to the log rather than becoming an unhandled async error.
+      bool success = false;
+      try {
+        success = await _moltbookService.claimBounty(targetBounty.id);
+      } catch (e) {
+        _logActivity('Bounty claim failed for "${targetBounty.title}": $e');
+      }
       if (success) {
         _totalBountiesClaimed++;
         _totalCreditsEarned += _creditService.balance - balanceBefore;

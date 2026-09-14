@@ -1,9 +1,15 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../data/database.dart' show AppDatabase, databaseProvider;
 import '../logic/honor_system.dart';
+import 'agent/beacon_models.dart';
 import 'credits/credit_service.dart';
+import 'credits/work_receipt.dart';
+import 'identity_service.dart';
 
 final proofOfRetrievabilityServiceProvider =
     Provider((ref) => ProofOfRetrievabilityService(ref));
@@ -15,12 +21,18 @@ class PoRChallenge {
   final Uint8List nonce;
   final DateTime timestamp;
 
+  /// Ed25519 public key (hex) of the verifier that issued this challenge.
+  /// Nullable for legacy challenges issued before verifier-signed receipts;
+  /// the issuer's identity key is substituted at issuance time.
+  final String? challengerPubkey;
+
   PoRChallenge({
     required this.challengeId,
     required this.cid,
     required this.chunkIndex,
     required this.nonce,
     required this.timestamp,
+    this.challengerPubkey,
   });
 
   Map<String, dynamic> toJson() => {
@@ -29,6 +41,7 @@ class PoRChallenge {
         'chunkIndex': chunkIndex,
         'nonce': nonce.toList(),
         'timestamp': timestamp.toIso8601String(),
+        'challengerPubkey': challengerPubkey,
       };
 }
 
@@ -50,15 +63,60 @@ class PoRProof {
       };
 }
 
+/// Outcome of [ProofOfRetrievabilityService.verifyAndIssueReceipt]: on a
+/// valid proof, the verifier-side [WorkReceipt] that was issued, persisted
+/// and claimed. `valid == false` means the proof was rejected (unknown or
+/// expired challenge, tag mismatch) and no receipt exists.
+class PoRVerificationResult {
+  final bool valid;
+  final WorkReceipt? receipt;
+
+  const PoRVerificationResult._(this.valid, this.receipt);
+
+  const PoRVerificationResult.rejected() : this._(false, null);
+  const PoRVerificationResult.verified(WorkReceipt receipt)
+      : this._(true, receipt);
+}
+
+/// Proof-of-Retrievability challenge/response engine (ALX-010).
+///
+/// Verification is now *verifier-side issuance*: a valid proof produces a
+/// verifier-signed [WorkReceipt]. The receipt's value is claimed locally
+/// ONLY when the local node is the prover of record (legacy self-checks
+/// always prove local bytes); a receipt naming a foreign prover is
+/// persisted UNSPENT as that prover's claim instrument — minting it
+/// locally would pay the verifier for someone else's work.
+///
+/// Local mints are always unattested (1.0x rarity): attestation requires a
+/// signature by a verifier foreign to the claiming node, and this service
+/// can only ever sign as the local identity key.
 class ProofOfRetrievabilityService {
   final Ref _ref;
   final Map<String, PoRChallenge> _pendingChallenges = {};
 
+  static const Duration challengeTtl = Duration(minutes: 5);
+
+  /// Receipts are claimable for 24h after issuance.
+  static const Duration receiptTtl = Duration(hours: 24);
+
   ProofOfRetrievabilityService(this._ref);
 
+  /// Legacy challenge factory — signature preserved for callers that
+  /// predate verifier identity (UI integrity self-checks, security
+  /// overview). Delegates to [issueChallenge] with no challenger key.
   PoRChallenge createChallenge({
     required String cid,
     required int totalChunks,
+  }) {
+    return issueChallenge(cid: cid, totalChunks: totalChunks);
+  }
+
+  /// Issues a fresh challenge on behalf of a verifier identified by
+  /// [challengerPubkey] (Ed25519 pubkey hex, e.g. the local agent key).
+  PoRChallenge issueChallenge({
+    required String cid,
+    required int totalChunks,
+    String? challengerPubkey,
   }) {
     if (totalChunks <= 0) throw ArgumentError('totalChunks must be positive');
     final rnd = Random.secure();
@@ -73,6 +131,7 @@ class ProofOfRetrievabilityService {
       chunkIndex: chunkIndex,
       nonce: nonce,
       timestamp: DateTime.now(),
+      challengerPubkey: challengerPubkey,
     );
 
     _pendingChallenges[challengeId] = challenge;
@@ -84,7 +143,7 @@ class ProofOfRetrievabilityService {
   PoRChallenge? pendingChallenge(String challengeId) {
     final challenge = _pendingChallenges[challengeId];
     if (challenge == null) return null;
-    if (DateTime.now().difference(challenge.timestamp).inMinutes > 5) {
+    if (DateTime.now().difference(challenge.timestamp) > challengeTtl) {
       _pendingChallenges.remove(challengeId);
       return null;
     }
@@ -104,27 +163,94 @@ class ProofOfRetrievabilityService {
     );
   }
 
+  /// Synchronous verification entry point (legacy callers: integrity
+  /// self-check, security overview). The tag check, honor record and the
+  /// local 1.0x storage award all run inline — callers observe the new
+  /// balance when this returns `true`. Receipt signing and persistence
+  /// finish asynchronously; the issued receipt is retrievable from the
+  /// database or via [verifyAndIssueReceipt].
   bool verifyProof({
     required PoRProof proof,
     required Uint8List expectedChunkData,
     required String proverPeerId,
   }) {
-    final challenge = _pendingChallenges[proof.challengeId];
+    final challenge = _validateProof(proof, expectedChunkData);
     if (challenge == null) return false;
 
-    // Challenge expiry (5 minutes)
-    if (DateTime.now().difference(challenge.timestamp).inMinutes > 5) {
+    _recordHonor(proverPeerId, challenge);
+
+    // Legacy callers supply no prover pubkey and always prove locally-held
+    // bytes, so the local node is the prover of record: mint the self-check
+    // award synchronously. The mint is ALWAYS unattested (1.0x) — a
+    // locally-signed receipt naming a foreign peer id can never carry
+    // attestation weight for a local claim. The receipt artifact (which
+    // records the claim as spent) is built and persisted asynchronously.
+    _mintLocalStorageReward(challenge, expectedChunkData.length);
+    unawaited(_issueReceipt(
+      challenge: challenge,
+      proof: proof,
+      expectedChunkData: expectedChunkData,
+      proverPeerId: proverPeerId,
+      proverPubkey: null,
+      localMintSettled: true,
+    ));
+    return true;
+  }
+
+  /// Verifier-side issuance path (ALX-010/P1). On a valid proof, builds a
+  /// [WorkReceipt] naming the challenge's verifier and the prover's pubkey,
+  /// signs it with the verifier's identity when that identity matches the
+  /// recorded verifier key, and persists it via `insertWorkReceipt`.
+  ///
+  /// The receipt's value is claimed through the credit ledger ONLY when
+  /// the local node is the prover of record ([proverPubkey] absent — the
+  /// proof ran over local bytes — or equal to the node identity key). A
+  /// receipt naming a foreign prover is persisted UNSPENT: it is the
+  /// prover's claim instrument and mints nothing here.
+  ///
+  /// Returns [PoRVerificationResult] carrying the issued receipt — the
+  /// artifact a forked client cannot forge for a foreign verifier.
+  Future<PoRVerificationResult> verifyAndIssueReceipt({
+    required PoRProof proof,
+    required Uint8List expectedChunkData,
+    required String proverPeerId,
+    String? proverPubkey,
+  }) async {
+    final challenge = _validateProof(proof, expectedChunkData);
+    if (challenge == null) return const PoRVerificationResult.rejected();
+
+    _recordHonor(proverPeerId, challenge);
+
+    final receipt = await _issueReceipt(
+      challenge: challenge,
+      proof: proof,
+      expectedChunkData: expectedChunkData,
+      proverPeerId: proverPeerId,
+      proverPubkey: proverPubkey,
+    );
+    return PoRVerificationResult.verified(receipt);
+  }
+
+  /// Shared synchronous check: pending, unexpired challenge whose stored
+  /// nonce yields the submitted tag. Consumes the challenge either way.
+  PoRChallenge? _validateProof(PoRProof proof, Uint8List expectedChunkData) {
+    final challenge = _pendingChallenges[proof.challengeId];
+    if (challenge == null) return null;
+
+    if (DateTime.now().difference(challenge.timestamp) > challengeTtl) {
       _pendingChallenges.remove(proof.challengeId);
-      return false;
+      return null;
     }
 
     final hmac = Hmac(sha256, challenge.nonce);
     final expectedTag = hmac.convert(expectedChunkData).toString();
-
-    final isValid = expectedTag == proof.tag;
     _pendingChallenges.remove(proof.challengeId);
 
-    if (isValid) {
+    return expectedTag == proof.tag ? challenge : null;
+  }
+
+  void _recordHonor(String proverPeerId, PoRChallenge challenge) {
+    try {
       final honorSystem = _ref.read(honorSystemProvider);
       honorSystem.recordVote(
         validatorId: proverPeerId,
@@ -132,20 +258,194 @@ class ProofOfRetrievabilityService {
         score: 1,
         reputation: 20,
       );
+    } catch (_) {
+      // Honor recording must never fail verification.
+    }
+  }
 
+  /// Synchronous local storage-reward mint for proofs over locally-held
+  /// bytes. Always unattested (1.0x rarity) — a locally-verified,
+  /// locally-signed proof can never carry foreign attestation weight.
+  void _mintLocalStorageReward(PoRChallenge challenge, int sizeBytes) {
+    try {
+      _ref.read(creditServiceProvider).awardStorageCredits(
+            sizeBytes: sizeBytes,
+            peerCount: 2,
+            porPassed: true,
+            cid: challenge.cid,
+            rarityAttested: false,
+          );
+    } catch (_) {
+      // Safe fallback in isolated mock test environments
+    }
+  }
+
+  /// Builds, optionally signs, persists and — only when the local node is
+  /// the prover of record — claims the work receipt for a verified proof.
+  /// Never throws — a persistence or signing failure must not invalidate
+  /// an honestly verified proof.
+  ///
+  /// [localMintSettled] marks the synchronous [verifyProof] path, which
+  /// already ran the local 1.0x mint inline; the receipt is then only
+  /// persisted and flagged spent.
+  Future<WorkReceipt> _issueReceipt({
+    required PoRChallenge challenge,
+    required PoRProof proof,
+    required Uint8List expectedChunkData,
+    required String proverPeerId,
+    required String? proverPubkey,
+    bool localMintSettled = false,
+  }) async {
+    // Resolve the local (verifier-side) identity, if any.
+    AlexandriaIdentity? identity;
+    String? localPubkeyHex;
+    try {
+      identity =
+          await _ref.read(identityServiceProvider).getIdentity();
+      if (identity != null) localPubkeyHex = bytesToHex(identity.publicKey);
+    } catch (_) {
+      // No secure storage in tests/headless runs — receipts stay unsigned.
+    }
+
+    final effectiveProver = proverPubkey ?? proverPeerId;
+    final verifierPubkey =
+        challenge.challengerPubkey ?? localPubkeyHex ?? '';
+
+    // The receipt asserts exactly the work that was proven — the verified
+    // chunk bytes alone, never an extrapolation over sibling chunks.
+    final sizeBytes = expectedChunkData.length;
+    const peerCount = 2;
+
+    // The local node may claim this receipt's value only when it IS the
+    // prover of record: legacy callers supply no prover key (the proof is
+    // always computed over local bytes), or the supplied key IS the node
+    // identity key. A receipt naming a foreign prover is persisted UNSPENT
+    // as that prover's claim instrument — minting it locally would pay the
+    // verifier for someone else's work and burn the artifact.
+    final localIsProver = proverPubkey == null ||
+        (localPubkeyHex != null && effectiveProver == localPubkeyHex);
+
+    // Sign the canonical body — but only ever AS the recorded verifier key;
+    // signing under a different key would mint an unverifiable artifact.
+    final issuedAt = DateTime.now();
+    var receipt = _draftReceipt(
+      challenge: challenge,
+      proof: proof,
+      sizeBytes: sizeBytes,
+      peerCount: peerCount,
+      proverPubkey: effectiveProver,
+      verifierPubkey: verifierPubkey,
+      expectedChunkData: expectedChunkData,
+      issuedAt: issuedAt,
+    );
+    final canSign = identity != null && localPubkeyHex == verifierPubkey;
+    if (canSign) {
       try {
-        final creditService = _ref.read(creditServiceProvider);
-        creditService.awardStorageCredits(
-          sizeBytes: expectedChunkData.length * (challenge.chunkIndex + 1),
-          peerCount: 2,
-          porPassed: true,
-          cid: challenge.cid,
-        );
+        // The signature sits outside the canonical body, so attaching it
+        // leaves the signed bytes (and the receipt id) untouched.
+        final sigBytes = await _ref
+            .read(identityServiceProvider)
+            .sign(receipt.signingPayload);
+        receipt = receipt.withVerifierSig(base64Encode(sigBytes));
       } catch (_) {
-        // Safe fallback in isolated mock test environments
+        // Signing failed — the receipt stays unsigned and unattested.
       }
     }
 
-    return isValid;
+    // Attestation weight requires a signature by a verifier FOREIGN to the
+    // claiming node: `isVerifierSigned && verifier != local && !selfIssued`.
+    // This path can only ever sign as the local key, so a locally-signed
+    // receipt can NEVER carry attestation weight for a local mint — the
+    // local claim below always lands at 1.0x.
+    final attested = receipt.isVerifierSigned &&
+        verifierPubkey != localPubkeyHex &&
+        !receipt.isSelfIssued;
+
+    // Persist the artifact; tolerate absence of a database in pure tests.
+    AppDatabase? db;
+    try {
+      final database = _ref.read(databaseProvider);
+      await database.insertWorkReceipt(receipt.toDbMap());
+      db = database;
+    } catch (_) {
+      db = null;
+    }
+
+    // Local claim: only when the local node proved the work itself, through
+    // the normal capped mint at unattested weight. CreditService's future
+    // claimVerifiedReceipt is the seam for foreign-verifier receipts; a
+    // receipt we signed ourselves is never eligible for that weight here.
+    var claimed = localMintSettled;
+    if (!claimed && localIsProver) {
+      try {
+        _ref.read(creditServiceProvider).awardStorageCredits(
+              sizeBytes: sizeBytes,
+              peerCount: peerCount,
+              porPassed: true,
+              cid: challenge.cid,
+              rarityAttested: attested,
+            );
+      } catch (_) {
+        // Safe fallback in isolated mock test environments
+      }
+      claimed = true;
+    }
+
+    // A locally-claimed receipt is spent — it must never be replayed
+    // through the claim seam. A foreign-prover receipt stays UNSPENT: the
+    // value belongs to whoever holds the prover key.
+    if (claimed) {
+      var spentPersisted = db == null;
+      if (db != null) {
+        try {
+          // future claimVerifiedReceipt must use conditional UPDATE WHERE
+          // receipt_id=? AND spent=0 checked by rows-affected — single
+          // atomic op
+          await db.markReceiptSpent(receipt.receiptId);
+          spentPersisted = true;
+        } catch (_) {}
+      }
+      // Report the state actually persisted (or the consumption itself
+      // when nothing was persisted) — not the pre-claim draft.
+      if (spentPersisted) receipt = receipt.markSpent();
+    }
+
+    return receipt;
+  }
+
+  WorkReceipt _draftReceipt({
+    required PoRChallenge challenge,
+    required PoRProof proof,
+    required int sizeBytes,
+    required int peerCount,
+    required String proverPubkey,
+    required String verifierPubkey,
+    required Uint8List expectedChunkData,
+    required DateTime issuedAt,
+  }) {
+    // The storage-reward value this receipt mints through the capped path
+    // — recorded on the receipt so a forked client's inflated
+    // self-declaration is worthless. Locally-issued receipts are always
+    // drafted at unattested (1.0x) rarity weight: attested rarity can only
+    // be baked into a receipt by a FOREIGN verifier, never self-declared.
+    final rarityWeight =
+        CreditService.rarityWeightFor(peerCount, rarityAttested: false);
+    final mbSize = sizeBytes / (1024 * 1024);
+    final amount = (mbSize * 0.1 * rarityWeight).clamp(0.1, 50.0);
+
+    return WorkReceipt.issue(
+      workType: 'storage',
+      proverPubkey: proverPubkey,
+      verifierPubkey: verifierPubkey,
+      cid: challenge.cid,
+      chunkIndices: [challenge.chunkIndex],
+      challengeNonce: bytesToHex(challenge.nonce),
+      responseTag: proof.tag,
+      workUnits: sizeBytes.toDouble(),
+      amount: amount,
+      epoch: WorkReceipt.epochFor(issuedAt),
+      expiresAt: issuedAt.add(receiptTtl).millisecondsSinceEpoch,
+      evidenceHash: sha256.convert(expectedChunkData).toString(),
+    );
   }
 }

@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/database.dart' show AppDatabase, databaseProvider;
 import '../credits/credit_service.dart';
 import '../credits/crypto_bridge_service.dart';
 import '../credits/poch_service.dart';
+import '../identity_service.dart';
 import '../ipfs_service.dart';
 import '../proof_of_retrievability_service.dart';
+import 'beacon_models.dart';
 import 'moltbook_service.dart';
 
 /// Riverpod provider for AlexandriaMcpServer
@@ -17,6 +20,8 @@ final alexandriaMcpServerProvider = Provider<AlexandriaMcpServer>((ref) {
     moltbookService: ref.read(moltbookServiceProvider),
     porService: ref.read(proofOfRetrievabilityServiceProvider),
     ipfsService: ref.read(ipfsServiceProvider),
+    identityService: ref.read(identityServiceProvider),
+    db: ref.read(databaseProvider),
   );
 });
 
@@ -29,7 +34,18 @@ class AlexandriaMcpServer {
   final ProofOfRetrievabilityService _porService;
   final IpfsService _ipfsService;
 
-  /// DOIs already rewarded through the ingest tool — one payout per work, ever.
+  /// Node identity service — the PoR verifier-of-record. Challenges are
+  /// stamped with, and work receipts are signed under, this key (the
+  /// Moltbook key remains the agent's social identity only). Optional so
+  /// tests can run the server without secure storage.
+  final IdentityService? _identityService;
+
+  /// Persistent store for DOI dedupe and work-receipt artifacts. Optional so
+  /// tests can run the server in-memory.
+  final AppDatabase? _db;
+
+  /// DOIs already rewarded through the ingest tool — one payout per work,
+  /// ever. In-memory fallback used only when no [_db] is injected.
   final Set<String> _awardedDois = {};
 
   /// Agent-facing payout rails (Cashu export, Lightning sweep) stay closed
@@ -44,12 +60,16 @@ class AlexandriaMcpServer {
     required MoltbookService moltbookService,
     required ProofOfRetrievabilityService porService,
     required IpfsService ipfsService,
+    IdentityService? identityService,
+    AppDatabase? db,
   })  : _creditService = creditService,
         _pochService = pochService,
         _cryptoBridgeService = cryptoBridgeService,
         _moltbookService = moltbookService,
         _porService = porService,
-        _ipfsService = ipfsService;
+        _ipfsService = ipfsService,
+        _identityService = identityService,
+        _db = db;
 
   ProofOfRetrievabilityService get porService => _porService;
 
@@ -149,6 +169,11 @@ class AlexandriaMcpServer {
               'description':
                   'Hex-encoded HMAC-SHA256 tag over the full content payload'
             },
+            'prover_pubkey': {
+              'type': 'string',
+              'description':
+                  'Optional Ed25519 pubkey (hex) of the proving node. Defaults to this node\'s identity key (a self-issued, unattested receipt).'
+            },
           },
           'required': ['challenge_id', 'tag'],
         },
@@ -237,12 +262,14 @@ class AlexandriaMcpServer {
           );
 
         case 'alexandria_request_por_challenge':
-          return _requestPorChallenge(arguments['cid'] as String? ?? '');
+          return await _requestPorChallenge(
+              arguments['cid'] as String? ?? '');
 
         case 'alexandria_submit_por_challenge':
           return await _submitPorChallenge(
             arguments['challenge_id'] as String? ?? '',
             arguments['tag'] as String? ?? '',
+            proverPubkey: arguments['prover_pubkey'] as String?,
           );
 
         case 'alexandria_post_moltbook_bounty':
@@ -343,8 +370,26 @@ class AlexandriaMcpServer {
       return _errorResponse(
           'Invalid DOI format: $doi. Expected 10.<registrant>/<suffix>.');
     }
+    final simulatedCid = 'bafk_${doi.replaceAll('/', '_')}';
+
     // One payout per unique work — looping the same DOI mints nothing.
-    if (!_awardedDois.add(doi)) {
+    // Dedupe is persisted (AwardedDois) so it survives restarts and new
+    // server instances; the in-memory set is only a no-db fallback.
+    bool duplicate;
+    final db = _db;
+    if (db != null) {
+      duplicate = await db.hasAwardedDoi(doi);
+      if (!duplicate) {
+        try {
+          await db.insertAwardedDoi(doi, cid: simulatedCid);
+        } catch (_) {
+          duplicate = true; // PK race — another claim landed first
+        }
+      }
+    } else {
+      duplicate = !_awardedDois.add(doi);
+    }
+    if (duplicate) {
       return _textResponse(jsonEncode({
         'status': 'duplicate',
         'doi': doi,
@@ -352,8 +397,6 @@ class AlexandriaMcpServer {
         'note': 'DOI already ingested and rewarded; no duplicate payout.',
       }));
     }
-
-    final simulatedCid = 'bafk_${doi.replaceAll('/', '_')}';
     _creditService.awardVerificationCredits(
       action: 'Verified and ingested scientific paper: $doi',
       targetId: simulatedCid,
@@ -409,12 +452,37 @@ class AlexandriaMcpServer {
     }));
   }
 
-  Map<String, dynamic> _requestPorChallenge(String cid) {
-    final challenge = _porService.createChallenge(cid: cid, totalChunks: 1);
+  /// The PoR verifier-of-record is the node identity key — the same key
+  /// [ProofOfRetrievabilityService] signs receipts with — so a valid proof
+  /// yields a properly signed work receipt. The Moltbook key stays the
+  /// agent's social identity and never stamps or signs receipts.
+  Future<String?> _verifierPubkeyHex() async {
+    try {
+      final identity = await _identityService?.getIdentity();
+      if (identity == null) return null;
+      return bytesToHex(identity.publicKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> _requestPorChallenge(String cid) async {
+    // The challenge records THIS node's verifier key so the issued work
+    // receipt names a real verifier — not a bare self-declared peer id.
+    final challengerPubkey = await _verifierPubkeyHex();
+    final challenge = _porService.issueChallenge(
+      cid: cid,
+      totalChunks: 1,
+      challengerPubkey:
+          (challengerPubkey == null || challengerPubkey.isEmpty)
+              ? null
+              : challengerPubkey,
+    );
     return _textResponse(jsonEncode({
       'status': 'challenge_issued',
       'challenge_id': challenge.challengeId,
       'cid': cid,
+      'challenger_pubkey': challenge.challengerPubkey,
       'nonce_hex': challenge.nonce
           .map((b) => b.toRadixString(16).padLeft(2, '0'))
           .join(),
@@ -425,7 +493,10 @@ class AlexandriaMcpServer {
   }
 
   Future<Map<String, dynamic>> _submitPorChallenge(
-      String challengeId, String tag) async {
+    String challengeId,
+    String tag, {
+    String? proverPubkey,
+  }) async {
     // Reject proofs against challenges this node never issued.
     final challenge = _porService.pendingChallenge(challengeId);
     if (challenge == null) {
@@ -449,20 +520,43 @@ class AlexandriaMcpServer {
       tag: tag,
       timestamp: DateTime.now(),
     );
-    final valid = _porService.verifyProof(
+    // Verifier-side issuance: a valid proof yields a WorkReceipt naming the
+    // challenger (verifier) and the prover. When the caller supplies no
+    // prover_pubkey, this node's identity key is used — the same key that
+    // verifies — making the receipt honestly self-issued, minted locally at
+    // 1.0x and spent. A FOREIGN prover_pubkey yields a signed claim
+    // instrument persisted UNSPENT: its value belongs to the prover key
+    // holder, never to this node (ALX-010).
+    final identityPubkey = await _verifierPubkeyHex();
+    final result = await _porService.verifyAndIssueReceipt(
       proof: proof,
       expectedChunkData: payload,
-      proverPeerId: _moltbookService.agentId,
+      proverPeerId: proverPubkey ?? _moltbookService.agentId,
+      proverPubkey:
+          proverPubkey ??
+              ((identityPubkey == null || identityPubkey.isEmpty)
+                  ? null
+                  : identityPubkey),
     );
-    if (!valid) {
+    if (!result.valid) {
       return _errorResponse('PoR proof verification failed: tag mismatch');
     }
 
+    final receipt = result.receipt;
     return _textResponse(jsonEncode({
       'status': 'verified',
       'cid': challenge.cid,
       'proof_valid': true,
       'new_balance': _creditService.balance,
+      'receipt': receipt?.toJson(),
+      'receipt_attested': receipt?.isAttestedClaim ?? false,
+      'note': receipt == null
+          ? null
+          : receipt.isSelfIssued
+              ? 'Self-issued receipt: verifies integrity but claims only unattested (non-egress) value.'
+              : receipt.spent
+                  ? null
+                  : 'Receipt persisted unspent — a signed claim instrument for the named prover key.',
     }));
   }
 
