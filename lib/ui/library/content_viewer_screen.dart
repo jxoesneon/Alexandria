@@ -688,7 +688,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   Widget _buildImageFigureBlock(
       BuildContext context, _MarkdownBlock block, double zoom) {
     final url = block.imageUrl ?? '';
-    final alt = block.imageAlt ?? block.text;
+    final alt = (block.imageAlt ?? block.text).replaceFirst(
+        RegExp(r'^\s*Figure\s*\d*\s*[:.]\s*', caseSensitive: false), '');
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 20.0),
