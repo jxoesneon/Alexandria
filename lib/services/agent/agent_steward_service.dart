@@ -74,17 +74,13 @@ class AgentStewardService extends ChangeNotifier {
     final metrics = _pochService.metrics;
     if (metrics.score < 1.0) {
       _logActivity('PoCH score (${(metrics.score * 100).toStringAsFixed(0)}%) below threshold. Triggering Cauchy RS parity compute.');
-      final earned = _creditService.awardComputeCredits(
-        cauchyMb: 15.0,
-        fastCdcMb: 30.0,
-        ocrPages: 4,
-        description: 'Autonomous Steward: Cauchy RS Parity Encoding',
-      );
+      // ALX-010: steward compute contribution is self-reported and unverified —
+      // it maintains local PoCH hygiene but mints NO credits until an external
+      // challenger attests the work (prevents self-award of ~65ℭ/cycle).
       _pochService.recordSeedingActivity(100 * 1024 * 1024); // 100 MB
       _pochService.recordStorageAllocation(1200 * 1024 * 1024); // 1.2 GB (meets 1GB baseline)
       _totalComputeCyclesExecuted++;
-      _totalCreditsEarned += earned;
-      _logActivity('Autonomous compute complete: +${earned.toStringAsFixed(1)} ℭ earned. PoCH restored.');
+      _logActivity('Autonomous compute complete: PoCH restored (unverified — no credit minted).');
     }
 
     // 2. Scan Moltbook active bounties and claim endangered tasks
@@ -96,13 +92,14 @@ class AgentStewardService extends ChangeNotifier {
         orElse: () => activeBounties.first,
       );
 
+      final balanceBefore = _creditService.balance;
       final success = _moltbookService.claimBounty(targetBounty.id);
       if (success) {
         _totalBountiesClaimed++;
-        _totalCreditsEarned += targetBounty.offeredCredits;
+        _totalCreditsEarned += _creditService.balance - balanceBefore;
         _pochService.recordPoRChallengeAnswered();
         _logActivity(
-            'Claimed & fulfilled Moltbook bounty [${targetBounty.urgency.toUpperCase()}]: "${targetBounty.title}" (+${targetBounty.offeredCredits} ℭ)');
+            'Claimed & fulfilled Moltbook bounty [${targetBounty.urgency.toUpperCase()}]: "${targetBounty.title}" (+${(_creditService.balance - balanceBefore).toStringAsFixed(1)} ℭ)');
       }
     }
 

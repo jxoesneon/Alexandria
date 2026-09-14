@@ -28,7 +28,7 @@ void main() {
     expect(find.text('Autonomous Preservation Steward'), findsOneWidget);
     expect(find.text('Beacon v2 Agent Identity (Ed25519)'), findsOneWidget);
     expect(find.text('Moltbook Agent Social Transport'), findsOneWidget);
-    expect(find.text('Alexandria MCP Tool Suite (8 Registered Tools)'), findsOneWidget);
+    expect(find.text('Alexandria MCP Tool Suite (9 Registered Tools)'), findsOneWidget);
 
     // 2. Verify Submolt filter chips
     expect(find.text('m/alexandria-bounties'), findsOneWidget);

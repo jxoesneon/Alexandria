@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../credits/credit_service.dart';
 import '../credits/crypto_bridge_service.dart';
 import '../credits/poch_service.dart';
+import '../ipfs_service.dart';
 import '../proof_of_retrievability_service.dart';
 import 'moltbook_service.dart';
 
@@ -14,6 +16,7 @@ final alexandriaMcpServerProvider = Provider<AlexandriaMcpServer>((ref) {
     cryptoBridgeService: ref.read(cryptoBridgeServiceProvider),
     moltbookService: ref.read(moltbookServiceProvider),
     porService: ref.read(proofOfRetrievabilityServiceProvider),
+    ipfsService: ref.read(ipfsServiceProvider),
   );
 });
 
@@ -24,6 +27,15 @@ class AlexandriaMcpServer {
   final CryptoBridgeService _cryptoBridgeService;
   final MoltbookService _moltbookService;
   final ProofOfRetrievabilityService _porService;
+  final IpfsService _ipfsService;
+
+  /// DOIs already rewarded through the ingest tool — one payout per work, ever.
+  final Set<String> _awardedDois = {};
+
+  /// Agent-facing payout rails (Cashu export, Lightning sweep) stay closed
+  /// until the attestation layer exists — 𝒞→BTC egress is the profit motive
+  /// for every mint exploit (Review ALX-010).
+  static const bool agentPayoutsEnabled = false;
 
   AlexandriaMcpServer({
     required CreditService creditService,
@@ -31,11 +43,13 @@ class AlexandriaMcpServer {
     required CryptoBridgeService cryptoBridgeService,
     required MoltbookService moltbookService,
     required ProofOfRetrievabilityService porService,
+    required IpfsService ipfsService,
   })  : _creditService = creditService,
         _pochService = pochService,
         _cryptoBridgeService = cryptoBridgeService,
         _moltbookService = moltbookService,
-        _porService = porService;
+        _porService = porService,
+        _ipfsService = ipfsService;
 
   ProofOfRetrievabilityService get porService => _porService;
 
@@ -105,22 +119,38 @@ class AlexandriaMcpServer {
         },
       },
       {
-        'name': 'alexandria_submit_por_challenge',
+        'name': 'alexandria_request_por_challenge',
         'description':
-            'Solves and submits an HMAC-SHA256 Proof of Retrievability challenge to earn storage credits.',
+            'Issues a fresh HMAC-SHA256 Proof of Retrievability challenge for a CID. Returns the challenge ID and nonce; submit the computed tag via alexandria_submit_por_challenge.',
         'inputSchema': {
           'type': 'object',
           'properties': {
             'cid': {
               'type': 'string',
-              'description': 'Target stored CID to verify'
-            },
-            'challenge_nonce': {
-              'type': 'string',
-              'description': 'Random challenge nonce issued by auditing peer'
+              'description': 'Target CID to be challenged on'
             },
           },
-          'required': ['cid', 'challenge_nonce'],
+          'required': ['cid'],
+        },
+      },
+      {
+        'name': 'alexandria_submit_por_challenge',
+        'description':
+            'Submits the HMAC-SHA256 tag for a pending PoR challenge. Tag = HMAC-SHA256(key: nonce, msg: content bytes). Credits mint only when the tag verifies against the stored payload.',
+        'inputSchema': {
+          'type': 'object',
+          'properties': {
+            'challenge_id': {
+              'type': 'string',
+              'description': 'Challenge ID from alexandria_request_por_challenge'
+            },
+            'tag': {
+              'type': 'string',
+              'description':
+                  'Hex-encoded HMAC-SHA256 tag over the full content payload'
+            },
+          },
+          'required': ['challenge_id', 'tag'],
         },
       },
       {
@@ -206,10 +236,13 @@ class AlexandriaMcpServer {
             (arguments['credits'] as num? ?? 0.0).toDouble(),
           );
 
+        case 'alexandria_request_por_challenge':
+          return _requestPorChallenge(arguments['cid'] as String? ?? '');
+
         case 'alexandria_submit_por_challenge':
           return await _submitPorChallenge(
-            arguments['cid'] as String? ?? '',
-            arguments['challenge_nonce'] as String? ?? '',
+            arguments['challenge_id'] as String? ?? '',
+            arguments['tag'] as String? ?? '',
           );
 
         case 'alexandria_post_moltbook_bounty':
@@ -305,8 +338,19 @@ class AlexandriaMcpServer {
   }
 
   Future<Map<String, dynamic>> _ingestDoi(String doi, {String? title}) async {
-    if (!doi.startsWith('10.')) {
-      return _errorResponse('Invalid DOI format: $doi. Must begin with 10.');
+    // Strict DOI shape: registrant code 4-9 digits, non-empty suffix.
+    if (!RegExp(r'^10\.\d{4,9}/\S+$').hasMatch(doi)) {
+      return _errorResponse(
+          'Invalid DOI format: $doi. Expected 10.<registrant>/<suffix>.');
+    }
+    // One payout per unique work — looping the same DOI mints nothing.
+    if (!_awardedDois.add(doi)) {
+      return _textResponse(jsonEncode({
+        'status': 'duplicate',
+        'doi': doi,
+        'credits_earned': 0.0,
+        'note': 'DOI already ingested and rewarded; no duplicate payout.',
+      }));
     }
 
     final simulatedCid = 'bafk_${doi.replaceAll('/', '_')}';
@@ -365,26 +409,59 @@ class AlexandriaMcpServer {
     }));
   }
 
+  Map<String, dynamic> _requestPorChallenge(String cid) {
+    final challenge = _porService.createChallenge(cid: cid, totalChunks: 1);
+    return _textResponse(jsonEncode({
+      'status': 'challenge_issued',
+      'challenge_id': challenge.challengeId,
+      'cid': cid,
+      'nonce_hex': challenge.nonce
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join(),
+      'expires_in_seconds': 300,
+      'note':
+          'Compute tag = hex(HMAC-SHA256(key: nonce_bytes, msg: content_bytes)) and submit via alexandria_submit_por_challenge.',
+    }));
+  }
+
   Future<Map<String, dynamic>> _submitPorChallenge(
-      String cid, String challengeNonce) async {
-    final isValid = challengeNonce.length >= 8;
-    if (!isValid) {
-      return _errorResponse('Invalid challenge nonce length');
+      String challengeId, String tag) async {
+    // Reject proofs against challenges this node never issued.
+    final challenge = _porService.pendingChallenge(challengeId);
+    if (challenge == null) {
+      return _errorResponse(
+          'No pending PoR challenge with id $challengeId (request one first via alexandria_request_por_challenge)');
     }
 
-    final earned = _creditService.awardStorageCredits(
-      sizeBytes: 100 * 1024 * 1024,
-      peerCount: 2,
-      porPassed: true,
-      cid: cid,
+    // Fetch the audited payload — verification requires the bytes exist here.
+    final chunks = <int>[];
+    await for (final chunk in _ipfsService.getFile(challenge.cid)) {
+      chunks.addAll(chunk);
+    }
+    if (chunks.isEmpty) {
+      return _errorResponse(
+          'CID ${challenge.cid} is not present in the local blockstore');
+    }
+    final payload = Uint8List.fromList(chunks);
+
+    final proof = PoRProof(
+      challengeId: challengeId,
+      tag: tag,
+      timestamp: DateTime.now(),
     );
-    _pochService.recordPoRChallengeAnswered();
+    final valid = _porService.verifyProof(
+      proof: proof,
+      expectedChunkData: payload,
+      proverPeerId: _moltbookService.agentId,
+    );
+    if (!valid) {
+      return _errorResponse('PoR proof verification failed: tag mismatch');
+    }
 
     return _textResponse(jsonEncode({
       'status': 'verified',
-      'cid': cid,
+      'cid': challenge.cid,
       'proof_valid': true,
-      'credits_awarded': earned,
       'new_balance': _creditService.balance,
     }));
   }
@@ -416,6 +493,10 @@ class AlexandriaMcpServer {
   }
 
   Map<String, dynamic> _exportCashuVoucher(double credits) {
+    if (!agentPayoutsEnabled) {
+      return _errorResponse(
+          'Agent payout rails are disabled until the cross-verified attestation layer ships (ALX-010). Credits remain spendable inside Alexandria.');
+    }
     final token = _cryptoBridgeService.exportCreditsAsCashuToken(credits);
     if (token == null) {
       return _errorResponse(
@@ -433,6 +514,10 @@ class AlexandriaMcpServer {
 
   Future<Map<String, dynamic>> _sweepLightningLive(
       String address, double credits) async {
+    if (!agentPayoutsEnabled) {
+      return _errorResponse(
+          'Agent payout rails are disabled until the cross-verified attestation layer ships (ALX-010). Credits remain spendable inside Alexandria.');
+    }
     final result = await _cryptoBridgeService.sweepToLightningAddressLive(
       creditsToSweep: credits,
       customAddress: address,

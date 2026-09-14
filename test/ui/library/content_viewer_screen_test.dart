@@ -40,7 +40,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Content Viewer'), findsOneWidget);
+    expect(find.text('Archival Reader & Content Viewer'), findsOneWidget);
     expect(find.text('The Decentralized Web'), findsOneWidget);
     expect(
         find.text('A deep dive into decentralized archives.'), findsOneWidget);
@@ -51,7 +51,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Context & Annotations'), findsOneWidget);
+    // Annotations live under the Notes tab of the context panel
+    await tester.tap(find.text('Notes'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
     expect(find.text('Key insight about preservation'), findsOneWidget);
     expect(find.text('Note on peer-to-peer distribution'), findsOneWidget);
   });

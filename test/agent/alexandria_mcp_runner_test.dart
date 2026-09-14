@@ -7,6 +7,7 @@ import 'package:alexandria/services/agent/moltbook_service.dart';
 import 'package:alexandria/services/credits/credit_service.dart';
 import 'package:alexandria/services/credits/crypto_bridge_service.dart';
 import 'package:alexandria/services/credits/poch_service.dart';
+import 'package:alexandria/services/ipfs_service.dart';
 import 'package:alexandria/services/proof_of_retrievability_service.dart';
 
 void main() {
@@ -20,6 +21,7 @@ void main() {
     final cryptoBridgeService = CryptoBridgeService(creditService: creditService);
     final moltbookService = MoltbookService(creditService: creditService);
     final porService = container.read(proofOfRetrievabilityServiceProvider);
+    final ipfsService = container.read(ipfsServiceProvider);
 
     final mcpServer = AlexandriaMcpServer(
       creditService: creditService,
@@ -27,6 +29,7 @@ void main() {
       cryptoBridgeService: cryptoBridgeService,
       moltbookService: moltbookService,
       porService: porService,
+      ipfsService: ipfsService,
     );
 
     // If ALX_STDIO_MODE is set, run interactive stdio JSON-RPC loop
@@ -46,9 +49,9 @@ void main() {
         }
       }
     } else {
-      // Diagnostic mode: verify all 8 tools execute cleanly
+      // Diagnostic mode: verify all 9 tools execute cleanly
       final tools = mcpServer.listTools();
-      expect(tools.length, 8);
+      expect(tools.length, 9);
     }
   });
 }

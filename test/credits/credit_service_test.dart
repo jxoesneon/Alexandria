@@ -25,18 +25,29 @@ void main() {
     });
 
     test('awards storage credits with dynamic rarity weighting', () {
-      // Test critically endangered work (peerCount = 1 -> 5x multiplier)
+      // Test critically endangered work (peerCount = 1 -> 5x multiplier).
+      // ALX-010: multipliers above 1.0x require independent attestation —
+      // a self-reported peerCount of 1 mints at flat 1.0x.
       final initialBalance = creditService.balance;
       final earnedEndangered = creditService.awardStorageCredits(
         sizeBytes: 20 * 1024 * 1024, // 20 MB
         peerCount: 1,
         porPassed: true,
         cid: 'bafk_endangered_1',
+        rarityAttested: true,
       );
 
       expect(earnedEndangered, greaterThan(0));
       expect(creditService.balance, initialBalance + earnedEndangered);
       expect(creditService.totalStorageEarned, earnedEndangered);
+
+      // Self-reported rarity without attestation is clamped to 1.0x
+      final earnedUnattested = creditService.awardStorageCredits(
+        sizeBytes: 20 * 1024 * 1024,
+        peerCount: 1,
+        porPassed: true,
+        cid: 'bafk_endangered_unattested',
+      );
 
       // Test healthy work (peerCount >= 5 -> 1x multiplier)
       final earnedHealthy = creditService.awardStorageCredits(
@@ -46,8 +57,10 @@ void main() {
         cid: 'bafk_healthy_1',
       );
 
-      // Endangered should earn significantly more than healthy
+      // Attested endangered earns more; unattested "rarity" mints the same
+      // flat rate as healthy content.
       expect(earnedEndangered, greaterThan(earnedHealthy));
+      expect(earnedUnattested, earnedHealthy);
     });
 
     test('penalizes failed PoR challenges with slashing deduction', () {

@@ -71,6 +71,31 @@ class AlexandriaIdentity {
 
     return result;
   }
+
+  /// Decodes a Base58-encoded public key (inverse of [_base58Encode]).
+  /// Throws [FormatException] on invalid characters.
+  static Uint8List decodePublicKeyBase58(String encoded) {
+    const alphabet =
+        '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    var value = BigInt.zero;
+    for (final ch in encoded.codeUnits) {
+      final idx = alphabet.indexOf(String.fromCharCode(ch));
+      if (idx < 0) {
+        throw const FormatException('Invalid Base58 character');
+      }
+      value = value * BigInt.from(58) + BigInt.from(idx);
+    }
+    final bytes = <int>[];
+    while (value > BigInt.zero) {
+      bytes.insert(0, (value % BigInt.from(256)).toInt());
+      value = value ~/ BigInt.from(256);
+    }
+    var zeroes = 0;
+    while (zeroes < encoded.length && encoded[zeroes] == '1') {
+      zeroes++;
+    }
+    return Uint8List.fromList(List.filled(zeroes, 0) + bytes);
+  }
 }
 
 /// Represents a signed identity proof

@@ -247,6 +247,16 @@ final currentDocumentProvider =
   );
 });
 
+/// Computed integrity probe for the active edition (Safe Harbor panel, ALX-010).
+/// Re-hashes the stored payload against the CID digest and verifies the
+/// edition signature — reports only checks that actually ran.
+final contentIntegrityProvider =
+    FutureProvider.family<ContentIntegrityReport, String>((ref, documentCid) async {
+  final repository = ref.read(contentRepositoryProvider);
+  final doc = await ref.watch(currentDocumentProvider(documentCid).future);
+  return repository.probeContentIntegrity(doc.cid!);
+});
+
 /// Annotations for a document, derived from collection item notes.
 final annotationsProvider =
     FutureProvider.family<List<Annotation>, String>((ref, documentCid) async {

@@ -183,18 +183,20 @@ class MoltbookService extends ChangeNotifier {
   }
 
   /// Claims and fulfills an active preservation bounty, rewarding the agent node
+  /// Claims an active preservation bounty. Payout is the escrowed reward
+  /// posted by the originator — not a fabricated mint (ALX-010).
+  /// An agent cannot claim its own bounty (self-dealing / sybil laundering).
   bool claimBounty(String bountyId) {
     final index = _bounties.indexWhere((b) => b.id == bountyId && !b.isClaimed);
     if (index == -1) return false;
 
     final bounty = _bounties[index];
-    bounty.isClaimed = true;
+    if (bounty.originAgentId == _agentId) return false;
 
-    // Award claimed credits to the solver
-    _creditService.awardStorageCredits(
-      sizeBytes: 50 * 1024 * 1024,
-      peerCount: 1, // Endangered reward
-      porPassed: true,
+    bounty.isClaimed = true;
+    _creditService.awardBountyEscrow(
+      amount: bounty.offeredCredits,
+      bountyId: bounty.id,
       cid: bounty.cid,
     );
 

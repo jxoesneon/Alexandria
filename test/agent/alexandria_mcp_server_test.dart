@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/agent/alexandria_mcp_server.dart';
@@ -6,6 +8,7 @@ import 'package:alexandria/services/agent/moltbook_service.dart';
 import 'package:alexandria/services/credits/credit_service.dart';
 import 'package:alexandria/services/credits/crypto_bridge_service.dart';
 import 'package:alexandria/services/credits/poch_service.dart';
+import 'package:alexandria/services/ipfs_service.dart';
 import 'package:alexandria/services/proof_of_retrievability_service.dart';
 
 void main() {
@@ -16,18 +19,24 @@ void main() {
     late CryptoBridgeService cryptoBridgeService;
     late MoltbookService moltbookService;
     late ProofOfRetrievabilityService porService;
+    late IpfsService ipfsService;
     late AlexandriaMcpServer mcpServer;
 
     setUp(() {
-      container = ProviderContainer();
       pochService = PoCHService();
       creditService = CreditService(
         pochService: pochService,
         initialBalance: 100.0,
       );
+      // verifyProof mints through the container's creditServiceProvider —
+      // override it so the award lands on the instance under test.
+      container = ProviderContainer(overrides: [
+        creditServiceProvider.overrideWith((_) => creditService),
+      ]);
       cryptoBridgeService = CryptoBridgeService(creditService: creditService);
       moltbookService = MoltbookService(creditService: creditService);
       porService = container.read(proofOfRetrievabilityServiceProvider);
+      ipfsService = container.read(ipfsServiceProvider);
 
       mcpServer = AlexandriaMcpServer(
         creditService: creditService,
@@ -35,18 +44,20 @@ void main() {
         cryptoBridgeService: cryptoBridgeService,
         moltbookService: moltbookService,
         porService: porService,
+        ipfsService: ipfsService,
       );
     });
 
-    test('lists 8 registered MCP tools with input schemas', () {
+    test('lists 9 registered MCP tools with input schemas', () {
       final tools = mcpServer.listTools();
-      expect(tools.length, 8);
+      expect(tools.length, 9);
 
       final names = tools.map((t) => t['name'] as String).toList();
       expect(names, contains('alexandria_search_archive'));
       expect(names, contains('alexandria_ingest_doi'));
       expect(names, contains('alexandria_get_wallet_balance'));
       expect(names, contains('alexandria_replicate_cid'));
+      expect(names, contains('alexandria_request_por_challenge'));
       expect(names, contains('alexandria_submit_por_challenge'));
       expect(names, contains('alexandria_post_moltbook_bounty'));
       expect(names, contains('alexandria_export_cashu_voucher'));
@@ -81,6 +92,17 @@ void main() {
       final data = jsonDecode(text) as Map<String, dynamic>;
       expect(data['status'], 'success');
       expect(data['assigned_cid'], contains('10.1038'));
+      expect(creditService.balance, initialBalance + 15.0);
+
+      // Re-ingesting the same DOI pays nothing (ALX-010 dedupe)
+      final dupeRes = await mcpServer.callTool('alexandria_ingest_doi', {
+        'doi': '10.1038/nature12373',
+      });
+      expect(dupeRes['isError'], isFalse);
+      final dupeData = jsonDecode(
+          (dupeRes['content'] as List).first['text'] as String) as Map<String, dynamic>;
+      expect(dupeData['status'], 'duplicate');
+      expect(dupeData['credits_earned'], 0.0);
       expect(creditService.balance, initialBalance + 15.0);
 
       // Rejects invalid DOI prefix
@@ -118,35 +140,66 @@ void main() {
       expect(excessRes['isError'], isTrue);
     });
 
-    test('executes alexandria_submit_por_challenge tool', () async {
+    test('executes real PoR challenge round-trip (ALX-010)', () async {
+      // Store a payload so the CID exists in the local blockstore
+      final payload = Uint8List.fromList(
+          utf8.encode('endangered scientific payload for por audit'));
+      final cid = await ipfsService.addFile(payload);
       final initialBalance = creditService.balance;
 
-      final res = await mcpServer.callTool('alexandria_submit_por_challenge', {
-        'cid': 'bafk_sample_cid',
-        'challenge_nonce': 'nonce_valid_123',
-      });
+      // 1. Request a fresh challenge
+      final challengeRes = await mcpServer
+          .callTool('alexandria_request_por_challenge', {'cid': cid});
+      expect(challengeRes['isError'], isFalse);
+      final challengeData = jsonDecode((challengeRes['content'] as List)
+          .first['text'] as String) as Map<String, dynamic>;
+      final challengeId = challengeData['challenge_id'] as String;
+      final nonceHex = challengeData['nonce_hex'] as String;
 
+      // 2. Compute the tag the prover would produce
+      final nonceBytes = Uint8List.fromList(List.generate(
+          nonceHex.length ~/ 2,
+          (i) => int.parse(nonceHex.substring(i * 2, i * 2 + 2), radix: 16)));
+      final tag = Hmac(sha256, nonceBytes).convert(payload).toString();
+
+      // 3. Submit — verifies, mints via verifyProof internally
+      final res = await mcpServer.callTool('alexandria_submit_por_challenge', {
+        'challenge_id': challengeId,
+        'tag': tag,
+      });
       expect(res['isError'], isFalse);
       expect(creditService.balance, greaterThan(initialBalance));
 
-      // Rejects short nonce
+      // 4. A wrong tag is rejected — no payout
+      final challenge2 = await mcpServer
+          .callTool('alexandria_request_por_challenge', {'cid': cid});
+      final id2 = jsonDecode((challenge2['content'] as List)
+          .first['text'] as String)['challenge_id'] as String;
       final failRes = await mcpServer.callTool('alexandria_submit_por_challenge', {
-        'cid': 'bafk_sample_cid',
-        'challenge_nonce': 'short',
+        'challenge_id': id2,
+        'tag': 'deadbeef' * 8,
       });
       expect(failRes['isError'], isTrue);
+
+      // 5. A fabricated challenge ID is rejected outright
+      final forgedRes = await mcpServer.callTool('alexandria_submit_por_challenge', {
+        'challenge_id': 'forged_id_12345',
+        'tag': tag,
+      });
+      expect(forgedRes['isError'], isTrue);
     });
 
-    test('executes alexandria_export_cashu_voucher tool', () async {
+    test('agent payout rails are disabled until attestation (ALX-010)', () async {
       final res = await mcpServer.callTool('alexandria_export_cashu_voucher', {
         'credits': 10.0,
       });
+      expect(res['isError'], isTrue);
 
-      expect(res['isError'], isFalse);
-      final text = (res['content'] as List).first['text'] as String;
-      final data = jsonDecode(text) as Map<String, dynamic>;
-      expect(data['cashu_token'].toString().startsWith('cashuA'), isTrue);
-      expect(data['sats_equivalent'], 100);
+      final sweepRes = await mcpServer.callTool('alexandria_sweep_lightning_live', {
+        'lightning_address': 'agent@walletofsatoshi.com',
+        'credits': 10.0,
+      });
+      expect(sweepRes['isError'], isTrue);
     });
 
     test('handles JSON-RPC 2.0 dispatch for tools/list and tools/call', () async {
@@ -158,7 +211,7 @@ void main() {
       });
       expect(listRpc['jsonrpc'], '2.0');
       expect(listRpc['id'], 1);
-      expect(listRpc['result']['tools'].length, 8);
+      expect(listRpc['result']['tools'].length, 9);
 
       // 2. tools/call
       final callRpc = await mcpServer.handleJsonRpcRequest({
@@ -183,7 +236,7 @@ void main() {
     });
 
     test('executes alexandria_sweep_lightning_live tool with validation', () async {
-      // Rejects invalid address
+      // Disabled rail rejects before address validation (ALX-010)
       final errRes = await mcpServer.callTool('alexandria_sweep_lightning_live', {
         'lightning_address': 'not_an_email',
         'credits': 10.0,

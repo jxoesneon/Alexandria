@@ -632,6 +632,24 @@ class $ContentVersionsTable extends ContentVersions
   late final GeneratedColumn<DateTime> createdData = GeneratedColumn<DateTime>(
       'created_data', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _publisherPubkeyMeta =
+      const VerificationMeta('publisherPubkey');
+  @override
+  late final GeneratedColumn<String> publisherPubkey = GeneratedColumn<String>(
+      'publisher_pubkey', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _signatureMeta =
+      const VerificationMeta('signature');
+  @override
+  late final GeneratedColumn<String> signature = GeneratedColumn<String>(
+      'signature', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _flaggedReasonMeta =
+      const VerificationMeta('flaggedReason');
+  @override
+  late final GeneratedColumn<String> flaggedReason = GeneratedColumn<String>(
+      'flagged_reason', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -643,7 +661,10 @@ class $ContentVersionsTable extends ContentVersions
         peerCount,
         isPinned,
         lastHealthCheck,
-        createdData
+        createdData,
+        publisherPubkey,
+        signature,
+        flaggedReason
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -708,6 +729,22 @@ class $ContentVersionsTable extends ContentVersions
     } else if (isInserting) {
       context.missing(_createdDataMeta);
     }
+    if (data.containsKey('publisher_pubkey')) {
+      context.handle(
+          _publisherPubkeyMeta,
+          publisherPubkey.isAcceptableOrUnknown(
+              data['publisher_pubkey']!, _publisherPubkeyMeta));
+    }
+    if (data.containsKey('signature')) {
+      context.handle(_signatureMeta,
+          signature.isAcceptableOrUnknown(data['signature']!, _signatureMeta));
+    }
+    if (data.containsKey('flagged_reason')) {
+      context.handle(
+          _flaggedReasonMeta,
+          flaggedReason.isAcceptableOrUnknown(
+              data['flagged_reason']!, _flaggedReasonMeta));
+    }
     return context;
   }
 
@@ -737,6 +774,12 @@ class $ContentVersionsTable extends ContentVersions
           DriftSqlType.dateTime, data['${effectivePrefix}last_health_check']),
       createdData: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_data'])!,
+      publisherPubkey: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}publisher_pubkey']),
+      signature: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}signature']),
+      flaggedReason: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}flagged_reason']),
     );
   }
 
@@ -757,6 +800,9 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
   final bool isPinned;
   final DateTime? lastHealthCheck;
   final DateTime createdData;
+  final String? publisherPubkey;
+  final String? signature;
+  final String? flaggedReason;
   const ContentVersion(
       {required this.id,
       required this.manifestId,
@@ -767,7 +813,10 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
       required this.peerCount,
       required this.isPinned,
       this.lastHealthCheck,
-      required this.createdData});
+      required this.createdData,
+      this.publisherPubkey,
+      this.signature,
+      this.flaggedReason});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -783,6 +832,15 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
       map['last_health_check'] = Variable<DateTime>(lastHealthCheck);
     }
     map['created_data'] = Variable<DateTime>(createdData);
+    if (!nullToAbsent || publisherPubkey != null) {
+      map['publisher_pubkey'] = Variable<String>(publisherPubkey);
+    }
+    if (!nullToAbsent || signature != null) {
+      map['signature'] = Variable<String>(signature);
+    }
+    if (!nullToAbsent || flaggedReason != null) {
+      map['flagged_reason'] = Variable<String>(flaggedReason);
+    }
     return map;
   }
 
@@ -800,6 +858,15 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
           ? const Value.absent()
           : Value(lastHealthCheck),
       createdData: Value(createdData),
+      publisherPubkey: publisherPubkey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(publisherPubkey),
+      signature: signature == null && nullToAbsent
+          ? const Value.absent()
+          : Value(signature),
+      flaggedReason: flaggedReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(flaggedReason),
     );
   }
 
@@ -817,6 +884,9 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
       isPinned: serializer.fromJson<bool>(json['isPinned']),
       lastHealthCheck: serializer.fromJson<DateTime?>(json['lastHealthCheck']),
       createdData: serializer.fromJson<DateTime>(json['createdData']),
+      publisherPubkey: serializer.fromJson<String?>(json['publisherPubkey']),
+      signature: serializer.fromJson<String?>(json['signature']),
+      flaggedReason: serializer.fromJson<String?>(json['flaggedReason']),
     );
   }
   @override
@@ -833,6 +903,9 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
       'isPinned': serializer.toJson<bool>(isPinned),
       'lastHealthCheck': serializer.toJson<DateTime?>(lastHealthCheck),
       'createdData': serializer.toJson<DateTime>(createdData),
+      'publisherPubkey': serializer.toJson<String?>(publisherPubkey),
+      'signature': serializer.toJson<String?>(signature),
+      'flaggedReason': serializer.toJson<String?>(flaggedReason),
     };
   }
 
@@ -846,7 +919,10 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
           int? peerCount,
           bool? isPinned,
           Value<DateTime?> lastHealthCheck = const Value.absent(),
-          DateTime? createdData}) =>
+          DateTime? createdData,
+          Value<String?> publisherPubkey = const Value.absent(),
+          Value<String?> signature = const Value.absent(),
+          Value<String?> flaggedReason = const Value.absent()}) =>
       ContentVersion(
         id: id ?? this.id,
         manifestId: manifestId ?? this.manifestId,
@@ -860,6 +936,12 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
             ? lastHealthCheck.value
             : this.lastHealthCheck,
         createdData: createdData ?? this.createdData,
+        publisherPubkey: publisherPubkey.present
+            ? publisherPubkey.value
+            : this.publisherPubkey,
+        signature: signature.present ? signature.value : this.signature,
+        flaggedReason:
+            flaggedReason.present ? flaggedReason.value : this.flaggedReason,
       );
   ContentVersion copyWithCompanion(ContentVersionsCompanion data) {
     return ContentVersion(
@@ -877,6 +959,13 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
           : this.lastHealthCheck,
       createdData:
           data.createdData.present ? data.createdData.value : this.createdData,
+      publisherPubkey: data.publisherPubkey.present
+          ? data.publisherPubkey.value
+          : this.publisherPubkey,
+      signature: data.signature.present ? data.signature.value : this.signature,
+      flaggedReason: data.flaggedReason.present
+          ? data.flaggedReason.value
+          : this.flaggedReason,
     );
   }
 
@@ -892,14 +981,29 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
           ..write('peerCount: $peerCount, ')
           ..write('isPinned: $isPinned, ')
           ..write('lastHealthCheck: $lastHealthCheck, ')
-          ..write('createdData: $createdData')
+          ..write('createdData: $createdData, ')
+          ..write('publisherPubkey: $publisherPubkey, ')
+          ..write('signature: $signature, ')
+          ..write('flaggedReason: $flaggedReason')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, manifestId, cid, language, format,
-      sizeBytes, peerCount, isPinned, lastHealthCheck, createdData);
+  int get hashCode => Object.hash(
+      id,
+      manifestId,
+      cid,
+      language,
+      format,
+      sizeBytes,
+      peerCount,
+      isPinned,
+      lastHealthCheck,
+      createdData,
+      publisherPubkey,
+      signature,
+      flaggedReason);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -913,7 +1017,10 @@ class ContentVersion extends DataClass implements Insertable<ContentVersion> {
           other.peerCount == this.peerCount &&
           other.isPinned == this.isPinned &&
           other.lastHealthCheck == this.lastHealthCheck &&
-          other.createdData == this.createdData);
+          other.createdData == this.createdData &&
+          other.publisherPubkey == this.publisherPubkey &&
+          other.signature == this.signature &&
+          other.flaggedReason == this.flaggedReason);
 }
 
 class ContentVersionsCompanion extends UpdateCompanion<ContentVersion> {
@@ -927,6 +1034,9 @@ class ContentVersionsCompanion extends UpdateCompanion<ContentVersion> {
   final Value<bool> isPinned;
   final Value<DateTime?> lastHealthCheck;
   final Value<DateTime> createdData;
+  final Value<String?> publisherPubkey;
+  final Value<String?> signature;
+  final Value<String?> flaggedReason;
   const ContentVersionsCompanion({
     this.id = const Value.absent(),
     this.manifestId = const Value.absent(),
@@ -938,6 +1048,9 @@ class ContentVersionsCompanion extends UpdateCompanion<ContentVersion> {
     this.isPinned = const Value.absent(),
     this.lastHealthCheck = const Value.absent(),
     this.createdData = const Value.absent(),
+    this.publisherPubkey = const Value.absent(),
+    this.signature = const Value.absent(),
+    this.flaggedReason = const Value.absent(),
   });
   ContentVersionsCompanion.insert({
     this.id = const Value.absent(),
@@ -950,6 +1063,9 @@ class ContentVersionsCompanion extends UpdateCompanion<ContentVersion> {
     this.isPinned = const Value.absent(),
     this.lastHealthCheck = const Value.absent(),
     required DateTime createdData,
+    this.publisherPubkey = const Value.absent(),
+    this.signature = const Value.absent(),
+    this.flaggedReason = const Value.absent(),
   })  : manifestId = Value(manifestId),
         cid = Value(cid),
         sizeBytes = Value(sizeBytes),
@@ -965,6 +1081,9 @@ class ContentVersionsCompanion extends UpdateCompanion<ContentVersion> {
     Expression<bool>? isPinned,
     Expression<DateTime>? lastHealthCheck,
     Expression<DateTime>? createdData,
+    Expression<String>? publisherPubkey,
+    Expression<String>? signature,
+    Expression<String>? flaggedReason,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -977,6 +1096,9 @@ class ContentVersionsCompanion extends UpdateCompanion<ContentVersion> {
       if (isPinned != null) 'is_pinned': isPinned,
       if (lastHealthCheck != null) 'last_health_check': lastHealthCheck,
       if (createdData != null) 'created_data': createdData,
+      if (publisherPubkey != null) 'publisher_pubkey': publisherPubkey,
+      if (signature != null) 'signature': signature,
+      if (flaggedReason != null) 'flagged_reason': flaggedReason,
     });
   }
 
@@ -990,7 +1112,10 @@ class ContentVersionsCompanion extends UpdateCompanion<ContentVersion> {
       Value<int>? peerCount,
       Value<bool>? isPinned,
       Value<DateTime?>? lastHealthCheck,
-      Value<DateTime>? createdData}) {
+      Value<DateTime>? createdData,
+      Value<String?>? publisherPubkey,
+      Value<String?>? signature,
+      Value<String?>? flaggedReason}) {
     return ContentVersionsCompanion(
       id: id ?? this.id,
       manifestId: manifestId ?? this.manifestId,
@@ -1002,6 +1127,9 @@ class ContentVersionsCompanion extends UpdateCompanion<ContentVersion> {
       isPinned: isPinned ?? this.isPinned,
       lastHealthCheck: lastHealthCheck ?? this.lastHealthCheck,
       createdData: createdData ?? this.createdData,
+      publisherPubkey: publisherPubkey ?? this.publisherPubkey,
+      signature: signature ?? this.signature,
+      flaggedReason: flaggedReason ?? this.flaggedReason,
     );
   }
 
@@ -1038,6 +1166,15 @@ class ContentVersionsCompanion extends UpdateCompanion<ContentVersion> {
     if (createdData.present) {
       map['created_data'] = Variable<DateTime>(createdData.value);
     }
+    if (publisherPubkey.present) {
+      map['publisher_pubkey'] = Variable<String>(publisherPubkey.value);
+    }
+    if (signature.present) {
+      map['signature'] = Variable<String>(signature.value);
+    }
+    if (flaggedReason.present) {
+      map['flagged_reason'] = Variable<String>(flaggedReason.value);
+    }
     return map;
   }
 
@@ -1053,7 +1190,10 @@ class ContentVersionsCompanion extends UpdateCompanion<ContentVersion> {
           ..write('peerCount: $peerCount, ')
           ..write('isPinned: $isPinned, ')
           ..write('lastHealthCheck: $lastHealthCheck, ')
-          ..write('createdData: $createdData')
+          ..write('createdData: $createdData, ')
+          ..write('publisherPubkey: $publisherPubkey, ')
+          ..write('signature: $signature, ')
+          ..write('flaggedReason: $flaggedReason')
           ..write(')'))
         .toString();
   }
@@ -1692,8 +1832,8 @@ final class $$ContentManifestsTableReferences extends BaseReferences<
   static MultiTypedResultKey<$ContentVersionsTable, List<ContentVersion>>
       _contentVersionsRefsTable(_$AppDatabase db) =>
           MultiTypedResultKey.fromTable(db.contentVersions,
-              aliasName: $_aliasNameGenerator(
-                  db.contentManifests.id, db.contentVersions.manifestId));
+              aliasName:
+                  'content_manifests__id__content_versions__manifest_id');
 
   $$ContentVersionsTableProcessedTableManager get contentVersionsRefs {
     final manager =
@@ -1956,7 +2096,7 @@ class $$ContentManifestsTableTableManager extends RootTableManager<
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (
-                    e.readTable(table),
+                    e.readTable<$ContentManifestsTable, ContentManifest>(table),
                     $$ContentManifestsTableReferences(db, table, e)
                   ))
               .toList(),
@@ -2013,6 +2153,9 @@ typedef $$ContentVersionsTableCreateCompanionBuilder = ContentVersionsCompanion
   Value<bool> isPinned,
   Value<DateTime?> lastHealthCheck,
   required DateTime createdData,
+  Value<String?> publisherPubkey,
+  Value<String?> signature,
+  Value<String?> flaggedReason,
 });
 typedef $$ContentVersionsTableUpdateCompanionBuilder = ContentVersionsCompanion
     Function({
@@ -2026,6 +2169,9 @@ typedef $$ContentVersionsTableUpdateCompanionBuilder = ContentVersionsCompanion
   Value<bool> isPinned,
   Value<DateTime?> lastHealthCheck,
   Value<DateTime> createdData,
+  Value<String?> publisherPubkey,
+  Value<String?> signature,
+  Value<String?> flaggedReason,
 });
 
 final class $$ContentVersionsTableReferences extends BaseReferences<
@@ -2034,8 +2180,8 @@ final class $$ContentVersionsTableReferences extends BaseReferences<
       super.$_db, super.$_table, super.$_typedResult);
 
   static $ContentManifestsTable _manifestIdTable(_$AppDatabase db) =>
-      db.contentManifests.createAlias($_aliasNameGenerator(
-          db.contentVersions.manifestId, db.contentManifests.id));
+      db.contentManifests
+          .createAlias('content_versions__manifest_id__content_manifests__id');
 
   $$ContentManifestsTableProcessedTableManager get manifestId {
     final $_column = $_itemColumn<int>('manifest_id')!;
@@ -2086,6 +2232,16 @@ class $$ContentVersionsTableFilterComposer
 
   ColumnFilters<DateTime> get createdData => $composableBuilder(
       column: $table.createdData, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get publisherPubkey => $composableBuilder(
+      column: $table.publisherPubkey,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get signature => $composableBuilder(
+      column: $table.signature, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get flaggedReason => $composableBuilder(
+      column: $table.flaggedReason, builder: (column) => ColumnFilters(column));
 
   $$ContentManifestsTableFilterComposer get manifestId {
     final $$ContentManifestsTableFilterComposer composer = $composerBuilder(
@@ -2145,6 +2301,17 @@ class $$ContentVersionsTableOrderingComposer
   ColumnOrderings<DateTime> get createdData => $composableBuilder(
       column: $table.createdData, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get publisherPubkey => $composableBuilder(
+      column: $table.publisherPubkey,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get signature => $composableBuilder(
+      column: $table.signature, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get flaggedReason => $composableBuilder(
+      column: $table.flaggedReason,
+      builder: (column) => ColumnOrderings(column));
+
   $$ContentManifestsTableOrderingComposer get manifestId {
     final $$ContentManifestsTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -2202,6 +2369,15 @@ class $$ContentVersionsTableAnnotationComposer
   GeneratedColumn<DateTime> get createdData => $composableBuilder(
       column: $table.createdData, builder: (column) => column);
 
+  GeneratedColumn<String> get publisherPubkey => $composableBuilder(
+      column: $table.publisherPubkey, builder: (column) => column);
+
+  GeneratedColumn<String> get signature =>
+      $composableBuilder(column: $table.signature, builder: (column) => column);
+
+  GeneratedColumn<String> get flaggedReason => $composableBuilder(
+      column: $table.flaggedReason, builder: (column) => column);
+
   $$ContentManifestsTableAnnotationComposer get manifestId {
     final $$ContentManifestsTableAnnotationComposer composer = $composerBuilder(
         composer: this,
@@ -2257,6 +2433,9 @@ class $$ContentVersionsTableTableManager extends RootTableManager<
             Value<bool> isPinned = const Value.absent(),
             Value<DateTime?> lastHealthCheck = const Value.absent(),
             Value<DateTime> createdData = const Value.absent(),
+            Value<String?> publisherPubkey = const Value.absent(),
+            Value<String?> signature = const Value.absent(),
+            Value<String?> flaggedReason = const Value.absent(),
           }) =>
               ContentVersionsCompanion(
             id: id,
@@ -2269,6 +2448,9 @@ class $$ContentVersionsTableTableManager extends RootTableManager<
             isPinned: isPinned,
             lastHealthCheck: lastHealthCheck,
             createdData: createdData,
+            publisherPubkey: publisherPubkey,
+            signature: signature,
+            flaggedReason: flaggedReason,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -2281,6 +2463,9 @@ class $$ContentVersionsTableTableManager extends RootTableManager<
             Value<bool> isPinned = const Value.absent(),
             Value<DateTime?> lastHealthCheck = const Value.absent(),
             required DateTime createdData,
+            Value<String?> publisherPubkey = const Value.absent(),
+            Value<String?> signature = const Value.absent(),
+            Value<String?> flaggedReason = const Value.absent(),
           }) =>
               ContentVersionsCompanion.insert(
             id: id,
@@ -2293,10 +2478,13 @@ class $$ContentVersionsTableTableManager extends RootTableManager<
             isPinned: isPinned,
             lastHealthCheck: lastHealthCheck,
             createdData: createdData,
+            publisherPubkey: publisherPubkey,
+            signature: signature,
+            flaggedReason: flaggedReason,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (
-                    e.readTable(table),
+                    e.readTable<$ContentVersionsTable, ContentVersion>(table),
                     $$ContentVersionsTableReferences(db, table, e)
                   ))
               .toList(),
@@ -2473,7 +2661,11 @@ class $$UserProfilesTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$UserProfilesTable, UserProfile>(table),
+                    BaseReferences<_$AppDatabase, $UserProfilesTable,
+                        UserProfile>(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: null,
         ));
@@ -2656,7 +2848,11 @@ class $$HonorValidationsTableTableManager extends RootTableManager<
             signature: signature,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$HonorValidationsTable, HonorValidation>(table),
+                    BaseReferences<_$AppDatabase, $HonorValidationsTable,
+                        HonorValidation>(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: null,
         ));

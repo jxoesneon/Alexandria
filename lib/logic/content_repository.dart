@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../data/database.dart';
 import '../models/workspace_models.dart';
+import '../services/cid_service.dart';
 import '../services/encryption_service.dart';
+import '../services/identity_service.dart';
 import '../services/ipfs_service.dart';
 import '../services/secure_storage_service.dart';
 import '../services/audit_log_service.dart';
@@ -20,6 +22,14 @@ class ContentRepository {
   IpfsService get _ipfs => _ref.read(ipfsServiceProvider);
   SecureStorageService get _storage => _ref.read(secureStorageServiceProvider);
   AuditLogService get _auditLogger => _ref.read(auditLogServiceProvider);
+  CidService get _cidService => _ref.read(cidServiceProvider);
+  IdentityService get _identity => _ref.read(identityServiceProvider);
+
+  /// Maximum versions (editions) allowed per manifest — anti-fragmentation cap.
+  static const int maxVersionsPerManifest = 20;
+
+  /// Minimum payload size for a standalone version row.
+  static const int minVersionBytes = 64;
 
   Future<String> createContent({
     required String title,
@@ -72,6 +82,7 @@ class ContentRepository {
 
     final manifest = await getManifestByUuid(uuid);
     if (manifest != null) {
+      final (pubkey, sig) = await _signVersion(uuid, cid);
       await db.insertVersion({
         'manifestId': manifest.id,
         'cid': cid,
@@ -79,6 +90,8 @@ class ContentRepository {
         'format': fileFormat,
         'sizeBytes': size,
         'createdData': DateTime.now(),
+        'publisherPubkey': pubkey,
+        'signature': sig,
       });
     }
 
@@ -91,6 +104,14 @@ class ContentRepository {
       chunks.addAll(chunk);
     }
     final rawBytes = Uint8List.fromList(chunks);
+
+    // Integrity anchor: the CID *is* the SHA-256 of the payload. Any peer
+    // serving altered bytes produces a different digest and is rejected here,
+    // before decryption or rendering.
+    if (rawBytes.isEmpty || !_cidService.verifyContent(cid, rawBytes)) {
+      throw StateError(
+          'CID integrity check failed for $cid: payload hash mismatch or content unavailable');
+    }
 
     if (dekBase64 != null) {
       final key = await _encryption.keyFromBytes(base64Decode(dekBase64));
@@ -129,19 +150,59 @@ class ContentRepository {
     });
   }
 
-  /// Adds a new content-addressed file payload as an edition/version to an existing manifest
+  /// Canonical signing payload binding a version CID to its parent manifest.
+  static Uint8List versionSigningPayload(String manifestUuid, String cid) {
+    return Uint8List.fromList(
+        utf8.encode('alexandria:version:v1:$manifestUuid:$cid'));
+  }
+
+  /// Adds a new content-addressed file payload as an edition/version to an
+  /// existing manifest. The version record is signed with the local node's
+  /// Ed25519 identity so authenticity is verifiable offline.
+  ///
+  /// Anti-gaming gates (ALX-010):
+  ///  - [maxVersionsPerManifest] cap blocks fragmentation attacks.
+  ///  - [minVersionBytes] floor blocks dust/empty edition rows.
+  ///  - Payloads that are byte-fragments of an existing version are flagged
+  ///    (not rejected — visibility is a display concern, never a gate).
   Future<String> addContentVersion({
     required String manifestUuid,
     required Uint8List fileData,
     String language = 'en',
     String format = 'bin',
   }) async {
+    if (fileData.length < minVersionBytes) {
+      throw ArgumentError(
+          'Version payload below minimum size ($minVersionBytes bytes)');
+    }
     final manifest = await getManifestByUuid(manifestUuid);
     if (manifest == null) {
       throw ArgumentError('Manifest not found for UUID: $manifestUuid');
     }
-    final cid = await _ipfs.addFile(fileData);
     final db = _ref.read(databaseProvider);
+    final existing = await db.getVersionsForManifest(manifest.id);
+    if (existing.length >= maxVersionsPerManifest) {
+      throw StateError(
+          'Manifest $manifestUuid already has $maxVersionsPerManifest versions (fragmentation cap)');
+    }
+
+    // Fragment detection: a payload that is a verbatim substring of an
+    // existing edition is a split-attack artifact, not a new edition.
+    String? flaggedReason;
+    for (final v in existing) {
+      final bytes = <int>[];
+      await for (final chunk in _ipfs.getFile(v.cid)) {
+        bytes.addAll(chunk);
+      }
+      if (_isSubsequence(fileData, bytes)) {
+        flaggedReason = 'suspect-fragment-of:${v.cid}';
+        break;
+      }
+    }
+
+    final cid = await _ipfs.addFile(fileData);
+    final (publisherPubkey, signature) = await _signVersion(manifestUuid, cid);
+
     await db.insertVersion({
       'manifestId': manifest.id,
       'cid': cid,
@@ -149,8 +210,105 @@ class ContentRepository {
       'format': format,
       'sizeBytes': fileData.length,
       'createdData': DateTime.now(),
+      'publisherPubkey': publisherPubkey,
+      'signature': signature,
+      'flaggedReason': flaggedReason,
     });
     return cid;
+  }
+
+  /// Computed integrity probe for the Safe Harbor panel (ALX-010): re-hashes
+  /// the stored payload against its CID digest and verifies the edition's
+  /// Ed25519 signature. Reports only checks that actually ran — never asserts.
+  Future<ContentIntegrityReport> probeContentIntegrity(String cid) async {
+    final chunks = <int>[];
+    await for (final chunk in _ipfs.getFile(cid)) {
+      chunks.addAll(chunk);
+    }
+    final hashOk = chunks.isNotEmpty &&
+        _cidService.verifyContent(cid, Uint8List.fromList(chunks));
+
+    bool? signatureOk;
+    String? flagged;
+    String? publisher;
+    final db = _ref.read(databaseProvider);
+    final versionMap = await db.getVersionByCid(cid);
+    if (versionMap != null) {
+      flagged = versionMap['flaggedReason'] as String?;
+      publisher = versionMap['publisherPubkey'] as String?;
+      final signature = versionMap['signature'] as String?;
+      if (publisher != null && signature != null) {
+        final manifestId = versionMap['manifestId'] as int?;
+        final manifests = await db.getAllManifests();
+        final manifestUuid = manifests
+            .where((m) => m.id == manifestId)
+            .map((m) => m.uuid)
+            .firstOrNull;
+        if (manifestUuid != null) {
+          signatureOk = await verifyVersionSignature(
+            manifestUuid: manifestUuid,
+            cid: cid,
+            publisherPubkey: publisher,
+            signature: signature,
+          );
+        }
+      }
+    }
+
+    return ContentIntegrityReport(
+      cid: cid,
+      payloadHashOk: hashOk,
+      signatureValid: signatureOk,
+      flaggedReason: flagged,
+      publisherPubkey: publisher,
+    );
+  }
+
+  /// Signs the manifest∥CID binding with the local Ed25519 identity.
+  /// Returns (null, null) when no identity exists (legacy/unsigned).
+  Future<(String?, String?)> _signVersion(
+      String manifestUuid, String cid) async {
+    final identity = await _identity.getIdentity();
+    if (identity == null) return (null, null);
+    final sig = base64Encode(
+        await _identity.sign(versionSigningPayload(manifestUuid, cid)));
+    return (identity.publicKeyBase58, sig);
+  }
+
+  /// Verifies a version record's Ed25519 signature against the manifest/CID
+  /// binding. Returns false for unsigned or tampered records.
+  Future<bool> verifyVersionSignature({
+    required String manifestUuid,
+    required String cid,
+    required String? publisherPubkey,
+    required String? signature,
+  }) async {
+    if (publisherPubkey == null || signature == null) return false;
+    try {
+      final pubkeyBytes =
+          AlexandriaIdentity.decodePublicKeyBase58(publisherPubkey);
+      return await _identity.verifySignature(
+        versionSigningPayload(manifestUuid, cid),
+        base64Decode(signature),
+        pubkeyBytes,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static bool _isSubsequence(Uint8List needle, List<int> haystack) {
+    if (needle.isEmpty || needle.length > haystack.length) return false;
+    final first = needle[0];
+    for (var i = 0; i <= haystack.length - needle.length; i++) {
+      if (haystack[i] != first) continue;
+      var j = 1;
+      while (j < needle.length && haystack[i + j] == needle[j]) {
+        j++;
+      }
+      if (j == needle.length) return true;
+    }
+    return false;
   }
 
   Future<List<ContentManifest>> getAllManifests() async {
@@ -327,4 +485,33 @@ class ContentRepository {
       );
     }).toList();
   }
+}
+
+/// Result of [ContentRepository.probeContentIntegrity] — the computed state
+/// behind the Safe Harbor panel. Every field reflects a check that ran;
+/// [signatureValid] is null for legacy unsigned version records.
+class ContentIntegrityReport {
+  final String cid;
+
+  /// True iff the stored payload's SHA-256 equals the digest embedded in [cid].
+  final bool payloadHashOk;
+
+  /// Ed25519 signature check over the manifest∥CID binding.
+  /// `true` = verified, `false` = signature present but invalid,
+  /// `null` = unsigned (legacy record).
+  final bool? signatureValid;
+
+  /// Non-null when the version was flagged (e.g. `suspect-fragment-of:<cid>`).
+  final String? flaggedReason;
+
+  /// Base58 publisher public key, when the record is signed.
+  final String? publisherPubkey;
+
+  const ContentIntegrityReport({
+    required this.cid,
+    required this.payloadHashOk,
+    required this.signatureValid,
+    this.flaggedReason,
+    this.publisherPubkey,
+  });
 }

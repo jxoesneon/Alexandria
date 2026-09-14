@@ -35,6 +35,12 @@ class ContentVersions extends Table {
   BoolColumn get isPinned => boolean().withDefault(const Constant(true))();
   DateTimeColumn get lastHealthCheck => dateTime().nullable()();
   DateTimeColumn get createdData => dateTime()();
+  // ALX-010 authenticity: Base58 Ed25519 pubkey of the publishing node and
+  // Base64 signature over 'alexandria:version:v1:{manifestUuid}:{cid}'.
+  TextColumn get publisherPubkey => text().nullable()();
+  TextColumn get signature => text().nullable()();
+  // Anti-fragmentation marker, e.g. 'suspect-fragment-of:<cid>'.
+  TextColumn get flaggedReason => text().nullable()();
 }
 
 class UserProfiles extends Table {
@@ -61,7 +67,18 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(contentVersions, contentVersions.publisherPubkey);
+            await m.addColumn(contentVersions, contentVersions.signature);
+            await m.addColumn(contentVersions, contentVersions.flaggedReason);
+          }
+        },
+      );
 
   Future<void> insertManifest(Map<String, dynamic> data) async {
     await into(contentManifests).insert(
@@ -102,6 +119,9 @@ class AppDatabase extends _$AppDatabase {
         peerCount: Value(data['peerCount'] as int? ?? 0),
         isPinned: Value(data['isPinned'] as bool? ?? true),
         lastHealthCheck: Value(data['lastHealthCheck'] as DateTime?),
+        publisherPubkey: Value(data['publisherPubkey'] as String?),
+        signature: Value(data['signature'] as String?),
+        flaggedReason: Value(data['flaggedReason'] as String?),
       ),
     );
   }
@@ -159,5 +179,8 @@ class AppDatabase extends _$AppDatabase {
         'isPinned': v.isPinned,
         'lastHealthCheck': v.lastHealthCheck,
         'createdData': v.createdData,
+        'publisherPubkey': v.publisherPubkey,
+        'signature': v.signature,
+        'flaggedReason': v.flaggedReason,
       };
 }

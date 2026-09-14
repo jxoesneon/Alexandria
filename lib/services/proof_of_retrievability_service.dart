@@ -79,6 +79,18 @@ class ProofOfRetrievabilityService {
     return challenge;
   }
 
+  /// Looks up an unexpired pending challenge by ID. Used by the MCP server to
+  /// reject proofs against challenges this node never issued.
+  PoRChallenge? pendingChallenge(String challengeId) {
+    final challenge = _pendingChallenges[challengeId];
+    if (challenge == null) return null;
+    if (DateTime.now().difference(challenge.timestamp).inMinutes > 5) {
+      _pendingChallenges.remove(challengeId);
+      return null;
+    }
+    return challenge;
+  }
+
   PoRProof generateProof({
     required PoRChallenge challenge,
     required Uint8List chunkData,

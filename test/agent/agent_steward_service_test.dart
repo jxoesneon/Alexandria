@@ -47,19 +47,28 @@ void main() {
       expect(stewardService.activityLog.first, contains('stopped'));
     });
 
-    test('autonomously restores PoCH compliance when score is below 1.0', () async {
+    test('autonomously restores PoCH compliance without self-minting credits', () async {
       // Initially node has 0 storage / 0 seeding -> PoCH < 1.0
       expect(pochService.metrics.score, lessThan(1.0));
-
-      final initialBalance = creditService.balance;
 
       // Run one steward iteration
       await stewardService.runStewardIteration();
 
-      // Verify compute executed, credits earned, and activity logged
+      // Verify compute executed and PoCH maintenance recorded
       expect(stewardService.totalComputeCyclesExecuted, 1);
-      expect(creditService.balance, greaterThan(initialBalance));
       expect(stewardService.activityLog.any((l) => l.contains('Cauchy RS')), isTrue);
+
+      // ALX-010: self-reported steward compute must NOT mint credits —
+      // no transaction may carry the steward compute description.
+      expect(
+        creditService.transactions
+            .any((t) => t.description.contains('Autonomous Steward')),
+        isFalse,
+      );
+      expect(
+        stewardService.activityLog.any((l) => l.contains('no credit minted')),
+        isTrue,
+      );
     });
 
     test('autonomously scans and fulfills active Moltbook bounties', () async {

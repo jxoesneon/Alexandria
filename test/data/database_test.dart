@@ -14,8 +14,8 @@ void main() {
       await db.close();
     });
 
-    test('schemaVersion is 1', () {
-      expect(db.schemaVersion, equals(1));
+    test('schemaVersion is 2', () {
+      expect(db.schemaVersion, equals(2));
     });
 
     test('insert and retrieve a manifest by uuid', () async {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/workspace_providers.dart';
+import '../../services/agent/alexandria_mcp_server.dart';
 import '../../services/credits/credit_service.dart';
 import '../../services/credits/poch_service.dart';
 import '../../services/seed/starter_seed_service.dart';
@@ -441,7 +442,7 @@ class _WorkspaceDashboardScreenState
                         const SizedBox(height: 6),
                         _buildTelemetryRow('Swarm Peers', '12 Connected', AppTheme.primaryAccent),
                         const SizedBox(height: 6),
-                        _buildTelemetryRow('MCP Tools Active', '8 Registered', const Color(0xFFA78BFA)),
+                        _buildTelemetryRow('MCP Tools Active', '${ref.watch(alexandriaMcpServerProvider).listTools().length} Registered', const Color(0xFFA78BFA)),
                       ],
                     ),
                   ),

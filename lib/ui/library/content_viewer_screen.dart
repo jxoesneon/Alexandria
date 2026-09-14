@@ -274,40 +274,44 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
       children: [
         Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: isBrief
-                    ? Colors.lightBlueAccent.withValues(alpha: 0.15)
-                    : Colors.amber.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
                   color: isBrief
-                      ? Colors.lightBlueAccent.withValues(alpha: 0.5)
-                      : Colors.amber.withValues(alpha: 0.4),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isBrief ? Icons.flash_on : Icons.verified,
-                    size: 14,
-                    color: isBrief ? Colors.lightBlueAccent : Colors.amber,
+                      ? Colors.lightBlueAccent.withValues(alpha: 0.15)
+                      : Colors.amber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: isBrief
+                        ? Colors.lightBlueAccent.withValues(alpha: 0.5)
+                        : Colors.amber.withValues(alpha: 0.4),
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    isBrief
-                        ? 'AUTHENTIC EXECUTIVE BRIEF • 17 U.S.C. § 108'
-                        : 'AUTHENTIC UNABRIDGED PRESERVATION RECORD • 17 U.S.C. § 108',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isBrief ? Icons.flash_on : Icons.verified,
+                      size: 14,
                       color: isBrief ? Colors.lightBlueAccent : Colors.amber,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        isBrief
+                            ? 'AUTHENTIC EXECUTIVE BRIEF • 17 U.S.C. § 108'
+                            : 'AUTHENTIC UNABRIDGED PRESERVATION RECORD • 17 U.S.C. § 108',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
+                          color: isBrief ? Colors.lightBlueAccent : Colors.amber,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -2170,7 +2174,32 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         _buildMetaRow('Multi-Version Model', '1 Manifest → N CIDs'),
         _buildMetaRow('Catalog Duplication', 'Zero (Deduped by Work UUID)'),
         _buildMetaRow('P2P Redundancy', '4 Seed Peers Active'),
-        _buildMetaRow('Integrity Check', 'SHA-256 Merkle-Root OK'),
+        ref.watch(contentIntegrityProvider(widget.documentCid)).when(
+              loading: () =>
+                  _buildMetaRow('Integrity Check', 'Verifying…'),
+              error: (_, __) =>
+                  _buildMetaRow('Integrity Check', 'Verification failed'),
+              data: (report) => Column(
+                children: [
+                  _buildMetaRow(
+                    'Payload Integrity',
+                    report.payloadHashOk
+                        ? 'SHA-256 CID Digest OK'
+                        : 'HASH MISMATCH — REJECTED',
+                  ),
+                  _buildMetaRow(
+                    'Edition Signature',
+                    report.signatureValid == null
+                        ? 'Unsigned (legacy record)'
+                        : (report.signatureValid!
+                            ? 'Ed25519 Verified'
+                            : 'SIGNATURE INVALID'),
+                  ),
+                  if (report.flaggedReason != null)
+                    _buildMetaRow('Edition Flag', report.flaggedReason!),
+                ],
+              ),
+            ),
         _buildMetaRow('Access Mode', 'Air-gapped / Local-First'),
         _buildMetaRow('License', 'Open Access / Commons'),
       ],
