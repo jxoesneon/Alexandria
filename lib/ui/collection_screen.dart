@@ -25,12 +25,14 @@ class CollectionScreen extends ConsumerWidget {
           children: [
             Text('THE SCRIPTORIUM'),
             SizedBox(width: 8),
-            InfoGlass(
-              title: 'Collaborative Collections',
-              description: 'Create and manage collaborative reading lists. '
-                  'Uses CRDTs for conflict-free multi-device sync.',
-              small: true,
-              color: AppTheme.primaryAccent,
+            Expanded(
+              child: InfoGlass(
+                title: 'Collaborative Collections',
+                description: 'Create and manage collaborative reading lists. '
+                    'Uses CRDTs for conflict-free multi-device sync.',
+                small: true,
+                color: AppTheme.primaryAccent,
+              ),
             ),
           ],
         ),

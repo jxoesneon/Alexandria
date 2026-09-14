@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/database.dart' hide CreditTransaction;
+import '../../data/database.dart' hide CreditTransaction, WorkReceipt;
 import 'credit_models.dart';
 import 'poch_service.dart';
+import 'work_receipt.dart';
 
 /// Provider for CreditService
 final creditServiceProvider = ChangeNotifierProvider<CreditService>((ref) {
@@ -214,7 +215,15 @@ class CreditService extends ChangeNotifier {
   /// require [rarityAttested]: an independent peer's attestation that the
   /// content is genuinely under-replicated. A claimant's own self-reported
   /// peer count can never unlock rarity rewards (self-dealing guard).
-  static double rarityWeightFor(int peerCount, {bool rarityAttested = false}) {
+  ///
+  /// [rarityAttested] is deliberately NOT wire-reachable: it is sealed to
+  /// this library and `test/` via @visibleForTesting — every production
+  /// caller must omit it (the analyzer flags any other use), so a remote
+  /// agent, UI action or forked client can never self-declare attestation.
+  /// Until a foreign-attestation oracle derives the flag internally, all
+  /// production mints evaluate at the flat 1.0x weight.
+  static double rarityWeightFor(int peerCount,
+      {@visibleForTesting bool rarityAttested = false}) {
     if (!rarityAttested) return 1.0;
     if (peerCount <= 1) return 5.0; // Critically Endangered
     if (peerCount == 2) return 3.0; // Vulnerable
@@ -223,12 +232,15 @@ class CreditService extends ChangeNotifier {
   }
 
   /// Award credits for Proof of Retrievability (PoR) storage retention (Pillar 1)
+  /// [rarityAttested] is sealed to tests (@visibleForTesting) — production
+  /// derives rarity attestation internally, never from a caller-supplied
+  /// argument (see [rarityWeightFor]).
   double awardStorageCredits({
     required int sizeBytes,
     required int peerCount,
     required bool porPassed,
     String? cid,
-    bool rarityAttested = false,
+    @visibleForTesting bool rarityAttested = false,
   }) {
     if (_rejectIfUnhydrated('awardStorageCredits')) return 0.0;
     if (!porPassed) {
@@ -351,6 +363,109 @@ class CreditService extends ChangeNotifier {
     );
     notifyListeners();
     return amount;
+  }
+
+  /// Claims a verifier-signed [WorkReceipt] as ATTESTED value — the only
+  /// path that mints `isAttested` credit and therefore the only path that
+  /// makes [attestedBalance] non-vacuous (ALX-010).
+  ///
+  /// Guards, in order:
+  ///  * [WorkReceipt.isVerifierSigned] — an unsigned artifact carries no
+  ///    attestation weight;
+  ///  * `!receipt.isSelfIssued` — prover == verifier is a self-declaration;
+  ///  * `receipt.verifierPubkey != localPubkeyHex` — the caller MUST supply
+  ///    the local identity key (same hex encoding the PoR service stamps
+  ///    into `verifierPubkey`) so a receipt this node signed itself can
+  ///    never mint attested value locally (self-dealing guard);
+  ///  * `!receipt.isExpired()` — stale receipts cannot be claimed;
+  ///  * the receipt row must exist UNSPENT in the ledger store, and the
+  ///    claim itself is a single atomic conditional UPDATE
+  ///    ([AppDatabase.claimReceiptAtomically]) — a lost CAS race or a
+  ///    replay returns 0.0;
+  ///  * the mint is STILL subject to the daily accrual caps (safety
+  ///    floor): a claim can never exceed the day's remaining allowance
+  ///    for its mapped [CreditType] ('storage'→storageReward,
+  ///    'compute'→computeReward, 'verification'→verificationReward,
+  ///    other→storageReward). A cap-exhausted claim still consumes the
+  ///    receipt — it may only ever mint once (anti-replay).
+  ///
+  /// Returns the minted amount, or 0.0 on any refusal. Requires
+  /// persistent mode: an in-memory service has no CAS primitive to dedup
+  /// claims against. Signature VALIDITY is the caller's duty — verify
+  /// [WorkReceipt.verifyVerifierSignature] before claiming.
+  Future<double> claimVerifiedReceipt(
+    WorkReceipt receipt, {
+    required String localPubkeyHex,
+  }) async {
+    // Async path — await hydration so the daily-cap counters and balance
+    // are real rather than phantom pre-hydration state.
+    await _hydrated;
+    final db = _db;
+    if (db == null) return 0.0;
+
+    // The receipt must name THIS node as prover — a held artifact naming
+    // a foreign prover is that prover's claim instrument, not ours;
+    // claiming it would be claim theft (REV1 C3).
+    if (!receipt.isVerifierSigned ||
+        receipt.isSelfIssued ||
+        receipt.proverPubkey != localPubkeyHex ||
+        receipt.verifierPubkey == localPubkeyHex ||
+        receipt.isExpired() ||
+        !(receipt.amount > 0)) {
+      return 0.0;
+    }
+
+    try {
+      // Cheap pre-check for honest failures (missing/known-spent row);
+      // the CAS below remains the authoritative dedup primitive.
+      final row = await db.getWorkReceipt(receipt.receiptId);
+      if (row == null || row['spent'] == true) return 0.0;
+
+      // Atomic claim: single `UPDATE ... WHERE receipt_id=? AND spent=0`
+      // checked by rows-affected — losing the race means another claim
+      // consumed the receipt first.
+      if (!await db.claimReceiptAtomically(receipt.receiptId)) {
+        return 0.0;
+      }
+    } catch (e) {
+      // Fail closed: a broken store must never mint attested value.
+      debugPrint('CreditService: receipt claim failed closed: $e');
+      return 0.0;
+    }
+
+    final type = switch (receipt.workType) {
+      'compute' => CreditType.computeReward,
+      'verification' => CreditType.verificationReward,
+      _ => CreditType.storageReward,
+    };
+    // Safety floor: attested mints respect the daily caps too. When the
+    // cap is already exhausted the receipt stays spent — the claim was
+    // consumed and the residual value is burned rather than replayable.
+    final granted = _capDailyMint(type, receipt.amount);
+    if (granted <= 0) return 0.0;
+
+    _balance += granted;
+    switch (type) {
+      case CreditType.storageReward:
+        _totalStorageEarned += granted;
+      case CreditType.computeReward:
+        _totalComputeEarned += granted;
+      case CreditType.verificationReward:
+        _totalVerificationEarned += granted;
+      default:
+        break;
+    }
+
+    _recordTransaction(
+      type: type,
+      amount: granted,
+      description: 'Verified work receipt claim '
+          '(${receipt.workType}, receipt ${receipt.receiptId})',
+      referenceId: receipt.receiptId,
+      isAttested: true,
+    );
+    notifyListeners();
+    return granted;
   }
 
   /// Award credits from an ethical, opt-in institutional sponsorship impression (ALX-005 §5.2)
@@ -597,7 +712,8 @@ class CreditService extends ChangeNotifier {
       }
 
       // 2. Warm ledger history (query returns newest-first).
-      final rows = await db.getCreditTransactions(limit: 100000);
+      const hydrationWindow = 100000;
+      final rows = await db.getCreditTransactions(limit: hydrationWindow);
       final persisted = rows
           .map(CreditTransaction.fromJson)
           .toList()
@@ -607,12 +723,33 @@ class CreditService extends ChangeNotifier {
       _transactions.insertAll(
           0, persisted.where((t) => !knownIds.contains(t.id)));
 
+      // A full window means older rows were dropped silently: replaying
+      // the truncated list would compute a WRONG balance and the
+      // in-memory genesis scan would miss a genesis row beyond the
+      // window (double genesis). Reconstruct the balance from
+      // SUM(amount) over the full table and check genesis directly.
+      // The sum is taken BEFORE any local grant so the just-issued
+      // genesis write can never race it.
+      final truncated = rows.length == hydrationWindow;
+      double? ledgerSum;
+      if (truncated) {
+        debugPrint('CreditService: ledger hydration filled the '
+            '$hydrationWindow-row window — falling back to SUM(amount) '
+            'for balance reconstruction; attested value cannot be '
+            'replayed from a truncated window and is conservatively '
+            'zeroed (egress under-counts, never over-counts).');
+        ledgerSum = await db.getLedgerBalanceSum();
+      }
+
       // 3. Genesis is granted iff no genesis row exists anywhere — a
       // ledger with activity but no genesis row still receives exactly
       // one (E-T2 #7), and two instances racing a fresh database converge
       // on a single row via the deterministic [_kGenesisTxId] primary
-      // key (E-T2 #3).
-      if (initialBalance > 0 && !_hasGenesisTx) {
+      // key (E-T2 #3). The direct DB query is authoritative — the
+      // in-memory scan only covers the (possibly truncated) window.
+      final genesisExists = _hasGenesisTx || await db.hasGenesisTransaction();
+      var grantedGenesis = false;
+      if (initialBalance > 0 && !genesisExists) {
         _recordTransaction(
           id: _kGenesisTxId,
           type: CreditType.verificationReward,
@@ -620,8 +757,19 @@ class CreditService extends ChangeNotifier {
           description: '$_kGenesisMarker Welcome Allocation',
           isAttested: false,
         );
+        grantedGenesis = true;
       }
-      _rebuildBalance();
+      if (truncated) {
+        // ledgerSum predates the grant above, so the local grant is
+        // added deterministically — never double-counted via a write
+        // that may or may not have landed inside the SUM.
+        _balance = ((ledgerSum ?? 0.0) +
+                (grantedGenesis ? initialBalance : 0.0))
+            .clamp(0.0, double.infinity);
+        _attestedBalance = 0.0;
+      } else {
+        _rebuildBalance();
+      }
     } catch (e, st) {
       // Degrade to in-memory operation; never let persistence break awards.
       debugPrint('CreditService: hydration failed, running in-memory: $e\n$st');

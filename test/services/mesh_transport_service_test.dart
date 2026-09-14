@@ -154,6 +154,44 @@ void main() {
       expect(peer.isPending, isFalse);
     });
 
+    test('bootstrap peers start unproven until a real handshake', () async {
+      final bootstrapped = MeshTransportService(bootstrap: true);
+      addTearDown(bootstrapped.dispose);
+
+      // Seeded candidates are pending/unproven — never claimed reachable
+      expect(bootstrapped.peers.length, equals(4));
+      expect(bootstrapped.activePeers, isEmpty);
+      for (final p in bootstrapped.peers) {
+        expect(p.isReachable, isFalse);
+        expect(p.isPending, isTrue);
+      }
+
+      // Ordinary payload sends to unproven peers are refused
+      final refused = await bootstrapped.sendPayload(
+        'QmBootstrapNode1AlexandriaAlpha',
+        Uint8List.fromList([1, 2, 3]),
+      );
+      expect(refused, isFalse);
+      expect(bootstrapped.selectBestTransport('QmBootstrapNode1AlexandriaAlpha'),
+          isNull);
+
+      // A real handshake proves the peer
+      const addr =
+          '/dns4/node1.alexandria.alexandria.network/tcp/4001/p2p/QmBootstrapNode1AlexandriaAlpha';
+      final connected = await bootstrapped.connectToPeer(addr);
+      expect(connected, isTrue);
+
+      final peer = bootstrapped.peers.firstWhere(
+          (p) => p.peerId == 'QmBootstrapNode1AlexandriaAlpha');
+      expect(peer.isReachable, isTrue);
+      expect(peer.isPending, isFalse);
+      expect(bootstrapped.activePeers.length, equals(1));
+      expect(
+          await bootstrapped.sendPayload(
+              'QmBootstrapNode1AlexandriaAlpha', Uint8List.fromList([1])),
+          isTrue);
+    });
+
     test('dispose closes all broadcast streams', () async {
       mesh.dispose();
       await expectLater(mesh.onPeerDiscovered, emitsDone);

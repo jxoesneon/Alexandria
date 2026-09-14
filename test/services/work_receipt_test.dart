@@ -58,6 +58,49 @@ void main() {
       expect(bareMap.containsKey('evidenceHash'), isFalse);
     });
 
+    test('wire format v1: integer milli-units, no floats in canonical body',
+        () {
+      final r = buildReceipt(amount: 5.0);
+      final body = r.unsignedBody();
+
+      // Scheme version pins the canonicalization contract.
+      expect(body['v'], equals(WorkReceipt.wireVersion));
+      expect(body['v'], equals(1));
+
+      // Monetary fields travel as INTEGER milli-units so a JS verifier
+      // recomputing the receipt id via RFC 8785 JCS never diverges on
+      // '1.0' vs '1' number formatting.
+      expect(body.containsKey('amount'), isFalse);
+      expect(body.containsKey('workUnits'), isFalse);
+      expect(body['amountMilli'], isA<int>());
+      expect(body['workUnitsMilli'], isA<int>());
+      expect(body['amountMilli'], equals(5000));
+      expect(body['workUnitsMilli'], equals(4096000));
+
+      // The canonical JSON itself must carry no fractional component.
+      final json = r.canonicalJson();
+      expect(json, contains('"v":1'));
+      expect(json, contains('"amountMilli":5000'));
+      expect(json, isNot(contains('.')));
+
+      // Display accessors stay doubles.
+      expect(r.amount, equals(5.0));
+      expect(r.workUnits, equals(4096.0));
+
+      // Rounding: fractional milli-units snap to the nearest integer.
+      final odd = buildReceipt(amount: 1.9999);
+      expect(odd.amountMilli, equals(2000)); // 1999.9 rounds up
+    });
+
+    test('toJson exposes the v1 fields for foreign verifiers', () {
+      final json = buildReceipt(amount: 5.0).toJson();
+      expect(json['v'], equals(1));
+      expect(json['amount_milli'], equals(5000));
+      expect(json['work_units_milli'], equals(4096000));
+      // Display doubles remain alongside.
+      expect(json['amount'], equals(5.0));
+    });
+
     test('receiptId is a stable sha256 of the canonical body', () {
       final r = buildReceipt();
       expect(r.receiptId, equals(r.computeReceiptId()));

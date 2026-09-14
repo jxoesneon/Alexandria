@@ -378,14 +378,10 @@ class AlexandriaMcpServer {
     bool duplicate;
     final db = _db;
     if (db != null) {
-      duplicate = await db.hasAwardedDoi(doi);
-      if (!duplicate) {
-        try {
-          await db.insertAwardedDoi(doi, cid: simulatedCid);
-        } catch (_) {
-          duplicate = true; // PK race — another claim landed first
-        }
-      }
+      // insertAwardedDoi returns false on PK conflict (insertOrIgnore) —
+      // the return value is the authoritative dedup signal; a raced
+      // insert can never double-mint.
+      duplicate = !(await db.insertAwardedDoi(doi, cid: simulatedCid));
     } else {
       duplicate = !_awardedDois.add(doi);
     }

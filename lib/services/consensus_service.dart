@@ -85,11 +85,11 @@ class ChangeRequest {
     required this.proposerKey,
     required this.proposerSignature,
     required this.timestamp,
-    this.votes = const [],
+    List<Vote>? votes,
     this.status = ChangeRequestStatus.pending,
     this.uploaderKey,
     this.isAiProposal = false,
-  });
+  }) : votes = votes != null ? List.from(votes) : [];
 
   /// Calculate total approval weight
   double get approvalWeight =>

@@ -381,7 +381,6 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: GlassCard(
-                height: 200,
                 child: Row(
                   children: [
                     Container(
@@ -476,42 +475,47 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Row(
                 children: [
-                  versionsAsync.when(
-                    data: (versions) => Row(
-                      children: [
-                        Text(
-                          'VERSIONS (${versions.length})',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodySmall?.copyWith(letterSpacing: 2),
-                        ),
-                        const SizedBox(width: 8),
-                        const InfoGlass(
-                          title: 'Immutable History',
-                          description:
-                              'Each version is cryptographically frozen. Pinned versions are verified by the "Health" signal. "Verified" badges indicate Community Trust.',
-                          small: true,
-                          color: AppTheme.primaryAccent,
-                        ),
-                        if (_lastVerified != null) ...[
-                          const SizedBox(width: 12),
+                  Expanded(
+                    child: versionsAsync.when(
+                      data: (versions) => Row(
+                        children: [
                           Text(
-                            'Last verified: ${_formatTime(_lastVerified!)}',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppTheme.honorColor.withValues(
-                                        alpha: 0.8,
-                                      ),
-                                      fontSize: 11,
-                                    ),
+                            'VERSIONS (${versions.length})',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(letterSpacing: 2),
                           ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: InfoGlass(
+                              title: 'Immutable History',
+                              description:
+                                  'Each version is cryptographically frozen. Pinned versions are verified by the "Health" signal. "Verified" badges indicate Community Trust.',
+                              small: true,
+                              color: AppTheme.primaryAccent,
+                            ),
+                          ),
+                          if (_lastVerified != null) ...[
+                            const SizedBox(width: 12),
+                            Text(
+                              'Last verified: ${_formatTime(_lastVerified!)}',
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: AppTheme.honorColor.withValues(
+                                          alpha: 0.8,
+                                        ),
+                                        fontSize: 11,
+                                      ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
+                      loading: () => const Text('VERSIONS (...)'),
+                      error: (_, s) => const Text('VERSIONS (error)'),
                     ),
-                    loading: () => const Text('VERSIONS (...)'),
-                    error: (_, s) => const Text('VERSIONS (error)'),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: () => _addVersionMock(context, ref),
                     icon: const Icon(
@@ -1020,7 +1024,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 120,
+            height: 140,
             child: siblingsAsync.when(
               data: (siblings) {
                 if (siblings.isEmpty) {
@@ -1047,10 +1051,11 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               s.title,
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -1060,6 +1065,8 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                             const SizedBox(height: 6),
                             Text(
                               _variantLabel(s),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: AppTheme.primaryAccent.withValues(
                                   alpha: 0.8,
@@ -1174,7 +1181,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
                     child: GlassCard(
-                      height: 64,
+                      height: 76,
                       child: Row(
                         children: [
                           // Relation-type chip
@@ -1203,6 +1210,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
                                   entity.canonicalTitle,

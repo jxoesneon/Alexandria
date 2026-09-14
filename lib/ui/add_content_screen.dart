@@ -10,7 +10,9 @@ import '../services/metadata_service.dart';
 import 'widgets/info_glass.dart';
 
 class AddContentScreen extends ConsumerStatefulWidget {
-  const AddContentScreen({super.key});
+  final List<PlatformFile>? initialFiles;
+
+  const AddContentScreen({super.key, this.initialFiles});
 
   @override
   ConsumerState<AddContentScreen> createState() => _AddContentScreenState();
@@ -159,6 +161,15 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
   void initState() {
     super.initState();
     _updateControllers();
+    if (widget.initialFiles != null && widget.initialFiles!.isNotEmpty) {
+      _selectedFiles = List.from(widget.initialFiles!);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _smartFillMetadata();
+          _detectSensitiveMetadataFields();
+        }
+      });
+    }
   }
 
   Future<void> _pickFiles() async {
@@ -661,13 +672,15 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
                             setState(() => _enableEncryption = val),
                       ),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.only(right: 16.0),
-                      child: InfoGlass(
-                        title: 'AES-256 Encryption',
-                        description:
-                            'When enabled, your file is encrypted client-side before upload. The key is wrapped with your Master Key. Without the key, the IPFS CID contains only random noise.',
-                        color: AppTheme.primaryAccent,
+                    const Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(right: 16.0),
+                        child: InfoGlass(
+                          title: 'AES-256 Encryption',
+                          description:
+                              'When enabled, your file is encrypted client-side before upload. The key is wrapped with your Master Key. Without the key, the IPFS CID contains only random noise.',
+                          color: AppTheme.primaryAccent,
+                        ),
                       ),
                     ),
                   ],
@@ -693,13 +706,15 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
                         },
                       ),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.only(right: 16.0),
-                      child: InfoGlass(
-                        title: 'EXIF Stripping',
-                        description:
-                            'EXIF metadata in images can reveal your location, device, and identity. This strips GPS coordinates, camera serial numbers, and author fields before preservation.',
-                        color: AppTheme.primaryAccent,
+                    const Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(right: 16.0),
+                        child: InfoGlass(
+                          title: 'EXIF Stripping',
+                          description:
+                              'EXIF metadata in images can reveal your location, device, and identity. This strips GPS coordinates, camera serial numbers, and author fields before preservation.',
+                          color: AppTheme.primaryAccent,
+                        ),
                       ),
                     ),
                   ],

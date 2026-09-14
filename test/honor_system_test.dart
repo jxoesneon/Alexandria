@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/logic/honor_system.dart';
 
@@ -37,6 +38,23 @@ void main() {
           () => honorSystem.recordVote(
               validatorId: 'val', targetCid: 'cid', score: 0),
           throwsArgumentError);
+    });
+
+    test('validateContent and getTrustScore aliases work correctly', () {
+      honorSystem.validateContent(
+        validatorId: 'val_charlie',
+        targetCid: 'cid_200',
+        score: -1,
+        reputation: 90,
+      );
+
+      expect(honorSystem.getTrustScore('cid_200'), equals(-2));
+    });
+
+    test('honorSystemProvider provides HonorSystem instance', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      expect(container.read(honorSystemProvider), isA<HonorSystem>());
     });
   });
 }

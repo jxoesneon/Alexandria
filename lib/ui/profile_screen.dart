@@ -172,13 +172,15 @@ class ProfileScreen extends ConsumerWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                InfoGlass(
-                                  title: 'Cryptographic Identity',
-                                  description:
-                                      'Your identity is derived from your Ed25519 Public Key. It is mathematically unique and cannot be forged.',
-                                  small: true,
-                                  color: AppTheme.primaryAccent.withValues(
-                                    alpha: 0.7,
+                                Expanded(
+                                  child: InfoGlass(
+                                    title: 'Cryptographic Identity',
+                                    description:
+                                        'Your identity is derived from your Ed25519 Public Key. It is mathematically unique and cannot be forged.',
+                                    small: true,
+                                    color: AppTheme.primaryAccent.withValues(
+                                      alpha: 0.7,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -742,11 +744,13 @@ class _StatItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            InfoGlass(
-              title: label,
-              description: hint,
-              small: true,
-              color: color.withValues(alpha: 0.7),
+            Tooltip(
+              message: hint,
+              child: Icon(
+                Icons.info_outline,
+                size: 14,
+                color: color.withValues(alpha: 0.7),
+              ),
             ),
           ],
         ),

@@ -1975,35 +1975,38 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         final isH1 = h.type == _BlockType.h1;
         final isH2 = h.type == _BlockType.h2;
 
-        return ListTile(
-          dense: true,
-          contentPadding: EdgeInsets.only(
-            left: isH1 ? 16 : isH2 ? 28 : 40,
-            right: 16,
-          ),
-          leading: Icon(
-            isH1
-                ? Icons.menu_book
-                : isH2
-                    ? Icons.subdirectory_arrow_right
-                    : Icons.circle,
-            size: isH1 ? 16 : isH2 ? 14 : 6,
-            color: isH1 ? Colors.amber : Colors.grey,
-          ),
-          title: Text(
-            h.text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: isH1 ? 13 : 12,
-              fontWeight: isH1 ? FontWeight.bold : FontWeight.normal,
+        return Material(
+          type: MaterialType.transparency,
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.only(
+              left: isH1 ? 16 : isH2 ? 28 : 40,
+              right: 16,
             ),
+            leading: Icon(
+              isH1
+                  ? Icons.menu_book
+                  : isH2
+                      ? Icons.subdirectory_arrow_right
+                      : Icons.circle,
+              size: isH1 ? 16 : isH2 ? 14 : 6,
+              color: isH1 ? Colors.amber : Colors.grey,
+            ),
+            title: Text(
+              h.text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: isH1 ? 13 : 12,
+                fontWeight: isH1 ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            onTap: () {
+              if (h.key != null) {
+                _scrollToHeading(h.key!);
+              }
+            },
           ),
-          onTap: () {
-            if (h.key != null) {
-              _scrollToHeading(h.key!);
-            }
-          },
         );
       },
     );
@@ -2095,16 +2098,19 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                                 isBrief ? Colors.lightBlueAccent : Colors.amber,
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            isBrief ? 'Executive Brief' : 'Full Unabridged',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isCurrent
-                                  ? (isBrief
-                                      ? Colors.lightBlueAccent
-                                      : Colors.amber)
-                                  : Colors.white70,
+                          Expanded(
+                            child: Text(
+                              isBrief ? 'Executive Brief' : 'Full Unabridged',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isCurrent
+                                    ? (isBrief
+                                        ? Colors.lightBlueAccent
+                                        : Colors.amber)
+                                    : Colors.white70,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           if (isCurrent) ...[
@@ -2117,7 +2123,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                                   color: Colors.greenAccent),
                             ),
                           ],
-                          const Spacer(),
+                          const SizedBox(width: 6),
                           Text(
                             _formatSize(v.sizeBytes),
                             style:
@@ -2212,8 +2218,21 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     );
@@ -2235,10 +2254,13 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
           itemCount: annotations.length,
           separatorBuilder: (_, __) => const Divider(height: 1),
           itemBuilder: (context, index) {
-            return ListTile(
-              leading: const Icon(Icons.bookmark_outline, size: 18),
-              title: Text(annotations[index].text, style: const TextStyle(fontSize: 13)),
-              dense: true,
+            return Material(
+              type: MaterialType.transparency,
+              child: ListTile(
+                leading: const Icon(Icons.bookmark_outline, size: 18),
+                title: Text(annotations[index].text, style: const TextStyle(fontSize: 13)),
+                dense: true,
+              ),
             );
           },
         );

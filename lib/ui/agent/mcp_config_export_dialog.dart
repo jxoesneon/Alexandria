@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path/path.dart' as p;
 import '../common/governance_badge.dart';
 import '../theme/app_theme.dart';
 
@@ -42,15 +44,44 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
     super.dispose();
   }
 
+  /// Resolves the on-disk path of the dev MCP simulator. The exported
+  /// configs previously embedded a developer's absolute home-directory
+  /// path (`/Users/mey/...`), which resolves nowhere on any other machine.
+  ///
+  /// Dev builds execute from `<project>/build/<platform>/...`, so we walk
+  /// ancestors of [Platform.resolvedExecutable] looking for the project
+  /// root (a directory containing both `pubspec.yaml` and the simulator
+  /// script). When the root can't be found — e.g. an installed release
+  /// build — a documented `<alexandria>` placeholder is emitted for the
+  /// user to fill in.
+  String _resolveSimulatorPath() {
+    const scriptRel = 'bin/alexandria_mcp_server.js';
+    try {
+      var dir = File(Platform.resolvedExecutable).parent;
+      for (var i = 0; i < 16; i++) {
+        final candidate = p.join(dir.path, scriptRel);
+        if (File(candidate).existsSync() &&
+            File(p.join(dir.path, 'pubspec.yaml')).existsSync()) {
+          return candidate;
+        }
+        final parent = dir.parent;
+        if (parent.path == dir.path) break;
+        dir = parent;
+      }
+    } catch (_) {
+      // Platform.resolvedExecutable unsupported — fall through.
+    }
+    return '<alexandria>/$scriptRel';
+  }
+
   String _getClaudeConfig() {
     final config = {
       'mcpServers': {
-        'alexandria': {
+        'alexandria-simulator': {
           'command': 'node',
-          'args': ['/Users/mey/Alexandria/bin/alexandria_mcp_server.js'],
+          'args': [_resolveSimulatorPath(), '--dev'],
           'env': {
-            'ALX_STDIO_MODE': 'true',
-            'ALX_TREASURY_AGENT_ID': 'bcn_governance_steward_01',
+            'ALX_MCP_MODE': 'simulator',
           },
         },
       },
@@ -60,10 +91,11 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
 
   String _getGeminiConfig() {
     final config = {
-      'alexandria': {
+      'alexandria-simulator': {
         'command': 'node',
-        'args': ['/Users/mey/Alexandria/bin/alexandria_mcp_server.js'],
+        'args': [_resolveSimulatorPath(), '--dev'],
         'protocol': 'json-rpc-2.0',
+        'simulated': true,
         'tools_count': widget.tools.length,
         'governance': 'protocol-governance',
       },
@@ -74,9 +106,9 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
   String _getCursorConfig() {
     final config = {
       'mcpServers': {
-        'alexandria-knowledge-core': {
+        'alexandria-simulator': {
           'command': 'node',
-          'args': ['/Users/mey/Alexandria/bin/alexandria_mcp_server.js'],
+          'args': [_resolveSimulatorPath(), '--dev'],
         },
       },
     };
@@ -160,6 +192,35 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
 
               // Governance Review Ratification Banner
               const GovernanceBanner(compact: true),
+              const SizedBox(height: 12),
+
+              // Simulator honesty disclaimer (ALX-010/011 review veto):
+              // the exported stdio server is the dev simulator — no live
+              // credits, payouts, or archive state. Financial/minting
+              // tools were removed from it entirely.
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.honorColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: AppTheme.honorColor.withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.science_outlined,
+                        size: 14, color: AppTheme.honorColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Dev simulator — requires --dev. Exposes mock data only: no live credits, payouts, or minting. The production tool surface runs inside the app.',
+                        style: GoogleFonts.inter(
+                            fontSize: 11, color: AppTheme.secondaryColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 16),
 
               // Tab Bar
@@ -174,11 +235,11 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                   labelColor: AppTheme.primaryAccent,
                   unselectedLabelColor: AppTheme.secondaryColor,
                   labelStyle: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold),
-                  tabs: const [
-                    Tab(text: 'Claude Desktop'),
-                    Tab(text: 'Gemini CLI'),
-                    Tab(text: 'Cursor / Windsurf'),
-                    Tab(text: 'Tool Schemas (8)'),
+                  tabs: [
+                    const Tab(text: 'Claude Desktop'),
+                    const Tab(text: 'Gemini CLI'),
+                    const Tab(text: 'Cursor / Windsurf'),
+                    Tab(text: 'Tool Schemas (${widget.tools.length})'),
                   ],
                 ),
               ),
@@ -209,7 +270,7 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            'Ed25519 Signed • stdio / JSON-RPC 2.0',
+                            'Dev simulator • stdio / JSON-RPC 2.0 • mock data',
                             style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppTheme.secondaryColor),
                             overflow: TextOverflow.ellipsis,
                           ),

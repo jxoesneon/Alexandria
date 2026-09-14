@@ -1,12 +1,47 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 part 'database.g.dart';
 
+/// Production database: a persistent SQLite file under the platform
+/// application-support directory (ALX-011). Without this, every persisted
+/// table below (credit ledger, daily mint caps, awarded DOIs, work
+/// receipts) lived in an in-memory database and reset on restart — the
+/// entire ALX-011 persistence layer was inert.
+///
+/// [LazyDatabase] defers the open until first use, so reading this
+/// provider never blocks and never touches path_provider in unit tests.
+/// First boot runs Drift's default onCreate; upgrades run the
+/// schemaVersion-3 [AppDatabase.migration]. The [AppDatabase] constructor
+/// keeps [NativeDatabase.memory] as its default executor so tests stay
+/// hermetic — only this provider wires the file-backed executor.
 final databaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
-  ref.onDispose(() => db.close());
+  // Unit/widget tests have no path_provider platform channel — they get
+  // the hermetic in-memory executor (FLUTTER_TEST is always set under
+  // `flutter test`). Every other context gets the persistent file.
+  final isTest = Platform.environment['FLUTTER_TEST'] == 'true';
+  final db = isTest
+      ? AppDatabase()
+      : AppDatabase(
+          LazyDatabase(() async {
+            final dir = await getApplicationSupportDirectory();
+            return NativeDatabase.createInBackground(
+              File(p.join(dir.path, 'alexandria.sqlite')),
+            );
+          }),
+        );
+  ref.onDispose(() {
+    // LazyDatabase.close() awaits the open future first; when the opener
+    // failed (e.g. no path_provider plugin in unit tests) close() would
+    // rethrow that failure as an unhandled async error. A database that
+    // never opened needs no cleanup — swallow it.
+    db.close().catchError((Object _) {});
+  });
   return db;
 });
 
@@ -236,6 +271,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
+    // insertOrIgnore: a primary-key collision is an expected dedup event
+    // (e.g. two instances racing the deterministic genesis id), NOT a
+    // database failure — the duplicate row is dropped, not thrown.
     await into(creditTransactions).insert(
       CreditTransactionsCompanion.insert(
         id: data['id'] as String,
@@ -247,6 +285,7 @@ class AppDatabase extends _$AppDatabase {
         referenceId: Value(data['referenceId'] as String?),
         isAttested: Value(data['isAttested'] as bool? ?? false),
       ),
+      mode: InsertMode.insertOrIgnore,
     );
   }
 
@@ -257,6 +296,30 @@ class AppDatabase extends _$AppDatabase {
       ..limit(limit);
     final rows = await query.get();
     return rows.map(_creditTransactionToMap).toList();
+  }
+
+  /// Net ledger balance as `SELECT SUM(amount)` over the FULL history.
+  /// Used as the hydration fallback when the replay window truncates —
+  /// replaying a partial window would silently compute a wrong balance.
+  Future<double> getLedgerBalanceSum() async {
+    final total = creditTransactions.amount.sum();
+    final query = selectOnly(creditTransactions)..addColumns([total]);
+    final row = await query.getSingle();
+    return row.read(total) ?? 0.0;
+  }
+
+  /// Whether the genesis welcome allocation exists ANYWHERE in the
+  /// ledger — queried directly so the check is correct even when the
+  /// hydration replay window truncates older rows (the in-memory scan
+  /// would miss a genesis row beyond the window and re-grant it).
+  /// Literals mirror CreditService._kGenesisTxId / _kGenesisMarker.
+  Future<bool> hasGenesisTransaction() async {
+    final query = select(creditTransactions)
+      ..where((t) =>
+          t.id.equals('tx_genesis') |
+          t.description.contains('Genesis Common Heritage'))
+      ..limit(1);
+    return (await query.get()).isNotEmpty;
   }
 
   /// Returns persisted daily mint totals for [dayKey] as type → amount.
@@ -277,14 +340,27 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<void> insertAwardedDoi(String doi, {String? cid}) async {
-    await into(awardedDois).insert(
-      AwardedDoisCompanion.insert(
-        doi: doi,
-        awardedAt: DateTime.now(),
-        cid: Value(cid),
-      ),
-    );
+  /// Atomically registers a DOI payout. `INSERT OR IGNORE` makes a
+  /// duplicate DOI the expected dedup event rather than a storage error;
+  /// returns true iff THIS call inserted the row, so callers can close
+  /// the hasAwardedDoi-then-insert race window: a losing duplicate claim
+  /// sees `false`, never a thrown PK violation.
+  Future<bool> insertAwardedDoi(String doi, {String? cid}) async {
+    return transaction(() async {
+      await into(awardedDois).insert(
+        AwardedDoisCompanion.insert(
+          doi: doi,
+          awardedAt: DateTime.now(),
+          cid: Value(cid),
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+      // changes() reflects this connection's last write; inside the
+      // transaction nothing can interleave, so it reports exactly
+      // whether the INSERT OR IGNORE above landed.
+      final row = await customSelect('SELECT changes() AS c').getSingle();
+      return row.read<int>('c') > 0;
+    });
   }
 
   Future<bool> hasAwardedDoi(String doi) async {
@@ -294,6 +370,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> insertWorkReceipt(Map<String, dynamic> data) async {
+    // insertOrIgnore: a receipt re-delivered by the verifier (or re-issued
+    // by a retry) collapses onto the same content-derived primary key —
+    // a duplicate is expected, not a database error.
     await into(workReceipts).insert(
       WorkReceiptsCompanion.insert(
         receiptId: data['receiptId'] as String,
@@ -314,6 +393,7 @@ class AppDatabase extends _$AppDatabase {
         proverSig: Value(data['proverSig'] as String?),
         spent: Value(data['spent'] as bool? ?? false),
       ),
+      mode: InsertMode.insertOrIgnore,
     );
   }
 
@@ -324,9 +404,26 @@ class AppDatabase extends _$AppDatabase {
     return row == null ? null : _workReceiptToMap(row);
   }
 
-  Future<void> markReceiptSpent(String receiptId) async {
-    await (update(workReceipts)..where((r) => r.receiptId.equals(receiptId)))
+  /// Atomic spend-dedup primitive (Safety-mandated CAS): a single
+  /// `UPDATE work_receipts SET spent=1 WHERE receipt_id=? AND spent=0`.
+  /// Returns true iff THIS call consumed the receipt — a lost race
+  /// (receipt missing or already spent) yields `updatedRows == 0`, so a
+  /// replayed/parallel claim can never double-mint the same receipt.
+  Future<bool> claimReceiptAtomically(String receiptId) async {
+    final updatedRows = await (update(workReceipts)
+          ..where((r) =>
+              r.receiptId.equals(receiptId) & r.spent.equals(false)))
         .write(const WorkReceiptsCompanion(spent: Value(true)));
+    return updatedRows > 0;
+  }
+
+  /// Legacy self-issue spend marker, kept for the local PoR claim path.
+  /// Implemented via the same conditional-update semantics as
+  /// [claimReceiptAtomically]: the write is a no-op when the receipt
+  /// is already spent, so the legacy path can't resurrect a consumed
+  /// receipt either.
+  Future<void> markReceiptSpent(String receiptId) async {
+    await claimReceiptAtomically(receiptId);
   }
 
   static Map<String, dynamic> _creditTransactionToMap(CreditTransaction t) => {

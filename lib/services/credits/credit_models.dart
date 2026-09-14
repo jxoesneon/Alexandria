@@ -49,7 +49,10 @@ class CreditTransaction {
     bool isAttested = false,
   }) {
     final raw = '$id|${timestamp.toIso8601String()}|${type.name}|$amount|$description|${referenceId ?? ''}|$isAttested';
-    return sha256.convert(utf8.encode(raw)).toString().substring(0, 16);
+    // Full-width sha256 (64 hex chars). Earlier builds truncated the
+    // digest to 16 chars; persisted short hashes are tolerated — the
+    // hash is display-only and never gates a ledger invariant.
+    return sha256.convert(utf8.encode(raw)).toString();
   }
 
   Map<String, dynamic> toJson() => {

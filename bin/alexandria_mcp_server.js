@@ -1,15 +1,52 @@
 #!/usr/bin/env node
 
 /**
- * Alexandria Model Context Protocol (MCP) Server (ALX-006)
- * High-performance, zero-dependency Node.js MCP server exposing Alexandria's
- * decentralized archive, credit economy, and Moltbook autonomous agent tools.
+ * Alexandria MCP **SIMULATOR** (ALX-006) — development harness only.
+ *
+ * This is NOT a live Alexandria node. It is a zero-dependency mock of the
+ * in-app Dart MCP server (lib/services/agent/alexandria_mcp_server.dart)
+ * kept for exercising external-agent client plumbing during development.
+ *
+ * SAFETY (Review ALX-010/ALX-011 veto):
+ *  - Every response is stamped `simulated: true` / `mock: true`.
+ *  - ALL financial and credit-minting tools were REMOVED. A previous
+ *    version of this file minted fake credits (`+=15`/`+=5`), exported
+ *    counterfeit `cashuA` bearer tokens, and reported `settled_live`
+ *    Lightning payouts with fabricated preimages — pure fraud surface.
+ *    The surviving tools are strictly non-monetary: archive search,
+ *    read-only wallet telemetry, replication commissioning, and bounty
+ *    announcement against an in-process mock state.
+ *  - The process refuses to start unless invoked with `--dev` (or
+ *    `--simulator`), so it can never be exported to an agent runtime by
+ *    accident.
+ *
+ * The real tool surface lives inside the app: AlexandriaMcpServer wires
+ * the persistent credit ledger, verifier-signed work receipts, and the
+ * egress lockdown. This file mirrors only the harmless subset of its
+ * schema and must never be presented as a production node.
  */
 
 const readline = require('readline');
 const crypto = require('crypto');
 
-// State store mirroring Alexandria core node
+// ---- Dev-mode gate ------------------------------------------------------
+// Refuse to run as a default/implicit MCP server. The exported configs
+// produced by the app pass --dev explicitly.
+const devMode =
+  process.argv.includes('--dev') || process.argv.includes('--simulator');
+if (!devMode) {
+  process.stderr.write(
+    'alexandria-mcp-simulator: refusing to start without --dev.\n' +
+      'This file is a DEVELOPMENT SIMULATOR — it is not a live Alexandria ' +
+      'node and exposes no real credits, payouts, or archive state.\n' +
+      'The production MCP surface is AlexandriaMcpServer inside the app ' +
+      '(lib/services/agent/alexandria_mcp_server.dart).\n'
+  );
+  process.exit(1);
+}
+
+// In-process mock state. `credits` is a simulated display balance only —
+// no tool in this file can mint or egress value.
 const state = {
   credits: 100.0,
   protocolTreasury: 4.2,
@@ -20,7 +57,7 @@ const state = {
   storageBytes: 1024 * 1024 * 1024, // 1 GB
   seedingBytes: 250 * 1024 * 1024,
   porChallengesAnswered: 1,
-  agentId: 'bcn_governance_steward_01',
+  agentId: 'bcn_sim_steward_01',
   bounties: [
     {
       id: 'bcn_sample_01',
@@ -33,10 +70,18 @@ const state = {
   ]
 };
 
+// Simulated-only tool surface. Every tool that minted, debited-to-
+// external, or exported value was removed (ALX-010/ALX-011 safety veto):
+//   REMOVED alexandria_ingest_doi            (minted +15 ℭ per call)
+//   REMOVED alexandria_submit_por_challenge  (minted +5 ℭ, always "valid")
+//   REMOVED alexandria_export_cashu_voucher  (counterfeit cashuA tokens)
+//   REMOVED alexandria_sweep_lightning_live  (fabricated preimages,
+//                                           'settled_live' payouts)
 const TOOLS = [
   {
     name: 'alexandria_search_archive',
-    description: 'Searches the decentralized Alexandria library for academic documents, preprints, and CIDs.',
+    description:
+      '[SIMULATED] Searches the decentralized Alexandria library for academic documents, preprints, and CIDs. Returns mock data.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -49,26 +94,9 @@ const TOOLS = [
     }
   },
   {
-    name: 'alexandria_ingest_doi',
-    description: 'Harvests, validates, and archives a scientific paper by its DOI into the Alexandria commons.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        doi: {
-          type: 'string',
-          description: 'Digital Object Identifier (e.g. 10.1038/nature12373)'
-        },
-        title: {
-          type: 'string',
-          description: 'Optional paper title'
-        }
-      },
-      required: ['doi']
-    }
-  },
-  {
     name: 'alexandria_get_wallet_balance',
-    description: 'Retrieves node Archival Credit balance, Proof of Common Heritage (PoCH) score, and QoS multiplier.',
+    description:
+      '[SIMULATED] Retrieves mock node Archival Credit balance, Proof of Common Heritage (PoCH) score, and QoS multiplier.',
     inputSchema: {
       type: 'object',
       properties: {}
@@ -76,7 +104,8 @@ const TOOLS = [
   },
   {
     name: 'alexandria_replicate_cid',
-    description: 'Commissions Cauchy Reed-Solomon GF(2^8) parity replication across the peer swarm using Archival Credits.',
+    description:
+      '[SIMULATED] Commissions parity replication across the peer swarm. Debits a mock credit balance only — no real credits move.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -86,33 +115,16 @@ const TOOLS = [
         },
         credits: {
           type: 'number',
-          description: 'Amount of Archival Credits to allocate for replication'
+          description: 'Amount of (simulated) Archival Credits to allocate'
         }
       },
       required: ['cid', 'credits']
     }
   },
   {
-    name: 'alexandria_submit_por_challenge',
-    description: 'Solves and submits an HMAC-SHA256 Proof of Retrievability challenge to earn storage credits.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        cid: {
-          type: 'string',
-          description: 'Target stored CID to verify'
-        },
-        challenge_nonce: {
-          type: 'string',
-          description: 'Random challenge nonce issued by auditing peer'
-        }
-      },
-      required: ['cid', 'challenge_nonce']
-    }
-  },
-  {
     name: 'alexandria_post_moltbook_bounty',
-    description: 'Publishes an Ed25519-signed Beacon v2 preservation bounty to the Moltbook AI agent network.',
+    description:
+      '[SIMULATED] Publishes a mock preservation bounty to a local Moltbook feed. Nothing is signed or broadcast.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -121,7 +133,7 @@ const TOOLS = [
         title: { type: 'string', description: 'Descriptive title for the bounty' },
         credits_reward: {
           type: 'number',
-          description: 'Reward offered in Archival Credits'
+          description: 'Reward offered in (simulated) Archival Credits'
         },
         urgency: {
           type: 'string',
@@ -131,52 +143,38 @@ const TOOLS = [
       },
       required: ['cid', 'title', 'credits_reward']
     }
-  },
-  {
-    name: 'alexandria_export_cashu_voucher',
-    description: 'Exports node credits into an anonymous Chaumian E-Cash bearer voucher (Cashu NUT-00 standard).',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        credits: {
-          type: 'number',
-          description: 'Credits to export (1 Credit = 10 Satoshis)'
-        }
-      },
-      required: ['credits']
-    }
-  },
-  {
-    name: 'alexandria_sweep_lightning_live',
-    description: 'Sweeps Archival Credits as a live Bitcoin Lightning payment to any Lightning Address (LUD-16 LNURL-pay -> Cashu NUT-05 Melt).',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        lightning_address: {
-          type: 'string',
-          description: 'Target Lightning Address (e.g. user@domain.com)'
-        },
-        credits: {
-          type: 'number',
-          description: 'Credits to sweep (1 Credit = 10 Satoshis)'
-        }
-      },
-      required: ['lightning_address', 'credits']
-    }
   }
 ];
 
-function textResponse(text) {
+function textResponse(payload) {
+  // Stamp every payload at the data level so no consumer can mistake
+  // simulator output for live-node state.
+  const stamped =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? { simulated: true, mock: true, ...payload }
+      : `[SIMULATOR] ${payload}`;
   return {
-    content: [{ type: 'text', text: typeof text === 'string' ? text : JSON.stringify(text, null, 2) }],
-    isError: false
+    content: [
+      {
+        type: 'text',
+        text:
+          typeof stamped === 'string'
+            ? stamped
+            : JSON.stringify(stamped, null, 2)
+      }
+    ],
+    isError: false,
+    simulated: true,
+    mock: true
   };
 }
 
 function errorResponse(message) {
   return {
-    content: [{ type: 'text', text: message }],
-    isError: true
+    content: [{ type: 'text', text: `[SIMULATOR] ${message}` }],
+    isError: true,
+    simulated: true,
+    mock: true
   };
 }
 
@@ -210,23 +208,6 @@ async function executeTool(name, args = {}) {
       });
     }
 
-    case 'alexandria_ingest_doi': {
-      const doi = (args.doi || '').trim();
-      if (!doi.startsWith('10.')) {
-        return errorResponse(`Invalid DOI format: ${doi}. Must begin with 10.`);
-      }
-      const assignedCid = `bafk_${doi.replace(/\//g, '_')}`;
-      state.credits += 15.0;
-      return textResponse({
-        status: 'success',
-        doi,
-        title: args.title || 'Ingested Scientific Work',
-        assigned_cid: assignedCid,
-        credits_earned: 15.0,
-        merkle_root: `0x${crypto.createHash('sha256').update(doi).digest('hex').slice(0, 16)}...`
-      });
-    }
-
     case 'alexandria_get_wallet_balance': {
       return textResponse({
         balance_credits: state.credits,
@@ -239,7 +220,8 @@ async function executeTool(name, args = {}) {
           storage_mb: state.storageBytes / (1024 * 1024),
           seeding_mb: state.seedingBytes / (1024 * 1024),
           por_challenges_passed: state.porChallengesAnswered
-        }
+        },
+        note: 'Mock telemetry from the development simulator — not a live node balance.'
       });
     }
 
@@ -250,7 +232,7 @@ async function executeTool(name, args = {}) {
         return errorResponse('Valid CID and credits > 0 are required.');
       }
       if (state.credits < credits) {
-        return errorResponse(`Insufficient credit balance (${state.credits.toFixed(1)} ℭ) to allocate ${credits} ℭ.`);
+        return errorResponse(`Insufficient simulated balance (${state.credits.toFixed(1)} ℭ) to allocate ${credits} ℭ.`);
       }
       state.credits -= credits;
       return textResponse({
@@ -262,24 +244,6 @@ async function executeTool(name, args = {}) {
       });
     }
 
-    case 'alexandria_submit_por_challenge': {
-      const cid = args.cid;
-      const nonce = args.challenge_nonce || '';
-      if (!cid || nonce.length < 8) {
-        return errorResponse('Invalid challenge nonce length (minimum 8 characters).');
-      }
-      const earned = 5.0;
-      state.credits += earned;
-      state.porChallengesAnswered += 1;
-      return textResponse({
-        status: 'verified',
-        cid,
-        proof_valid: true,
-        credits_awarded: earned,
-        new_balance: state.credits
-      });
-    }
-
     case 'alexandria_post_moltbook_bounty': {
       const cid = args.cid;
       const title = args.title;
@@ -287,7 +251,7 @@ async function executeTool(name, args = {}) {
       if (!cid || !title || credits <= 0) {
         return errorResponse('Valid cid, title, and credits_reward > 0 are required.');
       }
-      const bountyId = `bcn_${crypto.randomBytes(6).toString('hex')}`;
+      const bountyId = `bcn_sim_${crypto.randomBytes(6).toString('hex')}`;
       state.bounties.push({
         id: bountyId,
         cid,
@@ -297,55 +261,12 @@ async function executeTool(name, args = {}) {
         urgency: args.urgency || 'normal'
       });
       return textResponse({
-        status: 'published',
+        status: 'simulated_publish',
         bounty_id: bountyId,
         moltbook_submolt: 'alexandria-bounties',
         author_agent_id: state.agentId,
-        offered_credits: credits
-      });
-    }
-
-    case 'alexandria_export_cashu_voucher': {
-      const credits = Number(args.credits || 0);
-      if (credits <= 0 || state.credits < credits) {
-        return errorResponse(`Failed to export Cashu token. Check that balance (${state.credits}) >= ${credits}.`);
-      }
-      state.credits -= credits;
-      const sats = Math.round(credits * 10);
-      const tokenPayload = {
-        token: [{
-          mint: 'https://mint.minibits.cash/Bitcoin',
-          proofs: [{
-            id: 'alx_005',
-            amount: sats,
-            secret: crypto.randomBytes(16).toString('hex'),
-            C: `02${crypto.randomBytes(32).toString('hex')}`
-          }]
-        }]
-      };
-      const serialized = `cashuA${Buffer.from(JSON.stringify(tokenPayload)).toString('base64url')}`;
-      return textResponse({
-        status: 'success',
-        credits_exported: credits,
-        sats_equivalent: sats,
-        cashu_token: serialized
-      });
-    }
-
-    case 'alexandria_sweep_lightning_live': {
-      const address = args.lightning_address || '';
-      const credits = Number(args.credits || 0);
-      if (!address.includes('@') || credits <= 0) {
-        return errorResponse('Invalid Lightning address or credit amount.');
-      }
-      const sats = Math.round(credits * 10);
-      return textResponse({
-        success: true,
-        lightning_address: address,
-        credits_swept: credits,
-        sats: sats,
-        preimage: `0x${crypto.randomBytes(32).toString('hex')}`,
-        status: 'settled_live'
+        offered_credits: credits,
+        note: 'Mock bounty recorded locally — nothing was signed or broadcast.'
       });
     }
 
@@ -377,8 +298,10 @@ rl.on('line', async (line) => {
           protocolVersion: '2024-11-05',
           capabilities: { tools: {} },
           serverInfo: {
-            name: 'alexandria-mcp',
-            version: '1.0.0'
+            name: 'alexandria-mcp-simulator',
+            version: '1.0.0',
+            simulated: true,
+            mock: true
           }
         }
       }) + '\n');
@@ -388,7 +311,7 @@ rl.on('line', async (line) => {
       process.stdout.write(JSON.stringify({
         jsonrpc: '2.0',
         id,
-        result: { tools: TOOLS }
+        result: { tools: TOOLS, simulated: true, mock: true }
       }) + '\n');
     } else if (method === 'tools/call') {
       const toolName = params ? params.name : '';

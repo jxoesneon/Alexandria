@@ -116,10 +116,10 @@ class Proposal {
     required this.proposerId,
     required this.created,
     required this.deadline,
-    this.votes = const [],
+    List<GovernanceVote>? votes,
     this.status = ProposalStatus.draft,
     required this.signature,
-  });
+  }) : votes = votes != null ? List.from(votes) : [];
 
   /// Calculate total approval weight
   double get approvalWeight =>
@@ -197,6 +197,50 @@ class GovernanceService {
 
   /// Get all proposals
   List<Proposal> get proposals => List.unmodifiable(_proposals);
+
+  /// Add proposal (from mesh or local).
+  ///
+  /// TRUST MODEL (strip-unverifiable, same pattern as
+  /// `MoltbookService.ingestBountyAnnouncement`): a caller-supplied
+  /// proposal's votes and status are CLAIMS, not facts. Until
+  /// proposal/vote signature verification lands in the transport layer:
+  ///   * `votes` are always stripped — each GovernanceVote carries its
+  ///     own signature and there is no vote-verification machinery yet,
+  ///     so an announcer could fabricate tallies. Votes may only accrue
+  ///     through [vote], which checks eligibility and signs locally.
+  ///   * `status` is reset to [ProposalStatus.draft] — a remote
+  ///     'active'/'approved' claim is unverifiable, so ingested
+  ///     proposals enter the pipeline as drafts until locally activated.
+  ///
+  /// [signatureVerified] is the seam for future verification: the
+  /// transport may set it ONLY after verifying [Proposal.signature]
+  /// against the canonical signed payload
+  /// (`id|title|payload|created`) out-of-band — it must never be
+  /// populated from wire data. When set, the proposer's claimed status
+  /// is preserved (votes are still stripped: they are separately
+  /// signed and separately unverified).
+  ///
+  /// Proposals are deduplicated by id: mesh redelivery and echoes of
+  /// locally created proposals are ignored.
+  void addProposal(Proposal proposal, {bool signatureVerified = false}) {
+    if (_proposals.any((p) => p.id == proposal.id)) return;
+
+    // Store a normalized copy so the caller's object can never smuggle
+    // unverifiable votes/status into the pipeline.
+    final normalized = Proposal(
+      id: proposal.id,
+      type: proposal.type,
+      title: proposal.title,
+      description: proposal.description,
+      payload: proposal.payload,
+      proposerId: proposal.proposerId,
+      created: proposal.created,
+      deadline: proposal.deadline,
+      status: signatureVerified ? proposal.status : ProposalStatus.draft,
+      signature: proposal.signature,
+    );
+    _proposals.add(normalized);
+  }
 
   /// Get active proposals
   List<Proposal> get activeProposals =>

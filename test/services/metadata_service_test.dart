@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/metadata_service.dart';
+import '../fixtures/exif_fixture_generator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +42,58 @@ void main() {
       final metadata = await service.extractMetadata(file);
 
       expect(metadata['size_bytes'], 0);
+      expect(metadata['format'], 'jpg');
+    });
+
+    test('extracts full EXIF metadata from image bytes (Image dimensions, model, datetime, specs, GPS)', () async {
+      final jpegBytes = buildSampleExifJpeg(useExifResolution: false, useExifDateTime: false);
+      final file = PlatformFile(
+        name: 'photo.jpg',
+        size: jpegBytes.length,
+        bytes: jpegBytes,
+      );
+
+      final metadata = await service.extractMetadata(file);
+
+      expect(metadata['format'], 'jpg');
+      expect(metadata['resolution'], '1920x1080');
+      expect(metadata['camera_model'], 'A7R IV');
+      expect(metadata['date_taken'], '2023:05:01 12:00:00');
+      expect(metadata['iso'], '800');
+      expect(metadata['aperture'], 'f/14/5');
+      expect(metadata['shutter_speed'], '1/500');
+      expect(metadata['focal_length'], '85mm');
+      expect(metadata['location'], 'GPS Data Present');
+    });
+
+    test('extracts EXIF metadata from file on disk and tests EXIF sub-tags fallback (DateTimeOriginal, Exif dimensions)', () async {
+      final jpegBytes = buildSampleExifJpeg(useExifResolution: true, useExifDateTime: true);
+      final tempDir = await Directory.systemTemp.createTemp('metadata_exif_test');
+      final diskFile = File('${tempDir.path}/photo.jpg');
+      await diskFile.writeAsBytes(jpegBytes);
+
+      final file = PlatformFile(
+        name: 'photo.jpg',
+        path: diskFile.path,
+        size: jpegBytes.length,
+      );
+
+      final metadata = await service.extractMetadata(file);
+
+      expect(metadata['format'], 'jpg');
+      expect(metadata['resolution'], '3840x2160');
+      expect(metadata['date_taken'], '2023:05:01 12:00:00');
+
+      await tempDir.delete(recursive: true);
+    });
+
+    test('handles corrupt EXIF gracefully without throwing', () async {
+      final file = PlatformFile(
+        name: 'corrupt.jpg',
+        size: 10,
+        bytes: Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x06, 0x45, 0x78, 0x69, 0x66]),
+      );
+      final metadata = await service.extractMetadata(file);
       expect(metadata['format'], 'jpg');
     });
 

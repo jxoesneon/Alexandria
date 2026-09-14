@@ -107,5 +107,105 @@ void main() {
       expect(result.data['dois'], contains('10.1038/s41586-020-2649-2'));
       expect(result.data['dois'], contains('10.1145/3377811.3380327'));
     });
+
+    test('PluginManifest and ThemeManifest serialization round-trips correctly', () {
+      const manifest = PluginManifest(
+        id: 'test.manifest',
+        name: 'Test Plugin',
+        version: '1.2.3',
+        author: 'Test Author',
+        description: 'Test Description',
+        entrypoint: 'index.js',
+        permissions: [PluginPermission.networkFetch, PluginPermission.storagePersist],
+        hooks: [PluginHook.onStartup, PluginHook.onContentViewed],
+        uiSlots: [UISlot.homeHeader, UISlot.detailActions],
+        maxMemoryMb: 128,
+        timeoutMs: 8000,
+      );
+
+      final json = manifest.toJson();
+      final parsed = PluginManifest.fromJson(json);
+
+      expect(parsed.id, 'test.manifest');
+      expect(parsed.name, 'Test Plugin');
+      expect(parsed.version, '1.2.3');
+      expect(parsed.author, 'Test Author');
+      expect(parsed.description, 'Test Description');
+      expect(parsed.entrypoint, 'index.js');
+      expect(parsed.permissions, [PluginPermission.networkFetch, PluginPermission.storagePersist]);
+      expect(parsed.hooks, [PluginHook.onStartup, PluginHook.onContentViewed]);
+      expect(parsed.uiSlots, [UISlot.homeHeader, UISlot.detailActions]);
+      expect(parsed.maxMemoryMb, 128);
+      expect(parsed.timeoutMs, 8000);
+
+      final theme = ThemeManifest(
+        id: 'test.theme',
+        name: 'Test Theme',
+        version: '2.0.0',
+        author: 'Theme Author',
+        colors: {'accent': '#FF5500'},
+        sizing: {'padding': 16.0},
+        fontFamily: 'Inter',
+      );
+
+      final themeJson = theme.toJson();
+      final parsedTheme = ThemeManifest.fromJson(themeJson);
+
+      expect(parsedTheme.id, 'test.theme');
+      expect(parsedTheme.name, 'Test Theme');
+      expect(parsedTheme.version, '2.0.0');
+      expect(parsedTheme.author, 'Theme Author');
+      expect(parsedTheme.colors['accent'], '#FF5500');
+      expect(parsedTheme.sizing['padding'], 16.0);
+      expect(parsedTheme.fontFamily, 'Inter');
+    });
+
+    test('re-registering an executable plugin updates its enabled status', () {
+      final doiPlugin = DoiHarvesterPlugin();
+      doiPlugin.isEnabled = false;
+      service.registerPlugin(doiPlugin);
+
+      expect(service.plugins.firstWhere((p) => p.id == doiPlugin.manifest.id).enabled, isFalse);
+      expect(service.executablePlugins.any((p) => p.manifest.id == doiPlugin.manifest.id), isTrue);
+    });
+
+    test('getPluginsWithHook and getPluginsForSlot filter correctly', () {
+      service.installPlugin(service.zoteroConnectorTemplate);
+
+      final startupPlugins = service.getPluginsWithHook(PluginHook.onStartup);
+      expect(startupPlugins.any((p) => p.id == 'com.alexandria.zotero-connector'), isTrue);
+
+      final settingsSlotPlugins = service.getPluginsForSlot(UISlot.settingsSection);
+      expect(settingsSlotPlugins.any((p) => p.id == 'com.alexandria.zotero-connector'), isTrue);
+
+      final homeSlotPlugins = service.getPluginsForSlot(UISlot.homeHeader);
+      expect(homeSlotPlugins.any((p) => p.id == 'com.alexandria.zotero-connector'), isFalse);
+    });
+
+    test('handles errors when executing non-existent or disabled plugins or when action throws', () async {
+      final notFoundResult = await service.executeAction('non_existent_plugin', 'any_action');
+      expect(notFoundResult.success, isFalse);
+      expect(notFoundResult.message, contains('Plugin not found'));
+
+      service.togglePlugin('org.alexandria.plugin.doi-harvester', false);
+      final disabledResult = await service.executeAction('org.alexandria.plugin.doi-harvester', 'extract_dois');
+      expect(disabledResult.success, isFalse);
+      expect(disabledResult.message, contains('is disabled'));
+
+      service.togglePlugin('org.alexandria.plugin.doi-harvester', true);
+      final unknownActionResult = await service.executeAction('org.alexandria.plugin.doi-harvester', 'invalid_action');
+      expect(unknownActionResult.success, isFalse);
+    });
+
+    test('togglePlugin and uninstallPlugin return false for unknown plugin', () {
+      expect(service.togglePlugin('unknown_plugin', true), isFalse);
+      expect(service.uninstallPlugin('unknown_plugin'), isFalse);
+      expect(service.setActiveTheme('unknown_theme'), isFalse);
+    });
+
+    test('installPlugin and installTheme handle invalid JSON gracefully', () {
+      expect(service.installPlugin('not valid json {'), isNull);
+      expect(service.installTheme('not valid json {'), isNull);
+    });
   });
 }

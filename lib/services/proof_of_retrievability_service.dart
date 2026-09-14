@@ -273,7 +273,6 @@ class ProofOfRetrievabilityService {
             peerCount: 2,
             porPassed: true,
             cid: challenge.cid,
-            rarityAttested: false,
           );
     } catch (_) {
       // Safe fallback in isolated mock test environments
@@ -353,14 +352,12 @@ class ProofOfRetrievabilityService {
     }
 
     // Attestation weight requires a signature by a verifier FOREIGN to the
-    // claiming node: `isVerifierSigned && verifier != local && !selfIssued`.
+    // claiming node (`isVerifierSigned && verifier != local && !selfIssued`).
     // This path can only ever sign as the local key, so a locally-signed
     // receipt can NEVER carry attestation weight for a local mint — the
-    // local claim below always lands at 1.0x.
-    final attested = receipt.isVerifierSigned &&
-        verifierPubkey != localPubkeyHex &&
-        !receipt.isSelfIssued;
-
+    // local claim below always lands at the flat 1.0x rarity weight, and
+    // the rarity flag itself is sealed: `awardStorageCredits` no longer
+    // accepts a caller-supplied attestation (see CreditService).
     // Persist the artifact; tolerate absence of a database in pure tests.
     AppDatabase? db;
     try {
@@ -372,7 +369,7 @@ class ProofOfRetrievabilityService {
     }
 
     // Local claim: only when the local node proved the work itself, through
-    // the normal capped mint at unattested weight. CreditService's future
+    // the normal capped mint at unattested weight. CreditService's
     // claimVerifiedReceipt is the seam for foreign-verifier receipts; a
     // receipt we signed ourselves is never eligible for that weight here.
     var claimed = localMintSettled;
@@ -383,7 +380,6 @@ class ProofOfRetrievabilityService {
               peerCount: peerCount,
               porPassed: true,
               cid: challenge.cid,
-              rarityAttested: attested,
             );
       } catch (_) {
         // Safe fallback in isolated mock test environments
@@ -398,11 +394,17 @@ class ProofOfRetrievabilityService {
       var spentPersisted = db == null;
       if (db != null) {
         try {
-          // future claimVerifiedReceipt must use conditional UPDATE WHERE
-          // receipt_id=? AND spent=0 checked by rows-affected — single
-          // atomic op
-          await db.markReceiptSpent(receipt.receiptId);
-          spentPersisted = true;
+          // Atomic requirement, now implemented: the receipt already
+          // exists, so route through the conditional UPDATE WHERE
+          // receipt_id=? AND spent=0 checked by rows-affected — a single
+          // atomic op. Losing the CAS (false) means another claim landed
+          // first; the artifact then stays reported as spent either way.
+          spentPersisted =
+              await db.claimReceiptAtomically(receipt.receiptId) ||
+                  // A concurrent claim may have already consumed it —
+                  // the row IS spent in that case, so report spent.
+                  (await db.getWorkReceipt(receipt.receiptId))?['spent'] ==
+                      true;
         } catch (_) {}
       }
       // Report the state actually persisted (or the consumption itself
@@ -427,9 +429,10 @@ class ProofOfRetrievabilityService {
     // — recorded on the receipt so a forked client's inflated
     // self-declaration is worthless. Locally-issued receipts are always
     // drafted at unattested (1.0x) rarity weight: attested rarity can only
-    // be baked into a receipt by a FOREIGN verifier, never self-declared.
-    final rarityWeight =
-        CreditService.rarityWeightFor(peerCount, rarityAttested: false);
+    // be baked into a receipt by a FOREIGN verifier, never self-declared,
+    // and the attestation flag is sealed to tests — production callers
+    // cannot pass it (see CreditService.rarityWeightFor).
+    final rarityWeight = CreditService.rarityWeightFor(peerCount);
     final mbSize = sizeBytes / (1024 * 1024);
     final amount = (mbSize * 0.1 * rarityWeight).clamp(0.1, 50.0);
 

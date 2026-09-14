@@ -145,21 +145,40 @@ class WorkReceipt {
         '${u.day.toString().padLeft(2, '0')}';
   }
 
+  /// Canonical wire-format version. Bumped when the signed body changes
+  /// shape so foreign verifiers can pin the scheme they recompute.
+  static const int wireVersion = 1;
+
+  /// [amount] expressed as integer milli-units (`amount * 1000`, rounded).
+  /// The canonical body serializes ONLY this integer form: a foreign
+  /// verifier recomputing [receiptId] via RFC 8785 JCS must never diverge
+  /// on Dart's `1.0` vs JavaScript's `1` number formatting. The double
+  /// [amount] accessor remains for display.
+  int get amountMilli => (amount * 1000).round();
+
+  /// [workUnits] expressed as integer milli-units — see [amountMilli].
+  int get workUnitsMilli => (workUnits * 1000).round();
+
   /// The signed body: every consensus field EXCEPT the receipt id, both
   /// signatures, and bookkeeping (spent/createdAt). The signature therefore
   /// attests to the work terms themselves, and adding/removing a signature
   /// never changes [receiptId].
+  ///
+  /// Wire format v1: `v` pins the scheme version, and the monetary fields
+  /// travel as integers (`amountMilli`/`workUnitsMilli`) so canonical JSON
+  /// is bit-identical across platforms — see [amountMilli].
   Map<String, dynamic> unsignedBody() => {
-        'amount': amount,
+        'amountMilli': amountMilli,
         'challengeNonce': challengeNonce,
         'chunkIndices': chunkIndices,
         'epoch': epoch,
         'expiresAt': expiresAt,
         'proverPubkey': proverPubkey,
         'responseTag': responseTag,
+        'v': wireVersion,
         'verifierPubkey': verifierPubkey,
         'workType': workType,
-        'workUnits': workUnits,
+        'workUnitsMilli': workUnitsMilli,
         if (cid != null) 'cid': cid,
         if (evidenceHash != null) 'evidenceHash': evidenceHash,
       };
@@ -301,9 +320,13 @@ class WorkReceipt {
     );
   }
 
-  /// JSON view returned to MCP agents — the inspectable artifact.
+  /// JSON view returned to MCP agents — the inspectable artifact. Amounts
+  /// stay doubles for display; `v`, `amount_milli` and `work_units_milli`
+  /// carry the wire-format-v1 integer fields a foreign verifier needs to
+  /// recompute [receiptId] bit-exactly.
   Map<String, dynamic> toJson() => {
         'receipt_id': receiptId,
+        'v': wireVersion,
         'work_type': workType,
         'prover_pubkey': proverPubkey,
         'verifier_pubkey': verifierPubkey,
@@ -313,6 +336,8 @@ class WorkReceipt {
         'response_tag': responseTag,
         'work_units': workUnits,
         'amount': amount,
+        'work_units_milli': workUnitsMilli,
+        'amount_milli': amountMilli,
         'epoch': epoch,
         'expires_at': expiresAt,
         'evidence_hash': evidenceHash,

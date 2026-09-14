@@ -5,7 +5,6 @@
 // _burnForDebit / replay in _rebuildBalance).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/data/database.dart' hide CreditTransaction;
-import 'package:alexandria/services/credits/credit_models.dart';
 import 'package:alexandria/services/credits/credit_service.dart';
 
 String _dayKey() {

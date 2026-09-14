@@ -326,6 +326,152 @@ void main() {
       expect(await db.getWorkReceipt('unknown'), isNull);
     });
 
+    test('claimReceiptAtomically is a single-shot CAS', () async {
+      await db.insertWorkReceipt({
+        'receiptId': 'rcpt_cas',
+        'workType': 'storage',
+        'proverPubkey': 'p',
+        'verifierPubkey': 'v',
+        'chunkIndices': '[]',
+        'challengeNonce': 'n',
+        'responseTag': 't',
+        'workUnits': 1.0,
+        'amount': 5.0,
+        'epoch': '2026-01-01',
+        'expiresAt': 9999999999,
+        'verifierSig': 'sig',
+      });
+
+      // First claim wins the CAS; every replay loses it.
+      expect(await db.claimReceiptAtomically('rcpt_cas'), isTrue);
+      expect(await db.claimReceiptAtomically('rcpt_cas'), isFalse);
+      expect(await db.claimReceiptAtomically('rcpt_cas'), isFalse);
+      // A receipt that was never persisted cannot be claimed.
+      expect(await db.claimReceiptAtomically('rcpt_missing'), isFalse);
+
+      final row = await db.getWorkReceipt('rcpt_cas');
+      expect(row!['spent'], isTrue);
+    });
+
+    test('markReceiptSpent shares the conditional-update semantics',
+        () async {
+      await db.insertWorkReceipt({
+        'receiptId': 'rcpt_legacy',
+        'workType': 'storage',
+        'proverPubkey': 'p',
+        'verifierPubkey': 'v',
+        'chunkIndices': '[]',
+        'challengeNonce': 'n',
+        'responseTag': 't',
+        'workUnits': 1.0,
+        'amount': 5.0,
+        'epoch': '2026-01-01',
+        'expiresAt': 9999999999,
+        'verifierSig': 'sig',
+        'spent': true,
+      });
+      // Legacy path on an already-spent row is a harmless no-op — it can
+      // never resurrect a consumed receipt.
+      await db.markReceiptSpent('rcpt_legacy');
+      expect(await db.claimReceiptAtomically('rcpt_legacy'), isFalse);
+    });
+
+    test('ledger inserts deduplicate on primary-key collision', () async {
+      Map<String, dynamic> tx(String id) => {
+            'id': id,
+            'timestamp': DateTime(2026, 1, 1),
+            'type': 'storageReward',
+            'amount': 10.0,
+            'description': 'dedup test',
+            'hash': 'h_$id',
+          };
+      await db.insertCreditTransaction(tx('dup_tx'));
+      // Plain-insert would throw a PK violation here; insertOrIgnore
+      // treats the duplicate as the expected dedup event.
+      await db.insertCreditTransaction(tx('dup_tx'));
+      final rows = await db.getCreditTransactions(limit: 10);
+      expect(rows.where((r) => r['id'] == 'dup_tx').length, 1);
+
+      Map<String, dynamic> receipt() => {
+            'receiptId': 'dup_rcpt',
+            'workType': 'storage',
+            'proverPubkey': 'p',
+            'verifierPubkey': 'v',
+            'chunkIndices': '[]',
+            'challengeNonce': 'n',
+            'responseTag': 't',
+            'workUnits': 1.0,
+            'amount': 5.0,
+            'epoch': '2026-01-01',
+            'expiresAt': 9999999999,
+            'verifierSig': 'sig',
+          };
+      await db.insertWorkReceipt(receipt());
+      await db.insertWorkReceipt(receipt());
+      expect(await db.getWorkReceipt('dup_rcpt'), isNotNull);
+
+      await db.insertAwardedDoi('10.1/dup', cid: 'c1');
+      await db.insertAwardedDoi('10.1/dup', cid: 'c2');
+      expect(await db.hasAwardedDoi('10.1/dup'), isTrue);
+    });
+
+    test('insertAwardedDoi reports the atomic dedup result', () async {
+      // First registration wins; the losing duplicate sees false — the
+      // affected-rows signal closes the check-then-insert race window.
+      expect(await db.insertAwardedDoi('10.1/race', cid: 'c1'), isTrue);
+      expect(await db.insertAwardedDoi('10.1/race', cid: 'c2'), isFalse);
+      expect(await db.hasAwardedDoi('10.1/race'), isTrue);
+    });
+
+    test('getLedgerBalanceSum nets credits and debits over all rows',
+        () async {
+      expect(await db.getLedgerBalanceSum(), 0.0);
+      Future<void> tx(String id, double amount) =>
+          db.insertCreditTransaction({
+            'id': id,
+            'timestamp': DateTime(2026, 1, 1),
+            'type': 'storageReward',
+            'amount': amount,
+            'description': 'sum test',
+            'hash': 'h_$id',
+          });
+      await tx('s1', 100.0);
+      await tx('s2', 50.0);
+      await tx('s3', -30.0);
+      expect(await db.getLedgerBalanceSum(), 120.0);
+    });
+
+    test('hasGenesisTransaction matches id and legacy description marker',
+        () async {
+      expect(await db.hasGenesisTransaction(), isFalse);
+
+      // Legacy builds wrote genesis under a random id — the description
+      // marker still identifies it.
+      await db.insertCreditTransaction({
+        'id': 'tx_random_old',
+        'timestamp': DateTime(2024, 1, 1),
+        'type': 'verificationReward',
+        'amount': 100.0,
+        'description': 'Genesis Common Heritage Welcome Allocation',
+        'hash': 'h1',
+      });
+      expect(await db.hasGenesisTransaction(), isTrue);
+
+      // And the deterministic modern id matches too (fresh db).
+      final db2 = AppDatabase();
+      addTearDown(db2.close);
+      expect(await db2.hasGenesisTransaction(), isFalse);
+      await db2.insertCreditTransaction({
+        'id': 'tx_genesis',
+        'timestamp': DateTime(2024, 1, 1),
+        'type': 'verificationReward',
+        'amount': 100.0,
+        'description': 'whatever',
+        'hash': 'h2',
+      });
+      expect(await db2.hasGenesisTransaction(), isTrue);
+    });
+
     test('user profiles, activity dates and endangered versions', () async {
       expect(await db.getUserActivityDates('pubkey_1'), isEmpty);
       expect(await db.getProfileByPublicKey('pubkey_missing'), isNull);
