@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart' hide CreditTransaction, WorkReceipt;
+import '../agent/beacon_models.dart' show hexToBytes;
+import '../identity_service.dart';
 import 'credit_models.dart';
 import 'poch_service.dart';
 import 'work_receipt.dart';
@@ -10,8 +12,22 @@ import 'work_receipt.dart';
 /// Provider for CreditService
 final creditServiceProvider = ChangeNotifierProvider<CreditService>((ref) {
   final pochService = ref.read(pochServiceProvider);
-  final service =
-      CreditService(pochService: pochService, db: ref.read(databaseProvider));
+  final service = CreditService(
+    pochService: pochService,
+    db: ref.read(databaseProvider),
+    // The signature oracle for in-path receipt verification (ALX-012):
+    // claimVerifiedReceipt fails closed when this is absent. The receipt
+    // pins its verifier pubkey as a hex string — a malformed key decodes
+    // to nothing and verifies false, never throws.
+    receiptVerifier: (message, signature, publicKeyHex) async {
+      try {
+        return await ref.read(identityServiceProvider).verifySignature(
+            message, signature, Uint8List.fromList(hexToBytes(publicKeyHex)));
+      } catch (_) {
+        return false;
+      }
+    },
+  );
   // Hydration is kicked off in the constructor; surface it here so the
   // intent is explicit. Mutators stay gated until it lands (see
   // [CreditService._hydratedComplete]).
@@ -36,6 +52,11 @@ final creditTransactionsProvider = Provider<List<CreditTransaction>>((ref) {
 class CreditService extends ChangeNotifier {
   final PoCHService? _pochService;
   final AppDatabase? _db;
+
+  /// Ed25519 verification oracle used INSIDE [claimVerifiedReceipt]
+  /// (ALX-012). When null the claim path fails closed — a service without
+  /// a verifier can never mint attested value.
+  final ReceiptSignatureVerifier? _receiptVerifier;
 
   double _balance;
 
@@ -89,9 +110,11 @@ class CreditService extends ChangeNotifier {
   CreditService({
     PoCHService? pochService,
     AppDatabase? db,
+    ReceiptSignatureVerifier? receiptVerifier,
     double initialBalance = 100.0, // Initial welcome grant for new users
   })  : _pochService = pochService,
         _db = db,
+        _receiptVerifier = receiptVerifier,
         // Persistent mode starts at 0.0 — never at the phantom
         // [initialBalance] — so no spend can race the real ledger
         // balance before hydration rebuilds it (E-T2 #2).
@@ -172,6 +195,17 @@ class CreditService extends ChangeNotifier {
 
   /// Protocol micro-fee rate on spendable transactions (5% - ALX-005 §5.2)
   static const double protocolFeeRate = 0.05;
+
+  /// Minimum receipt wire version eligible to claim (ALX-012). Accepts
+  /// {1, 2} — an Ethereum-style {previous, current} grace window so
+  /// pre-domain v1 receipts already in flight stay claimable while their
+  /// 24h TTL bounds the legacy exposure; a future bump retires a scheme.
+  /// The claimable window is also CAPPED at [WorkReceipt.wireVersion]:
+  /// this node must not attest a scheme it does not implement, so a
+  /// future-version artifact mints nothing on this build. Receipts
+  /// outside the window are still REPRESENTABLE in the ledger — they are
+  /// persisted, just never claimable.
+  static const int minClaimableWireVersion = 1;
 
   /// Daily accrual caps per action type (ALX-005 §6.1 anti-gaming invariant).
   static const Map<CreditType, double> dailyMintCaps = {
@@ -369,17 +403,43 @@ class CreditService extends ChangeNotifier {
   /// path that mints `isAttested` credit and therefore the only path that
   /// makes [attestedBalance] non-vacuous (ALX-010).
   ///
-  /// Guards, in order:
+  /// Guards, in order (ALL evaluated inside the fail-closed try — any
+  /// throw returns 0.0 with the row left unspent):
+  ///  * non-empty `localPubkeyHex`, `proverPubkey`, `verifierPubkey` —
+  ///    an absent key makes the identity binding vacuous;
   ///  * [WorkReceipt.isVerifierSigned] — an unsigned artifact carries no
   ///    attestation weight;
-  ///  * `!receipt.isSelfIssued` — prover == verifier is a self-declaration;
-  ///  * `receipt.verifierPubkey != localPubkeyHex` — the caller MUST supply
+  ///  * `!samePubkey(prover, verifier)` — prover == verifier is a
+  ///    self-declaration;
+  ///  * `samePubkey(prover, localPubkeyHex)` — the receipt must name THIS
+  ///    node as prover; a held artifact naming a foreign prover is that
+  ///    prover's claim instrument (claim theft, REV1 C3);
+  ///  * `!samePubkey(verifier, localPubkeyHex)` — the caller MUST supply
   ///    the local identity key (same hex encoding the PoR service stamps
   ///    into `verifierPubkey`) so a receipt this node signed itself can
   ///    never mint attested value locally (self-dealing guard);
+  ///  * all identity compares are CANONICAL ([WorkReceipt.samePubkey]):
+  ///    uppercase or whitespace-padded hex spellings of the same key
+  ///    decode identically and cannot slip past the self-dealing guards;
   ///  * `!receipt.isExpired()` — stale receipts cannot be claimed;
-  ///  * the receipt row must exist UNSPENT in the ledger store, and the
-  ///    claim itself is a single atomic conditional UPDATE
+  ///  * `receipt.amount.isFinite && receipt.workUnits.isFinite &&
+  ///    receipt.amount > 0` — hostile doubles must be refused BEFORE the
+  ///    canonicalizer, which throws on non-finite/overflowing milli
+  ///    values (see [WorkReceipt.amountMilli]);
+  ///  * `[minClaimableWireVersion] <= receipt.v <=
+  ///    [WorkReceipt.wireVersion]` — the claim-time window (ALX-012):
+  ///    below-floor AND above-ceiling artifacts are representable but
+  ///    unclaimable; a node never attests a scheme it doesn't implement;
+  ///  * `receipt.computeReceiptId() == receipt.receiptId` — the tamper
+  ///    check: the stored id must recompute from the canonical body;
+  ///  * the receipt row must exist UNSPENT in the ledger store;
+  ///  * IN-PATH signature verification (ALX-012 Safety mandate):
+  ///    [WorkReceipt.verifyVerifierSignature] runs against the injected
+  ///    [_receiptVerifier] over the receipt's own domain-separated
+  ///    signing payload — a service constructed WITHOUT a verifier fails
+  ///    closed, and a forged/garbage `verifierSig` is refused WITHOUT
+  ///    consuming the row;
+  ///  * the claim itself is a single atomic conditional UPDATE
   ///    ([AppDatabase.claimReceiptAtomically]) — a lost CAS race or a
   ///    replay returns 0.0;
   ///  * the mint is STILL subject to the daily accrual caps (safety
@@ -391,8 +451,20 @@ class CreditService extends ChangeNotifier {
   ///
   /// Returns the minted amount, or 0.0 on any refusal. Requires
   /// persistent mode: an in-memory service has no CAS primitive to dedup
-  /// claims against. Signature VALIDITY is the caller's duty — verify
-  /// [WorkReceipt.verifyVerifierSignature] before claiming.
+  /// claims against.
+  ///
+  /// NOMINAL-BINDING CAVEAT (deferred-with-spec, ALX-012 §5.4):
+  /// [localPubkeyHex] is CALLER-SUPPLIED and binds only a string — it
+  /// asserts "the prover key spelled thus is mine" without proving key
+  /// possession. Against a modified client the binding is nominal: a
+  /// caller can name any prover key as 'local' and claim a held receipt
+  /// naming that prover (the mint lands locally either way — the
+  /// residual risk is attested-value theft of a copied artifact, not
+  /// forgery: the verifier signature check is unaffected). When a
+  /// production caller lands, the local key MUST be sourced from
+  /// IdentityService (injected, not caller-supplied) and the receipt's
+  /// `proverSig` — already carried on the artifact, currently never
+  /// verified — SHOULD be verified as the possession proof.
   Future<double> claimVerifiedReceipt(
     WorkReceipt receipt, {
     required String localPubkeyHex,
@@ -403,23 +475,52 @@ class CreditService extends ChangeNotifier {
     final db = _db;
     if (db == null) return 0.0;
 
-    // The receipt must name THIS node as prover — a held artifact naming
-    // a foreign prover is that prover's claim instrument, not ours;
-    // claiming it would be claim theft (REV1 C3).
-    if (!receipt.isVerifierSigned ||
-        receipt.isSelfIssued ||
-        receipt.proverPubkey != localPubkeyHex ||
-        receipt.verifierPubkey == localPubkeyHex ||
-        receipt.isExpired() ||
-        !(receipt.amount > 0)) {
-      return 0.0;
-    }
-
+    // EVERY guard and check lives inside this try: the claim contract is
+    // fail-closed — any throw (a hostile double reaching the
+    // canonicalizer's milli conversion, a broken store, an exploding
+    // verifier oracle) returns 0.0 with the row left unspent rather than
+    // propagating out of the guard chain.
     try {
+      // Identity is compared CANONICALLY via WorkReceipt.samePubkey —
+      // raw string equality is defeatable by case/whitespace variants of
+      // the same hex key (an UPPERCASE or space-padded verifierPubkey
+      // still decodes to the local key, so a self-signed receipt could
+      // mint ATTESTED value). All three key fields must also be
+      // non-empty: a '' prover against a '' local key would otherwise
+      // satisfy the binding vacuously.
+      if (localPubkeyHex.isEmpty ||
+          receipt.proverPubkey.isEmpty ||
+          receipt.verifierPubkey.isEmpty ||
+          !receipt.isVerifierSigned ||
+          WorkReceipt.samePubkey(
+              receipt.proverPubkey, receipt.verifierPubkey) ||
+          !WorkReceipt.samePubkey(receipt.proverPubkey, localPubkeyHex) ||
+          WorkReceipt.samePubkey(receipt.verifierPubkey, localPubkeyHex) ||
+          receipt.isExpired() ||
+          !(receipt.amount > 0) ||
+          !receipt.amount.isFinite ||
+          !receipt.workUnits.isFinite ||
+          receipt.v < minClaimableWireVersion ||
+          receipt.v > WorkReceipt.wireVersion ||
+          receipt.computeReceiptId() != receipt.receiptId) {
+        return 0.0;
+      }
+
       // Cheap pre-check for honest failures (missing/known-spent row);
       // the CAS below remains the authoritative dedup primitive.
       final row = await db.getWorkReceipt(receipt.receiptId);
       if (row == null || row['spent'] == true) return 0.0;
+
+      // In-path verification (ALX-012): a non-empty verifierSig is NOT
+      // proof — the Ed25519 signature must actually verify over the
+      // receipt's domain-separated payload, and the service fails closed
+      // when no verifier oracle was injected. Runs BEFORE the CAS so a
+      // forged artifact never consumes the unspent row.
+      final verifier = _receiptVerifier;
+      if (verifier == null ||
+          !await receipt.verifyVerifierSignature(verifier)) {
+        return 0.0;
+      }
 
       // Atomic claim: single `UPDATE ... WHERE receipt_id=? AND spent=0`
       // checked by rows-affected — losing the race means another claim

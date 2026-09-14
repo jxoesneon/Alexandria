@@ -2682,6 +2682,13 @@ class $WorkReceiptsTable extends WorkReceipts
   late final GeneratedColumn<String> receiptId = GeneratedColumn<String>(
       'receipt_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _vMeta = const VerificationMeta('v');
+  @override
+  late final GeneratedColumn<int> v = GeneratedColumn<int>(
+      'v', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
   static const VerificationMeta _workTypeMeta =
       const VerificationMeta('workType');
   @override
@@ -2781,6 +2788,7 @@ class $WorkReceiptsTable extends WorkReceipts
   @override
   List<GeneratedColumn> get $columns => [
         receiptId,
+        v,
         workType,
         proverPubkey,
         verifierPubkey,
@@ -2813,6 +2821,9 @@ class $WorkReceiptsTable extends WorkReceipts
           receiptId.isAcceptableOrUnknown(data['receipt_id']!, _receiptIdMeta));
     } else if (isInserting) {
       context.missing(_receiptIdMeta);
+    }
+    if (data.containsKey('v')) {
+      context.handle(_vMeta, v.isAcceptableOrUnknown(data['v']!, _vMeta));
     }
     if (data.containsKey('work_type')) {
       context.handle(_workTypeMeta,
@@ -2927,6 +2938,8 @@ class $WorkReceiptsTable extends WorkReceipts
     return WorkReceipt(
       receiptId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}receipt_id'])!,
+      v: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}v'])!,
       workType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}work_type'])!,
       proverPubkey: attachedDatabase.typeMapping
@@ -2970,6 +2983,7 @@ class $WorkReceiptsTable extends WorkReceipts
 
 class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
   final String receiptId;
+  final int v;
   final String workType;
   final String proverPubkey;
   final String verifierPubkey;
@@ -2988,6 +3002,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
   final DateTime createdAt;
   const WorkReceipt(
       {required this.receiptId,
+      required this.v,
       required this.workType,
       required this.proverPubkey,
       required this.verifierPubkey,
@@ -3008,6 +3023,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['receipt_id'] = Variable<String>(receiptId);
+    map['v'] = Variable<int>(v);
     map['work_type'] = Variable<String>(workType);
     map['prover_pubkey'] = Variable<String>(proverPubkey);
     map['verifier_pubkey'] = Variable<String>(verifierPubkey);
@@ -3036,6 +3052,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
   WorkReceiptsCompanion toCompanion(bool nullToAbsent) {
     return WorkReceiptsCompanion(
       receiptId: Value(receiptId),
+      v: Value(v),
       workType: Value(workType),
       proverPubkey: Value(proverPubkey),
       verifierPubkey: Value(verifierPubkey),
@@ -3064,6 +3081,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return WorkReceipt(
       receiptId: serializer.fromJson<String>(json['receiptId']),
+      v: serializer.fromJson<int>(json['v']),
       workType: serializer.fromJson<String>(json['workType']),
       proverPubkey: serializer.fromJson<String>(json['proverPubkey']),
       verifierPubkey: serializer.fromJson<String>(json['verifierPubkey']),
@@ -3087,6 +3105,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'receiptId': serializer.toJson<String>(receiptId),
+      'v': serializer.toJson<int>(v),
       'workType': serializer.toJson<String>(workType),
       'proverPubkey': serializer.toJson<String>(proverPubkey),
       'verifierPubkey': serializer.toJson<String>(verifierPubkey),
@@ -3108,6 +3127,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
 
   WorkReceipt copyWith(
           {String? receiptId,
+          int? v,
           String? workType,
           String? proverPubkey,
           String? verifierPubkey,
@@ -3126,6 +3146,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
           DateTime? createdAt}) =>
       WorkReceipt(
         receiptId: receiptId ?? this.receiptId,
+        v: v ?? this.v,
         workType: workType ?? this.workType,
         proverPubkey: proverPubkey ?? this.proverPubkey,
         verifierPubkey: verifierPubkey ?? this.verifierPubkey,
@@ -3147,6 +3168,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
   WorkReceipt copyWithCompanion(WorkReceiptsCompanion data) {
     return WorkReceipt(
       receiptId: data.receiptId.present ? data.receiptId.value : this.receiptId,
+      v: data.v.present ? data.v.value : this.v,
       workType: data.workType.present ? data.workType.value : this.workType,
       proverPubkey: data.proverPubkey.present
           ? data.proverPubkey.value
@@ -3182,6 +3204,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
   String toString() {
     return (StringBuffer('WorkReceipt(')
           ..write('receiptId: $receiptId, ')
+          ..write('v: $v, ')
           ..write('workType: $workType, ')
           ..write('proverPubkey: $proverPubkey, ')
           ..write('verifierPubkey: $verifierPubkey, ')
@@ -3205,6 +3228,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
   @override
   int get hashCode => Object.hash(
       receiptId,
+      v,
       workType,
       proverPubkey,
       verifierPubkey,
@@ -3226,6 +3250,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
       identical(this, other) ||
       (other is WorkReceipt &&
           other.receiptId == this.receiptId &&
+          other.v == this.v &&
           other.workType == this.workType &&
           other.proverPubkey == this.proverPubkey &&
           other.verifierPubkey == this.verifierPubkey &&
@@ -3246,6 +3271,7 @@ class WorkReceipt extends DataClass implements Insertable<WorkReceipt> {
 
 class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
   final Value<String> receiptId;
+  final Value<int> v;
   final Value<String> workType;
   final Value<String> proverPubkey;
   final Value<String> verifierPubkey;
@@ -3265,6 +3291,7 @@ class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
   final Value<int> rowid;
   const WorkReceiptsCompanion({
     this.receiptId = const Value.absent(),
+    this.v = const Value.absent(),
     this.workType = const Value.absent(),
     this.proverPubkey = const Value.absent(),
     this.verifierPubkey = const Value.absent(),
@@ -3285,6 +3312,7 @@ class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
   });
   WorkReceiptsCompanion.insert({
     required String receiptId,
+    this.v = const Value.absent(),
     required String workType,
     required String proverPubkey,
     required String verifierPubkey,
@@ -3317,6 +3345,7 @@ class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
         createdAt = Value(createdAt);
   static Insertable<WorkReceipt> custom({
     Expression<String>? receiptId,
+    Expression<int>? v,
     Expression<String>? workType,
     Expression<String>? proverPubkey,
     Expression<String>? verifierPubkey,
@@ -3337,6 +3366,7 @@ class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
   }) {
     return RawValuesInsertable({
       if (receiptId != null) 'receipt_id': receiptId,
+      if (v != null) 'v': v,
       if (workType != null) 'work_type': workType,
       if (proverPubkey != null) 'prover_pubkey': proverPubkey,
       if (verifierPubkey != null) 'verifier_pubkey': verifierPubkey,
@@ -3359,6 +3389,7 @@ class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
 
   WorkReceiptsCompanion copyWith(
       {Value<String>? receiptId,
+      Value<int>? v,
       Value<String>? workType,
       Value<String>? proverPubkey,
       Value<String>? verifierPubkey,
@@ -3378,6 +3409,7 @@ class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
       Value<int>? rowid}) {
     return WorkReceiptsCompanion(
       receiptId: receiptId ?? this.receiptId,
+      v: v ?? this.v,
       workType: workType ?? this.workType,
       proverPubkey: proverPubkey ?? this.proverPubkey,
       verifierPubkey: verifierPubkey ?? this.verifierPubkey,
@@ -3403,6 +3435,9 @@ class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
     final map = <String, Expression>{};
     if (receiptId.present) {
       map['receipt_id'] = Variable<String>(receiptId.value);
+    }
+    if (v.present) {
+      map['v'] = Variable<int>(v.value);
     }
     if (workType.present) {
       map['work_type'] = Variable<String>(workType.value);
@@ -3462,6 +3497,7 @@ class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
   String toString() {
     return (StringBuffer('WorkReceiptsCompanion(')
           ..write('receiptId: $receiptId, ')
+          ..write('v: $v, ')
           ..write('workType: $workType, ')
           ..write('proverPubkey: $proverPubkey, ')
           ..write('verifierPubkey: $verifierPubkey, ')
@@ -5109,6 +5145,7 @@ typedef $$AwardedDoisTableProcessedTableManager = ProcessedTableManager<
 typedef $$WorkReceiptsTableCreateCompanionBuilder = WorkReceiptsCompanion
     Function({
   required String receiptId,
+  Value<int> v,
   required String workType,
   required String proverPubkey,
   required String verifierPubkey,
@@ -5130,6 +5167,7 @@ typedef $$WorkReceiptsTableCreateCompanionBuilder = WorkReceiptsCompanion
 typedef $$WorkReceiptsTableUpdateCompanionBuilder = WorkReceiptsCompanion
     Function({
   Value<String> receiptId,
+  Value<int> v,
   Value<String> workType,
   Value<String> proverPubkey,
   Value<String> verifierPubkey,
@@ -5160,6 +5198,9 @@ class $$WorkReceiptsTableFilterComposer
   });
   ColumnFilters<String> get receiptId => $composableBuilder(
       column: $table.receiptId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get v => $composableBuilder(
+      column: $table.v, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get workType => $composableBuilder(
       column: $table.workType, builder: (column) => ColumnFilters(column));
@@ -5223,6 +5264,9 @@ class $$WorkReceiptsTableOrderingComposer
   });
   ColumnOrderings<String> get receiptId => $composableBuilder(
       column: $table.receiptId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get v => $composableBuilder(
+      column: $table.v, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get workType => $composableBuilder(
       column: $table.workType, builder: (column) => ColumnOrderings(column));
@@ -5289,6 +5333,9 @@ class $$WorkReceiptsTableAnnotationComposer
   });
   GeneratedColumn<String> get receiptId =>
       $composableBuilder(column: $table.receiptId, builder: (column) => column);
+
+  GeneratedColumn<int> get v =>
+      $composableBuilder(column: $table.v, builder: (column) => column);
 
   GeneratedColumn<String> get workType =>
       $composableBuilder(column: $table.workType, builder: (column) => column);
@@ -5366,6 +5413,7 @@ class $$WorkReceiptsTableTableManager extends RootTableManager<
               $$WorkReceiptsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> receiptId = const Value.absent(),
+            Value<int> v = const Value.absent(),
             Value<String> workType = const Value.absent(),
             Value<String> proverPubkey = const Value.absent(),
             Value<String> verifierPubkey = const Value.absent(),
@@ -5386,6 +5434,7 @@ class $$WorkReceiptsTableTableManager extends RootTableManager<
           }) =>
               WorkReceiptsCompanion(
             receiptId: receiptId,
+            v: v,
             workType: workType,
             proverPubkey: proverPubkey,
             verifierPubkey: verifierPubkey,
@@ -5406,6 +5455,7 @@ class $$WorkReceiptsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String receiptId,
+            Value<int> v = const Value.absent(),
             required String workType,
             required String proverPubkey,
             required String verifierPubkey,
@@ -5426,6 +5476,7 @@ class $$WorkReceiptsTableTableManager extends RootTableManager<
           }) =>
               WorkReceiptsCompanion.insert(
             receiptId: receiptId,
+            v: v,
             workType: workType,
             proverPubkey: proverPubkey,
             verifierPubkey: verifierPubkey,

@@ -6,9 +6,23 @@ import 'package:cryptography/cryptography.dart';
 String bytesToHex(List<int> bytes) =>
     bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
-/// Parses a hex string to bytes
+/// Parses a hex string to bytes.
+///
+/// STRICT parser (ALX-012): after ASCII-space stripping, only
+/// `[0-9a-fA-F]` pairs are accepted — `int.parse`'s tolerance for
+/// `+` signs, tabs, NBSP and other respellings would let two distinct
+/// spellings of one key decode to identical bytes, which a canonical
+/// key guard (e.g. `WorkReceipt.samePubkey`) cannot see. The decoder's
+/// acceptance set must never exceed the guard's. Throws
+/// [FormatException] on malformed input; every caller is a verify path
+/// that fails closed on throw.
 List<int> hexToBytes(String hex) {
   final cleanHex = hex.replaceAll(' ', '');
+  if (cleanHex.isEmpty ||
+      cleanHex.length % 2 != 0 ||
+      !RegExp(r'^[0-9a-fA-F]+$').hasMatch(cleanHex)) {
+    throw FormatException('malformed hex string', hex);
+  }
   final bytes = <int>[];
   for (var i = 0; i < cleanHex.length; i += 2) {
     bytes.add(int.parse(cleanHex.substring(i, i + 2), radix: 16));

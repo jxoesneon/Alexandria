@@ -1,15 +1,26 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart' hide Hmac;
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'identity_service.dart';
+import 'secure_storage_service.dart';
 
 final mnemonicServiceProvider = Provider((ref) {
   final identityService = ref.watch(identityServiceProvider);
-  return MnemonicService(identityService);
+  return MnemonicService(
+    identityService,
+    // The backup marker MUST live in the same keychain
+    // SecurityOverviewService reads — the shared SecureStorageService.
+    storage: ref.watch(secureStorageServiceProvider),
+    // A recovery replaces the stored identity out-of-band: force the
+    // identity cache to reload so getIdentity() can never serve the
+    // pre-recovery keypair (split-brain). Wired here — by construction —
+    // so no UI call site can forget it.
+    onIdentityRecovered: identityService.reloadIdentity,
+  );
 });
 
 /// BIP-39 English wordlist — the complete, official 2048-word list,
@@ -2113,10 +2124,16 @@ class MnemonicResult {
 /// output cannot be inverted back to the original key).
 class MnemonicService {
   final IdentityService _identityService;
-  final _storage = const FlutterSecureStorage();
+
+  /// Shared secure store for the backup marker. This MUST be the same
+  /// [SecureStorageService] instance/keychain that
+  /// `SecurityOverviewService` reads — previously this was a bare
+  /// `const FlutterSecureStorage()`, which uses a DIFFERENT macOS
+  /// keychain (no `usesDataProtectionKeychain: false`), so the marker
+  /// written here was invisible to the security alerts.
+  final SecureStorageService _storage;
   final _random = Random.secure();
 
-  static const String _mnemonicKey = 'alexandria_mnemonic_backup';
   static const int _pbkdf2Iterations = 2048;
 
   /// Legal BIP-39 entropy lengths in bytes (128..256 bits, 32-bit steps).
@@ -2125,7 +2142,18 @@ class MnemonicService {
   /// Legal BIP-39 word counts (one 11-bit word per 32+1 entropy bits).
   static const Set<int> _validWordCounts = {12, 15, 18, 21, 24};
 
-  MnemonicService(this._identityService);
+  /// Optional hook invoked after [recoverFromMnemonic] successfully
+  /// replaces the stored identity. The provider wires this to
+  /// [IdentityService.reloadIdentity] so no stale identity survives in
+  /// any cache — enforced by construction so UI call sites can't
+  /// forget it.
+  final Future<void> Function()? onIdentityRecovered;
+
+  MnemonicService(
+    this._identityService, {
+    required SecureStorageService storage,
+    this.onIdentityRecovered,
+  }) : _storage = storage;
 
   /// Generate a new 24-word mnemonic from 256-bit entropy
   Future<MnemonicResult> generateMnemonic() async {
@@ -2268,6 +2296,16 @@ class MnemonicService {
   /// the key, so recovering a phrase produced by [backupCurrentIdentity]
   /// restores the exact same public key. Shorter standard entropies
   /// (12/15/18/21 words) are expanded to a 32-byte seed via SHA-256.
+  ///
+  /// The recovered identity is persisted through
+  /// [IdentityService.importIdentity] so the write lands in the SAME
+  /// storage [IdentityService.getIdentity] reads AND the in-memory
+  /// identity cache is refreshed atomically. Afterwards
+  /// [onIdentityRecovered] is invoked (wired by the provider to
+  /// [IdentityService.reloadIdentity]) as belt-and-suspenders cache
+  /// coherency. Previously this wrote the storage keys directly and
+  /// never touched IdentityService's cache, so getIdentity() kept
+  /// serving the OLD keypair while storage held the recovered one.
   Future<AlexandriaIdentity?> recoverFromMnemonic(List<String> words) async {
     if (!validateMnemonic(words)) {
       return null;
@@ -2279,31 +2317,27 @@ class MnemonicService {
         ? entropy
         : Uint8List.fromList(sha256.convert(entropy).bytes);
 
-    // Generate keypair from seed
-    final algorithm = Ed25519();
-    final keyPair = await algorithm.newKeyPairFromSeed(privateKeySeed);
-    final publicKey = await keyPair.extractPublicKey();
+    // Derive the keypair and persist through IdentityService — the
+    // single owner of the identity keys and their cache.
+    final identity = await _identityService.importIdentity(privateKeySeed);
 
-    // Store the identity
-    await _storage.write(
-      key: 'alexandria_identity_private_key',
-      value: _hexEncode(privateKeySeed),
-    );
-    await _storage.write(
-      key: 'alexandria_identity_public_key',
-      value: _hexEncode(Uint8List.fromList(publicKey.bytes)),
-    );
-    await _storage.write(
-      key: 'alexandria_identity_created',
-      value: DateTime.now().toIso8601String(),
-    );
+    // The identity is already persisted and cached; a failing hook must
+    // not turn a successful recovery into a reported failure.
+    final onRecovered = onIdentityRecovered;
+    if (onRecovered != null) {
+      try {
+        await onRecovered();
+      } catch (e, stackTrace) {
+        developer.log(
+          'onIdentityRecovered hook threw after a successful recovery',
+          name: 'MnemonicService',
+          error: e,
+          stackTrace: stackTrace,
+        );
+      }
+    }
 
-    // Return the recovered identity
-    return AlexandriaIdentity(
-      publicKey: Uint8List.fromList(publicKey.bytes),
-      privateKey: privateKeySeed,
-      createdAt: DateTime.now(),
-    );
+    return identity;
   }
 
   /// Backup current identity as mnemonic.
@@ -2331,22 +2365,67 @@ class MnemonicService {
 
     final words = _entropyToWords(entropy);
     final seed = await _mnemonicToSeed(words, '');
-    final mnemonic =
-        MnemonicResult(words: words, entropy: entropy, seed: seed);
+    return MnemonicResult(words: words, entropy: entropy, seed: seed);
+  }
 
-    // Store mnemonic hash for verification (never store mnemonic itself)
-    final phraseHash = sha256.convert(utf8.encode(mnemonic.phrase));
-    await _storage.write(
-      key: _mnemonicKey,
-      value: _hexEncode(Uint8List.fromList(phraseHash.bytes)),
+  /// Record that the user has confirmed saving the recovery phrase.
+  ///
+  /// The marker is a SHA-256 of the phrase (never the phrase itself),
+  /// written to the shared [SecureStorageService] store under
+  /// [SecureStorageKeys.mnemonicBackup] — the same key and keychain
+  /// `SecurityOverviewService` checks before warning about a missing
+  /// backup. This is deliberately a separate step from
+  /// [backupCurrentIdentity]: the marker is written on explicit user
+  /// confirmation ("I've saved it"), not when the phrase is merely
+  /// derived and displayed.
+  ///
+  /// `IdentityService` clears this marker whenever the stored keypair
+  /// is replaced (import/rotate/delete), since the old phrase can no
+  /// longer recover the new key.
+  ///
+  /// The write is delegated to [IdentityService.markMnemonicBackupConfirmed]
+  /// so it lands inside the same serialized op-chain as identity
+  /// mutations: a confirmation racing an [IdentityService.importIdentity]
+  /// cannot resurrect a stale marker. Additionally, when [phrase] is a
+  /// decodable BIP-39 phrase, the public key it recovers is derived and
+  /// passed along — the marker is then written only while that key is
+  /// still the stored one, so the outcome is independent of the
+  /// serialized order.
+  Future<void> markBackupConfirmed(String phrase) async {
+    final phraseHash = sha256.convert(utf8.encode(phrase));
+    final phraseHashHex = _hexEncode(Uint8List.fromList(phraseHash.bytes));
+
+    // Best-effort: determine which public key this phrase recovers.
+    // If the phrase doesn't decode, the marker write is still
+    // serialized (ordering with the clearing writes applies), just
+    // without the staleness check.
+    String? expectedPublicKeyHex;
+    final words =
+        phrase.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (validateMnemonic(words)) {
+      try {
+        final entropy = _wordsToEntropy(words);
+        final seed = entropy.length == 32
+            ? entropy
+            : Uint8List.fromList(sha256.convert(entropy).bytes);
+        final keyPair = await Ed25519().newKeyPairFromSeed(seed);
+        final publicKey = await keyPair.extractPublicKey();
+        expectedPublicKeyHex =
+            _hexEncode(Uint8List.fromList(publicKey.bytes));
+      } catch (_) {
+        expectedPublicKeyHex = null;
+      }
+    }
+
+    await _identityService.markMnemonicBackupConfirmed(
+      phraseHashHex,
+      expectedPublicKeyHex: expectedPublicKeyHex,
     );
-
-    return mnemonic;
   }
 
   /// Check if a backup exists
   Future<bool> hasBackup() async {
-    return await _storage.containsKey(key: _mnemonicKey);
+    return await _storage.containsKey(SecureStorageKeys.mnemonicBackup);
   }
 
   // Helper: Hex encode

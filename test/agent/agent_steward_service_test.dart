@@ -1,12 +1,45 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/agent/agent_steward_service.dart';
+import 'package:alexandria/services/agent/beacon_models.dart';
+import 'package:alexandria/services/agent/escrow_attestation.dart';
 import 'package:alexandria/services/agent/moltbook_service.dart';
 import 'package:alexandria/services/credits/credit_service.dart';
 import 'package:alexandria/services/credits/poch_service.dart';
 import 'package:alexandria/services/ipfs_service.dart';
+
+/// Builds a REAL, construction-verified [EscrowAttestation] from a
+/// foreign attestor for [bounty] — the successor to the old
+/// caller-asserted `escrowAttested: true` bool.
+Future<EscrowAttestation?> _attestBounty(
+  SimpleKeyPair attestor,
+  PreservationBounty bounty,
+) async {
+  final expiresAt = DateTime.now()
+      .add(const Duration(hours: 1))
+      .millisecondsSinceEpoch;
+  final amountMilli = (bounty.offeredCredits * 1000).round();
+  final preimage = EscrowAttestation.signingPreimage(
+    bountyId: bounty.id,
+    cid: bounty.cid,
+    amountMilli: amountMilli,
+    expiresAt: expiresAt,
+  );
+  final sig = await Ed25519().sign(preimage, keyPair: attestor);
+  final pub = await attestor.extractPublicKey();
+  return EscrowAttestation.verify(
+    attestorPubkey: bytesToHex(pub.bytes),
+    bountyId: bounty.id,
+    cid: bounty.cid,
+    amountMilli: amountMilli,
+    expiresAt: expiresAt,
+    signature: base64Encode(sig.bytes),
+    verifyFn: EscrowAttestation.verifyEd25519,
+  );
+}
 
 void main() {
   group('AgentStewardService Autonomous Loop Tests (ALX-006 §6)', () {
@@ -126,15 +159,32 @@ void main() {
       // The announcement propagates over the transport to this node.
       // (Key rotation on the posting node must NOT be required — and must
       // never suffice — to claim; locally posted ids are barred for life.)
-      // escrowAttested simulates the transport having verified the
-      // poster's escrow attestation — remote `funded` flags alone are
-      // stripped on ingest (E-T5r #1).
-      ipfsMoltbook.ingestBountyAnnouncement(bounty, escrowAttested: true);
+      // A real foreign attestor's EscrowAttestation stands in for the
+      // transport's out-of-band verification — remote `funded` flags
+      // alone are stripped on ingest (E-T5r #1 / ALX-011 A3), and the
+      // attestor must sit inside the caller-supplied trust root
+      // (`trustedAttestors`) since signature validity alone is just
+      // key possession (F1).
+      final attestor = await Ed25519().newKeyPair();
+      ipfsMoltbook.ingestBountyAnnouncement(
+        bounty,
+        escrowAttestation: await _attestBounty(attestor, bounty),
+        trustedAttestors: {
+          bytesToHex((await attestor.extractPublicKey()).bytes),
+        },
+      );
 
       await ipfsSteward.runStewardIteration();
 
       expect(ipfsSteward.totalBountiesClaimed, 1);
-      expect(bounty.isClaimed, isTrue);
+      // Ingest stores a copy of the announcement — the claim flag lives
+      // on the stored record, so a claimed bounty drops out of
+      // activeBounties rather than mutating the caller's object (H3).
+      expect(bounty.isClaimed, isFalse);
+      expect(
+        ipfsMoltbook.activeBounties.any((b) => b.id == bounty.id),
+        isFalse,
+      );
       expect(creditService.balance, 100.0); // Net-zero: escrow paid out
       expect(creditService.protocolTreasury, treasuryBefore); // +0 fee
       expect(ipfsSteward.activityLog.any((l) => l.contains('Claimed & fulfilled')), isTrue);

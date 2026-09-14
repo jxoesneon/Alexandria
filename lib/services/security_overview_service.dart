@@ -69,9 +69,13 @@ class SecurityOverviewService {
         timestamp: DateTime.now(),
       ));
     } else {
+      // Same key AND same store that MnemonicService.markBackupConfirmed
+      // writes (previously this read 'alexandria_mnemonic_backup_hash' —
+      // a key that was never written — while the marker lived in a
+      // different keychain, so the backup warning could never clear).
       final backup = await _ref
           .read(secureStorageServiceProvider)
-          .read('alexandria_mnemonic_backup_hash');
+          .read(SecureStorageKeys.mnemonicBackup);
       if (backup == null) {
         alerts.add(SecurityAlert(
           severity: 'low',
@@ -147,8 +151,17 @@ class SecurityOverviewService {
     if (type != KeyType.ed25519) {
       throw ArgumentError('Only Ed25519 keypairs are currently supported.');
     }
+    // Rotation MUST go through IdentityService — the single owner of the
+    // identity keys/cache — so the stored and cached identities can
+    // never diverge (split-brain).
     final identity =
         await _ref.read(identityServiceProvider).generateIdentity();
+    // The active keypair changed out-of-band of the UI. Dependents that
+    // watch identityRevisionProvider (identityStateProvider,
+    // activeIdentitiesProvider, securityOverviewProvider,
+    // securityAlertsProvider) rebuild automatically; this explicit
+    // invalidation is belt-and-suspenders for the same path.
+    _ref.invalidate(identityStateProvider);
     return Keypair(
       id: identity.shortId,
       type: KeyType.ed25519,

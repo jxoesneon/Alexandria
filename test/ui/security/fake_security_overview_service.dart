@@ -24,6 +24,10 @@ class FakeSecurityOverviewService implements SecurityOverviewService {
   List<PorChallenge> issuedChallenges = const [];
   bool verifyResult = true;
 
+  /// When set, [generateNewKeypair] throws it — simulates a rotation
+  /// failure (e.g. post-write verification StateError).
+  Object? generateError;
+
   @override
   Future<SecurityOverview> getOverview() async => overview;
 
@@ -39,6 +43,8 @@ class FakeSecurityOverviewService implements SecurityOverviewService {
 
   @override
   Future<Keypair> generateNewKeypair(KeyType type) async {
+    final error = generateError;
+    if (error != null) throw error;
     generatedIdentity ??= Keypair(
       id: 'key-001',
       type: type,

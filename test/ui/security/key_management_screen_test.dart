@@ -56,6 +56,59 @@ void main() {
     expect(fake.identities, isNotEmpty);
   });
 
+  testWidgets('warns before replacing an existing keypair', (tester) async {
+    final fake = FakeSecurityOverviewService()
+      ..identities = [
+        Keypair(
+          id: 'key-001',
+          type: KeyType.ed25519,
+          createdAt: DateTime(2024, 5, 12),
+          did: 'did:alex:key-001',
+        ),
+      ];
+
+    await tester.pumpWidget(createSubject(fake));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+
+    // The existing key may be funded — rotation must be confirmed.
+    await tester.tap(find.text('Generate new key'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+
+    expect(find.text('Replace existing keypair?'), findsOneWidget);
+    expect(fake.generatedIdentity, isNull);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    expect(fake.generatedIdentity, isNull);
+
+    // Confirming performs the rotation.
+    await tester.tap(find.text('Generate new key'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Replace key'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+
+    expect(fake.generatedIdentity, isNotNull);
+  });
+
+  testWidgets('rotation failure shows a SnackBar instead of an '
+      'unhandled error', (tester) async {
+    final fake = FakeSecurityOverviewService()
+      ..generateError = StateError('identity write failed verification');
+
+    await tester.pumpWidget(createSubject(fake));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+
+    await tester.tap(find.text('Generate new key'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+
+    // An uncaught async error would fail this test on its own.
+    expect(
+      find.textContaining('Failed to generate new key'),
+      findsOneWidget,
+    );
+    expect(fake.generatedIdentity, isNull);
+  });
+
   testWidgets('exports private key', (tester) async {
     final fake = FakeSecurityOverviewService()
       ..identities = [

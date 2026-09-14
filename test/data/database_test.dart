@@ -16,8 +16,8 @@ void main() {
       await db.close();
     });
 
-    test('schemaVersion is 3', () {
-      expect(db.schemaVersion, equals(3));
+    test('schemaVersion is 4', () {
+      expect(db.schemaVersion, equals(4));
     });
 
     test('insert and retrieve a manifest by uuid', () async {
@@ -493,16 +493,123 @@ void main() {
         onCreateTbl: (tbl) => calledTables.add(tbl.entityName),
       );
 
-      await strategy.onUpgrade(fakeMigrator, 1, 3);
-      expect(calledColumns.length, equals(3));
+      // v1→v4: the three v2 content_versions columns, the four v3
+      // tables, and the v4 work_receipts.v column.
+      await strategy.onUpgrade(fakeMigrator, 1, 4);
+      expect(calledColumns.length, equals(4));
+      expect(calledColumns, contains('work_receipts.v'));
       expect(calledTables.length, equals(4));
 
       calledColumns.clear();
       calledTables.clear();
 
-      await strategy.onUpgrade(fakeMigrator, 2, 3);
-      expect(calledColumns, isEmpty);
+      await strategy.onUpgrade(fakeMigrator, 2, 4);
+      expect(calledColumns, equals(['work_receipts.v']));
       expect(calledTables.length, equals(4));
+
+      calledColumns.clear();
+      calledTables.clear();
+
+      // The v3→v4 step adds ONLY the receipt wire-version column.
+      await strategy.onUpgrade(fakeMigrator, 3, 4);
+      expect(calledColumns, equals(['work_receipts.v']));
+      expect(calledTables, isEmpty);
+    });
+
+    test('work_receipts.v round-trips and defaults to the legacy scheme',
+        () async {
+      Map<String, dynamic> row(String id) => {
+            'receiptId': id,
+            'workType': 'storage',
+            'proverPubkey': 'p',
+            'verifierPubkey': 'v',
+            'chunkIndices': '[]',
+            'challengeNonce': 'n',
+            'responseTag': 't',
+            'workUnits': 1.0,
+            'amount': 5.0,
+            'epoch': '2026-01-01',
+            'expiresAt': 9999999999,
+            'verifierSig': 'sig',
+          };
+
+      // Omitted -> the legacy v1 scheme (pre-domain signatures).
+      await db.insertWorkReceipt(row('rcpt_legacy'));
+      expect((await db.getWorkReceipt('rcpt_legacy'))!['v'], 1);
+
+      // Explicit v2 (domain-separated) round-trips.
+      await db.insertWorkReceipt({...row('rcpt_v2'), 'v': 2});
+      expect((await db.getWorkReceipt('rcpt_v2'))!['v'], 2);
+
+      // An unknown FUTURE version is still representable — the declared
+      // v is stored verbatim, never clamped.
+      await db.insertWorkReceipt({...row('rcpt_v9'), 'v': 9});
+      expect((await db.getWorkReceipt('rcpt_v9'))!['v'], 9);
+    });
+
+    test('v3→v4 migration preserves work_receipts rows and defaults v=1',
+        () async {
+      // Simulate a real v3 database: rebuild work_receipts WITHOUT the v
+      // column and insert a legacy row the way a v3 build would have.
+      await db.customStatement('DROP TABLE work_receipts');
+      await db.customStatement('''
+        CREATE TABLE work_receipts (
+          receipt_id TEXT NOT NULL PRIMARY KEY,
+          work_type TEXT NOT NULL,
+          prover_pubkey TEXT NOT NULL,
+          verifier_pubkey TEXT NOT NULL,
+          cid TEXT,
+          chunk_indices TEXT NOT NULL,
+          challenge_nonce TEXT NOT NULL,
+          response_tag TEXT NOT NULL,
+          work_units REAL NOT NULL,
+          amount REAL NOT NULL,
+          epoch TEXT NOT NULL,
+          expires_at INTEGER NOT NULL,
+          evidence_hash TEXT,
+          verifier_sig TEXT NOT NULL,
+          prover_sig TEXT,
+          spent INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        )
+      ''');
+      await db.customStatement(
+        'INSERT INTO work_receipts (receipt_id, work_type, prover_pubkey, '
+        'verifier_pubkey, chunk_indices, challenge_nonce, response_tag, '
+        'work_units, amount, epoch, expires_at, verifier_sig, spent, '
+        "created_at) VALUES ('legacy_rcpt', 'storage', 'p_v3', 'v_v3', "
+        "'[]', 'nonce', 'tag', 2.0, 7.5, '2026-01-01', 9999999999, "
+        "'sig_v3', 0, 1700000000)",
+      );
+
+      // The real migration path — a Migrator bound to this database, so
+      // the ALTER TABLE actually executes.
+      await db.migration.onUpgrade(db.createMigrator(), 3, 4);
+
+      final row = await db.getWorkReceipt('legacy_rcpt');
+      expect(row, isNotNull, reason: 'migration must preserve the row');
+      expect(row!['v'], 1,
+          reason: 'pre-v4 rows hydrate as the legacy bare-domain scheme');
+      expect(row['verifierSig'], 'sig_v3');
+      expect(row['amount'], 7.5);
+      expect(row['spent'], isFalse);
+      // And the upgraded table accepts new v2 writes.
+      await db.insertWorkReceipt({
+        'receiptId': 'post_mig',
+        'v': 2,
+        'workType': 'storage',
+        'proverPubkey': 'p',
+        'verifierPubkey': 'v',
+        'chunkIndices': '[]',
+        'challengeNonce': 'n',
+        'responseTag': 't',
+        'workUnits': 1.0,
+        'amount': 5.0,
+        'epoch': '2026-01-01',
+        'expiresAt': 9999999999,
+        'verifierSig': 'sig',
+      });
+      expect((await db.getWorkReceipt('post_mig'))!['v'], 2);
     });
   });
 }

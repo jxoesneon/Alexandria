@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/models/security_models.dart';
@@ -10,6 +12,17 @@ import '../ui/security/fake_security_overview_service.dart';
 
 // Simple fakes to satisfy override contract; only the provider shapes matter here.
 class FakeIdentityService implements IdentityService {
+  final StreamController<int> _revisionController =
+      StreamController<int>.broadcast(sync: true);
+
+  // identityRevisionProvider is watched by identityStateProvider /
+  // activeIdentitiesProvider — the fake must expose a real stream.
+  @override
+  Stream<int> get revisionStream => _revisionController.stream;
+
+  @override
+  int get revision => 0;
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

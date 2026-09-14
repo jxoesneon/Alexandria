@@ -281,8 +281,10 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 // Self-declared provenance only — never verified (ALX-010)
+                                // claimed_client_version is advisory display
+                                // only (ALX-012 B3-lite): never a gate.
                                 Text(
-                                  'Claimed build: ${buildInfo.commitShort} (${buildInfo.buildChannel})',
+                                  'Claimed build: ${buildInfo.commitShort} (${buildInfo.buildChannel}) • client v${buildInfo.clientVersion}',
                                   style: const TextStyle(
                                       fontSize: 10,
                                       color: AppTheme.secondaryColor),

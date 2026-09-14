@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/security_models.dart';
+import '../services/identity_service.dart';
 import '../services/security_overview_service.dart';
 
 final securityOverviewServiceProvider = Provider<SecurityOverviewService>((ref) {
@@ -8,11 +9,15 @@ final securityOverviewServiceProvider = Provider<SecurityOverviewService>((ref) 
 });
 
 final securityOverviewProvider = FutureProvider<SecurityOverview>((ref) async {
+  // Re-resolve whenever the stored identity is replaced (recovery,
+  // rotation, deletion) so the dashboard never reflects a stale key.
+  ref.watch(identityRevisionProvider);
   final service = ref.watch(securityOverviewServiceProvider);
   return service.getOverview();
 });
 
 final securityAlertsProvider = StreamProvider<List<SecurityAlert>>((ref) {
+  ref.watch(identityRevisionProvider);
   final service = ref.watch(securityOverviewServiceProvider);
   return service.watchSecurityAlerts();
 });
@@ -27,6 +32,11 @@ final didServiceProvider = Provider<SecurityOverviewService>((ref) {
 });
 
 final activeIdentitiesProvider = FutureProvider<List<Keypair>>((ref) {
+  // Watching the identity revision makes this rebuild automatically
+  // after every identity mutation (mnemonic recovery, rotation,
+  // deletion) — previously a recovery left this serving the
+  // pre-recovery DID, so exportPrivateKey threw on the new key id.
+  ref.watch(identityRevisionProvider);
   final service = ref.watch(keyManagementServiceProvider);
   return service.getActiveIdentities();
 });

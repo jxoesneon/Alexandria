@@ -388,6 +388,39 @@ void main() {
       expect(row!['spent'], isTrue);
     });
 
+    test('case-variant prover_pubkey spelling the local key still mints '
+        'the local reward (canonical compare, not stranded)', () async {
+      // The MCP tool surface can deliver prover_pubkey in any hex case —
+      // a syntactic `==` against the node identity would strand the
+      // storage reward as an unclaimable foreign-prover instrument.
+      final chunk = chunkOf('local bytes proven via MCP-issued proof');
+      final challenge = service.issueChallenge(
+        cid: 'bafy_case_prover',
+        totalChunks: 1,
+        challengerPubkey: identity.pubkeyHex,
+      );
+      final proof =
+          service.generateProof(challenge: challenge, chunkData: chunk);
+      final before = creditService.balance;
+
+      final result = await service.verifyAndIssueReceipt(
+        proof: proof,
+        expectedChunkData: chunk,
+        proverPeerId: 'mcp_agent',
+        proverPubkey: identity.pubkeyHex.toUpperCase(),
+      );
+
+      expect(result.valid, isTrue);
+      final receipt = result.receipt!;
+      expect(receipt.proverPubkey, identity.pubkeyHex.toUpperCase());
+      // Recognized as the local prover: minted at 1.0x and spent —
+      // NOT persisted unspent as someone else's claim instrument.
+      expect(receipt.spent, isTrue);
+      expect(creditService.balance, greaterThan(before));
+      final row = await db.getWorkReceipt(receipt.receiptId);
+      expect(row!['spent'], isTrue);
+    });
+
     test('unsigned receipt when no identity can sign for the verifier key',
         () async {
       // Challenger is a FOREIGN key the local identity cannot sign as.

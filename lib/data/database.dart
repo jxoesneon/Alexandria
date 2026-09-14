@@ -17,7 +17,7 @@ part 'database.g.dart';
 /// [LazyDatabase] defers the open until first use, so reading this
 /// provider never blocks and never touches path_provider in unit tests.
 /// First boot runs Drift's default onCreate; upgrades run the
-/// schemaVersion-3 [AppDatabase.migration]. The [AppDatabase] constructor
+/// schemaVersion-4 [AppDatabase.migration]. The [AppDatabase] constructor
 /// keeps [NativeDatabase.memory] as its default executor so tests stay
 /// hermetic — only this provider wires the file-backed executor.
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -139,9 +139,15 @@ class AwardedDois extends Table {
 
 /// Verifier-signed work receipts (ALX-010 / P1). [receiptId] is the sha256 of
 /// the canonical receipt body; [verifierSig] is a base64 Ed25519 signature
-/// over it. [spent] is the spend-dedup flag set once the receipt is claimed.
+/// over the domain-separated signing preimage the receipt's own [v] selects
+/// (ALX-012). [spent] is the spend-dedup flag set once the receipt is
+/// claimed.
 class WorkReceipts extends Table {
   TextColumn get receiptId => text()();
+  // Per-receipt wire-format version (ALX-012): persisted so foreign
+  // artifacts keep their declared scheme — rows predating the column
+  // default to the legacy v1 (bare-domain) scheme.
+  IntColumn get v => integer().withDefault(const Constant(1))();
   TextColumn get workType => text()(); // 'storage' | 'compute' | 'verification'
   TextColumn get proverPubkey => text()(); // base58 Ed25519
   TextColumn get verifierPubkey => text()(); // base58 Ed25519
@@ -177,7 +183,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -192,6 +198,11 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(dailyMinted);
             await m.createTable(awardedDois);
             await m.createTable(workReceipts);
+          }
+          if (from < 4) {
+            // ALX-012: per-receipt wire version. Existing rows hydrate
+            // with the column default (1 = legacy bare-domain scheme).
+            await m.addColumn(workReceipts, workReceipts.v);
           }
         },
       );
@@ -376,6 +387,9 @@ class AppDatabase extends _$AppDatabase {
     await into(workReceipts).insert(
       WorkReceiptsCompanion.insert(
         receiptId: data['receiptId'] as String,
+        // Tolerant parse: callers/rows that omit `v` fall back to the
+        // legacy v1 scheme rather than failing the insert.
+        v: Value((data['v'] as num?)?.toInt() ?? 1),
         workType: data['workType'] as String,
         proverPubkey: data['proverPubkey'] as String,
         verifierPubkey: data['verifierPubkey'] as String,
@@ -439,6 +453,7 @@ class AppDatabase extends _$AppDatabase {
 
   static Map<String, dynamic> _workReceiptToMap(WorkReceipt r) => {
         'receiptId': r.receiptId,
+        'v': r.v,
         'workType': r.workType,
         'proverPubkey': r.proverPubkey,
         'verifierPubkey': r.verifierPubkey,

@@ -1,0 +1,188 @@
+# ALX-012: Version Enforcement at the Proof Layer — Receipt Wire Versions, Epoch Domain Separation, and the Claim-Time Floor
+
+| Metadata | Value |
+| :--- | :--- |
+| **RFC** | ALX-012 |
+| **Title** | Version Enforcement at the Proof Layer: Receipt Wire Versions, Epoch Domain Separation, and the Claim-Time Floor |
+| **Author** | Alexandria Core Team & Governance Review |
+| **Status** | Standard / Active |
+| **Version** | 1.0.0 |
+| **Date** | 2026-11-22 |
+| **Depends On** | ALX-005, ALX-006, ALX-010, ALX-011 |
+
+---
+
+## 1. Abstract
+
+This specification canonizes the Review-of-Five decision on protocol version enforcement. Its single organizing result:
+
+> **Version enforcement binds only at the proof layer** — at the point where a party the attacker does not control applies the check.
+
+Every mechanism that tries to enforce a version against a *self-declared* value fails, because the declaration itself is attacker-controlled. Enforcement therefore lives where Alexandria's only trust primitive already lives: inside verifier-signed artifacts, checked at claim time by the verifier's own policy. This RFC formalizes:
+
+1. **A per-receipt wire-version field `v`** carried inside the signed body (already present as `v = 1` in ALX-011 §4.1; here made load-bearing).
+2. **Epoch-domain separation**: a version-bound `alexandria:receipt:v{v}:` prefix in the signing preimage, so artifacts from one wire epoch can never be replayed or forged into another.
+3. **The claim-time floor** `minClaimableWireVersion`: a per-verifier policy constant — explicitly *not* a central kill switch (Safety B4) — with a grace window of `{current−1, current}` bounded by the receipt 24 h TTL.
+4. **Emergency retirement** of a wire epoch = bumping the floor constant.
+5. **Parse tolerance**: receipts with unknown `v` are representable but unclaimable below the floor — the anti-ossification lesson of RFC 9170.
+6. **`claimed_client_version`** (Review B3-lite): an advisory, self-declared semver injected via `--dart-define=ALX_CLIENT_VERSION`, riding the existing `claimed_*` provenance channel with zero trust weight.
+
+Deferred with spec: the TUF-style review-signed release manifest that graduates the floor's authority, the real MCP stdio runner's mandatory safety conditions, the vetoed `measuredLatencyMs` field, and the possession-proof binding for `claimVerifiedReceipt` (§5.4).
+
+---
+
+## 2. Core Theorem: Enforcement Binds Only at the Proof Layer
+
+**Theorem (Review research synthesis).** A version gate is effective iff it is evaluated by a party whose behavior the attacker cannot dictate, over evidence the attacker cannot fabricate. Equivalently: enforcement binds only where the check is applied *to* the attacker's artifact *by* someone else's rules engine — the proof layer.
+
+Three corollaries:
+
+- **Self-declared versions bind nobody.** A field the emitter controls (`User-Agent`, `agentVersion`, `claimed_client_version`) can be set to whatever the gate wants. Gating on it is security theater.
+- **Negotiation is not enforcement.** Protocol negotiation selects a mutually intelligible encoding; it cannot compel an upgrade, because both endpoints agree to whatever they both speak.
+- **Proof-carrying artifacts bind.** When validity of a *signed, content-committed artifact* is conditional on rules the verifier controls, the attacker cannot satisfy the new ruleset without actually implementing it.
+
+### 2.1 Evidence
+
+| System | Enforcement Locus | Mechanism | Lesson |
+| :--- | :--- | :--- | :--- |
+| **Bitcoin** | Consensus rules on block content, applied by every full node | Blocks are valid or not under the node's own ruleset; the `/Satoshi:x.y.z/` subver user-agent is never consulted. BIP148's UASF was a flag day on *block content* (rejecting non-segwit-signaling blocks after 2017-08-01), not on peer strings | Enforcement = validation refusal by independent verifiers of attacker-submitted artifacts |
+| **libp2p multistream-select** | Negotiation only | Peers agree a protocol id; the identify `agentVersion` field is informational dead weight — no implementation gates on it | Negotiation picks an encoding; it is structurally incapable of compelling upgrades |
+| **Matrix room versions** | Server-side validation refusal + tombstone | Homeservers refuse events non-conformant to the room's version; `m.room.tombstone` repoints the room to a replacement under a new version | The *room* (shared object) carries the version; every server independently validates against it, and migration is an explicit, signed-over artifact |
+| **Ethereum `forkId` (EIP-2124)** | Proof-of-ruleset in the handshake | `forkId = {hash of fork blocks, next fork}` commits a node to the exact fork history it validates; peers reject incompatible rulesets. Grace via accepting `{current, previous}` fork digests during a transition window | A compact digest *proves* which ruleset you run — claiming a fork you don't validate is detectable, not just dishonest |
+| **Signal 499** | Claimed-version gate | The enforcement attempt was bypassed by editing a user-agent string | The canonical counterexample: a gate reading attacker-controlled strings binds nobody and teaches the network to lie |
+| **Tor dirauths** | Consensus vote + de-listing | Directory authorities vote `required-protocols`/`recommended-protocols` lines into the consensus; relays failing required protocols lose their listing | Version policy is decided by an independent quorum and enforced by omission from the directory — a floor, not a negotiation |
+
+The pattern is uniform: **Bitcoin, Matrix, Ethereum, and Tor all enforce by having parties the attacker doesn't control apply rules to artifacts the attacker must produce. libp2p doesn't enforce at all. Signal 499 enforced on a claimed string and was routed around trivially.**
+
+---
+
+## 3. Design: Wire Versions on the Receipt Artifact
+
+The receipt is Alexandria's proof-carrying artifact (ALX-011 §4): content-addressed, verifier-signed, single-claim, 24 h-lived. Version enforcement attaches there — never to Beacon `client_info`, user-agent strings, or handshake metadata.
+
+### 3.1 `v` as a Per-Receipt Signed Field
+
+`v` is a field of the signed body (ALX-011 §4.1, `v: int = 1`). Because it is inside the canonical body, it is committed by `receiptId = sha256(utf8(canonical_json))` and by `verifierSig` — the verifier declares, under its own key, which wire epoch it issued the artifact under. A prover or relay cannot rewrite `v` without invalidating both the content hash and the signature.
+
+### 3.2 Epoch-Domain Separation
+
+For wire versions `v ≥ 2`, the signing preimage is domain-prefixed:
+
+$$\text{preimage}(v) = \texttt{utf8}\big(\texttt{'alexandria:receipt:v'} \;\Vert\; v \;\Vert\; \texttt{':'} \;\Vert\; \text{canonical\_json}(\text{body})\big)$$
+
+Consequences:
+
+- **No cross-epoch replay.** A v1-era artifact (bare `utf8(canonical_json)` preimage) can never verify under the v2 domain, and vice versa. The version is bound into the signature scheme itself, not just a checkable integer.
+- **Old clients structurally cannot forge new-epoch artifacts.** A client whose signer only emits the v{n} preimage scheme cannot produce a valid v{n+1} receipt — producing one requires implementing the new epoch's scheme, at which point the emitter *is* a new-epoch client subject to the new rules. This is the constructive half of the core theorem: the upgrade is enforced by cryptographic impossibility, not by inspecting claims.
+- **Receipts in flight at the v1→v2 boundary** verify under the legacy (unprefixed) scheme only, and only until the floor in §3.3 closes the grace window.
+
+### 3.3 The Claim-Time Floor
+
+Each verifier (and each claim path evaluating a receipt) holds a policy constant:
+
+$$\texttt{minClaimableWireVersion} \in \mathbb{N}$$
+
+A receipt is claimable at wire version `v` iff:
+
+$$\texttt{claimable}(r) \iff r.\texttt{v} \ge \texttt{minClaimableWireVersion} \;\wedge\; \text{verify}(r) \;\wedge\; \neg\,\texttt{spent} \;\wedge\; \texttt{now} \le r.\texttt{expiresAt}$$
+
+Policy properties:
+
+- **Evaluated at claim time, not ingest time.** Below-floor receipts may be received, stored, and displayed; they simply cannot mint. This keeps the floor a *value* gate — the only place where a version must bind — and keeps parsing forward-compatible (§3.5).
+- **Per-verifier, per-node policy constant.** There is deliberately **no central kill switch** (Safety B4): no key, endpoint, or broadcast that can remotely disable a wire version across the network. Each verifier's floor is its own; the network's effective floor is the emergent minimum across verifiers whose attestations carry economic weight.
+- **Grace window = `{current−1, current}`.** During a transition, verifiers issue at `current` while the floor sits at `current−1`. Because receipts expire 24 h after issuance (ALX-011 §4.3), the overlap is self-bounding: after a floor bump, stale-epoch receipts drain within one TTL and cannot be renewed at the old epoch (issuance has moved on). No permanent multi-version drift, no abrupt flag-day invalidation of receipts already in flight — the Ethereum `{current, previous}` fork-digest grace applied to a TTL'd artifact.
+
+### 3.4 Emergency Retirement
+
+Retiring a compromised or deprecated wire epoch is the single operation:
+
+$$\texttt{minClaimableWireVersion} \leftarrow \texttt{current}$$
+
+—a constant bump shipped in a client release. Old-epoch receipts stop being claimable at upgraded verifiers immediately and become universally unclaimable within 24 h as they expire. Because the floor is per-verifier, retirement is a *socially coordinated, cryptographically enforced* act — the Tor dirauth model (a floor decided by independent policy, enforced by refusal) rather than a remote kill switch.
+
+### 3.5 Parse Tolerance (Anti-Ossification)
+
+Parsers MUST represent receipts with `v` greater than any epoch they implement: the field is an integer, the body is canonical JSON, and unknown-version receipts are well-formed data. They are simply unclaimable while `v < minClaimableWireVersion` — i.e., unknown-`v` receipts are *representable but unclaimable below the floor*. This is the RFC 9170 lesson (*Long-Term Viability of Protocol Extension Mechanisms*): extension points that hard-fail on unrecognized values ossify the protocol and strand future migrations. A node that can *parse* a v3 receipt today can be patched to *claim* it tomorrow without a wire-breaking change.
+
+---
+
+## 4. `claimed_client_version` — Advisory Only (Review B3-lite)
+
+`BuildInfo` gains a self-declared client semver, injected at compile time:
+
+```
+flutter build --dart-define=ALX_CLIENT_VERSION=1.4.2
+```
+
+surfacing as `claimed_client_version` inside `claimedBuildInfo` (the `client_info` block of signed Beacon envelopes). It follows the existing `claimed_` contract exactly: clearly-non-official default `'dev'`, signed *as content* so post-hoc tampering is detectable, and **zero trust weight by invariant (ALX-010 / ALX-011 §8)**.
+
+**Invariant (restated).** `claimed_client_version` MUST never feed admission, rewards, verification, the §3.3 floor, or any gate. Its only lawful uses are debugging, protocol-compat display (e.g., the Agent Network dialog's claimed-build line), and quarantine heuristics for known-bad builds. The Signal 499 evidence (§2.1) is the reason this clause exists: the moment a claimed string gates anything, rational adversaries lie, and the gate becomes a loyalty test for cheaters.
+
+---
+
+## 5. Deferred Work (with Spec)
+
+### 5.1 TUF-Style Review-Signed Release Manifest
+
+The floor's authority graduates in three stages:
+
+$$\texttt{constant} \;\rightarrow\; \texttt{verifier policy} \;\rightarrow\; \texttt{threshold-signed manifest}$$
+
+The terminal stage is a release manifest signed by a review threshold:
+
+| Field | Type | Notes |
+| :--- | :--- | :--- |
+| `min_wire_version` | int | The floor this manifest asserts |
+| `sequence` | int | Monotonic; a manifest only supersedes strictly-lower sequences (rollback resistance) |
+| `expiry` | int | Epoch milliseconds after which the manifest is stale and ignored (prevents indefinite pinning by an abandoned manifest) |
+| `signatures` | sig[] | Threshold *t-of-n* over review verifier keys, TUF-style |
+
+Until the manifest transport lands, the floor remains a per-verifier compile-time/policy constant — which is safe by construction because no manifest mechanism means no central lever exists to abuse.
+
+### 5.2 Real MCP stdio Runner — Mandatory Preconditions
+
+A production stdio runner for `AlexandriaMcpServer` is gated on ALL of:
+
+1. **Session-scoped auth** — the runner authenticates the controlling session; tools are not ambiently invocable.
+2. **Per-tool rate budgets** — independent budgets per tool, not a single global cap.
+3. **Spend/escrow ceilings with human consent** — any tool path that can debit or escrow ℭ requires an explicit human-consent surface with bounded ceilings.
+4. **Receipt ingest OFF the tool surface** until in-path signature verification exists — an agent must never be able to feed a receipt into the claim path through a tool call before the verification seam (ALX-011 `claimVerifiedReceipt`) is real.
+
+### 5.3 `measuredLatencyMs` — VETOED
+
+A4's `measuredLatencyMs` is **vetoed as caller-supplied**: a self-declared latency is a `claimed_*` value wearing a numeric costume and carries zero trust weight (same failure as Signal 499). A *verifier-measured* RTT — stamped by the verifier inside the signed body at issuance — MAY ride the receipt at the next wire bump (`v = 2`), where it becomes evidence the verifier attests, not a claim the prover makes.
+
+### 5.4 Possession-Proof Binding for `claimVerifiedReceipt` (Nominal `localPubkeyHex`)
+
+`CreditService.claimVerifiedReceipt` takes `localPubkeyHex` as a **caller-supplied string**. The prover-binding guard (`samePubkey(receipt.proverPubkey, localPubkeyHex)`) therefore binds only a spelling: it asserts "the prover key is mine" without proving possession of the key. Against a modified client this is nominal — a caller holding a copy of a foreign-signed receipt naming prover *P* can pass `localPubkeyHex = P` and mint its attested value locally. The mint lands in the local ledger either way, so the residual risk is **attested-value theft of a copied artifact**, not forgery — the in-path `verifierSig` check is unaffected — but the binding is weaker than the word "binding" suggests.
+
+When a production caller lands, two changes are required:
+
+1. **Source the local key from `IdentityService` (injected), not from the call site.** The claimant's identity must be ambient authority — the same pattern the PoR service already uses (`identityServiceProvider.getIdentity()`), so a modified client cannot simply assert a prover key.
+2. **Verify `proverSig` as the possession proof.** The artifact already carries an optional prover counter-signature (`WorkReceipt.proverSig`) that is *never verified* today. The intended semantics: `proverSig` is the prover's Ed25519 signature over the receipt's canonical body (or a `alexandria:receipt-ack:v{v}:`-domain-separated derivative — pin the domain at the next wire bump), proving the claimant controls the named prover key. A receipt without a verifiable `proverSig` remains claimable only through paths that independently establish provenance (e.g., the issuing verifier's own delivery channel).
+
+Related cosmetic note — **the MCP `receipt_attested` report is a syntactic read.** `AlexandriaMcpServer` surfaces `receipt.isAttestedClaim`, which composes the *syntactic* `isSelfIssued` (literal `==`). A case-variant self-issued receipt can therefore *report* `attested_claim: true` — misreporting only: the claim path re-evaluates all identity compares through the canonical `WorkReceipt.samePubkey` and refuses regardless. The same syntactic-compare class exists in the Moltbook self-claim guards (`bounty.originAgentId == _agentId`); agent ids are derived as lowercase `bcn_<hex>` so the exposure is a forked client storing a non-canonical `origin_agent_id` on its own bounty — self-dealing of one's own escrow, economically net-zero, noted here rather than chased.
+
+---
+
+## 6. Deviations
+
+| Proposal / Prior Clause | ALX-012 Decision | Rationale |
+| :--- | :--- | :--- |
+| Gate on client-reported version / user-agent (Signal-499-style) | Rejected outright; `claimed_client_version` is display/quarantine-only (§4) | Claimed strings bind nobody; gating on them teaches the network to lie |
+| Central kill switch for wire epochs | Rejected; floor is a per-verifier policy constant (§3.3) | Safety B4: no single lever can remotely disable versions network-wide; retirement is coordinated, not dictated |
+| Hard flag-day cutover | Grace window `{current−1, current}` at claim time (§3.3) | Ethereum `{current,previous}` fork-digest model; TTL'd artifacts make the overlap self-bounding at 24 h |
+| Reject/parse-fail unknown `v` | Representable but unclaimable below floor (§3.5) | RFC 9170 anti-ossification: hard-failing unknown versions strands future migrations |
+| ALX-011 §4.1 `v` as passive schema tag | Made load-bearing: committed field + epoch-domain preimage + claim-time floor | The artifact already carries `v`; enforcement attaches where the signature already is |
+| `measuredLatencyMs` (A4) | Vetoed as caller-supplied; verifier-measured RTT deferred to next wire bump (§5.3) | Self-declared telemetry is a claimed value; only verifier-stamped evidence carries weight |
+
+---
+
+## 7. Invariants Summary
+
+1. Version enforcement binds only at the proof layer — verifier-checked, artifact-committed, claim-time.
+2. `v` is inside the signed body; `alexandria:receipt:v{v}:` binds the epoch into the preimage.
+3. The floor is a per-verifier constant. There is no central kill switch.
+4. Emergency retirement = bump the floor; stale receipts drain within one 24 h TTL.
+5. Unknown-version receipts parse but cannot claim below the floor.
+6. `claimed_client_version` is advisory forever: display, debugging, quarantine heuristics — never a gate.

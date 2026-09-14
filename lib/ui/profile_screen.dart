@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/database.dart';
+import '../providers/security_providers.dart';
 import '../services/identity_service.dart';
 import '../services/ledger_service.dart';
 import '../services/ipfs_service.dart';
@@ -11,12 +12,6 @@ import 'widgets/glass_card.dart';
 import 'theme/app_theme.dart';
 import 'widgets/contribution_graph.dart';
 import 'widgets/info_glass.dart';
-
-/// Provider for identity data
-final identityStateProvider = FutureProvider<AlexandriaIdentity?>((ref) async {
-  final identityService = ref.watch(identityServiceProvider);
-  return identityService.getIdentity();
-});
 
 /// Provider for reputation from ledger
 final reputationProvider = Provider<double>((ref) {
@@ -368,8 +363,52 @@ class ProfileScreen extends ConsumerWidget {
   Future<void> _createIdentity(BuildContext context, WidgetRef ref) async {
     final identityService = ref.read(identityServiceProvider);
     try {
+      // Never silently overwrite a stored identity — even when the
+      // provider reports none, storage may still hold one (stale
+      // cache). If a key exists, require explicit confirmation first.
+      var identityExists = false;
+      try {
+        identityExists = await identityService.hasIdentity();
+      } catch (_) {
+        // Cannot determine — proceed; generateIdentity is verified.
+      }
+      if (identityExists) {
+        if (!context.mounted) return;
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: const Color(0xFF1E293B),
+            title: const Text(
+              'Replace existing identity?',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: const Text(
+              'An identity already exists on this device. Replacing it '
+              'permanently loses the old keypair and every claim bound '
+              'to its public key — unless you saved the recovery phrase.',
+              style: TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.dangerColor,
+                ),
+                child: const Text('Replace identity'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true) return;
+      }
+
       await identityService.generateIdentity();
       ref.invalidate(identityStateProvider);
+      ref.invalidate(activeIdentitiesProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Identity created successfully!')),
@@ -397,6 +436,52 @@ class ProfileScreen extends ConsumerWidget {
   Future<void> _showRecoverDialog(BuildContext context, WidgetRef ref) async {
     final mnemonicService = ref.read(mnemonicServiceProvider);
     final controller = TextEditingController();
+
+    // Recovering REPLACES the stored identity — warn first when one
+    // exists, even if the UI currently shows none (stale cache).
+    var identityExists = false;
+    try {
+      identityExists =
+          await ref.read(identityServiceProvider).hasIdentity();
+    } catch (_) {
+      // Cannot determine — proceed; recovery is user-initiated and the
+      // write itself is verified by IdentityService.
+    }
+    if (identityExists) {
+      if (!context.mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          title: const Text(
+            'Replace existing identity?',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'An identity already exists on this device. Recovering '
+            'replaces it permanently — the old keypair and every claim '
+            'bound to its public key will be lost unless you saved its '
+            'recovery phrase.',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.dangerColor,
+              ),
+              child: const Text('Replace identity'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+    if (!context.mounted) return;
 
     final result = await showDialog<bool>(
       context: context,
@@ -484,9 +569,29 @@ class ProfileScreen extends ConsumerWidget {
       return;
     }
 
-    final identity = await mnemonicService.recoverFromMnemonic(words);
+    AlexandriaIdentity? identity;
+    try {
+      identity = await mnemonicService.recoverFromMnemonic(words);
+    } catch (e) {
+      // Surface persistence/verification failures (e.g. the StateError
+      // thrown when an identity write fails post-write verification)
+      // instead of an unhandled async error.
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Recovery failed: $e'),
+            backgroundColor: AppTheme.dangerColor,
+          ),
+        );
+      }
+      return;
+    }
     if (identity != null) {
+      // The stored identity was replaced: refresh every provider that
+      // derives from it (identity, active keypairs) so no stale
+      // DID/pubkey survives.
       ref.invalidate(identityStateProvider);
+      ref.invalidate(activeIdentitiesProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -570,7 +675,20 @@ class _BackupDialogState extends State<_BackupDialog> {
           ),
         if (_mnemonic != null)
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () async {
+              // Write the backup marker only on this explicit
+              // confirmation — the security dashboard's "back up your
+              // identity" alert tracks what the user actually did, not
+              // that the dialog was opened.
+              try {
+                await widget.mnemonicService
+                    .markBackupConfirmed(_mnemonic!.phrase);
+              } catch (_) {
+                // Non-fatal: the phrase was displayed; the security
+                // screen will keep warning until a backup is confirmed.
+              }
+              if (context.mounted) Navigator.pop(context);
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryAccent,
               foregroundColor: Colors.black,

@@ -285,6 +285,26 @@ void main() {
       );
     });
 
+    test('getCurrentAlerts warns about a missing mnemonic backup only '
+        'when the shared marker is absent', () async {
+      identity.setIdentity(_makeIdentity());
+
+      var messages =
+          (await service.getCurrentAlerts()).map((a) => a.message).toList();
+      expect(messages, contains('Backup your identity with a mnemonic.'));
+
+      // The marker lives in the shared SecureStorageService under the
+      // single agreed key — the same store MnemonicService writes.
+      await storage.write('alexandria_mnemonic_backup', 'phrase-hash');
+
+      messages =
+          (await service.getCurrentAlerts()).map((a) => a.message).toList();
+      expect(
+        messages,
+        isNot(contains('Backup your identity with a mnemonic.')),
+      );
+    });
+
     test('watchSecurityAlerts emits current alerts', () async {
       identity.setIdentity(null);
       final list = await service.watchSecurityAlerts().first;

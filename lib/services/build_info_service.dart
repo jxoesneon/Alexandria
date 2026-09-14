@@ -26,6 +26,11 @@ class BuildInfo {
   /// Sentinel used when no commit SHA was injected at build time.
   static const String devCommitSha = 'dev-local';
 
+  /// Sentinel used when no client version was injected at build time.
+  /// Deliberately non-semver-looking so an uninjected build can never be
+  /// mistaken for an officially versioned release.
+  static const String devClientVersion = 'dev';
+
   static const String _definedCommitSha = String.fromEnvironment(
     'BUILD_COMMIT_SHA',
     defaultValue: devCommitSha,
@@ -35,6 +40,10 @@ class BuildInfo {
   );
   static const String _definedBuildTimestamp = String.fromEnvironment(
     'BUILD_TIMESTAMP',
+  );
+  static const String _definedClientVersion = String.fromEnvironment(
+    'ALX_CLIENT_VERSION',
+    defaultValue: devClientVersion,
   );
 
   /// Full claimed commit SHA (or [devCommitSha] when not injected).
@@ -52,6 +61,13 @@ class BuildInfo {
   /// Claimed build timestamp (ISO-8601), if injected at build time.
   final String? builtAt;
 
+  /// Claimed client semver, injected via `--dart-define=ALX_CLIENT_VERSION`
+  /// (Review B3-lite, ALX-012). Advisory only: identical zero-trust-weight
+  /// semantics to every other `claimed_*` value — a forked client can claim
+  /// any version string. Display and quarantine-heuristic use ONLY; it must
+  /// never feed admission, rewards, or any gate.
+  final String clientVersion;
+
   /// True only when a commit SHA was injected AND the artifact was compiled
   /// in release mode. Still entirely self-declared — see class doc.
   final bool isOfficialBuild;
@@ -61,6 +77,7 @@ class BuildInfo {
     required this.buildChannel,
     this.artifactDigest,
     this.builtAt,
+    this.clientVersion = devClientVersion,
   })  : commitShort = _shorten(commitSha),
         isOfficialBuild = commitSha.isNotEmpty &&
             commitSha != devCommitSha &&
@@ -74,6 +91,7 @@ class BuildInfo {
       artifactDigest:
           _definedArtifactDigest.isEmpty ? null : _definedArtifactDigest,
       builtAt: _definedBuildTimestamp.isEmpty ? null : _definedBuildTimestamp,
+      clientVersion: _definedClientVersion,
     );
   }
 
@@ -98,6 +116,7 @@ class BuildInfo {
   Map<String, dynamic> get claimedBuildInfo => <String, dynamic>{
         'claimed_commit_sha': commitSha,
         'claimed_build_channel': buildChannel,
+        'claimed_client_version': clientVersion,
         if (artifactDigest != null) 'claimed_artifact_digest': artifactDigest,
         if (builtAt != null) 'claimed_build_timestamp': builtAt,
         'protocol_version': '1',

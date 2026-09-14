@@ -58,14 +58,16 @@ void main() {
       expect(bareMap.containsKey('evidenceHash'), isFalse);
     });
 
-    test('wire format v1: integer milli-units, no floats in canonical body',
+    test('wire format v2: integer milli-units, no floats in canonical body',
         () {
       final r = buildReceipt(amount: 5.0);
       final body = r.unsignedBody();
 
-      // Scheme version pins the canonicalization contract.
+      // Scheme version pins the canonicalization contract — and it is the
+      // receipt's OWN v, not just the build constant (ALX-012).
       expect(body['v'], equals(WorkReceipt.wireVersion));
-      expect(body['v'], equals(1));
+      expect(body['v'], equals(2));
+      expect(r.v, equals(2));
 
       // Monetary fields travel as INTEGER milli-units so a JS verifier
       // recomputing the receipt id via RFC 8785 JCS never diverges on
@@ -79,7 +81,7 @@ void main() {
 
       // The canonical JSON itself must carry no fractional component.
       final json = r.canonicalJson();
-      expect(json, contains('"v":1'));
+      expect(json, contains('"v":2'));
       expect(json, contains('"amountMilli":5000'));
       expect(json, isNot(contains('.')));
 
@@ -92,9 +94,9 @@ void main() {
       expect(odd.amountMilli, equals(2000)); // 1999.9 rounds up
     });
 
-    test('toJson exposes the v1 fields for foreign verifiers', () {
+    test('toJson exposes the wire fields for foreign verifiers', () {
       final json = buildReceipt(amount: 5.0).toJson();
-      expect(json['v'], equals(1));
+      expect(json['v'], equals(2));
       expect(json['amount_milli'], equals(5000));
       expect(json['work_units_milli'], equals(4096000));
       // Display doubles remain alongside.
@@ -153,6 +155,84 @@ void main() {
       expect(await misattributed.verifyVerifierSignature(verifier), isFalse);
     });
 
+    test('v2 signing payload is domain-separated (ALX-012)', () {
+      final r = buildReceipt();
+      // v>=2 preimage: 'alexandria:receipt:v2:' + canonical JSON.
+      final expected =
+          utf8.encode('alexandria:receipt:v2:${r.canonicalJson()}');
+      expect(r.signingPayload, equals(expected));
+      // And it is provably NOT the bare canonical body.
+      expect(r.signingPayload, isNot(equals(utf8.encode(r.canonicalJson()))));
+    });
+
+    test('legacy v1 payload is the bare canonical body (grace domain)', () {
+      final legacy = WorkReceipt.issue(
+        v: 1,
+        workType: 'storage',
+        proverPubkey: 'aa11bb22',
+        verifierPubkey: 'cc33dd44',
+        challengeNonce: 'deadbeef',
+        responseTag: 'cafe'.padLeft(64, '0'),
+        workUnits: 4096,
+        amount: 5.0,
+        epoch: '2026-02-24',
+        expiresAt: 1800000000000,
+      );
+      expect(legacy.v, equals(1));
+      // The receipt's declared v travels inside the canonical body.
+      expect(legacy.canonicalJson(), contains('"v":1'));
+      // Legacy domain: the preimage is the bare canonical JSON, exactly
+      // what pre-domain builds signed.
+      expect(legacy.signingPayload,
+          equals(utf8.encode(legacy.canonicalJson())));
+      // Different v over identical work terms => different canonical body
+      // => different receipt id (domain separation is structural).
+      final modern = buildReceipt();
+      expect(legacy.receiptId, isNot(equals(modern.receiptId)));
+    });
+
+    test('a v1 signature verifies under the legacy bare domain', () async {
+      final algorithm = Ed25519();
+      final keyPair = await algorithm.newKeyPair();
+      final pub = await keyPair.extractPublicKey();
+      final pubHex = bytesToHex(pub.bytes);
+
+      final legacy = WorkReceipt.issue(
+        v: 1,
+        workType: 'storage',
+        proverPubkey: 'prover_hex',
+        verifierPubkey: pubHex,
+        challengeNonce: 'deadbeef',
+        responseTag: 'cafe'.padLeft(64, '0'),
+        workUnits: 4096,
+        amount: 5.0,
+        epoch: '2026-02-24',
+        expiresAt: 1800000000000,
+      );
+      // Signed exactly as a pre-domain build would have: over the bare
+      // canonical JSON bytes (== legacy signingPayload).
+      final sig = await algorithm.sign(
+          Uint8List.fromList(utf8.encode(legacy.canonicalJson())),
+          keyPair: keyPair);
+      final signed = legacy.withVerifierSig(base64Encode(sig.bytes));
+
+      Future<bool> verifier(
+          Uint8List message, Uint8List sig, String publicKey) {
+        final pk =
+            SimplePublicKey(hexToBytes(publicKey), type: KeyPairType.ed25519);
+        return algorithm.verify(message,
+            signature: Signature(sig, publicKey: pk));
+      }
+
+      expect(await signed.verifyVerifierSignature(verifier), isTrue);
+
+      // But the same signature bytes attached to a v2 artifact (which
+      // verifies under the prefixed domain) must NOT verify.
+      final modern = buildReceipt(verifierPubkey: pubHex)
+          .withVerifierSig(signed.verifierSig);
+      expect(await modern.verifyVerifierSignature(verifier), isFalse);
+    });
+
     test('unsigned receipt cannot verify and is not an attested claim', () {
       final r = buildReceipt();
       expect(
@@ -191,6 +271,7 @@ void main() {
       // Keys match AppDatabase.insertWorkReceipt's expected columns.
       for (final key in [
         'receiptId',
+        'v',
         'workType',
         'proverPubkey',
         'verifierPubkey',
@@ -211,12 +292,55 @@ void main() {
         expect(map.containsKey(key), isTrue, reason: 'missing key $key');
       }
       expect(map['chunkIndices'], isA<String>());
+      expect(map['v'], equals(2));
 
       final restored = WorkReceipt.fromDbMap(map);
       expect(restored.receiptId, equals(r.receiptId));
+      expect(restored.v, equals(2));
       expect(restored.chunkIndices, equals(r.chunkIndices));
       expect(restored.amount, equals(r.amount));
       expect(restored.verifierSig, equals(r.verifierSig));
+
+      // Parse tolerance: a row predating the v column hydrates as the
+      // legacy scheme — representable, and still verifiable under the
+      // bare-canonical domain.
+      final legacyMap = Map<String, dynamic>.from(map)..remove('v');
+      expect(WorkReceipt.fromDbMap(legacyMap).v, equals(1));
+      // A foreign artifact with an unknown future version is likewise
+      // representable: its declared v round-trips untouched.
+      final foreignMap = Map<String, dynamic>.from(map)..['v'] = 7;
+      expect(WorkReceipt.fromDbMap(foreignMap).v, equals(7));
+    });
+
+    test('samePubkey: two-tier canonical identity compare', () {
+      // Tier 1 — exact match after trimming (never case-folded).
+      expect(WorkReceipt.samePubkey('abc123', 'abc123'), isTrue);
+      expect(WorkReceipt.samePubkey('  abc123  ', 'abc123'), isTrue);
+
+      // Tier 2 — hex case variants and interior space padding decode to
+      // identical key bytes (the strict decoder accepts both spellings).
+      expect(WorkReceipt.samePubkey('AB12cd', 'ab12cd'), isTrue);
+      expect(WorkReceipt.samePubkey('ab12 cd34', 'ab12cd34'), isTrue);
+
+      // The tier-1 false-positive class: distinct NON-hex identities
+      // that differ only by case must NOT collapse ('AbC' is odd-length
+      // anyway; use even-length non-hex to isolate the case-fold).
+      expect(WorkReceipt.samePubkey('zzZZ', 'ZZzz'), isFalse);
+      expect(WorkReceipt.samePubkey('peer_AB', 'peer_ab'), isFalse);
+
+      // Non-hex respellings the old int.parse decoder accepted — '+',
+      // tab, NBSP, trailing newline — satisfy NEITHER tier.
+      expect(WorkReceipt.samePubkey('+5ab', '05ab'), isFalse);
+      expect(WorkReceipt.samePubkey('\t5ab', '05ab'), isFalse);
+      expect(WorkReceipt.samePubkey('\u{A0}5ab', '05ab'), isFalse);
+      expect(WorkReceipt.samePubkey('5\nab', '05ab'), isFalse);
+
+      // Different hex bytes are not the same key; absent keys never bind.
+      expect(WorkReceipt.samePubkey('ab12', 'ab13'), isFalse);
+      expect(WorkReceipt.samePubkey('ab12', 'ab12cd'), isFalse);
+      expect(WorkReceipt.samePubkey('', ''), isFalse);
+      expect(WorkReceipt.samePubkey('   ', 'ab12'), isFalse);
+      expect(WorkReceipt.samePubkey('ab12', ''), isFalse);
     });
 
     test('expiry and epoch helpers', () {

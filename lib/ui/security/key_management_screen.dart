@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/security_models.dart';
 import '../../providers/security_providers.dart';
+import '../../services/identity_service.dart';
 
 class KeyManagementScreen extends ConsumerWidget {
   const KeyManagementScreen({super.key});
@@ -26,14 +27,7 @@ class KeyManagementScreen extends ConsumerWidget {
             Row(
               children: [
                 FilledButton.icon(
-                  onPressed: () async {
-                    await ref
-                        .read(keyManagementServiceProvider)
-                        .generateNewKeypair(KeyType.ed25519);
-                    if (!context.mounted) return;
-                    ref.invalidate(activeIdentitiesProvider);
-                    await ref.read(activeIdentitiesProvider.future);
-                  },
+                  onPressed: () => _generateNewKey(context, ref),
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Generate new key'),
                 ),
@@ -70,6 +64,79 @@ class KeyManagementScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Rotate the active keypair. The rotation itself is routed through
+  /// `IdentityService` (via `SecurityOverviewService.generateNewKeypair`)
+  /// so the stored key, the identity cache, and every identity-derived
+  /// provider stay coherent.
+  Future<void> _generateNewKey(BuildContext context, WidgetRef ref) async {
+    // Replacing the active keypair permanently destroys every claim
+    // bound to its public key — never do it silently.
+    var hasExisting =
+        ref.read(activeIdentitiesProvider).valueOrNull?.isNotEmpty ?? false;
+    if (!hasExisting) {
+      // Provider cache may be cold; fall back to the storage truth.
+      try {
+        hasExisting =
+            await ref.read(identityServiceProvider).hasIdentity();
+      } catch (_) {
+        hasExisting = false;
+      }
+    }
+    if (hasExisting) {
+      if (!context.mounted) return;
+      final confirmed = await _confirmKeyReplacement(context);
+      if (!confirmed) return;
+    }
+
+    try {
+      await ref
+          .read(keyManagementServiceProvider)
+          .generateNewKeypair(KeyType.ed25519);
+    } catch (e) {
+      // Surface persistence/verification failures (e.g. the StateError
+      // thrown when a key write fails post-write verification)
+      // instead of an unhandled async error.
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate new key: $e')),
+        );
+      }
+      return;
+    }
+    if (!context.mounted) return;
+    ref.invalidate(identityStateProvider);
+    ref.invalidate(activeIdentitiesProvider);
+    await ref.read(activeIdentitiesProvider.future);
+  }
+
+  Future<bool> _confirmKeyReplacement(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Replace existing keypair?'),
+        content: const Text(
+          'Generating a new key permanently replaces your current '
+          'identity. All claims bound to the old public key will be '
+          'lost unless you saved the recovery phrase.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            child: const Text('Replace key'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
   }
 
   Widget _buildIdentitiesList(

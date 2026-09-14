@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../providers/security_providers.dart';
 import '../services/identity_service.dart';
 import '../services/mnemonic_service.dart';
 import '../services/biometric_service.dart';
@@ -30,6 +31,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _isCreating = false;
+  bool _isImporting = false;
   final _mnemonicController = TextEditingController();
   final List<TextEditingController> _wordControllers = List.generate(
     24,
@@ -226,7 +228,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           const SizedBox(height: 16),
           GlassCard(
-            onTap: () => _showImportDialog(),
+            onTap: (_isCreating || _isImporting)
+                ? null
+                : () => _showImportDialog(),
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Row(
@@ -479,7 +483,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
+                            // The backup marker is written only on this
+                            // explicit confirmation — not when the phrase
+                            // is merely shown — so the security
+                            // dashboard's "back up your identity" alert
+                            // tracks what the user actually did.
+                            try {
+                              await ref
+                                  .read(mnemonicServiceProvider)
+                                  .markBackupConfirmed(mnemonic.join(' '));
+                            } catch (_) {
+                              // Non-fatal: the phrase was shown; the
+                              // security screen will keep warning.
+                            }
                             ref.read(mnemonicProvider.notifier).state = null;
                             ref.read(onboardingStepProvider.notifier).state =
                                 OnboardingStep.biometric;
@@ -614,10 +631,58 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
+  /// Warn before destroying an existing (possibly funded) keypair.
+  /// Returns true when the user explicitly confirms the replacement.
+  Future<bool> _confirmIdentityReplacement() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text(
+          'Replace existing identity?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'An identity already exists on this device. Replacing it '
+          'permanently loses the old keypair and every claim bound to '
+          'its public key — unless you saved the recovery phrase.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.dangerColor,
+            ),
+            child: const Text('Replace identity'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   Future<void> _createNewIdentity() async {
+    final identityService = ref.read(identityServiceProvider);
+    // Never silently overwrite a stored identity — it may be funded or
+    // bound to claims. If we cannot determine whether one exists, warn
+    // rather than risk destroying it.
+    bool identityExists;
+    try {
+      identityExists = await identityService.hasIdentity();
+    } catch (_) {
+      identityExists = true;
+    }
+    if (identityExists && !(await _confirmIdentityReplacement())) {
+      return;
+    }
+    if (!mounted) return;
     setState(() => _isCreating = true);
     try {
-      final identityService = ref.read(identityServiceProvider);
       await identityService.generateIdentity();
       ref.read(onboardingStepProvider.notifier).state = OnboardingStep.key;
     } catch (e) {
@@ -634,7 +699,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _generateMnemonic() async {
     try {
       final mnemonicService = ref.read(mnemonicServiceProvider);
-      final result = await mnemonicService.generateMnemonic();
+      // Derive the phrase FROM the stored private key so it actually
+      // backs up the identity created above. A fresh random mnemonic
+      // (generateMnemonic) would silently recover a DIFFERENT keypair.
+      final result = await mnemonicService.backupCurrentIdentity();
+      if (!mounted) return;
+      if (result == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No identity found to back up.'),
+          ),
+        );
+        return;
+      }
       ref.read(mnemonicProvider.notifier).state = result.words;
     } catch (e) {
       if (mounted) {
@@ -726,14 +803,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () async {
-              final navigator = Navigator.of(context);
-              final words = _wordControllers
-                  .map((c) => c.text.trim().toLowerCase())
-                  .toList();
-              await _importMnemonic(words);
-              if (mounted) navigator.pop();
-            },
+            onPressed: _isImporting
+                ? null
+                : () async {
+                    final navigator = Navigator.of(context);
+                    final words = _wordControllers
+                        .map((c) => c.text.trim().toLowerCase())
+                        .toList();
+                    await _importMnemonic(words);
+                    if (mounted) navigator.pop();
+                  },
             child: const Text('Import'),
           ),
         ],
@@ -742,10 +821,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _importMnemonic(List<String> words) async {
+    // Debounce: a double-tap on Import must not interleave two identity
+    // replacements (the writes are serialized in IdentityService, but a
+    // second call would still redundantly re-import).
+    if (_isImporting) return;
+    setState(() => _isImporting = true);
     try {
+      // Recovering REPLACES any stored identity — confirm before
+      // destroying a possibly funded keypair, even if the UI believes
+      // none exists (stale cache). If existence cannot be determined,
+      // proceed: the write itself is verified by IdentityService.
+      try {
+        if (await ref.read(identityServiceProvider).hasIdentity()) {
+          if (!mounted) return;
+          if (!(await _confirmIdentityReplacement())) return;
+        }
+      } catch (_) {
+        // hasIdentity failed — proceed with the user-initiated import.
+      }
+      if (!mounted) return;
       final mnemonicService = ref.read(mnemonicServiceProvider);
       final identity = await mnemonicService.recoverFromMnemonic(words);
+      if (!mounted) return;
       if (identity != null) {
+        // The stored identity was just replaced — refresh every
+        // identity-derived provider so the rest of the app sees the
+        // recovered keypair, not a previously cached one.
+        ref.invalidate(identityStateProvider);
+        ref.invalidate(activeIdentitiesProvider);
         ref.read(onboardingStepProvider.notifier).state =
             OnboardingStep.complete;
       } else {
@@ -761,6 +864,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
     }
   }
 }

@@ -16,14 +16,23 @@ typedef ReceiptSignatureVerifier = Future<bool> Function(
 ///
 /// The receipt — not a self-declaration — is what entitles a prover to mint
 /// Archival Credits. [receiptId] is the sha256 of the canonical (sorted-key)
-/// JSON body; [verifierSig] is a base64 Ed25519 signature over those same
-/// canonical bytes. A forked client can mint a receipt claiming anything,
-/// but only receipts carrying a *foreign* verifier's valid signature count
-/// as attested value; self-signed receipts (prover == verifier) carry zero
-/// egress weight.
+/// JSON body; [verifierSig] is a base64 Ed25519 signature over the
+/// domain-separated [signingPayload] derived from that body. A forked
+/// client can mint a receipt claiming anything, but only receipts carrying
+/// a *foreign* verifier's valid signature count as attested value;
+/// self-signed receipts (prover == verifier) carry zero egress weight.
 class WorkReceipt {
   /// sha256 of [canonicalJson] — the receipt's unique, content-derived id.
   final String receiptId;
+
+  /// Wire-format version this artifact was issued under (ALX-012). It is a
+  /// REAL per-receipt field, part of the canonical body — a foreign
+  /// receipt's declared `v` travels with the artifact and selects the
+  /// signature domain ([signingPayload]): v<=1 verifies over the bare
+  /// canonical JSON (legacy, pre-domain receipts), v>=2 over the
+  /// `'alexandria:receipt:v$v:'`-prefixed preimage. Newly issued receipts
+  /// default to [wireVersion]; older rows hydrate with `v == 1`.
+  final int v;
 
   /// Work category: 'storage' | 'compute' | 'verification'.
   final String workType;
@@ -79,6 +88,7 @@ class WorkReceipt {
 
   const WorkReceipt._({
     required this.receiptId,
+    this.v = wireVersion,
     required this.workType,
     required this.proverPubkey,
     required this.verifierPubkey,
@@ -98,7 +108,11 @@ class WorkReceipt {
   });
 
   /// Issues a new receipt, deriving [receiptId] from the canonical body.
+  /// [v] pins the wire-format version the artifact claims; it defaults to
+  /// the current [wireVersion] and is only overridable so legacy-scheme
+  /// receipts (v1, bare-domain signatures) remain constructible.
   factory WorkReceipt.issue({
+    int v = wireVersion,
     required String workType,
     required String proverPubkey,
     required String verifierPubkey,
@@ -118,6 +132,7 @@ class WorkReceipt {
   }) {
     final draft = WorkReceipt._(
       receiptId: '',
+      v: v,
       workType: workType,
       proverPubkey: proverPubkey,
       verifierPubkey: verifierPubkey,
@@ -145,28 +160,55 @@ class WorkReceipt {
         '${u.day.toString().padLeft(2, '0')}';
   }
 
-  /// Canonical wire-format version. Bumped when the signed body changes
-  /// shape so foreign verifiers can pin the scheme they recompute.
-  static const int wireVersion = 1;
+  /// Canonical wire-format version issued by THIS build. Bumped when the
+  /// signed body changes shape so foreign verifiers can pin the scheme
+  /// they recompute. v2 (ALX-012) introduced the domain-separated
+  /// [signingPayload] — a domain change IS a wire change.
+  static const int wireVersion = 2;
 
   /// [amount] expressed as integer milli-units (`amount * 1000`, rounded).
   /// The canonical body serializes ONLY this integer form: a foreign
   /// verifier recomputing [receiptId] via RFC 8785 JCS must never diverge
   /// on Dart's `1.0` vs JavaScript's `1` number formatting. The double
   /// [amount] accessor remains for display.
-  int get amountMilli => (amount * 1000).round();
+  ///
+  /// Throws [ArgumentError] when [amount] is non-finite (NaN/±∞) or
+  /// overflows the milli range — claim paths MUST guard
+  /// `receipt.amount.isFinite` BEFORE reaching the canonicalizer (a
+  /// hostile row hydrated via [WorkReceipt.fromDbMap] would otherwise
+  /// crash mid-guard-chain).
+  int get amountMilli => _milliOf(amount, 'amount');
 
   /// [workUnits] expressed as integer milli-units — see [amountMilli].
-  int get workUnitsMilli => (workUnits * 1000).round();
+  /// Same fail-fast contract: guard `receipt.workUnits.isFinite` first.
+  int get workUnitsMilli => _milliOf(workUnits, 'workUnits');
+
+  /// Largest |milli| value safely representable on every platform —
+  /// 2^53 - 1, the web's exact-integer budget, comfortably inside the
+  /// VM's 64-bit int range.
+  static const double _maxSafeMilli = 9007199254740991.0;
+
+  static int _milliOf(double value, String field) {
+    final milli = value * 1000;
+    if (!value.isFinite || !milli.isFinite || milli.abs() > _maxSafeMilli) {
+      throw ArgumentError.value(
+          value,
+          field,
+          'receipt values must be finite and within milli range; claim '
+          'paths must guard isFinite before canonicalizing');
+    }
+    return milli.round();
+  }
 
   /// The signed body: every consensus field EXCEPT the receipt id, both
   /// signatures, and bookkeeping (spent/createdAt). The signature therefore
   /// attests to the work terms themselves, and adding/removing a signature
   /// never changes [receiptId].
   ///
-  /// Wire format v1: `v` pins the scheme version, and the monetary fields
-  /// travel as integers (`amountMilli`/`workUnitsMilli`) so canonical JSON
-  /// is bit-identical across platforms — see [amountMilli].
+  /// Wire format: [v] pins the scheme version PER RECEIPT, and the
+  /// monetary fields travel as integers (`amountMilli`/`workUnitsMilli`)
+  /// so canonical JSON is bit-identical across platforms — see
+  /// [amountMilli].
   Map<String, dynamic> unsignedBody() => {
         'amountMilli': amountMilli,
         'challengeNonce': challengeNonce,
@@ -175,7 +217,7 @@ class WorkReceipt {
         'expiresAt': expiresAt,
         'proverPubkey': proverPubkey,
         'responseTag': responseTag,
-        'v': wireVersion,
+        'v': v,
         'verifierPubkey': verifierPubkey,
         'workType': workType,
         'workUnitsMilli': workUnitsMilli,
@@ -191,15 +233,93 @@ class WorkReceipt {
   String computeReceiptId() =>
       sha256.convert(utf8.encode(canonicalJson())).toString();
 
-  /// The canonical bytes a verifier signs / a checker verifies.
-  Uint8List get signingPayload =>
-      Uint8List.fromList(utf8.encode(canonicalJson()));
+  /// The canonical bytes a verifier signs / a checker verifies
+  /// (ALX-012 epoch-domain separation). The preimage is selected by THIS
+  /// receipt's own [v]:
+  ///  * `v >= 2`: `'alexandria:receipt:v$v:'` prefix + canonical JSON —
+  ///    signatures are bound to the scheme epoch, so an artifact signed
+  ///    under one domain can never be replayed under another;
+  ///  * `v <= 1` (legacy): the bare canonical JSON — pre-domain receipts
+  ///    keep verifying under their original preimage during the grace
+  ///    window, so existing signed artifacts stay claimable.
+  Uint8List get signingPayload {
+    final canonical = canonicalJson();
+    final preimage = v >= 2 ? 'alexandria:receipt:v$v:$canonical' : canonical;
+    return Uint8List.fromList(utf8.encode(preimage));
+  }
 
   /// True when prover and verifier are the same key — a self-issued receipt
   /// that proves integrity of storage but carries no attestation weight
   /// (the self-PoR loop is closed: it can never be claimed as attested).
+  ///
+  /// NOTE: this is the SYNTACTIC check — literal string equality. The
+  /// same key material can be spelled as uppercase or space-padded hex
+  /// (the strict hex decoder still accepts both spellings), so identity
+  /// guards in claim paths must use the canonical [samePubkey]
+  /// comparison instead of relying on this getter (or on `==` between
+  /// key strings).
   bool get isSelfIssued =>
       proverPubkey.isNotEmpty && proverPubkey == verifierPubkey;
+
+  /// Canonical public-key identity comparison (ALX-012 fix-up).
+  ///
+  /// Raw string equality is NOT an identity check: the same Ed25519 key
+  /// can be written uppercase or padded with ASCII spaces — spellings
+  /// the strict wire decoder still accepts as identical key bytes — so
+  /// `a == b` misses equivalent keys and lets a self-signed receipt pose
+  /// as foreign-verified (self-dealing bypass). Two tiers:
+  ///  1. EXACT string equality after trimming — deliberately NOT
+  ///     case-folded: folding would equate distinct non-hex identities
+  ///     ('AbC' == 'abc' is not a key binding, it is a false positive),
+  ///     and real hex case-variants are already covered by tier 2;
+  ///  2. byte equality of decoded hex when BOTH strings decode under the
+  ///     strict class (ASCII spaces stripped, even-length
+  ///     `[0-9a-fA-F]+` only — exactly what the signature oracle's
+  ///     `hexToBytes` accepts) — catches case and interior-padding
+  ///     variants of real hex keys.
+  ///
+  /// A non-hex respelling ('+5', tab/NBSP/newline paddings that the old
+  /// `int.parse`-based decoder silently accepted) satisfies NEITHER
+  /// tier, so it fails closed here AND at the strict oracle: the
+  /// decoder's acceptance set must never exceed the guard's, and the
+  /// guard's must never exceed the decoder's.
+  ///
+  /// Returns false when either side is empty/blank — an absent key can
+  /// never satisfy an identity binding (a vacuous `'' == ''` match must
+  /// not pass a prover/verifier guard).
+  static bool samePubkey(String a, String b) {
+    final na = a.trim();
+    final nb = b.trim();
+    if (na.isEmpty || nb.isEmpty) return false;
+    if (na == nb) return true;
+    final ba = _tryHexToBytes(na);
+    final bb = _tryHexToBytes(nb);
+    if (ba == null || bb == null || ba.length != bb.length) return false;
+    for (var i = 0; i < ba.length; i++) {
+      if (ba[i] != bb[i]) return false;
+    }
+    return true;
+  }
+
+  static final RegExp _hexChars = RegExp(r'^[0-9a-fA-F]+$');
+
+  /// Strict hex decode — ASCII spaces stripped, then even-length
+  /// `[0-9a-fA-F]+` only, mirroring the oracle decoder
+  /// (`beacon_models.hexToBytes`) so the guard's acceptance set is
+  /// IDENTICAL to the verifier's. Returns null when the input is not
+  /// well-formed hex. Implemented locally so [WorkReceipt] stays free
+  /// of a dependency on the agent layer.
+  static Uint8List? _tryHexToBytes(String s) {
+    final clean = s.replaceAll(' ', '');
+    if (clean.isEmpty || clean.length.isOdd || !_hexChars.hasMatch(clean)) {
+      return null;
+    }
+    final out = Uint8List(clean.length ~/ 2);
+    for (var i = 0; i < out.length; i++) {
+      out[i] = int.parse(clean.substring(i * 2, i * 2 + 2), radix: 16);
+    }
+    return out;
+  }
 
   /// Whether this receipt carries a verifier signature at all.
   bool get isVerifierSigned => verifierSig.isNotEmpty;
@@ -228,7 +348,8 @@ class WorkReceipt {
   /// state actually persisted by `markReceiptSpent`.
   WorkReceipt markSpent() => _with(spent: true);
 
-  /// Verifies [verifierSig] over [canonicalJson] using the injected Ed25519
+  /// Verifies [verifierSig] over the domain-separated [signingPayload]
+  /// (chosen by this receipt's own [v]) using the injected Ed25519
   /// [verifyFn]. Returns false for unsigned receipts or malformed input.
   Future<bool> verifyVerifierSignature(
       ReceiptSignatureVerifier verifyFn) async {
@@ -254,6 +375,7 @@ class WorkReceipt {
   }) {
     return WorkReceipt._(
       receiptId: receiptId ?? this.receiptId,
+      v: v,
       workType: workType,
       proverPubkey: proverPubkey,
       verifierPubkey: verifierPubkey,
@@ -277,6 +399,7 @@ class WorkReceipt {
   /// JSON-array TEXT column form.
   Map<String, dynamic> toDbMap() => {
         'receiptId': receiptId,
+        'v': v,
         'workType': workType,
         'proverPubkey': proverPubkey,
         'verifierPubkey': verifierPubkey,
@@ -299,6 +422,9 @@ class WorkReceipt {
   factory WorkReceipt.fromDbMap(Map<String, dynamic> map) {
     return WorkReceipt._(
       receiptId: map['receiptId'] as String,
+      // Rows predating the v column (or callers omitting it) hydrate as
+      // the legacy scheme — v1 verifies over the bare canonical body.
+      v: (map['v'] as num?)?.toInt() ?? 1,
       workType: map['workType'] as String,
       proverPubkey: map['proverPubkey'] as String,
       verifierPubkey: map['verifierPubkey'] as String,
@@ -321,12 +447,12 @@ class WorkReceipt {
   }
 
   /// JSON view returned to MCP agents — the inspectable artifact. Amounts
-  /// stay doubles for display; `v`, `amount_milli` and `work_units_milli`
-  /// carry the wire-format-v1 integer fields a foreign verifier needs to
-  /// recompute [receiptId] bit-exactly.
+  /// stay doubles for display; `v` (the receipt's own wire version),
+  /// `amount_milli` and `work_units_milli` carry the integer fields a
+  /// foreign verifier needs to recompute [receiptId] bit-exactly.
   Map<String, dynamic> toJson() => {
         'receipt_id': receiptId,
-        'v': wireVersion,
+        'v': v,
         'work_type': workType,
         'prover_pubkey': proverPubkey,
         'verifier_pubkey': verifierPubkey,

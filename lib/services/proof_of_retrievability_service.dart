@@ -318,14 +318,23 @@ class ProofOfRetrievabilityService {
     // The local node may claim this receipt's value only when it IS the
     // prover of record: legacy callers supply no prover key (the proof is
     // always computed over local bytes), or the supplied key IS the node
-    // identity key. A receipt naming a foreign prover is persisted UNSPENT
-    // as that prover's claim instrument — minting it locally would pay the
+    // identity key — compared CANONICALLY via WorkReceipt.samePubkey, so
+    // a case-variant or space-padded prover_pubkey spelling the local key
+    // (reachable via the MCP tool) still mints the local reward rather
+    // than stranding it as an unclaimable foreign-prover instrument. A
+    // receipt naming a foreign prover is persisted UNSPENT as that
+    // prover's claim instrument — minting it locally would pay the
     // verifier for someone else's work and burn the artifact.
     final localIsProver = proverPubkey == null ||
-        (localPubkeyHex != null && effectiveProver == localPubkeyHex);
+        (localPubkeyHex != null &&
+            WorkReceipt.samePubkey(effectiveProver, localPubkeyHex));
 
-    // Sign the canonical body — but only ever AS the recorded verifier key;
-    // signing under a different key would mint an unverifiable artifact.
+    // Sign the canonical body — but only ever AS the recorded verifier
+    // key; signing under a different key would mint an unverifiable
+    // artifact. The compare is canonical for the same reason: a
+    // case-variant challengerPubkey spelling the local identity is still
+    // signable — string equality would silently strand the receipt
+    // unsigned.
     final issuedAt = DateTime.now();
     var receipt = _draftReceipt(
       challenge: challenge,
@@ -337,7 +346,9 @@ class ProofOfRetrievabilityService {
       expectedChunkData: expectedChunkData,
       issuedAt: issuedAt,
     );
-    final canSign = identity != null && localPubkeyHex == verifierPubkey;
+    final canSign = identity != null &&
+        localPubkeyHex != null &&
+        WorkReceipt.samePubkey(localPubkeyHex, verifierPubkey);
     if (canSign) {
       try {
         // The signature sits outside the canonical body, so attaching it

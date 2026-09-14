@@ -2,8 +2,10 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../credits/credit_service.dart';
+import '../credits/work_receipt.dart';
 import '../ipfs_service.dart';
 import 'beacon_models.dart';
+import 'escrow_attestation.dart';
 
 /// Riverpod provider for MoltbookService
 final moltbookServiceProvider = ChangeNotifierProvider<MoltbookService>((ref) {
@@ -71,8 +73,26 @@ class MoltbookService extends ChangeNotifier {
   /// Initializes the local agent Ed25519 identity key
   Future<void> _initKey() async {
     final algorithm = Ed25519();
-    _keyPair = await algorithm.newKeyPair();
-    final pk = await _keyPair!.extractPublicKey();
+    final keyPair = await algorithm.newKeyPair();
+    // This runs concurrently with the constructor; a deliberate
+    // setKeyPair that landed while newKeyPair was in flight WINS —
+    // an in-flight auto-init must never clobber an explicitly provided
+    // identity (it would silently rotate _pubkeyHex/_agentId out from
+    // under callers that already pinned the override).
+    if (_keyPair != null) return;
+    _keyPair = keyPair;
+    await _publishKeyMaterial(keyPair);
+  }
+
+  /// Publishes [_pubkeyHex]/[_agentId] for [keyPair] — but only if it is
+  /// still the installed keypair when the extract resolves. A racing
+  /// [setKeyPair] (or a second auto-init) must never let a stale
+  /// continuation write key material for a key that is no longer
+  /// installed: the local-key bar, echo guard, and self-claim guard all
+  /// trust [_pubkeyHex]/[_agentId] to describe the SIGNING identity.
+  Future<void> _publishKeyMaterial(SimpleKeyPair keyPair) async {
+    final pk = await keyPair.extractPublicKey();
+    if (!identical(_keyPair, keyPair)) return;
     _pubkeyHex = bytesToHex(pk.bytes);
     _agentId = BeaconEnvelope.deriveAgentId(pk.bytes);
     notifyListeners();
@@ -81,10 +101,7 @@ class MoltbookService extends ChangeNotifier {
   /// Overrides the keypair with a provided one (useful in deterministic tests)
   Future<void> setKeyPair(SimpleKeyPair keyPair) async {
     _keyPair = keyPair;
-    final pk = await _keyPair!.extractPublicKey();
-    _pubkeyHex = bytesToHex(pk.bytes);
-    _agentId = BeaconEnvelope.deriveAgentId(pk.bytes);
-    notifyListeners();
+    await _publishKeyMaterial(keyPair);
   }
 
   /// Lazily generates the agent identity when the async [_initKey] hasn't
@@ -92,10 +109,12 @@ class MoltbookService extends ChangeNotifier {
   Future<void> _ensureKeyPair() async {
     if (_keyPair != null) return;
     final algorithm = Ed25519();
-    _keyPair = await algorithm.newKeyPair();
-    final pk = await _keyPair!.extractPublicKey();
-    _pubkeyHex = bytesToHex(pk.bytes);
-    _agentId = BeaconEnvelope.deriveAgentId(pk.bytes);
+    final keyPair = await algorithm.newKeyPair();
+    // Same rule as _initKey: an identity explicitly installed while this
+    // generation was in flight wins — never clobber it.
+    if (_keyPair != null) return;
+    _keyPair = keyPair;
+    await _publishKeyMaterial(keyPair);
   }
 
   List<MoltbookPost> getPostsForSubmolt(String submolt) {
@@ -231,51 +250,172 @@ class MoltbookService extends ChangeNotifier {
   /// this node: locally posted bounties are permanently barred from local
   /// claim via [_locallyPostedBountyIds] (self-dealing guard).
   ///
-  /// TRUST MODEL (E-T5r #1): the announcer-claimed
-  /// [PreservationBounty.funded] flag is NEVER honored — remote `funded`
-  /// flags require an escrow attestation signed by the poster's key.
-  /// Until the attestation transport lands, ingested bounties are
-  /// display-only: they are stored with `funded: false` so a forged
-  /// `funded: true` announcement can never mint unbacked credits through
+  /// TRUST MODEL (E-T5r #1 / ALX-011 A3): the announcer-claimed
+  /// [PreservationBounty.funded] flag is NEVER honored on its own — a
+  /// remote `funded` claim is forged as easily as the announcement
+  /// itself. `funded` survives ingest only when [escrowAttestation] is
+  /// supplied AND satisfies every check in
+  /// [_isTrustedFundingAttestation]: an [EscrowAttestation] is
+  /// constructible solely through a real Ed25519 signature check
+  /// ([EscrowAttestation.verify]), must bind this exact bounty's
+  /// id/cid/amount, must be unexpired, and must be issued by an attestor
+  /// FOREIGN to the poster — a self-vouch is no attestation (same rule
+  /// as `WorkReceipt.isSelfIssued`). Anything else is stored
+  /// display-only with `funded: false`, so a forged `funded: true`
+  /// announcement can never mint unbacked credits through
   /// [claimBounty].
   ///
-  /// [escrowAttested] is the seam for that future verification: the
-  /// transport layer may set it ONLY after verifying the poster's signed
-  /// escrow attestation out-of-band. It must never be populated from
-  /// wire data.
+  /// TRUST ROOT — [trustedAttestors]: a signature is only a proof of
+  /// key possession; ANYONE can mint an Ed25519 keypair and self-attest
+  /// (the Sybil-attack class this parameter closes). `funded` therefore
+  /// additionally requires `trustedAttestors` to contain the attestor's
+  /// pubkey hex. The default EMPTY set fails closed — no attestation is
+  /// ever trusted — until the caller supplies the node's configured
+  /// attestor quorum (verifier-quorum / review keys, populated by the
+  /// transport layer once the quorum protocol lands; ALX-011 A3).
+  ///
+  /// DEDUP-UPGRADE (griefing fix): naive first-wins dedup lets an
+  /// unattested announcement permanently poison a bounty id — the real
+  /// funded re-announcement would be dropped as a duplicate. Instead, a
+  /// stored UNFUNDED record is upgraded to `funded: true` when a later
+  /// announcement carries a valid TRUSTED attestation that binds the
+  /// STORED record's fields ([EscrowAttestation.bindsBounty] is checked
+  /// against the stored copy, never the new announcement — so no
+  /// announcement field is ever adopted) AND claims the SAME
+  /// `originAgentId` the stored record claims. The origin-match gate is
+  /// what makes the poster-foreign check meaningful here (H4):
+  /// `isSelfIssuedFor` must answer "is the attestor the poster THIS
+  /// announcement claims" — with matching origins the stored claim IS
+  /// the announcement's claim, so the stored origin can be evaluated
+  /// safely. A different `originAgentId` is a conflicting authorship
+  /// claim for the same bounty id and is treated as a conflict — never
+  /// an upgrade. That keeps a front-runner from laundering a self-vouch
+  /// by choosing which claimed poster the attestor is judged against;
+  /// the residual cost is that a mismatched-origin poison still denies
+  /// the upgrade (fail-closed), the same denial a wrong-cid poison
+  /// already achieves since the attestation binds the stored cid.
+  /// Already-funded records are immutable: a later announcement changes
+  /// nothing.
   void ingestBountyAnnouncement(
     PreservationBounty bounty, {
-    bool escrowAttested = false,
+    EscrowAttestation? escrowAttestation,
+    Set<String> trustedAttestors = const {},
   }) {
-    // Ignore echoes of our own posts and duplicates.
+    // Ignore echoes of our own posts.
     if (_locallyPostedBountyIds.contains(bounty.id)) return;
-    if (bounty.originAgentId == _agentId) return;
-    if (_bounties.any((b) => b.id == bounty.id)) return;
+    if (_sameAgentId(bounty.originAgentId, _agentId)) return;
+
+    // Duplicate id: only a funded-upgrade can change the stored record.
+    // The attestation must bind the STORED fields — a valid attestation
+    // for the announcement's own (divergent) fields cannot resurrect a
+    // poisoned id, and no announcement field is ever adopted. The
+    // announcement's `funded` flag is not consulted here: the trusted
+    // attestation IS the escrow evidence (the flag is forgeable noise
+    // in both directions).
+    final existingIndex = _bounties.indexWhere((b) => b.id == bounty.id);
+    if (existingIndex != -1) {
+      final stored = _bounties[existingIndex];
+      if (!stored.funded &&
+          _sameAgentId(bounty.originAgentId, stored.originAgentId) &&
+          _isTrustedFundingAttestation(
+            escrowAttestation,
+            stored,
+            trustedAttestors,
+          )) {
+        _bounties[existingIndex] = PreservationBounty(
+          id: stored.id,
+          cid: stored.cid,
+          doi: stored.doi,
+          title: stored.title,
+          targetShards: stored.targetShards,
+          offeredCredits: stored.offeredCredits,
+          urgency: stored.urgency,
+          originAgentId: stored.originAgentId,
+          createdAt: stored.createdAt,
+          // The wire `is_claimed` flag never survives an ingest path —
+          // a funded upgrade must not resurrect a claimed-locked record.
+          isClaimed: false,
+          funded: true,
+        );
+        notifyListeners();
+      }
+      return;
+    }
 
     // Strip the announcer's unverifiable `funded` claim unless the
-    // transport asserts a verified escrow attestation. Stored as a copy
-    // so the caller's object can never be mutated into a funded record.
-    final funded = bounty.funded && escrowAttested;
+    // supplied attestation is trusted, non-local, binds this exact
+    // bounty, is unexpired, and vouches from a poster-foreign key.
+    // ALWAYS stored as a fresh copy — never the caller's object (H3):
+    // the wire `is_claimed` flag is as forgeable as `funded` (a
+    // funded:true + is_claimed:true announcement would otherwise be
+    // escrowed-but-permanently-unclaimable), and a caller retaining the
+    // ingested object must not be able to mutate the stored record's
+    // claim state post-ingest.
+    final funded = bounty.funded &&
+        _isTrustedFundingAttestation(
+          escrowAttestation,
+          bounty,
+          trustedAttestors,
+        );
     _bounties.insert(
       0,
-      funded == bounty.funded
-          ? bounty
-          : PreservationBounty(
-              id: bounty.id,
-              cid: bounty.cid,
-              doi: bounty.doi,
-              title: bounty.title,
-              targetShards: bounty.targetShards,
-              offeredCredits: bounty.offeredCredits,
-              urgency: bounty.urgency,
-              originAgentId: bounty.originAgentId,
-              createdAt: bounty.createdAt,
-              isClaimed: bounty.isClaimed,
-              funded: false,
-            ),
+      PreservationBounty(
+        id: bounty.id,
+        cid: bounty.cid,
+        doi: bounty.doi,
+        title: bounty.title,
+        targetShards: bounty.targetShards,
+        offeredCredits: bounty.offeredCredits,
+        urgency: bounty.urgency,
+        originAgentId: bounty.originAgentId,
+        createdAt: bounty.createdAt,
+        isClaimed: false,
+        funded: funded,
+      ),
     );
     notifyListeners();
   }
+
+  /// Canonical agent-id comparison: agent ids are `bcn_<hex>` and hex is
+  /// case-insensitive, so raw `==` misses same-id spellings — the same
+  /// encoding-sensitivity class as raw pubkey compares (H1). Every
+  /// use site here fails safe when it over-matches: the echo check
+  /// ignores more self-claims, the claim guard bars more self-claims,
+  /// and the dedup origin gate only treats genuinely identical poster
+  /// claims as the same claim.
+  static bool _sameAgentId(String a, String b) =>
+      a.trim().toLowerCase() == b.trim().toLowerCase();
+
+  /// The complete admission check every `funded` verdict funnels
+  /// through — for both first-seen announcements and dedup upgrades:
+  ///
+  ///  * [att] exists and its attestor is in [trustedAttestors] — the
+  ///    caller-supplied trust root. An empty set rejects everything
+  ///    (fail-closed): "cryptographically valid" ≠ "trusted". Membership
+  ///    is CANONICAL ([WorkReceipt.samePubkey]): an UPPERCASE or
+  ///    space-padded spelling of a trusted key decodes to identical
+  ///    bytes and must still match — otherwise legit attestations are
+  ///    dropped on an encoding technicality (H1).
+  ///  * The attestor is NOT this node's own key ([_pubkeyHex]) — a
+  ///    local self-attestation is circular vouching, so the local key
+  ///    is barred even if it somehow lands in [trustedAttestors]. The
+  ///    bar is canonical for the same reason: a non-canonical spelling
+  ///    of the local key must not slip past it (H1). (Derives from the
+  ///    same key material [agentId]/[pubkeyHex] do.)
+  ///  * The attestation binds [record]'s exact id/cid/amount, is
+  ///    unexpired, and is foreign to [record]'s poster.
+  bool _isTrustedFundingAttestation(
+    EscrowAttestation? att,
+    PreservationBounty record,
+    Set<String> trustedAttestors,
+  ) =>
+      att != null &&
+      trustedAttestors
+          .any((k) => WorkReceipt.samePubkey(k, att.attestorPubkey)) &&
+      !WorkReceipt.samePubkey(att.attestorPubkey, _pubkeyHex) &&
+      att.bindsBounty(record) &&
+      !att.isExpired() &&
+      !att.isSelfIssuedFor(record);
 
   /// Claims an active preservation bounty. Payout is the escrowed reward
   /// posted by the originator — not a fabricated mint (ALX-010).
@@ -305,7 +445,7 @@ class MoltbookService extends ChangeNotifier {
     final bounty = _bounties[index];
     if (bounty.isClaimed) return false;
     if (_locallyPostedBountyIds.contains(bounty.id)) return false;
-    if (bounty.originAgentId == _agentId) return false;
+    if (_sameAgentId(bounty.originAgentId, _agentId)) return false;
     if (!bounty.funded) return false;
 
     // Synchronous claim mark: any concurrent call reaching this point now

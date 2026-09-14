@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
@@ -8,7 +9,34 @@ import 'secure_storage_service.dart';
 /// Provider for the IdentityService
 final identityServiceProvider = Provider((ref) {
   final secureStorage = ref.watch(secureStorageServiceProvider);
-  return IdentityService(secureStorage);
+  final service = IdentityService(secureStorage);
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+/// Revision counter for the stored identity.
+///
+/// Emits a new value on EVERY successful identity mutation performed
+/// through [IdentityService] (generate / import / delete / reload).
+/// Any provider whose value derives from the identity should
+/// `ref.watch(identityRevisionProvider)` so it rebuilds automatically
+/// when the keypair is replaced — enforced by construction, so no call
+/// site can forget to invalidate (which previously left stale
+/// DID/pubkey reads after a recovery or rotation).
+final identityRevisionProvider = StreamProvider<int>((ref) {
+  final identityService = ref.watch(identityServiceProvider);
+  return identityService.revisionStream;
+});
+
+/// Provider for the current identity.
+///
+/// Watches [identityRevisionProvider], so it re-resolves automatically
+/// after every identity mutation. Explicit `ref.invalidate` calls at
+/// call sites remain harmless.
+final identityStateProvider = FutureProvider<AlexandriaIdentity?>((ref) async {
+  ref.watch(identityRevisionProvider);
+  final identityService = ref.watch(identityServiceProvider);
+  return identityService.getIdentity();
 });
 
 /// Storage keys for identity data
@@ -132,14 +160,88 @@ class IdentityService {
 
   AlexandriaIdentity? _cachedIdentity;
 
-  /// Check if an identity exists
-  Future<bool> hasIdentity() async {
-    return await _storage.containsKey(_IdentityKeys.privateKey);
+  // ─────────────────────────────────────────────────────────────────
+  // Mutation serialization + revision tracking
+  // ─────────────────────────────────────────────────────────────────
+
+  /// Chained future serializing EVERY storage-touching identity
+  /// operation (reads included). A cold [getIdentity] therefore can
+  /// never interleave with a multi-key write in [generateIdentity] /
+  /// [importIdentity] and observe a half-written "Franken" keypair.
+  Future<void> _opChain = Future<void>.value();
+
+  /// Serializes [op] behind all previously scheduled identity
+  /// operations. The chain itself never fails: an op's error is
+  /// delivered to ITS caller while later ops still run.
+  Future<T> _serialized<T>(Future<T> Function() op) {
+    final result = _opChain.then<T>((_) => op());
+    _opChain = result.then<void>((_) {}, onError: (_, __) {});
+    return result;
+  }
+
+  int _revision = 0;
+  final StreamController<int> _revisionController =
+      StreamController<int>.broadcast(sync: true);
+
+  /// Monotonic counter bumped after every successful identity
+  /// mutation. Exposed through [identityRevisionProvider].
+  int get revision => _revision;
+
+  /// Broadcast stream of [revision] values. Emits synchronously during
+  /// each mutation so dependents are invalidated before the mutating
+  /// call returns.
+  Stream<int> get revisionStream => _revisionController.stream;
+
+  void _bumpRevision() {
+    _revision++;
+    if (!_revisionController.isClosed) {
+      _revisionController.add(_revision);
+    }
+  }
+
+  /// Release resources held by this service.
+  Future<void> dispose() => _revisionController.close();
+
+  /// Check if an identity exists.
+  ///
+  /// Requires ALL identity keys to be present — checking the private
+  /// key alone reported true on a partially-written store while
+  /// [getIdentity] returned null (its read needs the public key and
+  /// the creation stamp too), so UI would skip the "replace existing
+  /// identity" warning for an identity it could not even serve.
+  Future<bool> hasIdentity() {
+    return _serialized(() async {
+      final privateKeyHex = await _storage.read(_IdentityKeys.privateKey);
+      final publicKeyHex = await _storage.read(_IdentityKeys.publicKey);
+      final createdStr = await _storage.read(_IdentityKeys.identityCreated);
+      return privateKeyHex != null &&
+          publicKeyHex != null &&
+          createdStr != null;
+    });
   }
 
   /// Get the current identity (cached for performance)
-  Future<AlexandriaIdentity?> getIdentity() async {
-    if (_cachedIdentity != null) return _cachedIdentity;
+  Future<AlexandriaIdentity?> getIdentity() {
+    final cached = _cachedIdentity;
+    if (cached != null) return Future<AlexandriaIdentity?>.value(cached);
+    return _serialized(_readIdentityUnlocked);
+  }
+
+  /// Read the stored identity. Must only be called inside [_serialized].
+  ///
+  /// Read-time verification heals legacy "Franken" pairs persisted by
+  /// pre-fix partial writes (or any other out-of-band corruption): the
+  /// stored private key is AUTHORITATIVE — it derives everything — so
+  /// when `derivePublic(storedPriv) != storedPub` the stored public key
+  /// is rewritten to the derived value and the healed pair is served.
+  /// Serving the pair unverified would make [sign] emit signatures
+  /// that fail against the reported public key. Material that cannot
+  /// be healed (undecodable hex, a non-seed private key, a failing
+  /// heal write) is treated as "no usable identity": the cache is
+  /// dropped and null returned.
+  Future<AlexandriaIdentity?> _readIdentityUnlocked() async {
+    final cached = _cachedIdentity;
+    if (cached != null) return cached;
 
     final privateKeyHex = await _storage.read(_IdentityKeys.privateKey);
     final publicKeyHex = await _storage.read(_IdentityKeys.publicKey);
@@ -149,46 +251,287 @@ class IdentityService {
       return null;
     }
 
-    _cachedIdentity = AlexandriaIdentity(
-      privateKey: _hexDecode(privateKeyHex),
-      publicKey: _hexDecode(publicKeyHex),
-      createdAt: DateTime.parse(createdStr),
-    );
+    final createdAt = DateTime.tryParse(createdStr);
+    if (createdAt == null) return null;
 
-    return _cachedIdentity;
+    try {
+      final privateKey = _hexDecode(privateKeyHex);
+      var publicKey = _hexDecode(publicKeyHex);
+
+      // Verify the stored pair: the private key must derive the stored
+      // public key. On mismatch, heal storage with the derived value.
+      final keyPair = await _algorithm.newKeyPairFromSeed(privateKey);
+      final derivedPublicKey =
+          Uint8List.fromList((await keyPair.extractPublicKey()).bytes);
+      final derivedPublicKeyHex = _hexEncode(derivedPublicKey);
+      if (derivedPublicKeyHex != publicKeyHex.toLowerCase()) {
+        await _storage.write(_IdentityKeys.publicKey, derivedPublicKeyHex);
+        publicKey = derivedPublicKey;
+        // The public key the app now reports changed — bump the
+        // revision so identity-derived providers rebuild. Converges:
+        // the next read verifies the healed pair and does not bump.
+        _bumpRevision();
+      }
+
+      _cachedIdentity = AlexandriaIdentity(
+        privateKey: privateKey,
+        publicKey: publicKey,
+        createdAt: createdAt,
+      );
+
+      return _cachedIdentity;
+    } catch (_) {
+      // Unhealable corruption — never cache or serve a suspect pair.
+      _cachedIdentity = null;
+      return null;
+    }
   }
 
   /// Generate a new Ed25519 keypair and store securely
-  Future<AlexandriaIdentity> generateIdentity() async {
-    // Generate new keypair
-    final keyPair = await _algorithm.newKeyPair();
+  Future<AlexandriaIdentity> generateIdentity() {
+    return _serialized(() async {
+      final keyPair = await _algorithm.newKeyPair();
+      final privateKeyBytes = Uint8List.fromList(
+        await keyPair.extractPrivateKeyBytes(),
+      ); // 32 bytes seed
+      final publicKeyObj = await keyPair.extractPublicKey();
+      final publicKeyBytes = Uint8List.fromList(publicKeyObj.bytes);
 
-    // Extract keys
-    final privateKeyBytes =
-        await keyPair.extractPrivateKeyBytes(); // 32 bytes seed
-    final publicKeyObj = await keyPair.extractPublicKey();
-    final publicKeyBytes = Uint8List.fromList(publicKeyObj.bytes); // 32 bytes
+      // A genuinely NEW identity stamps a fresh creation time.
+      return _persistIdentityUnlocked(
+        seed: privateKeyBytes,
+        publicKey: publicKeyBytes,
+        createdAt: DateTime.now(),
+      );
+    });
+  }
 
-    final createdAt = DateTime.now();
+  /// Import an identity from a raw Ed25519 private-key seed.
+  ///
+  /// Writes through [_storage] — the same store [getIdentity] reads —
+  /// and refreshes [_cachedIdentity] atomically. This is the ONLY
+  /// supported way to replace the stored identity out-of-band (it is
+  /// what `MnemonicService.recoverFromMnemonic` uses): writing the
+  /// identity keys from anywhere else lets the cached and stored
+  /// identities diverge, so [getIdentity] would keep serving the OLD
+  /// keypair while storage holds the new one (split-brain).
+  ///
+  /// The seed is defensively copied so a caller mutating its buffer
+  /// afterwards cannot corrupt the stored identity. When the imported
+  /// seed derives to the SAME public key already stored (i.e. a
+  /// recovery of the current identity), the existing `createdAt` is
+  /// preserved — stamping `now` would reset governance account-age
+  /// checks (`minAccountAgeDays`) on every recovery.
+  Future<AlexandriaIdentity> importIdentity(Uint8List privateKeySeed) {
+    final seed = Uint8List.fromList(privateKeySeed);
+    return _serialized(() async {
+      final keyPair = await _algorithm.newKeyPairFromSeed(seed);
+      final publicKeyObj = await keyPair.extractPublicKey();
+      final publicKeyBytes = Uint8List.fromList(publicKeyObj.bytes);
+      final publicKeyHex = _hexEncode(publicKeyBytes);
 
-    // Store securely
-    await _storage.write(
-      _IdentityKeys.privateKey,
-      _hexEncode(Uint8List.fromList(privateKeyBytes)),
+      final existingPublicKeyHex =
+          await _storage.read(_IdentityKeys.publicKey);
+      final existingCreatedStr =
+          await _storage.read(_IdentityKeys.identityCreated);
+      final createdAt =
+          (existingPublicKeyHex == publicKeyHex && existingCreatedStr != null)
+              ? (DateTime.tryParse(existingCreatedStr) ?? DateTime.now())
+              : DateTime.now();
+
+      return _persistIdentityUnlocked(
+        seed: seed,
+        publicKey: publicKeyBytes,
+        createdAt: createdAt,
+      );
+    });
+  }
+
+  /// Atomically write + verify an identity. Must only be called inside
+  /// [_serialized].
+  ///
+  /// Write ordering is defensive: the private key is written LAST so
+  /// its presence implies the full write was attempted. After writing,
+  /// the keys are re-read and `derivePublic(storedPriv) == storedPub`
+  /// is verified BEFORE the in-memory cache is touched. On mismatch the
+  /// whole write is retried once; if it still mismatches, the previous
+  /// (consistent) key material is restored — or the keys are cleared
+  /// when there was none — and a [StateError] is thrown. A mixed
+  /// private/public pair therefore can never persist or be cached.
+  ///
+  /// When the stored public key CHANGES, the mnemonic-backup marker is
+  /// cleared: an old recovery phrase no longer restores the current
+  /// identity, so the UI must warn again until a fresh backup is
+  /// confirmed. Re-importing the SAME key keeps the marker (the old
+  /// phrase still recovers it).
+  Future<AlexandriaIdentity> _persistIdentityUnlocked({
+    required Uint8List seed,
+    required Uint8List publicKey,
+    required DateTime createdAt,
+  }) async {
+    final seedHex = _hexEncode(seed);
+    final publicKeyHex = _hexEncode(publicKey);
+    final createdStr = createdAt.toIso8601String();
+
+    // Snapshot the prior state so a failed import can restore it
+    // instead of leaving a partially-overwritten keypair.
+    final prevPrivHex = await _storage.read(_IdentityKeys.privateKey);
+    final prevPubHex = await _storage.read(_IdentityKeys.publicKey);
+    final prevCreated = await _storage.read(_IdentityKeys.identityCreated);
+
+    // When the keypair is changing, clear the mnemonic-backup marker
+    // UP-FRONT and best-effort: a stale marker that survives would
+    // falsely claim the NEW identity is backed up by the OLD phrase,
+    // while a spuriously-cleared marker only re-prompts a backup. An
+    // awaited delete inside the success path below could throw AFTER
+    // the verified write and strand the cache — deleting here means
+    // the marker is gone before storage can diverge.
+    if (prevPubHex != publicKeyHex) {
+      try {
+        await _storage.delete(SecureStorageKeys.mnemonicBackup);
+      } catch (_) {}
+    }
+
+    Object? lastWriteError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        await _storage.write(_IdentityKeys.publicKey, publicKeyHex);
+        await _storage.write(_IdentityKeys.identityCreated, createdStr);
+        await _storage.write(_IdentityKeys.privateKey, seedHex);
+      } catch (e) {
+        // A throwing write can still leave a partial pair behind —
+        // verification below decides what was actually persisted.
+        lastWriteError = e;
+      }
+
+      if (await _verifyStoredIdentity(seedHex, publicKeyHex)) {
+        _cachedIdentity = AlexandriaIdentity(
+          privateKey: Uint8List.fromList(seed),
+          publicKey: Uint8List.fromList(publicKey),
+          createdAt: createdAt,
+        );
+        _bumpRevision();
+        return _cachedIdentity!;
+      }
+    }
+
+    // Persistent verification failure: restore the prior consistent
+    // state if there was one, otherwise remove the partial writes. In
+    // both cases no mixed private/public pair may survive — and the
+    // rollback writes THEMSELVES may throw (the keychain is already
+    // faulting), so the cache drop and revision bump live in a
+    // `finally`: a stale in-memory identity must never outlive storage
+    // whose contents are now uncertain.
+    try {
+      if (prevPrivHex != null && prevPubHex != null && prevCreated != null) {
+        await _storage.write(_IdentityKeys.publicKey, prevPubHex);
+        await _storage.write(_IdentityKeys.identityCreated, prevCreated);
+        await _storage.write(_IdentityKeys.privateKey, prevPrivHex);
+        if (!await _verifyStoredIdentity(prevPrivHex, prevPubHex)) {
+          await _deleteIdentityKeysUnlocked();
+        }
+      } else {
+        await _deleteIdentityKeysUnlocked();
+      }
+    } catch (_) {
+      // The rollback failed too — storage is in an unknown state. The
+      // StateError below still reports the original write failure;
+      // the read path self-heals or rejects whatever survived.
+    } finally {
+      // Drop the cache: it may no longer match whatever is stored now.
+      _cachedIdentity = null;
+      _bumpRevision();
+    }
+    throw StateError(
+      'Identity write failed post-write verification '
+      '(last storage error: $lastWriteError); '
+      'the previous identity was restored or partial keys cleared.',
     );
-    await _storage.write(_IdentityKeys.publicKey, _hexEncode(publicKeyBytes));
-    await _storage.write(
-      _IdentityKeys.identityCreated,
-      createdAt.toIso8601String(),
-    );
+  }
 
-    _cachedIdentity = AlexandriaIdentity(
-      privateKey: Uint8List.fromList(privateKeyBytes),
-      publicKey: publicKeyBytes,
-      createdAt: createdAt,
-    );
+  /// Re-read storage and confirm the stored private key derives the
+  /// stored public key. Must only be called inside [_serialized].
+  Future<bool> _verifyStoredIdentity(
+    String expectedPrivateKeyHex,
+    String expectedPublicKeyHex,
+  ) async {
+    try {
+      final privateKeyHex = await _storage.read(_IdentityKeys.privateKey);
+      final publicKeyHex = await _storage.read(_IdentityKeys.publicKey);
+      final createdStr = await _storage.read(_IdentityKeys.identityCreated);
+      if (privateKeyHex != expectedPrivateKeyHex ||
+          publicKeyHex != expectedPublicKeyHex ||
+          createdStr == null) {
+        return false;
+      }
+      final keyPair =
+          await _algorithm.newKeyPairFromSeed(_hexDecode(privateKeyHex!));
+      final derived = await keyPair.extractPublicKey();
+      return _hexEncode(Uint8List.fromList(derived.bytes)) ==
+          expectedPublicKeyHex;
+    } catch (_) {
+      return false;
+    }
+  }
 
-    return _cachedIdentity!;
+  /// Remove all identity keys. Must only be called inside [_serialized].
+  Future<void> _deleteIdentityKeysUnlocked() async {
+    await _storage.delete(_IdentityKeys.privateKey);
+    await _storage.delete(_IdentityKeys.publicKey);
+    await _storage.delete(_IdentityKeys.identityCreated);
+    await _storage.delete(SecureStorageKeys.mnemonicBackup);
+  }
+
+  /// Clear the in-memory identity cache and reload it from secure
+  /// storage.
+  ///
+  /// Must be called whenever the stored identity keys may have been
+  /// replaced out-of-band so [getIdentity] stops serving a stale cached
+  /// keypair. (Recoveries via [importIdentity] already refresh the
+  /// cache; this is wired to `MnemonicService.onIdentityRecovered` as
+  /// belt-and-suspenders cache coherency.)
+  Future<void> reloadIdentity() {
+    return _serialized(() async {
+      _cachedIdentity = null;
+      await _readIdentityUnlocked();
+      _bumpRevision();
+    });
+  }
+
+  /// Record that the recovery phrase for the CURRENT identity has been
+  /// backed up, writing [SecureStorageKeys.mnemonicBackup] inside the
+  /// same [_serialized] chain as every identity mutation.
+  ///
+  /// Ownership of this marker lives here — not in `MnemonicService` —
+  /// because only the serialized chain can order the write against a
+  /// concurrent [importIdentity]/[generateIdentity]: an unserialized
+  /// write could land AFTER the replacement's marker-clear and
+  /// resurrect a stale "backed up" flag for a phrase that recovers the
+  /// OLD key.
+  ///
+  /// When [expectedPublicKeyHex] is provided (the public key the
+  /// phrase actually recovers, derived by the caller), the marker is
+  /// written only while that key is still the stored one — making the
+  /// outcome independent of which serialized op runs first. Callers
+  /// that cannot decode the phrase may omit it; ordering with the
+  /// clearing writes still applies.
+  Future<void> markMnemonicBackupConfirmed(
+    String phraseHash, {
+    String? expectedPublicKeyHex,
+  }) {
+    return _serialized(() async {
+      if (expectedPublicKeyHex != null) {
+        final currentPublicKeyHex =
+            await _storage.read(_IdentityKeys.publicKey);
+        if (currentPublicKeyHex != expectedPublicKeyHex) {
+          // The phrase confirms a backup of a keypair that is no
+          // longer stored — writing the marker would claim the NEW
+          // identity is backed up by a phrase that cannot recover it.
+          return;
+        }
+      }
+      await _storage.write(SecureStorageKeys.mnemonicBackup, phraseHash);
+    });
   }
 
   /// Create an identity proof (signed message with timestamp)
@@ -263,11 +606,18 @@ class IdentityService {
   }
 
   /// Delete the current identity (dangerous - cannot be recovered without backup)
-  Future<void> deleteIdentity() async {
-    await _storage.delete(_IdentityKeys.privateKey);
-    await _storage.delete(_IdentityKeys.publicKey);
-    await _storage.delete(_IdentityKeys.identityCreated);
-    _cachedIdentity = null;
+  Future<void> deleteIdentity() {
+    return _serialized(() async {
+      try {
+        await _deleteIdentityKeysUnlocked();
+      } finally {
+        // The cache drop and revision bump are unconditional: a
+        // throwing mid-sequence delete may leave partial keys behind,
+        // but a cached identity must never outlive them.
+        _cachedIdentity = null;
+        _bumpRevision();
+      }
+    });
   }
 
   /// Compute SHA-256 hash of data
