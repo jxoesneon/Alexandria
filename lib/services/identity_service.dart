@@ -44,6 +44,13 @@ class _IdentityKeys {
   static const privateKey = 'alexandria_identity_private_key';
   static const publicKey = 'alexandria_identity_public_key';
   static const identityCreated = 'alexandria_identity_created';
+
+  /// JSON list of every public key (canonical lowercase hex) this node
+  /// has EVER installed — current plus retired rotation predecessors.
+  /// Append-only (Safety item 3): a receipt verifier-signed by a
+  /// retired key is still self-issued, so the history is never pruned,
+  /// not even by deleteIdentity.
+  static const publicKeyHistory = 'alexandria_identity_pubkey_history';
 }
 
 /// Represents a cryptographic identity with Ed25519 keypair
@@ -227,6 +234,73 @@ class IdentityService {
     return _serialized(_readIdentityUnlocked);
   }
 
+  /// Every public key this node has EVER held, as a canonical lowercase
+  /// hex set — the current identity plus all retired rotation
+  /// predecessors (Safety item 3). CreditService's self-dealing guard
+  /// consumes this so a receipt verifier-signed by a rotated-away key
+  /// is still recognized as self-issued and can never mint attested
+  /// value post-rotation.
+  ///
+  /// The set NEVER shrinks: [deleteIdentity] removes the keypair but
+  /// not its history — a deleted key still signed receipts while held,
+  /// so they remain self-vouched forever. The currently stored key is
+  /// always included even when its history append failed or the install
+  /// predates the feature; a corrupt history blob degrades to that
+  /// current-key floor rather than failing.
+  Future<Set<String>> knownLocalPubkeyHexes() {
+    return _serialized(() async {
+      final out = (await _readPubkeyHistoryUnlocked()).toSet();
+      final current = await _storage.read(_IdentityKeys.publicKey);
+      if (current != null) {
+        final canonical = current.trim().toLowerCase();
+        if (canonical.isNotEmpty) out.add(canonical);
+      }
+      return out;
+    });
+  }
+
+  /// Reads the append-only local-key history. Must only be called
+  /// inside [_serialized]. A missing or corrupt blob resolves to an
+  /// empty list — the caller's current-key floor covers the gap.
+  Future<List<String>> _readPubkeyHistoryUnlocked() async {
+    try {
+      final raw = await _storage.read(_IdentityKeys.publicKeyHistory);
+      if (raw == null) return <String>[];
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return <String>[];
+      final out = <String>[];
+      for (final e in decoded) {
+        if (e is String) {
+          final canonical = e.trim().toLowerCase();
+          if (canonical.isNotEmpty && !out.contains(canonical)) {
+            out.add(canonical);
+          }
+        }
+      }
+      return out;
+    } catch (_) {
+      return <String>[];
+    }
+  }
+
+  /// Appends [publicKeyHex] to the append-only local-key history.
+  /// Must only be called inside [_serialized]. Best-effort: a failing
+  /// store skips the append rather than breaking the identity mutation
+  /// that triggered it — [knownLocalPubkeyHexes] always re-derives the
+  /// current-key floor, so the degradation is bounded to the missed
+  /// retired key.
+  Future<void> _recordPubkeyInHistoryUnlocked(String publicKeyHex) async {
+    final canonical = publicKeyHex.trim().toLowerCase();
+    if (canonical.isEmpty) return;
+    try {
+      final history = await _readPubkeyHistoryUnlocked();
+      if (history.contains(canonical)) return;
+      history.add(canonical);
+      await _storage.write(
+          _IdentityKeys.publicKeyHistory, jsonEncode(history));
+    } catch (_) {}
+  }
+
   /// Read the stored identity. Must only be called inside [_serialized].
   ///
   /// Read-time verification heals legacy "Franken" pairs persisted by
@@ -272,6 +346,13 @@ class IdentityService {
         // the next read verifies the healed pair and does not bump.
         _bumpRevision();
       }
+
+      // Record the served key in the append-only history (Safety item
+      // 3): this covers installs that predate the feature AND the heal
+      // path above, where the stored pubkey just changed to the derived
+      // value. Best-effort — a history write failure must not break
+      // the read.
+      await _recordPubkeyInHistoryUnlocked(_hexEncode(publicKey));
 
       _cachedIdentity = AlexandriaIdentity(
         privateKey: privateKey,
@@ -379,6 +460,22 @@ class IdentityService {
     final prevPubHex = await _storage.read(_IdentityKeys.publicKey);
     final prevCreated = await _storage.read(_IdentityKeys.identityCreated);
 
+    // Record the OUTGOING key in the append-only history BEFORE it is
+    // replaced (Safety item 3, REV4a F3): serve-time appends in
+    // [_readIdentityUnlocked] only cover keys that were READ while
+    // installed — a key installed pre-feature (or by any out-of-band
+    // write) and rotated away before its first read would otherwise
+    // escape the history entirely, and receipts verifier-signed by it
+    // would mint attested value as if foreign. Best-effort:
+    // [_recordPubkeyInHistoryUnlocked] swallows its own failures, so a
+    // faulting store can never block the identity write. Recording the
+    // outgoing key is still correct when the write below later rolls
+    // back — the restored previous key genuinely was (and remains)
+    // installed, so it belongs in the history either way.
+    if (prevPubHex != null) {
+      await _recordPubkeyInHistoryUnlocked(prevPubHex);
+    }
+
     // When the keypair is changing, clear the mnemonic-backup marker
     // UP-FRONT and best-effort: a stale marker that survives would
     // falsely claim the NEW identity is backed up by the OLD phrase,
@@ -410,6 +507,12 @@ class IdentityService {
           publicKey: Uint8List.fromList(publicKey),
           createdAt: createdAt,
         );
+        // Append the now-verified key to the never-shrinking history
+        // (Safety item 3) — a receipt signed by this key stays
+        // self-issued even after a later rotation retires it. Only a
+        // SUCCESSFUL install is recorded: the rollback path below never
+        // installed the new key, so it must not enter the history.
+        await _recordPubkeyInHistoryUnlocked(publicKeyHex);
         _bumpRevision();
         return _cachedIdentity!;
       }
@@ -475,7 +578,20 @@ class IdentityService {
   }
 
   /// Remove all identity keys. Must only be called inside [_serialized].
+  ///
+  /// Records the outgoing public key in the append-only history BEFORE
+  /// deleting it (Safety item 3, REV4a F3): a key deleted before it was
+  /// ever read escapes the serve-time append in [_readIdentityUnlocked],
+  /// and without this record its verifier-signed receipts would mint
+  /// attested value after a fresh install. Best-effort — a history
+  /// failure must never abort the delete.
   Future<void> _deleteIdentityKeysUnlocked() async {
+    try {
+      final currentPubHex = await _storage.read(_IdentityKeys.publicKey);
+      if (currentPubHex != null) {
+        await _recordPubkeyInHistoryUnlocked(currentPubHex);
+      }
+    } catch (_) {}
     await _storage.delete(_IdentityKeys.privateKey);
     await _storage.delete(_IdentityKeys.publicKey);
     await _storage.delete(_IdentityKeys.identityCreated);

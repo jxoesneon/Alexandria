@@ -40,12 +40,13 @@ class _FlakyInsertDb extends AppDatabase {
   bool failNext = true;
 
   @override
-  Future<bool> insertClaimedBounty(String bountyId, String cid) async {
+  Future<bool> insertClaimedBounty(String bountyId, String cid,
+      {int? claimedAt}) async {
     if (failNext) {
       failNext = false;
       throw StateError('simulated sqlite error');
     }
-    return super.insertClaimedBounty(bountyId, cid);
+    return super.insertClaimedBounty(bountyId, cid, claimedAt: claimedAt);
   }
 }
 
@@ -55,6 +56,12 @@ class _FlakyInsertDb extends AppDatabase {
 class _ThrowingDeleteDb extends AppDatabase {
   @override
   Future<void> deleteClaimedBounty(String bountyId) async {
+    throw StateError('simulated sqlite delete error');
+  }
+
+  @override
+  Future<int> deleteClaimedBountyIfClaimedAt(
+      String bountyId, int claimedAt) async {
     throw StateError('simulated sqlite delete error');
   }
 }
@@ -84,6 +91,14 @@ class _SlowDeleteDb extends AppDatabase {
     deleteCalls.add(bountyId);
     await deleteGate.future;
     return super.deleteClaimedBounty(bountyId);
+  }
+
+  @override
+  Future<int> deleteClaimedBountyIfClaimedAt(
+      String bountyId, int claimedAt) async {
+    deleteCalls.add(bountyId);
+    await deleteGate.future;
+    return super.deleteClaimedBountyIfClaimedAt(bountyId, claimedAt);
   }
 }
 

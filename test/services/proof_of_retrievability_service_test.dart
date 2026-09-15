@@ -141,6 +141,34 @@ void main() {
       expect(valid, isFalse);
     });
 
+    test('pending challenges are bounded: expired purged first, then '
+        'oldest evicted (REV4 Safety 5)', () {
+      var now = DateTime(2026, 1, 1);
+      final c = ProviderContainer(overrides: [
+        proofOfRetrievabilityServiceProvider.overrideWith(
+            (ref) => ProofOfRetrievabilityService(ref, now: () => now)),
+      ]);
+      addTearDown(c.dispose);
+      final svc = c.read(proofOfRetrievabilityServiceProvider);
+
+      // Flood well past the 256 cap — the map stays bounded.
+      final first = svc.issueChallenge(cid: 'c_first', totalChunks: 1);
+      for (var i = 0; i < 300; i++) {
+        svc.issueChallenge(cid: 'c_$i', totalChunks: 1);
+      }
+      expect(svc.pendingChallengeCount, 256);
+      // Oldest evicted (insertion order); the newest is still live.
+      expect(svc.pendingChallenge(first.challengeId), isNull);
+
+      // Expired entries are purged BEFORE eviction: advance the clock
+      // past the 5-minute TTL — the next insert purges all 256 stale
+      // entries rather than evicting a live challenge.
+      now = now.add(const Duration(minutes: 6));
+      final fresh = svc.issueChallenge(cid: 'c_fresh', totalChunks: 1);
+      expect(svc.pendingChallengeCount, 1);
+      expect(svc.pendingChallenge(fresh.challengeId), isNotNull);
+    });
+
     test('toJson serializes challenge and proof', () {
       final challenge =
           service.createChallenge(cid: 'bafy_json', totalChunks: 5);

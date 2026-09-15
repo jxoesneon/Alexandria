@@ -355,6 +355,39 @@ class AppDatabase extends _$AppDatabase {
     return (await query.get()).isNotEmpty;
   }
 
+  /// Whether a credit-transaction row with EXACTLY this primary key
+  /// exists — a direct point query like [hasGenesisTransaction], never
+  /// a scan of the hydrated replay window (which silently truncates
+  /// rows beyond its limit and would misread a settled payout as
+  /// missing). The bounty-claim crash-window reconciler uses this to
+  /// prove a payout durably landed (Review REV4, Safety-mandated).
+  Future<bool> hasCreditTransaction(String id) async {
+    final query = select(creditTransactions)
+      ..where((t) => t.id.equals(id));
+    final row = await query.getSingleOrNull();
+    return row != null;
+  }
+
+  /// All credit-transaction primary keys carrying [idPrefix] — a
+  /// targeted index read, NEVER the hydrated replay window (which
+  /// silently truncates rows beyond its limit). Rebuilding dedup sets
+  /// (`tx_bounty_payout_*`, `tx_escrow_release_*`, `tx_escrow_hold_*`)
+  /// from the windowed replay would false-orphan old rows and re-enable
+  /// double-mints; prefix reads are complete regardless of table size.
+  Future<List<String>> getCreditTransactionIdsWithPrefix(
+      String idPrefix) async {
+    final query = selectOnly(creditTransactions)
+      ..addColumns([creditTransactions.id])
+      ..where(creditTransactions.id.like('$idPrefix%'));
+    final rows = await query.get();
+    // LIKE treats '_'/'%' in the prefix as wildcards — re-filter
+    // exactly so only literal prefix matches survive.
+    return rows
+        .map((r) => r.read(creditTransactions.id)!)
+        .where((id) => id.startsWith(idPrefix))
+        .toList();
+  }
+
   /// Returns persisted daily mint totals for [dayKey] as type → amount.
   Future<Map<String, double>> getDailyMinted(String dayKey) async {
     final query = select(dailyMinted)..where((d) => d.dayKey.equals(dayKey));
@@ -409,13 +442,19 @@ class AppDatabase extends _$AppDatabase {
   /// the check-then-insert race window is closed by the primary key,
   /// not by a preceding read. A losing caller sees `false`, never a
   /// thrown PK violation.
-  Future<bool> insertClaimedBounty(String bountyId, String cid) async {
+  ///
+  /// [claimedAt] defaults to the insertion time; callers that later
+  /// need to release EXACTLY the row this call inserted pass an
+  /// explicit timestamp they can hand to
+  /// [deleteClaimedBountyIfClaimedAt].
+  Future<bool> insertClaimedBounty(String bountyId, String cid,
+      {int? claimedAt}) async {
     return transaction(() async {
       await into(claimedBounties).insert(
         ClaimedBountiesCompanion.insert(
           bountyId: bountyId,
           cid: cid,
-          claimedAt: DateTime.now().millisecondsSinceEpoch,
+          claimedAt: claimedAt ?? DateTime.now().millisecondsSinceEpoch,
         ),
         mode: InsertMode.insertOrIgnore,
       );
@@ -437,6 +476,28 @@ class AppDatabase extends _$AppDatabase {
         .go();
   }
 
+  /// Ownership-aware claim-row release (E-REV4b F4/F5): deletes the row
+  /// for [bountyId] ONLY while its `claimed_at` still equals
+  /// [claimedAt], and reports the number of rows removed. A result of
+  /// 0 means the row vanished or was replaced by a newer claim attempt
+  /// between the caller's observation and this delete — in that case
+  /// the row is somebody else's and must be left standing.
+  ///
+  /// Bare [deleteClaimedBounty] remains the right tool for the claim
+  /// healer (a loser may legitimately remove a genuinely stale or
+  /// orphaned winner row regardless of who owns it), but every
+  /// self-cleanup path — a claim releasing ITS OWN row, the startup
+  /// sweep acting on a snapshot — must go through this method:
+  /// deleting by bare id would tear down a row a racing claim attempt
+  /// re-inserted in the gap.
+  Future<int> deleteClaimedBountyIfClaimedAt(
+      String bountyId, int claimedAt) async {
+    return (delete(claimedBounties)
+          ..where((c) =>
+              c.bountyId.equals(bountyId) & c.claimedAt.equals(claimedAt)))
+        .go();
+  }
+
   /// Whether [bountyId] has a persisted claim row — survives service
   /// restarts, unlike the in-memory `PreservationBounty.isClaimed` flag.
   Future<bool> isBountyClaimed(String bountyId) async {
@@ -444,6 +505,29 @@ class AppDatabase extends _$AppDatabase {
       ..where((c) => c.bountyId.equals(bountyId));
     final row = await query.getSingleOrNull();
     return row != null;
+  }
+
+  /// The persisted claim timestamp (epoch millis) for [bountyId], or
+  /// null when no claim row exists. The crash-window reconciler uses
+  /// this to tell a YOUNG in-flight claim (leave standing — a live
+  /// claimant still owns it) apart from a stale row (heal it) or an
+  /// orphaned one (deleted between the lost CAS and this read).
+  Future<int?> getClaimedBountyClaimedAt(String bountyId) async {
+    final query = select(claimedBounties)
+      ..where((c) => c.bountyId.equals(bountyId));
+    final row = await query.getSingleOrNull();
+    return row?.claimedAt;
+  }
+
+  /// All claim rows whose claimedAt predates [epochMillis] — the
+  /// startup reconciliation sweep's candidate set: stale rows nobody
+  /// will ever retry (claims stranded by a crash between the CAS and
+  /// the payout, or by a claim-release delete that threw).
+  Future<List<ClaimedBounty>> getClaimedBountiesOlderThan(
+      int epochMillis) async {
+    final query = select(claimedBounties)
+      ..where((c) => c.claimedAt.isSmallerThanValue(epochMillis));
+    return query.get();
   }
 
   Future<void> insertWorkReceipt(Map<String, dynamic> data) async {

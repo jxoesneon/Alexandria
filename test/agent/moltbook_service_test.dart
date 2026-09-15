@@ -1698,11 +1698,14 @@ void main() {
             .length,
         1,
       );
-      // CAS loss does NOT poison the stored record (E-REV4-B F1): the row
-      // proves a claim won/in-flight, and releasing it on a later
-      // failure must leave the bounty retryable — so the record stays
-      // listed even though the durable claim stands.
-      expect(second.activeBounties.any((b) => b.id == bounty.id), isTrue);
+      // CAS loss against a DURABLY SETTLED claim heals the stored
+      // record to claimed (REV4b crash-window reconciliation): the payout
+      // row proves the escrow was spent, so the listing must stop
+      // offering it — the record leaves activeBounties rather than
+      // staying a visible, never-claimable zombie.
+      expect(second.activeBounties.any((b) => b.id == bounty.id), isFalse,
+          reason: 'a settled claim is healed to isClaimed, not left '
+              'listed-but-unclaimable');
     });
 
     test('a failed evidence check releases the durable claim so a later retry can win (REV3)', () async {

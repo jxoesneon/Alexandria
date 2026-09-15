@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/database.dart' show AppDatabase, databaseProvider;
 import '../logic/honor_system.dart';
@@ -94,12 +94,22 @@ class ProofOfRetrievabilityService {
   final Ref _ref;
   final Map<String, PoRChallenge> _pendingChallenges = {};
 
+  /// Injectable clock — production uses [DateTime.now]; tests supply a
+  /// controllable source so challenge-expiry purging is deterministic.
+  final DateTime Function() _now;
+
   static const Duration challengeTtl = Duration(minutes: 5);
+
+  /// Hard cap on retained pending challenges (Review REV4 / Safety 5):
+  /// an unbounded map is a memory-DoS via challenge spam. The map is
+  /// insertion-ordered, so eviction removes the oldest entry.
+  static const int _maxPendingChallenges = 256;
 
   /// Receipts are claimable for 24h after issuance.
   static const Duration receiptTtl = Duration(hours: 24);
 
-  ProofOfRetrievabilityService(this._ref);
+  ProofOfRetrievabilityService(this._ref, {DateTime Function()? now})
+      : _now = now ?? DateTime.now;
 
   /// Legacy challenge factory — signature preserved for callers that
   /// predate verifier identity (UI integrity self-checks, security
@@ -130,20 +140,36 @@ class ProofOfRetrievabilityService {
       cid: cid,
       chunkIndex: chunkIndex,
       nonce: nonce,
-      timestamp: DateTime.now(),
+      timestamp: _now(),
       challengerPubkey: challengerPubkey,
     );
 
+    // Bound the map before inserting (Review REV4 / Safety 5): purge
+    // expired entries first — they are dead weight and cheaper to drop
+    // than a live challenge — then, if still at capacity, evict the
+    // OLDEST entry (the map is insertion-ordered, so the first key is
+    // the oldest).
+    final now = _now();
+    _pendingChallenges.removeWhere(
+        (_, c) => now.difference(c.timestamp) > challengeTtl);
+    while (_pendingChallenges.length >= _maxPendingChallenges) {
+      _pendingChallenges.remove(_pendingChallenges.keys.first);
+    }
     _pendingChallenges[challengeId] = challenge;
     return challenge;
   }
+
+  /// Number of retained pending challenges — exposed for tests
+  /// exercising the [_maxPendingChallenges] bound.
+  @visibleForTesting
+  int get pendingChallengeCount => _pendingChallenges.length;
 
   /// Looks up an unexpired pending challenge by ID. Used by the MCP server to
   /// reject proofs against challenges this node never issued.
   PoRChallenge? pendingChallenge(String challengeId) {
     final challenge = _pendingChallenges[challengeId];
     if (challenge == null) return null;
-    if (DateTime.now().difference(challenge.timestamp) > challengeTtl) {
+    if (_now().difference(challenge.timestamp) > challengeTtl) {
       _pendingChallenges.remove(challengeId);
       return null;
     }
@@ -237,7 +263,7 @@ class ProofOfRetrievabilityService {
     final challenge = _pendingChallenges[proof.challengeId];
     if (challenge == null) return null;
 
-    if (DateTime.now().difference(challenge.timestamp) > challengeTtl) {
+    if (_now().difference(challenge.timestamp) > challengeTtl) {
       _pendingChallenges.remove(proof.challengeId);
       return null;
     }

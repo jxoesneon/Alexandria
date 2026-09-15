@@ -444,6 +444,100 @@ void main() {
       await db.deleteClaimedBounty('bounty_missing');
     });
 
+    test('insertClaimedBounty accepts an explicit claimedAt and '
+        'deleteClaimedBountyIfClaimedAt releases only the row that '
+        'still owns that timestamp (E-REV4b F4/F5)', () async {
+      const ownTs = 1700000000000;
+      expect(
+          await db.insertClaimedBounty('bounty_own', 'bafk_own',
+              claimedAt: ownTs),
+          isTrue);
+      expect(await db.getClaimedBountyClaimedAt('bounty_own'), ownTs);
+
+      // A mismatched timestamp — e.g. the caller's snapshot of a row
+      // that a racing claim deleted and re-inserted — must NOT remove
+      // the current row, and reports 0.
+      expect(
+          await db.deleteClaimedBountyIfClaimedAt(
+              'bounty_own', ownTs + 1),
+          0);
+      expect(await db.isBountyClaimed('bounty_own'), isTrue);
+
+      // The owning timestamp removes it and reports the row count.
+      expect(
+          await db.deleteClaimedBountyIfClaimedAt('bounty_own', ownTs),
+          1);
+      expect(await db.isBountyClaimed('bounty_own'), isFalse);
+
+      // Absent row: 0, harmless.
+      expect(
+          await db.deleteClaimedBountyIfClaimedAt('bounty_own', ownTs),
+          0);
+
+      // The default claimedAt path still works and stays releasable
+      // through a read-back timestamp.
+      expect(await db.insertClaimedBounty('bounty_dfl', 'bafk_d'), isTrue);
+      final at = await db.getClaimedBountyClaimedAt('bounty_dfl');
+      expect(at, isNotNull);
+      expect(await db.deleteClaimedBountyIfClaimedAt('bounty_dfl', at!), 1);
+      expect(await db.isBountyClaimed('bounty_dfl'), isFalse);
+    });
+
+    test('hasCreditTransaction is a direct primary-key point query (REV4)',
+        () async {
+      expect(await db.hasCreditTransaction('tx_probe'), isFalse);
+      await db.insertCreditTransaction({
+        'id': 'tx_probe',
+        'timestamp': DateTime(2026, 2, 1),
+        'type': 'verificationReward',
+        'amount': 25.0,
+        'description': 'Bounty Escrow Payout (b1)',
+        'hash': 'h_probe',
+      });
+      expect(await db.hasCreditTransaction('tx_probe'), isTrue);
+      // Exact-match only — a different id is not a prefix/substring hit.
+      expect(await db.hasCreditTransaction('tx_probe_extra'), isFalse);
+      expect(await db.hasCreditTransaction('tx_'), isFalse);
+    });
+
+    test('getClaimedBountyClaimedAt returns epoch millis or null (REV4)',
+        () async {
+      expect(await db.getClaimedBountyClaimedAt('b_age'), isNull);
+      final before = DateTime.now().millisecondsSinceEpoch;
+      await db.insertClaimedBounty('b_age', 'bafk_age');
+      final after = DateTime.now().millisecondsSinceEpoch;
+      final at = await db.getClaimedBountyClaimedAt('b_age');
+      expect(at, isNotNull);
+      expect(at!, greaterThanOrEqualTo(before));
+      expect(at, lessThanOrEqualTo(after));
+    });
+
+    test('getClaimedBountiesOlderThan returns only stale rows (REV4)',
+        () async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      const fifteenMin = 15 * 60 * 1000;
+      // Direct row inserts so claimedAt is caller-controlled.
+      await db.into(db.claimedBounties).insert(
+            ClaimedBountiesCompanion.insert(
+              bountyId: 'b_old',
+              cid: 'bafk_old',
+              claimedAt: now - fifteenMin - 1000,
+            ),
+          );
+      await db.into(db.claimedBounties).insert(
+            ClaimedBountiesCompanion.insert(
+              bountyId: 'b_edge',
+              cid: 'bafk_edge',
+              claimedAt: now - fifteenMin + 60000,
+            ),
+          );
+      await db.insertClaimedBounty('b_young', 'bafk_young');
+
+      final stale = await db.getClaimedBountiesOlderThan(now - fifteenMin);
+      expect(stale.map((r) => r.bountyId), ['b_old']);
+      expect(stale.single.claimedAt, now - fifteenMin - 1000);
+    });
+
     test('getLedgerBalanceSum nets credits and debits over all rows',
         () async {
       expect(await db.getLedgerBalanceSum(), 0.0);

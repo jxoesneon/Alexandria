@@ -19,7 +19,6 @@ import 'secure_storage_service.dart';
 /// Aggregates data from existing services for the Security screens.
 class SecurityOverviewService {
   final Ref _ref;
-  final Map<String, por.PoRChallenge> _pendingChallenges = {};
 
   static const _accessPoliciesKey = 'alexandria_access_policies';
 
@@ -279,7 +278,9 @@ class SecurityOverviewService {
   Future<PorChallenge> issueChallenge(String cid, String peerId) async {
     final porService = _ref.read(por.proofOfRetrievabilityServiceProvider);
     final challenge = porService.createChallenge(cid: cid, totalChunks: 1);
-    _pendingChallenges[challenge.challengeId] = challenge;
+    // The PoR service's own (bounded, TTL'd) pending-challenge map is the
+    // single source of truth — the duplicate map this service used to
+    // keep was written but never cleaned (Review REV4 / Efficiency 7a).
     return PorChallenge(
       challengeId: challenge.challengeId,
       cid: challenge.cid,
@@ -290,7 +291,7 @@ class SecurityOverviewService {
 
   Future<bool> verifyChallenge(PorChallenge challenge) async {
     final porService = _ref.read(por.proofOfRetrievabilityServiceProvider);
-    final original = _pendingChallenges[challenge.challengeId];
+    final original = porService.pendingChallenge(challenge.challengeId);
     if (original == null) return false;
 
     final chunks = <int>[];

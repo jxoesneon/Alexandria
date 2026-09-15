@@ -181,6 +181,10 @@ class FakeProofOfRetrievabilityService
   }
 
   @override
+  por.PoRChallenge? pendingChallenge(String challengeId) =>
+      _challenges[challengeId];
+
+  @override
   bool verifyProof({
     required por.PoRProof proof,
     required Uint8List expectedChunkData,
