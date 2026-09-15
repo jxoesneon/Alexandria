@@ -1,6 +1,8 @@
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/database.dart' show AppDatabase, databaseProvider;
+import '../build_info_service.dart';
 import '../credits/credit_service.dart';
 import '../credits/work_receipt.dart';
 import '../ipfs_service.dart';
@@ -13,6 +15,10 @@ final moltbookServiceProvider = ChangeNotifierProvider<MoltbookService>((ref) {
   return MoltbookService(
     creditService: creditService,
     ipfsService: ref.read(ipfsServiceProvider),
+    // Durable bounty-claim dedup (Review REV3): the claimed_bounties
+    // ledger makes a won claim restart-proof and unreachable through
+    // any returned bounty copy.
+    db: ref.read(databaseProvider),
   );
 });
 
@@ -20,6 +26,18 @@ final moltbookServiceProvider = ChangeNotifierProvider<MoltbookService>((ref) {
 class MoltbookService extends ChangeNotifier {
   final CreditService _creditService;
   final IpfsService? _ipfsService;
+  final AppDatabase? _db;
+
+  /// Ambient trust root for funding attestations (Review REV3 Safety
+  /// fix). This used to be a per-call `trustedAttestors` parameter on
+  /// [ingestBountyAnnouncement] — a footgun that let every future
+  /// transport call site weaken policy by passing announcement-derived
+  /// keys. Now it is node configuration, frozen (unmodifiable) at
+  /// construction; the default EMPTY set fails closed, so no
+  /// attestation is ever trusted until the operator configures the
+  /// node's attestor quorum.
+  final Set<String> _trustedAttestorPubkeys;
+
   final String _baseUrl;
   String? _apiKey;
 
@@ -44,13 +62,26 @@ class MoltbookService extends ChangeNotifier {
   /// own escrow (ALX-010 / E-T5 #2).
   final Set<String> _locallyPostedBountyIds = {};
 
+  /// In-flight claim guard (single-isolate TOCTOU): an id is added
+  /// synchronously before [claimBounty]'s first `await`, so a second
+  /// overlapping call observes it and bails before the durable CAS can
+  /// even run. Entries are removed on every failure path; a won claim
+  /// keeps its entry as a fast-path alongside the durable row.
+  final Set<String> _claimedBountyIds = {};
+
   MoltbookService({
     required CreditService creditService,
     IpfsService? ipfsService,
+    AppDatabase? db,
+    Set<String> trustedAttestorPubkeys = const {},
     String baseUrl = 'https://www.moltbook.com',
     String? apiKey,
   })  : _creditService = creditService,
         _ipfsService = ipfsService,
+        _db = db,
+        // Frozen copy: the caller must not be able to grow the trust
+        // root after construction by mutating the set it handed in.
+        _trustedAttestorPubkeys = Set.unmodifiable(trustedAttestorPubkeys),
         _baseUrl = baseUrl,
         _apiKey = apiKey {
     _seedInitialPosts();
@@ -62,8 +93,12 @@ class MoltbookService extends ChangeNotifier {
   String get agentId => _agentId;
   String get pubkeyHex => _pubkeyHex;
   DateTime? get lastPostTime => _lastPostTime;
-  List<PreservationBounty> get activeBounties =>
-      List.unmodifiable(_bounties.where((b) => !b.isClaimed));
+  /// Live unclaimed bounties as DEFENSIVE COPIES (Review REV3): the
+  /// stored records are never handed out, so a caller mutating a
+  /// returned bounty (e.g. flipping `isClaimed` back to false) cannot
+  /// reopen a claimed bounty for a second escrow payout.
+  List<PreservationBounty> get activeBounties => List.unmodifiable(
+      _bounties.where((b) => !b.isClaimed).map((b) => b.copyWith()));
 
   void setApiKey(String? key) {
     _apiKey = key?.trim();
@@ -142,10 +177,16 @@ class MoltbookService extends ChangeNotifier {
 
     await _ensureKeyPair();
 
-    // 2. Sign Beacon v2 envelope
+    // 2. Sign Beacon v2 envelope. The client_info claim is the NARROWED
+    // broadcast subset (Review REV3-D): claimed client version, build
+    // channel and protocol version only — exact commit SHA, artifact
+    // digest and build timestamp are high-entropy provenance that would
+    // let a peer scan the swarm for known-vulnerable builds, so they
+    // stay local (see BuildInfo.claimedBroadcastInfo).
     final envelope = await BeaconEnvelope.create(
       kind: 'moltbook_post',
       keyPair: _keyPair!,
+      clientInfo: BuildInfo.current().claimedBroadcastInfo,
       payload: {
         'submolt': submolt,
         'title': title,
@@ -241,7 +282,10 @@ class MoltbookService extends ChangeNotifier {
     _locallyPostedBountyIds.add(bounty.id);
 
     notifyListeners();
-    return bounty;
+    // Defensive copy (Review REV3): the stored record stays private so a
+    // caller mutating the returned bounty can never touch registry
+    // state — same rule as activeBounties.
+    return bounty.copyWith();
   }
 
   /// Registers a preservation bounty announced by a FOREIGN agent over the
@@ -265,14 +309,18 @@ class MoltbookService extends ChangeNotifier {
   /// announcement can never mint unbacked credits through
   /// [claimBounty].
   ///
-  /// TRUST ROOT — [trustedAttestors]: a signature is only a proof of
-  /// key possession; ANYONE can mint an Ed25519 keypair and self-attest
-  /// (the Sybil-attack class this parameter closes). `funded` therefore
-  /// additionally requires `trustedAttestors` to contain the attestor's
-  /// pubkey hex. The default EMPTY set fails closed — no attestation is
-  /// ever trusted — until the caller supplies the node's configured
-  /// attestor quorum (verifier-quorum / review keys, populated by the
-  /// transport layer once the quorum protocol lands; ALX-011 A3).
+  /// TRUST ROOT — [MoltbookService._trustedAttestorPubkeys]: a
+  /// signature is only a proof of key possession; ANYONE can mint an
+  /// Ed25519 keypair and self-attest (the Sybil-attack class the trust
+  /// root closes). `funded` therefore additionally requires the node's
+  /// configured attestor set to contain the attestor's pubkey hex. The
+  /// set is ambient constructor configuration — deliberately NOT a
+  /// per-call parameter (Review REV3): a call-site trust root would let
+  /// every future transport caller weaken policy with
+  /// announcement-derived keys. The default EMPTY set fails closed — no
+  /// attestation is ever trusted — until the node's configured attestor
+  /// quorum is supplied (verifier-quorum / review keys, populated by
+  /// the transport layer once the quorum protocol lands; ALX-011 A3).
   ///
   /// DEDUP-UPGRADE (griefing fix): naive first-wins dedup lets an
   /// unattested announcement permanently poison a bounty id — the real
@@ -299,7 +347,6 @@ class MoltbookService extends ChangeNotifier {
   void ingestBountyAnnouncement(
     PreservationBounty bounty, {
     EscrowAttestation? escrowAttestation,
-    Set<String> trustedAttestors = const {},
   }) {
     // Ignore echoes of our own posts.
     if (_locallyPostedBountyIds.contains(bounty.id)) return;
@@ -320,7 +367,6 @@ class MoltbookService extends ChangeNotifier {
           _isTrustedFundingAttestation(
             escrowAttestation,
             stored,
-            trustedAttestors,
           )) {
         _bounties[existingIndex] = PreservationBounty(
           id: stored.id,
@@ -355,7 +401,6 @@ class MoltbookService extends ChangeNotifier {
         _isTrustedFundingAttestation(
           escrowAttestation,
           bounty,
-          trustedAttestors,
         );
     _bounties.insert(
       0,
@@ -389,28 +434,28 @@ class MoltbookService extends ChangeNotifier {
   /// The complete admission check every `funded` verdict funnels
   /// through — for both first-seen announcements and dedup upgrades:
   ///
-  ///  * [att] exists and its attestor is in [trustedAttestors] — the
-  ///    caller-supplied trust root. An empty set rejects everything
-  ///    (fail-closed): "cryptographically valid" ≠ "trusted". Membership
-  ///    is CANONICAL ([WorkReceipt.samePubkey]): an UPPERCASE or
-  ///    space-padded spelling of a trusted key decodes to identical
-  ///    bytes and must still match — otherwise legit attestations are
-  ///    dropped on an encoding technicality (H1).
+  ///  * [att] exists and its attestor is in [_trustedAttestorPubkeys] —
+  ///    the node's ambient, construction-frozen trust root. An empty
+  ///    set rejects everything (fail-closed): "cryptographically valid"
+  ///    ≠ "trusted". Membership is CANONICAL ([WorkReceipt.samePubkey]):
+  ///    an UPPERCASE or space-padded spelling of a trusted key decodes
+  ///    to identical bytes and must still match — otherwise legit
+  ///    attestations are dropped on an encoding technicality (H1).
   ///  * The attestor is NOT this node's own key ([_pubkeyHex]) — a
   ///    local self-attestation is circular vouching, so the local key
-  ///    is barred even if it somehow lands in [trustedAttestors]. The
-  ///    bar is canonical for the same reason: a non-canonical spelling
-  ///    of the local key must not slip past it (H1). (Derives from the
-  ///    same key material [agentId]/[pubkeyHex] do.)
+  ///    is barred even if it somehow lands in
+  ///    [_trustedAttestorPubkeys]. The bar is canonical for the same
+  ///    reason: a non-canonical spelling of the local key must not slip
+  ///    past it (H1). (Derives from the same key material
+  ///    [agentId]/[pubkeyHex] do.)
   ///  * The attestation binds [record]'s exact id/cid/amount, is
   ///    unexpired, and is foreign to [record]'s poster.
   bool _isTrustedFundingAttestation(
     EscrowAttestation? att,
     PreservationBounty record,
-    Set<String> trustedAttestors,
   ) =>
       att != null &&
-      trustedAttestors
+      _trustedAttestorPubkeys
           .any((k) => WorkReceipt.samePubkey(k, att.attestorPubkey)) &&
       !WorkReceipt.samePubkey(att.attestorPubkey, _pubkeyHex) &&
       att.bindsBounty(record) &&
@@ -433,24 +478,56 @@ class MoltbookService extends ChangeNotifier {
   ///    IpfsService is provided (e.g. unit tests without IPFS), this
   ///    blockstore check is skipped.
   ///
-  /// TOCTOU safety (E-T5 #1): [PreservationBounty.isClaimed] is set
+  /// TOCTOU safety (E-T5 #1 / Review REV3): [_claimedBountyIds] is marked
   /// synchronously BEFORE the first `await`, so two overlapping
-  /// `claimBounty()` calls can never both pass the guard and both pay out.
-  /// The flag is reverted if the asynchronous evidence check fails, so a
-  /// claim may be retried after the content is actually replicated.
+  /// `claimBounty()` calls can never both pass the guard. The DURABLE
+  /// guard is the `claimed_bounties` primary-key CAS
+  /// ([AppDatabase.insertClaimedBounty]): the row — not the mutable
+  /// in-memory flag — is the claim ledger, so a won claim survives
+  /// restarts and cannot be reopened by mutating a returned bounty copy.
+  /// On evidence-check failure the row is deleted and the in-memory mark
+  /// released, so a claim may be retried after the content is actually
+  /// replicated.
   Future<bool> claimBounty(String bountyId) async {
     final index = _bounties.indexWhere((b) => b.id == bountyId);
     if (index == -1) return false;
 
     final bounty = _bounties[index];
     if (bounty.isClaimed) return false;
+    if (_claimedBountyIds.contains(bounty.id)) return false;
     if (_locallyPostedBountyIds.contains(bounty.id)) return false;
     if (_sameAgentId(bounty.originAgentId, _agentId)) return false;
     if (!bounty.funded) return false;
 
-    // Synchronous claim mark: any concurrent call reaching this point now
-    // observes isClaimed == true and bails out above.
-    bounty.isClaimed = true;
+    // Synchronous in-flight mark: any concurrent call reaching this
+    // point now observes the id in _claimedBountyIds and bails above.
+    _claimedBountyIds.add(bounty.id);
+
+    final db = _db;
+    if (db != null) {
+      // Durable compare-and-swap: a losing insert means this bounty was
+      // already claimed — possibly by a previous incarnation of this
+      // service on the same database (restart persistence).
+      bool wonCas;
+      try {
+        wonCas = await db.insertClaimedBounty(bounty.id, bounty.cid);
+      } catch (_) {
+        // A throwing CAS must release the in-flight mark — otherwise the
+        // bounty stays listed but can never be retried (E-REV4-B F2).
+        _claimedBountyIds.remove(bounty.id);
+        return false;
+      }
+      if (!wonCas) {
+        _claimedBountyIds.remove(bounty.id);
+        // Do NOT mark the stored record claimed: the row proves a claim
+        // is IN FLIGHT (or won), not that it landed — the winner may
+        // still release it on evidence failure, and poisoning the
+        // record here would permanently unclaimable a retryable bounty
+        // (E-REV4-B F1). A later attempt re-attempts the CAS: it loses
+        // again while the row stands, or wins once it is released.
+        return false;
+      }
+    }
 
     final ipfs = _ipfsService;
     if (ipfs != null) {
@@ -465,7 +542,7 @@ class MoltbookService extends ChangeNotifier {
       } catch (_) {
         // Blockstore/stream errors must never propagate into callers (the
         // steward's timer callback has no error handling). Treat as "no
-        // evidence" and release the claim mark (E-T5 #6).
+        // evidence" and release the claim (E-T5 #6).
         hasPayload = false;
       }
       // Deliberate absent-vs-empty distinction (E-T5 #7): an empty payload
@@ -473,17 +550,44 @@ class MoltbookService extends ChangeNotifier {
       // 0-byte file with an absent CID, so 0-byte content is unclaimable —
       // acceptable, since an empty payload carries no preservation value.
       if (!hasPayload) {
-        bounty.isClaimed = false;
+        // Release the durable row BEFORE the in-flight mark so an
+        // interleaved claim cannot lose the CAS against a row that is
+        // already being torn down (E-REV4-B F1 ordering). A throwing
+        // delete must neither propagate into callers nor leak the mark
+        // (E-REV4-Br): a lingering row is handled safely — the next
+        // attempt simply loses the CAS — while a landed-but-unacked
+        // delete still leaves the record retryable.
+        try {
+          await db?.deleteClaimedBounty(bounty.id);
+        } catch (_) {}
+        _claimedBountyIds.remove(bounty.id);
         notifyListeners();
         return false;
       }
     }
 
-    _creditService.awardBountyEscrow(
+    // Pay out the escrowed reward BEFORE marking the claim: a refused
+    // payout (0.0 — e.g. the dedup guard caught a double-claim the CAS
+    // missed, or the credit service is unhydrated) must not leave a
+    // claim marked won but unpaid (E-REV4-B F3/F4). Release the row so
+    // the bounty remains retryable.
+    final paid = _creditService.awardBountyEscrow(
       amount: bounty.offeredCredits,
       bountyId: bounty.id,
       cid: bounty.cid,
     );
+    if (paid <= 0.0) {
+      try {
+        await db?.deleteClaimedBounty(bounty.id);
+      } catch (_) {}
+      _claimedBountyIds.remove(bounty.id);
+      notifyListeners();
+      return false;
+    }
+
+    // Claim won: mark the STORED record (never reachable through the
+    // defensive copies activeBounties/postPreservationBounty hand out).
+    bounty.isClaimed = true;
 
     notifyListeners();
     return true;

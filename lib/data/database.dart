@@ -137,6 +137,23 @@ class AwardedDois extends Table {
   Set<Column> get primaryKey => {doi};
 }
 
+/// Durable registry of preservation bounties this node has claimed
+/// (Review REV3 — Safety veto fix). `PreservationBounty.isClaimed` is an
+/// in-memory flag that any holder of a returned reference could flip
+/// back, reopening a claimed bounty for a second escrow payout. This
+/// table's primary key is the restart-proof compare-and-swap: a claim
+/// wins iff its row insert lands, and only a claim whose asynchronous
+/// work-evidence check failed deletes its row so the bounty stays
+/// retryable after genuine replication.
+class ClaimedBounties extends Table {
+  TextColumn get bountyId => text()();
+  TextColumn get cid => text()();
+  IntColumn get claimedAt => integer()(); // epoch millis
+
+  @override
+  Set<Column> get primaryKey => {bountyId};
+}
+
 /// Verifier-signed work receipts (ALX-010 / P1). [receiptId] is the sha256 of
 /// the canonical receipt body; [verifierSig] is a base64 Ed25519 signature
 /// over the domain-separated signing preimage the receipt's own [v] selects
@@ -178,12 +195,13 @@ class WorkReceipts extends Table {
   DailyMinted,
   AwardedDois,
   WorkReceipts,
+  ClaimedBounties,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -203,6 +221,10 @@ class AppDatabase extends _$AppDatabase {
             // ALX-012: per-receipt wire version. Existing rows hydrate
             // with the column default (1 = legacy bare-domain scheme).
             await m.addColumn(workReceipts, workReceipts.v);
+          }
+          if (from < 5) {
+            // Review REV3: durable bounty-claim dedup ledger.
+            await m.createTable(claimedBounties);
           }
         },
       );
@@ -376,6 +398,50 @@ class AppDatabase extends _$AppDatabase {
 
   Future<bool> hasAwardedDoi(String doi) async {
     final query = select(awardedDois)..where((d) => d.doi.equals(doi));
+    final row = await query.getSingleOrNull();
+    return row != null;
+  }
+
+  /// Atomically registers a bounty claim (Review REV3 Safety CAS),
+  /// mirroring [insertAwardedDoi]: `INSERT OR IGNORE` on the bounty_id
+  /// primary key makes an already-claimed bounty the expected dedup
+  /// event, and `changes()` reports whether THIS call inserted the row —
+  /// the check-then-insert race window is closed by the primary key,
+  /// not by a preceding read. A losing caller sees `false`, never a
+  /// thrown PK violation.
+  Future<bool> insertClaimedBounty(String bountyId, String cid) async {
+    return transaction(() async {
+      await into(claimedBounties).insert(
+        ClaimedBountiesCompanion.insert(
+          bountyId: bountyId,
+          cid: cid,
+          claimedAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+      // changes() reflects this connection's last write; inside the
+      // transaction nothing can interleave, so it reports exactly
+      // whether the INSERT OR IGNORE above landed.
+      final row = await customSelect('SELECT changes() AS c').getSingle();
+      return row.read<int>('c') > 0;
+    });
+  }
+
+  /// Releases a claim whose asynchronous work-evidence check failed, so
+  /// the bounty can be claimed again once the CID is genuinely
+  /// replicated. Never invoked on the success path — a confirmed claim
+  /// is permanent.
+  Future<void> deleteClaimedBounty(String bountyId) async {
+    await (delete(claimedBounties)
+          ..where((c) => c.bountyId.equals(bountyId)))
+        .go();
+  }
+
+  /// Whether [bountyId] has a persisted claim row — survives service
+  /// restarts, unlike the in-memory `PreservationBounty.isClaimed` flag.
+  Future<bool> isBountyClaimed(String bountyId) async {
+    final query = select(claimedBounties)
+      ..where((c) => c.bountyId.equals(bountyId));
     final row = await query.getSingleOrNull();
     return row != null;
   }

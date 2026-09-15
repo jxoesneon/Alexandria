@@ -43,12 +43,10 @@ void main() {
       );
     });
 
-    test('claimedBuildInfo uses claimed_-prefixed keys and protocol_version',
-        () {
+    test('claimedBuildInfo uses claimed_-prefixed keys uniformly', () {
       final map = BuildInfo.current().claimedBuildInfo;
 
       for (final key in map.keys) {
-        if (key == 'protocol_version') continue;
         expect(
           key.startsWith('claimed_'),
           isTrue,
@@ -59,7 +57,7 @@ void main() {
       expect(map['claimed_commit_sha'], 'dev-local');
       expect(map['claimed_build_channel'], isNot('release'));
       expect(map['claimed_client_version'], 'dev');
-      expect(map['protocol_version'], '1');
+      expect(map['claimed_protocol_version'], '1');
       // Optional keys are omitted when their defines were not injected
       expect(map.containsKey('claimed_artifact_digest'), isFalse);
       expect(map.containsKey('claimed_build_timestamp'), isFalse);
@@ -78,7 +76,28 @@ void main() {
       expect(map['claimed_build_channel'], 'release');
       expect(map['claimed_artifact_digest'], 'sha256:deadbeef');
       expect(map['claimed_build_timestamp'], '2025-01-01T00:00:00Z');
-      expect(map['protocol_version'], '1');
+      expect(map['claimed_protocol_version'], '1');
+    });
+
+    test('claimedBroadcastInfo is the narrowed wire-safe subset '
+        '(Review REV3-D)', () {
+      final info = BuildInfo(
+        commitSha: 'a1b2c3d4e5f6',
+        buildChannel: 'release',
+        artifactDigest: 'sha256:deadbeef',
+        builtAt: '2025-01-01T00:00:00Z',
+      );
+      final map = info.claimedBroadcastInfo;
+
+      expect(map, hasLength(3));
+      expect(map['claimed_client_version'], info.clientVersion);
+      expect(map['claimed_build_channel'], 'release');
+      expect(map['claimed_protocol_version'], '1');
+      // High-entropy provenance stays local — broadcast must not
+      // advertise exact builds for targeted-exploitation scanning.
+      expect(map.containsKey('claimed_commit_sha'), isFalse);
+      expect(map.containsKey('claimed_artifact_digest'), isFalse);
+      expect(map.containsKey('claimed_build_timestamp'), isFalse);
     });
 
     test('claimed_client_version defaults to dev sentinel and is '

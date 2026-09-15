@@ -119,6 +119,19 @@ class BuildInfo {
         'claimed_client_version': clientVersion,
         if (artifactDigest != null) 'claimed_artifact_digest': artifactDigest,
         if (builtAt != null) 'claimed_build_timestamp': builtAt,
-        'protocol_version': '1',
+        'claimed_protocol_version': '1',
+      };
+
+  /// The narrowed subset of [claimedBuildInfo] safe to BROADCAST in
+  /// signed envelopes (Review REV3-D, Safety-narrowed): exact commit
+  /// SHA, artifact digest and build timestamp let a peer scan the swarm
+  /// for known-vulnerable builds and correlate `bcn_*` agent ids with
+  /// developer commit activity — so only the low-entropy version,
+  /// channel and protocol fields leave the node. The full map remains
+  /// available for local display/diagnostics.
+  Map<String, dynamic> get claimedBroadcastInfo => <String, dynamic>{
+        'claimed_client_version': clientVersion,
+        'claimed_build_channel': buildChannel,
+        'claimed_protocol_version': '1',
       };
 }

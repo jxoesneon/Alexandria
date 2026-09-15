@@ -130,9 +130,16 @@ void main() {
       // Poster and steward share one ledger so escrow conservation is
       // directly observable (poster -25, claimant +25, treasury +0).
       final poster = MoltbookService(creditService: creditService);
+      // The attestor must be minted before the claiming service so its
+      // key can sit in the ambient trust root at construction (REV3) —
+      // there is no per-call trustedAttestors override anymore.
+      final attestor = await Ed25519().newKeyPair();
       final ipfsMoltbook = MoltbookService(
         creditService: creditService,
         ipfsService: ipfsService,
+        trustedAttestorPubkeys: {
+          bytesToHex((await attestor.extractPublicKey()).bytes),
+        },
       );
       final ipfsSteward = AgentStewardService(
         creditService: creditService,
@@ -162,16 +169,12 @@ void main() {
       // A real foreign attestor's EscrowAttestation stands in for the
       // transport's out-of-band verification — remote `funded` flags
       // alone are stripped on ingest (E-T5r #1 / ALX-011 A3), and the
-      // attestor must sit inside the caller-supplied trust root
-      // (`trustedAttestors`) since signature validity alone is just
-      // key possession (F1).
-      final attestor = await Ed25519().newKeyPair();
+      // attestor must sit inside the node's ambient trust root
+      // (`trustedAttestorPubkeys`, configured above at construction)
+      // since signature validity alone is just key possession (F1).
       ipfsMoltbook.ingestBountyAnnouncement(
         bounty,
         escrowAttestation: await _attestBounty(attestor, bounty),
-        trustedAttestors: {
-          bytesToHex((await attestor.extractPublicKey()).bytes),
-        },
       );
 
       await ipfsSteward.runStewardIteration();

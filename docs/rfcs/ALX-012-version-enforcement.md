@@ -27,7 +27,7 @@ Every mechanism that tries to enforce a version against a *self-declared* value 
 5. **Parse tolerance**: receipts with unknown `v` are representable but unclaimable below the floor — the anti-ossification lesson of RFC 9170.
 6. **`claimed_client_version`** (Review B3-lite): an advisory, self-declared semver injected via `--dart-define=ALX_CLIENT_VERSION`, riding the existing `claimed_*` provenance channel with zero trust weight.
 
-Deferred with spec: the TUF-style review-signed release manifest that graduates the floor's authority, the real MCP stdio runner's mandatory safety conditions, the vetoed `measuredLatencyMs` field, and the possession-proof binding for `claimVerifiedReceipt` (§5.4).
+Deferred with spec: the TUF-style review-signed release manifest that graduates the floor's authority, the real MCP stdio runner's mandatory safety conditions (§5.2, refined §5.6), and the vetoed `measuredLatencyMs` field (§5.3). Resolved in Review REV3: possession-proof claim binding (§5.4), durable bounty-claim dedup, ambient `trustedAttestors`, narrowed `client_info` broadcast, and the `claimed_protocol_version` rename (§5.5).
 
 ---
 
@@ -152,18 +152,37 @@ A production stdio runner for `AlexandriaMcpServer` is gated on ALL of:
 
 A4's `measuredLatencyMs` is **vetoed as caller-supplied**: a self-declared latency is a `claimed_*` value wearing a numeric costume and carries zero trust weight (same failure as Signal 499). A *verifier-measured* RTT — stamped by the verifier inside the signed body at issuance — MAY ride the receipt at the next wire bump (`v = 2`), where it becomes evidence the verifier attests, not a claim the prover makes.
 
-### 5.4 Possession-Proof Binding for `claimVerifiedReceipt` (Nominal `localPubkeyHex`)
+### 5.4 Possession-Proof Binding for `claimVerifiedReceipt` — RESOLVED (Review REV3)
 
-`CreditService.claimVerifiedReceipt` takes `localPubkeyHex` as a **caller-supplied string**. The prover-binding guard (`samePubkey(receipt.proverPubkey, localPubkeyHex)`) therefore binds only a spelling: it asserts "the prover key is mine" without proving possession of the key. Against a modified client this is nominal — a caller holding a copy of a foreign-signed receipt naming prover *P* can pass `localPubkeyHex = P` and mint its attested value locally. The mint lands in the local ledger either way, so the residual risk is **attested-value theft of a copied artifact**, not forgery — the in-path `verifierSig` check is unaffected — but the binding is weaker than the word "binding" suggests.
+~~`CreditService.claimVerifiedReceipt` takes `localPubkeyHex` as a **caller-supplied string**.~~ **Implemented.** Two changes landed per the REV3 verdict:
 
-When a production caller lands, two changes are required:
+1. **Injected identity resolver** — `CreditService` takes a `localProverPubkeyHex` resolver callback wired to `IdentityService` in the provider (ambient authority, matching the `ReceiptSignatureVerifier` idiom). The call site can no longer assert a prover key.
+2. **Claim-time possession signature** — `claimVerifiedReceipt` requires `claimSignatureB64`: an Ed25519 signature, verified in-path under `receipt.proverPubkey`, over the domain-separated preimage `alexandria:receipt-claim:v{v}:{receiptId}`. `receiptId` is the SHA-256 of the canonical body, so the signature binds every field; the CAS (`UPDATE … WHERE spent=0`) already enforces single-consumption, so replaying a claim signature is harmless (no nonce needed until *remote* claims exist — see below).
 
-1. **Source the local key from `IdentityService` (injected), not from the call site.** The claimant's identity must be ambient authority — the same pattern the PoR service already uses (`identityServiceProvider.getIdentity()`), so a modified client cannot simply assert a prover key.
-2. **Verify `proverSig` as the possession proof.** The artifact already carries an optional prover counter-signature (`WorkReceipt.proverSig`) that is *never verified* today. The intended semantics: `proverSig` is the prover's Ed25519 signature over the receipt's canonical body (or a `alexandria:receipt-ack:v{v}:`-domain-separated derivative — pin the domain at the next wire bump), proving the claimant controls the named prover key. A receipt without a verifiable `proverSig` remains claimable only through paths that independently establish provenance (e.g., the issuing verifier's own delivery channel).
+**Review correction to the earlier draft:** artifact-carried `proverSig` is **not** the anti-theft mechanism — a stored signature travels with a copied artifact, so verifying it preserves bearer-ness. Its real value is *issuance-time provenance* (a verifier cannot mint a claimable receipt naming prover P without P's counter-signature). `proverSig` therefore stays optional and unverified until a wire bump defines its domain (`alexandria:receipt-ack:v{v}:`) and an issue→ack flow; the claim-time signature is the possession proof.
+
+**Residuals:** `attestedBalance` is wallet-scoped, not `proverPubkey`-scoped — correct under the single-identity model, but must be sharded per-pubkey if multi-identity ever lands. When claims become *remote* (presented to another node), freshness needs a DPoP-style nonce/expiry in the claim preimage — the current static claim signature relies on the CAS for replay safety.
 
 Related cosmetic note — **the MCP `receipt_attested` report is a syntactic read.** `AlexandriaMcpServer` surfaces `receipt.isAttestedClaim`, which composes the *syntactic* `isSelfIssued` (literal `==`). A case-variant self-issued receipt can therefore *report* `attested_claim: true` — misreporting only: the claim path re-evaluates all identity compares through the canonical `WorkReceipt.samePubkey` and refuses regardless. The same syntactic-compare class exists in the Moltbook self-claim guards (`bounty.originAgentId == _agentId`); agent ids are derived as lowercase `bcn_<hex>` so the exposure is a forked client storing a non-canonical `origin_agent_id` on its own bounty — self-dealing of one's own escrow, economically net-zero, noted here rather than chased.
 
----
+### 5.5 Review REV3 Resolutions — Bounty Integrity, Trust Roots, Broadcast Metadata
+
+Third-round caveats adjudicated by the review board; implementation landed alongside this RFC:
+
+- **Bounty claim durability (Safety veto, resolved):** `PreservationBounty.isClaimed` was a public mutable field and `activeBounties` returned the live stored records — a retained reference could flip `isClaimed=false` post-claim and `awardBountyEscrow` (which deduplicated nothing) paid again: unbounded re-mint from one funded announcement. Fix: a persisted `claimed_bounties` registry (insert-or-ignore CAS, mirroring `awarded_dois`) is the authoritative claim gate — restart + re-announcement cannot double-pay; evidence-failure deletes the row to preserve retry semantics. `activeBounties`/`postPreservationBounty` return defensive copies, and `awardBountyEscrow` additionally dedups on `bountyId` so the payout primitive is safe even if the claim layer is bypassed.
+- **`trustedAttestors` is ambient config, not a call parameter.** The per-call trust root was a footgun — every future transport call site would be one mistake away from passing announcement-derived data (the full Sybil surface). `MoltbookService` now takes `trustedAttestorPubkeys` at construction (default empty → fail-closed). When the transport lands it supplies *attestations*; the trust root graduates operator pin → threshold-signed manifest (§5.1 machinery, same TUF shape as the version floor). Wire data must never populate it.
+- **`client_info` now broadcasts a narrowed subset.** `createPost` embeds `BuildInfo.claimedBroadcastInfo` — `claimed_client_version`, `claimed_build_channel`, `claimed_protocol_version` only. Exact commit SHA, artifact digest and build timestamp stay local: broadcasting them would let a peer scan the swarm for known-vulnerable builds and correlate `bcn_*` agent ids with developer commit activity. Advisory forever — never admission, rewards, or gates.
+- **`protocol_version` → `claimed_protocol_version`.** The last unprefixed key violated the `claimed_` contract it documented; renamed before any consumer existed.
+- **`PreservationBounty.fromJson` stays faithful.** Sanitizing the decoder would split the trust boundary `ingestBountyAnnouncement` deliberately concentrates (fresh copies, `isClaimed:false`, `funded` only via trusted attestation) and would silently drop legitimate claim state when local persistence lands. Deferred idea: an envelope-aware `ingestBountyEnvelope` that verifies the signed envelope and requires `envelope.agentId == bounty.originAgentId` before deriving internal state.
+
+### 5.6 Real MCP stdio Runner — Refined Spec (still gated)
+
+§5.2's four preconditions stand; Review REV3 refined the shape for when it ships:
+
+- **Start read-only.** An allowlist of non-economic tools (`search_archive`, `get_wallet_balance`, `request_por_challenge`) makes conditions 3–4 near-vacuous; minting/spending tools stay off until budgets and ceilings exist.
+- **Session credential, not process existence.** A per-process generated token (never stored in exported config) gates every request; `initialize`/stdio-open is not a session boundary.
+- **Known residual surface if tools widen later:** regex-only DOI validation farms to the daily cap; `post_moltbook_bounty(force:true)` escrows real balance with no refund path (full-balance burn); `replicate_cid` spends; `_pendingChallenges` is an unbounded map (memory DoS — bound it before shipping).
+- Prefer a thin stdio shim to an authenticated local control socket of the running node over a second ProviderContainer instance.
 
 ## 6. Deviations
 

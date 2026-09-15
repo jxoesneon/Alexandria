@@ -1,13 +1,22 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart' hide CreditTransaction, WorkReceipt;
-import '../agent/beacon_models.dart' show hexToBytes;
+import '../agent/beacon_models.dart' show bytesToHex, hexToBytes;
 import '../identity_service.dart';
 import 'credit_models.dart';
 import 'poch_service.dart';
 import 'work_receipt.dart';
+
+/// Resolves the local node's canonical identity pubkey (hex) — the
+/// identity [CreditService.claimVerifiedReceipt] may bind as prover.
+/// Returns null when the node has no usable identity (claims then
+/// refuse). Injected as a function — the same ambient-authority idiom
+/// as [ReceiptSignatureVerifier] — so [CreditService] never takes a
+/// concrete IdentityService dependency.
+typedef LocalProverPubkeyResolver = FutureOr<String?> Function();
 
 /// Provider for CreditService
 final creditServiceProvider = ChangeNotifierProvider<CreditService>((ref) {
@@ -25,6 +34,20 @@ final creditServiceProvider = ChangeNotifierProvider<CreditService>((ref) {
             message, signature, Uint8List.fromList(hexToBytes(publicKeyHex)));
       } catch (_) {
         return false;
+      }
+    },
+    // The local prover binding is ambient identity, not caller input
+    // (Review REV3): a claim can no longer ASSERT a prover key — it must
+    // resolve to the node's real identity. No identity → null → every
+    // claim refuses. A missing identity is never auto-created here:
+    // minting a fresh key could never satisfy the prover binding anyway.
+    localProverPubkeyHex: () async {
+      try {
+        final identity =
+            await ref.read(identityServiceProvider).getIdentity();
+        return identity == null ? null : bytesToHex(identity.publicKey);
+      } catch (_) {
+        return null;
       }
     },
   );
@@ -57,6 +80,13 @@ class CreditService extends ChangeNotifier {
   /// (ALX-012). When null the claim path fails closed — a service without
   /// a verifier can never mint attested value.
   final ReceiptSignatureVerifier? _receiptVerifier;
+
+  /// Ambient resolver for the local node's canonical identity pubkey
+  /// (hex) — the ONLY identity [claimVerifiedReceipt] may bind as
+  /// prover (Review REV3). When null, or when it resolves to
+  /// null/empty, every claim fails closed: there is no longer a
+  /// caller-supplied "local" key to assert.
+  final LocalProverPubkeyResolver? _localProverPubkeyHex;
 
   double _balance;
 
@@ -99,6 +129,11 @@ class CreditService extends ChangeNotifier {
   /// never be persisted twice (E-T2 #3).
   static const String _kGenesisTxId = 'tx_genesis';
 
+  /// Deterministic payout-row id prefix — the ledger row doubles as the
+  /// persisted "already paid" record for a bounty, so hydration can
+  /// rebuild [_paidBountyIds] across restarts.
+  static const String _kBountyPayoutTxPrefix = 'tx_bounty_payout_';
+
   /// Description marker identifying genesis rows, including rows written
   /// by older builds that used a random id.
   static const String _kGenesisMarker = 'Genesis Common Heritage';
@@ -107,14 +142,23 @@ class CreditService extends ChangeNotifier {
   /// shutdown paths can await durability via [settled].
   final Set<Future<void>> _pendingWrites = {};
 
+  /// Bounty ids already paid by [awardBountyEscrow] this process —
+  /// belt-level dedup (Review REV3): the payout primitive itself refuses
+  /// a second payout for the same id, so a bypassed or replayed claim
+  /// layer can never double-mint escrow. In-memory only by design; the
+  /// persisted claim-state CAS in the bounty layer is the durable gate.
+  final Set<String> _paidBountyIds = {};
+
   CreditService({
     PoCHService? pochService,
     AppDatabase? db,
     ReceiptSignatureVerifier? receiptVerifier,
+    LocalProverPubkeyResolver? localProverPubkeyHex,
     double initialBalance = 100.0, // Initial welcome grant for new users
   })  : _pochService = pochService,
         _db = db,
         _receiptVerifier = receiptVerifier,
+        _localProverPubkeyHex = localProverPubkeyHex,
         // Persistent mode starts at 0.0 — never at the phantom
         // [initialBalance] — so no spend can race the real ledger
         // balance before hydration rebuilds it (E-T2 #2).
@@ -379,16 +423,34 @@ class CreditService extends ChangeNotifier {
   /// Credits an escrowed bounty payout to the claimant. Not a mint — the
   /// originator already debited [amount] at bounty-post time, so this path
   /// deliberately bypasses daily mint caps (ALX-010: claim value = escrow).
+  ///
+  /// The [bountyId] dedup guard runs AFTER the refusal gates but BEFORE
+  /// the mint (Review REV3 belt-level dedup): a refused call — malformed
+  /// id, unhydrated service, non-positive amount — does NOT consume the
+  /// id, so a probe or early call can never permanently burn a legit
+  /// payout (E-REV4-B F3). Double-payment remains impossible because the
+  /// set-add is atomic with the mint in a synchronous method.
+  ///
+  /// Durability: the payout row is written under the deterministic id
+  /// `$_kBountyPayoutTxPrefix$bountyId` and hydration repopulates
+  /// [_paidBountyIds] from persisted rows, so a restart cannot re-pay
+  /// through a fresh service instance (E-REV4-A residual). Residual: a
+  /// payout older than the hydration window could be missed — the
+  /// durable `claimed_bounties` CAS in `MoltbookService.claimBounty`
+  /// remains the authoritative gate.
   double awardBountyEscrow({
     required double amount,
     required String bountyId,
     required String cid,
   }) {
+    if (bountyId.isEmpty) return 0.0;
     if (_rejectIfUnhydrated('awardBountyEscrow')) return 0.0;
     if (amount <= 0) return 0.0;
+    if (!_paidBountyIds.add(bountyId)) return 0.0;
     _balance += amount;
     _totalVerificationEarned += amount;
     _recordTransaction(
+      id: '$_kBountyPayoutTxPrefix$bountyId',
       type: CreditType.verificationReward,
       amount: amount,
       description: 'Bounty Escrow Payout ($bountyId, CID: $cid)',
@@ -403,21 +465,36 @@ class CreditService extends ChangeNotifier {
   /// path that mints `isAttested` credit and therefore the only path that
   /// makes [attestedBalance] non-vacuous (ALX-010).
   ///
+  /// The prover identity is bound TWO ways (Review REV3, ALX-012 §5.4):
+  /// the "local" key is resolved through the injected
+  /// [_localProverPubkeyHex] — ambient authority, never a caller-supplied
+  /// string — and [claimSignatureB64] must be an Ed25519 signature by
+  /// the PROVER key over the domain-separated claim preimage
+  /// `'alexandria:receipt-claim:v{receipt.v}:{receipt.receiptId}'`
+  /// (ASCII). `receiptId` is the sha256 of the canonical body, so the
+  /// signature binds every field. Together they convert the receipt
+  /// from a bearer instrument into a possession-bound one: a copied
+  /// artifact cannot be claimed by a node that does not hold the prover
+  /// private key, and a forked client cannot name a foreign prover key
+  /// as "local". The artifact-carried `proverSig` stays unverified —
+  /// it is issuance-time provenance, not the anti-theft mechanism.
+  ///
   /// Guards, in order (ALL evaluated inside the fail-closed try — any
   /// throw returns 0.0 with the row left unspent):
-  ///  * non-empty `localPubkeyHex`, `proverPubkey`, `verifierPubkey` —
-  ///    an absent key makes the identity binding vacuous;
+  ///  * the resolved local pubkey must be non-empty — a service with no
+  ///    resolver, or a node with no identity, refuses every claim;
+  ///  * non-empty `proverPubkey`, `verifierPubkey` — an absent key makes
+  ///    the identity binding vacuous;
   ///  * [WorkReceipt.isVerifierSigned] — an unsigned artifact carries no
   ///    attestation weight;
   ///  * `!samePubkey(prover, verifier)` — prover == verifier is a
   ///    self-declaration;
-  ///  * `samePubkey(prover, localPubkeyHex)` — the receipt must name THIS
-  ///    node as prover; a held artifact naming a foreign prover is that
-  ///    prover's claim instrument (claim theft, REV1 C3);
-  ///  * `!samePubkey(verifier, localPubkeyHex)` — the caller MUST supply
-  ///    the local identity key (same hex encoding the PoR service stamps
-  ///    into `verifierPubkey`) so a receipt this node signed itself can
-  ///    never mint attested value locally (self-dealing guard);
+  ///  * `samePubkey(prover, resolvedLocal)` — the receipt must name THIS
+  ///    node's identity as prover; a held artifact naming a foreign
+  ///    prover is that prover's claim instrument (claim theft, REV1 C3);
+  ///  * `!samePubkey(verifier, resolvedLocal)` — a receipt this node
+  ///    signed itself can never mint attested value locally
+  ///    (self-dealing guard);
   ///  * all identity compares are CANONICAL ([WorkReceipt.samePubkey]):
   ///    uppercase or whitespace-padded hex spellings of the same key
   ///    decode identically and cannot slip past the self-dealing guards;
@@ -439,9 +516,16 @@ class CreditService extends ChangeNotifier {
   ///    signing payload — a service constructed WITHOUT a verifier fails
   ///    closed, and a forged/garbage `verifierSig` is refused WITHOUT
   ///    consuming the row;
+  ///  * IN-PATH POSSESSION PROOF (Review REV3): [claimSignatureB64] must
+  ///    decode to 64 bytes and verify, via the same oracle, under
+  ///    `receipt.proverPubkey` over the claim preimage above — a bad,
+  ///    foreign-key, or wrong-domain signature is refused WITHOUT
+  ///    consuming the row, so the true prover's later claim still lands;
   ///  * the claim itself is a single atomic conditional UPDATE
   ///    ([AppDatabase.claimReceiptAtomically]) — a lost CAS race or a
-  ///    replay returns 0.0;
+  ///    replay returns 0.0 (this is also why a replayed claim signature
+  ///    is harmless: single-consumption is enforced by the row, so the
+  ///    static preimage needs no nonce until claims become remote);
   ///  * the mint is STILL subject to the daily accrual caps (safety
   ///    floor): a claim can never exceed the day's remaining allowance
   ///    for its mapped [CreditType] ('storage'→storageReward,
@@ -452,22 +536,9 @@ class CreditService extends ChangeNotifier {
   /// Returns the minted amount, or 0.0 on any refusal. Requires
   /// persistent mode: an in-memory service has no CAS primitive to dedup
   /// claims against.
-  ///
-  /// NOMINAL-BINDING CAVEAT (deferred-with-spec, ALX-012 §5.4):
-  /// [localPubkeyHex] is CALLER-SUPPLIED and binds only a string — it
-  /// asserts "the prover key spelled thus is mine" without proving key
-  /// possession. Against a modified client the binding is nominal: a
-  /// caller can name any prover key as 'local' and claim a held receipt
-  /// naming that prover (the mint lands locally either way — the
-  /// residual risk is attested-value theft of a copied artifact, not
-  /// forgery: the verifier signature check is unaffected). When a
-  /// production caller lands, the local key MUST be sourced from
-  /// IdentityService (injected, not caller-supplied) and the receipt's
-  /// `proverSig` — already carried on the artifact, currently never
-  /// verified — SHOULD be verified as the possession proof.
   Future<double> claimVerifiedReceipt(
     WorkReceipt receipt, {
-    required String localPubkeyHex,
+    required String claimSignatureB64,
   }) async {
     // Async path — await hydration so the daily-cap counters and balance
     // are real rather than phantom pre-hydration state.
@@ -478,17 +549,22 @@ class CreditService extends ChangeNotifier {
     // EVERY guard and check lives inside this try: the claim contract is
     // fail-closed — any throw (a hostile double reaching the
     // canonicalizer's milli conversion, a broken store, an exploding
-    // verifier oracle) returns 0.0 with the row left unspent rather than
-    // propagating out of the guard chain.
+    // verifier oracle, a resolver that throws, malformed base64) returns
+    // 0.0 with the row left unspent rather than propagating out of the
+    // guard chain.
     try {
-      // Identity is compared CANONICALLY via WorkReceipt.samePubkey —
-      // raw string equality is defeatable by case/whitespace variants of
-      // the same hex key (an UPPERCASE or space-padded verifierPubkey
-      // still decodes to the local key, so a self-signed receipt could
-      // mint ATTESTED value). All three key fields must also be
-      // non-empty: a '' prover against a '' local key would otherwise
-      // satisfy the binding vacuously.
-      if (localPubkeyHex.isEmpty ||
+      // The local prover key comes ONLY from the injected resolver —
+      // ambient identity, never caller input. A null resolver or a null/
+      // empty resolution refuses every claim. Identity is then compared
+      // CANONICALLY via WorkReceipt.samePubkey — raw string equality is
+      // defeatable by case/whitespace variants of the same hex key (an
+      // UPPERCASE or space-padded verifierPubkey still decodes to the
+      // local key, so a self-signed receipt could mint ATTESTED value).
+      // All three key fields must also be non-empty: a '' prover against
+      // a '' local key would otherwise satisfy the binding vacuously.
+      final localPubkeyHex = await _localProverPubkeyHex?.call();
+      if (localPubkeyHex == null ||
+          localPubkeyHex.isEmpty ||
           receipt.proverPubkey.isEmpty ||
           receipt.verifierPubkey.isEmpty ||
           !receipt.isVerifierSigned ||
@@ -519,6 +595,25 @@ class CreditService extends ChangeNotifier {
       final verifier = _receiptVerifier;
       if (verifier == null ||
           !await receipt.verifyVerifierSignature(verifier)) {
+        return 0.0;
+      }
+
+      // Possession proof (Review REV3): the caller must sign the
+      // domain-separated claim preimage under the PROVER key the
+      // receipt names. receiptId already binds the canonical body, so
+      // this signature proves possession of the prover private key for
+      // THIS artifact — a copied receipt presented by a node lacking the
+      // key cannot mint. Malformed base64 throws into the fail-closed
+      // try; a wrong-key/wrong-domain signature verifies false; either
+      // way the row is left UNSPENT for the true prover's claim.
+      final claimSigBytes = base64Decode(claimSignatureB64);
+      if (claimSigBytes.length != 64 ||
+          !await verifier(
+            Uint8List.fromList(utf8.encode(
+                'alexandria:receipt-claim:v${receipt.v}:${receipt.receiptId}')),
+            claimSigBytes,
+            receipt.proverPubkey,
+          )) {
         return 0.0;
       }
 
@@ -823,6 +918,16 @@ class CreditService extends ChangeNotifier {
       final knownIds = _transactions.map((t) => t.id).toSet();
       _transactions.insertAll(
           0, persisted.where((t) => !knownIds.contains(t.id)));
+
+      // Rebuild the bounty-payout dedup set from persisted payout rows —
+      // the deterministic tx id is the durable "already paid" record, so
+      // a restarted service cannot re-pay a bounty through a direct
+      // awardBountyEscrow call (E-REV4-A residual).
+      for (final tx in _transactions) {
+        if (tx.id.startsWith(_kBountyPayoutTxPrefix)) {
+          _paidBountyIds.add(tx.id.substring(_kBountyPayoutTxPrefix.length));
+        }
+      }
 
       // A full window means older rows were dropped silently: replaying
       // the truncated list would compute a WRONG balance and the

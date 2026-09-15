@@ -37,9 +37,9 @@ typedef EscrowAttestationVerifier = Future<bool> Function(
 ///
 /// NOTE: signature validity alone confers NO trust — anyone can mint a
 /// keypair and sign. Whether a valid attestation admits anything is the
-/// caller's trust-root decision (see `trustedAttestors` on
-/// `MoltbookService.ingestBountyAnnouncement`, which also bars the
-/// node's OWN key from attesting).
+/// node's ambient trust-root decision (see `trustedAttestorPubkeys` on
+/// the `MoltbookService` constructor, which also bars the node's OWN key
+/// from attesting).
 class EscrowAttestation {
   /// Hex-encoded Ed25519 pubkey of the foreign attestor that vouched
   /// for the escrow.

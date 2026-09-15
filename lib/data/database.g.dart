@@ -3520,6 +3520,236 @@ class WorkReceiptsCompanion extends UpdateCompanion<WorkReceipt> {
   }
 }
 
+class $ClaimedBountiesTable extends ClaimedBounties
+    with TableInfo<$ClaimedBountiesTable, ClaimedBounty> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ClaimedBountiesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _bountyIdMeta =
+      const VerificationMeta('bountyId');
+  @override
+  late final GeneratedColumn<String> bountyId = GeneratedColumn<String>(
+      'bounty_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _cidMeta = const VerificationMeta('cid');
+  @override
+  late final GeneratedColumn<String> cid = GeneratedColumn<String>(
+      'cid', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _claimedAtMeta =
+      const VerificationMeta('claimedAt');
+  @override
+  late final GeneratedColumn<int> claimedAt = GeneratedColumn<int>(
+      'claimed_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [bountyId, cid, claimedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'claimed_bounties';
+  @override
+  VerificationContext validateIntegrity(Insertable<ClaimedBounty> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('bounty_id')) {
+      context.handle(_bountyIdMeta,
+          bountyId.isAcceptableOrUnknown(data['bounty_id']!, _bountyIdMeta));
+    } else if (isInserting) {
+      context.missing(_bountyIdMeta);
+    }
+    if (data.containsKey('cid')) {
+      context.handle(
+          _cidMeta, cid.isAcceptableOrUnknown(data['cid']!, _cidMeta));
+    } else if (isInserting) {
+      context.missing(_cidMeta);
+    }
+    if (data.containsKey('claimed_at')) {
+      context.handle(_claimedAtMeta,
+          claimedAt.isAcceptableOrUnknown(data['claimed_at']!, _claimedAtMeta));
+    } else if (isInserting) {
+      context.missing(_claimedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {bountyId};
+  @override
+  ClaimedBounty map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ClaimedBounty(
+      bountyId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}bounty_id'])!,
+      cid: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cid'])!,
+      claimedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}claimed_at'])!,
+    );
+  }
+
+  @override
+  $ClaimedBountiesTable createAlias(String alias) {
+    return $ClaimedBountiesTable(attachedDatabase, alias);
+  }
+}
+
+class ClaimedBounty extends DataClass implements Insertable<ClaimedBounty> {
+  final String bountyId;
+  final String cid;
+  final int claimedAt;
+  const ClaimedBounty(
+      {required this.bountyId, required this.cid, required this.claimedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['bounty_id'] = Variable<String>(bountyId);
+    map['cid'] = Variable<String>(cid);
+    map['claimed_at'] = Variable<int>(claimedAt);
+    return map;
+  }
+
+  ClaimedBountiesCompanion toCompanion(bool nullToAbsent) {
+    return ClaimedBountiesCompanion(
+      bountyId: Value(bountyId),
+      cid: Value(cid),
+      claimedAt: Value(claimedAt),
+    );
+  }
+
+  factory ClaimedBounty.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ClaimedBounty(
+      bountyId: serializer.fromJson<String>(json['bountyId']),
+      cid: serializer.fromJson<String>(json['cid']),
+      claimedAt: serializer.fromJson<int>(json['claimedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'bountyId': serializer.toJson<String>(bountyId),
+      'cid': serializer.toJson<String>(cid),
+      'claimedAt': serializer.toJson<int>(claimedAt),
+    };
+  }
+
+  ClaimedBounty copyWith({String? bountyId, String? cid, int? claimedAt}) =>
+      ClaimedBounty(
+        bountyId: bountyId ?? this.bountyId,
+        cid: cid ?? this.cid,
+        claimedAt: claimedAt ?? this.claimedAt,
+      );
+  ClaimedBounty copyWithCompanion(ClaimedBountiesCompanion data) {
+    return ClaimedBounty(
+      bountyId: data.bountyId.present ? data.bountyId.value : this.bountyId,
+      cid: data.cid.present ? data.cid.value : this.cid,
+      claimedAt: data.claimedAt.present ? data.claimedAt.value : this.claimedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ClaimedBounty(')
+          ..write('bountyId: $bountyId, ')
+          ..write('cid: $cid, ')
+          ..write('claimedAt: $claimedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(bountyId, cid, claimedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ClaimedBounty &&
+          other.bountyId == this.bountyId &&
+          other.cid == this.cid &&
+          other.claimedAt == this.claimedAt);
+}
+
+class ClaimedBountiesCompanion extends UpdateCompanion<ClaimedBounty> {
+  final Value<String> bountyId;
+  final Value<String> cid;
+  final Value<int> claimedAt;
+  final Value<int> rowid;
+  const ClaimedBountiesCompanion({
+    this.bountyId = const Value.absent(),
+    this.cid = const Value.absent(),
+    this.claimedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ClaimedBountiesCompanion.insert({
+    required String bountyId,
+    required String cid,
+    required int claimedAt,
+    this.rowid = const Value.absent(),
+  })  : bountyId = Value(bountyId),
+        cid = Value(cid),
+        claimedAt = Value(claimedAt);
+  static Insertable<ClaimedBounty> custom({
+    Expression<String>? bountyId,
+    Expression<String>? cid,
+    Expression<int>? claimedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (bountyId != null) 'bounty_id': bountyId,
+      if (cid != null) 'cid': cid,
+      if (claimedAt != null) 'claimed_at': claimedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ClaimedBountiesCompanion copyWith(
+      {Value<String>? bountyId,
+      Value<String>? cid,
+      Value<int>? claimedAt,
+      Value<int>? rowid}) {
+    return ClaimedBountiesCompanion(
+      bountyId: bountyId ?? this.bountyId,
+      cid: cid ?? this.cid,
+      claimedAt: claimedAt ?? this.claimedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (bountyId.present) {
+      map['bounty_id'] = Variable<String>(bountyId.value);
+    }
+    if (cid.present) {
+      map['cid'] = Variable<String>(cid.value);
+    }
+    if (claimedAt.present) {
+      map['claimed_at'] = Variable<int>(claimedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ClaimedBountiesCompanion(')
+          ..write('bountyId: $bountyId, ')
+          ..write('cid: $cid, ')
+          ..write('claimedAt: $claimedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3535,6 +3765,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DailyMintedTable dailyMinted = $DailyMintedTable(this);
   late final $AwardedDoisTable awardedDois = $AwardedDoisTable(this);
   late final $WorkReceiptsTable workReceipts = $WorkReceiptsTable(this);
+  late final $ClaimedBountiesTable claimedBounties =
+      $ClaimedBountiesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3547,7 +3779,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         creditTransactions,
         dailyMinted,
         awardedDois,
-        workReceipts
+        workReceipts,
+        claimedBounties
       ];
 }
 
@@ -5521,6 +5754,154 @@ typedef $$WorkReceiptsTableProcessedTableManager = ProcessedTableManager<
     ),
     WorkReceipt,
     PrefetchHooks Function()>;
+typedef $$ClaimedBountiesTableCreateCompanionBuilder = ClaimedBountiesCompanion
+    Function({
+  required String bountyId,
+  required String cid,
+  required int claimedAt,
+  Value<int> rowid,
+});
+typedef $$ClaimedBountiesTableUpdateCompanionBuilder = ClaimedBountiesCompanion
+    Function({
+  Value<String> bountyId,
+  Value<String> cid,
+  Value<int> claimedAt,
+  Value<int> rowid,
+});
+
+class $$ClaimedBountiesTableFilterComposer
+    extends Composer<_$AppDatabase, $ClaimedBountiesTable> {
+  $$ClaimedBountiesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get bountyId => $composableBuilder(
+      column: $table.bountyId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get cid => $composableBuilder(
+      column: $table.cid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get claimedAt => $composableBuilder(
+      column: $table.claimedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ClaimedBountiesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ClaimedBountiesTable> {
+  $$ClaimedBountiesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get bountyId => $composableBuilder(
+      column: $table.bountyId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get cid => $composableBuilder(
+      column: $table.cid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get claimedAt => $composableBuilder(
+      column: $table.claimedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ClaimedBountiesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ClaimedBountiesTable> {
+  $$ClaimedBountiesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get bountyId =>
+      $composableBuilder(column: $table.bountyId, builder: (column) => column);
+
+  GeneratedColumn<String> get cid =>
+      $composableBuilder(column: $table.cid, builder: (column) => column);
+
+  GeneratedColumn<int> get claimedAt =>
+      $composableBuilder(column: $table.claimedAt, builder: (column) => column);
+}
+
+class $$ClaimedBountiesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ClaimedBountiesTable,
+    ClaimedBounty,
+    $$ClaimedBountiesTableFilterComposer,
+    $$ClaimedBountiesTableOrderingComposer,
+    $$ClaimedBountiesTableAnnotationComposer,
+    $$ClaimedBountiesTableCreateCompanionBuilder,
+    $$ClaimedBountiesTableUpdateCompanionBuilder,
+    (
+      ClaimedBounty,
+      BaseReferences<_$AppDatabase, $ClaimedBountiesTable, ClaimedBounty>
+    ),
+    ClaimedBounty,
+    PrefetchHooks Function()> {
+  $$ClaimedBountiesTableTableManager(
+      _$AppDatabase db, $ClaimedBountiesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ClaimedBountiesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ClaimedBountiesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ClaimedBountiesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> bountyId = const Value.absent(),
+            Value<String> cid = const Value.absent(),
+            Value<int> claimedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ClaimedBountiesCompanion(
+            bountyId: bountyId,
+            cid: cid,
+            claimedAt: claimedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String bountyId,
+            required String cid,
+            required int claimedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ClaimedBountiesCompanion.insert(
+            bountyId: bountyId,
+            cid: cid,
+            claimedAt: claimedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable<$ClaimedBountiesTable, ClaimedBounty>(table),
+                    BaseReferences<_$AppDatabase, $ClaimedBountiesTable,
+                        ClaimedBounty>(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ClaimedBountiesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ClaimedBountiesTable,
+    ClaimedBounty,
+    $$ClaimedBountiesTableFilterComposer,
+    $$ClaimedBountiesTableOrderingComposer,
+    $$ClaimedBountiesTableAnnotationComposer,
+    $$ClaimedBountiesTableCreateCompanionBuilder,
+    $$ClaimedBountiesTableUpdateCompanionBuilder,
+    (
+      ClaimedBounty,
+      BaseReferences<_$AppDatabase, $ClaimedBountiesTable, ClaimedBounty>
+    ),
+    ClaimedBounty,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5541,4 +5922,6 @@ class $AppDatabaseManager {
       $$AwardedDoisTableTableManager(_db, _db.awardedDois);
   $$WorkReceiptsTableTableManager get workReceipts =>
       $$WorkReceiptsTableTableManager(_db, _db.workReceipts);
+  $$ClaimedBountiesTableTableManager get claimedBounties =>
+      $$ClaimedBountiesTableTableManager(_db, _db.claimedBounties);
 }

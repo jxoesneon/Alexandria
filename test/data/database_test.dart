@@ -16,8 +16,8 @@ void main() {
       await db.close();
     });
 
-    test('schemaVersion is 4', () {
-      expect(db.schemaVersion, equals(4));
+    test('schemaVersion is 5', () {
+      expect(db.schemaVersion, equals(5));
     });
 
     test('insert and retrieve a manifest by uuid', () async {
@@ -423,6 +423,27 @@ void main() {
       expect(await db.hasAwardedDoi('10.1/race'), isTrue);
     });
 
+    test('claimed_bounties is a durable claim CAS with release (REV3)',
+        () async {
+      expect(await db.isBountyClaimed('bounty_x'), isFalse);
+
+      // First claim wins the PK compare-and-swap; replays lose it.
+      expect(await db.insertClaimedBounty('bounty_x', 'bafk_x'), isTrue);
+      expect(await db.insertClaimedBounty('bounty_x', 'bafk_x'), isFalse);
+      expect(await db.isBountyClaimed('bounty_x'), isTrue);
+
+      // A different bounty id is unaffected.
+      expect(await db.insertClaimedBounty('bounty_y', 'bafk_y'), isTrue);
+      expect(await db.isBountyClaimed('bounty_y'), isTrue);
+
+      // delete releases a failed claim — the id is claimable again.
+      await db.deleteClaimedBounty('bounty_x');
+      expect(await db.isBountyClaimed('bounty_x'), isFalse);
+      expect(await db.insertClaimedBounty('bounty_x', 'bafk_x'), isTrue);
+      // Deleting an absent id is a harmless no-op.
+      await db.deleteClaimedBounty('bounty_missing');
+    });
+
     test('getLedgerBalanceSum nets credits and debits over all rows',
         () async {
       expect(await db.getLedgerBalanceSum(), 0.0);
@@ -493,27 +514,38 @@ void main() {
         onCreateTbl: (tbl) => calledTables.add(tbl.entityName),
       );
 
-      // v1→v4: the three v2 content_versions columns, the four v3
-      // tables, and the v4 work_receipts.v column.
-      await strategy.onUpgrade(fakeMigrator, 1, 4);
+      // v1→v5: the three v2 content_versions columns, the four v3
+      // tables, the v4 work_receipts.v column, and the v5
+      // claimed_bounties table. (onUpgrade keys off `from` alone.)
+      await strategy.onUpgrade(fakeMigrator, 1, 5);
       expect(calledColumns.length, equals(4));
       expect(calledColumns, contains('work_receipts.v'));
-      expect(calledTables.length, equals(4));
+      expect(calledTables.length, equals(5));
+      expect(calledTables, contains('claimed_bounties'));
 
       calledColumns.clear();
       calledTables.clear();
 
-      await strategy.onUpgrade(fakeMigrator, 2, 4);
+      await strategy.onUpgrade(fakeMigrator, 2, 5);
       expect(calledColumns, equals(['work_receipts.v']));
-      expect(calledTables.length, equals(4));
+      expect(calledTables.length, equals(5));
 
       calledColumns.clear();
       calledTables.clear();
 
-      // The v3→v4 step adds ONLY the receipt wire-version column.
-      await strategy.onUpgrade(fakeMigrator, 3, 4);
+      // The v3→v5 step adds the receipt wire-version column AND the
+      // v5 claimed_bounties table.
+      await strategy.onUpgrade(fakeMigrator, 3, 5);
       expect(calledColumns, equals(['work_receipts.v']));
-      expect(calledTables, isEmpty);
+      expect(calledTables, equals(['claimed_bounties']));
+
+      calledColumns.clear();
+      calledTables.clear();
+
+      // The v4→v5 step creates ONLY the durable bounty-claim ledger.
+      await strategy.onUpgrade(fakeMigrator, 4, 5);
+      expect(calledColumns, isEmpty);
+      expect(calledTables, equals(['claimed_bounties']));
     });
 
     test('work_receipts.v round-trips and defaults to the legacy scheme',
