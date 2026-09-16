@@ -1,0 +1,155 @@
+name: Release Builds
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+# Least-privilege: build jobs only read the checkout. The tag-release
+# job below escalates to `contents: write` at job level.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.4'
+
+jobs:
+  # Gate: nothing builds unless the tree is clean — format, analyze,
+  # and the full test suite all pass first.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed .
+      - run: flutter analyze
+      - run: flutter test
+
+  android:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - run: flutter pub get
+      - name: Build APK
+        run: flutter build apk --release --dart-define=BUILD_COMMIT_SHA=${{ github.sha }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: alexandria-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  linux:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install desktop toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - run: |
+          flutter config --enable-linux-desktop
+          flutter pub get
+      - name: Build Linux bundle
+        run: flutter build linux --release --dart-define=BUILD_COMMIT_SHA=${{ github.sha }}
+      - name: Package bundle
+        run: tar -czf alexandria-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: alexandria-linux-x64
+          path: alexandria-linux-x64.tar.gz
+          if-no-files-found: error
+
+  windows:
+    needs: verify
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - run: |
+          flutter config --enable-windows-desktop
+          flutter pub get
+      - name: Build Windows bundle
+        run: flutter build windows --release --dart-define=BUILD_COMMIT_SHA=${{ github.sha }}
+      - name: Package bundle
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath alexandria-windows-x64.zip
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: alexandria-windows-x64
+          path: alexandria-windows-x64.zip
+          if-no-files-found: error
+
+  macos:
+    needs: verify
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - run: |
+          flutter config --enable-macos-desktop
+          flutter pub get
+      - name: Build macOS app (unsigned)
+        run: flutter build macos --release --dart-define=BUILD_COMMIT_SHA=${{ github.sha }}
+      - name: Package app
+        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/alexandria.app alexandria-macos.zip
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: alexandria-macos
+          path: alexandria-macos.zip
+          if-no-files-found: error
+
+  ios:
+    needs: verify
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - run: flutter pub get
+      - name: Build iOS app (no codesign)
+        run: flutter build ios --release --no-codesign --dart-define=BUILD_COMMIT_SHA=${{ github.sha }}
+      - name: Package app
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app alexandria-ios.zip
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: alexandria-ios-unsigned
+          path: alexandria-ios.zip
+          if-no-files-found: error
+
+  # Tag-only: collect every platform artifact into a GitHub Release.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [android, linux, windows, macos, ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist
+      - name: Create release and attach artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "${{ github.ref_name }}" --generate-notes $(find dist -type f | tr '\n' ' ')
