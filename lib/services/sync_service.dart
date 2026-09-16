@@ -86,7 +86,7 @@ class SyncService {
       throw ArgumentError(
           'Invalid sync operation field (must match ${_fieldPattern.pattern})');
     }
-    // A queued op must be persistable AND publishable — both paths go
+    // A queued op must be persistable AND publishable - both paths go
     // through jsonEncode. Refuse unencodable data at enqueue rather
     // than wedging the queue with an op that can never be drained.
     try {
@@ -115,7 +115,7 @@ class SyncService {
       // (slot-C sweep) a poison op must not wedge the queue: an
       // unencodable `data` or a throwing transport previously aborted
       // the whole loop, permanently blocking every operation queued
-      // behind it. Count the failure like any other — the op ages out
+      // behind it. Count the failure like any other - the op ages out
       // at the retry bound instead of poisoning the queue.
       try {
         final topic = '/alexandria/sync/v1/${op.collectionId}';
@@ -145,7 +145,7 @@ class SyncService {
     final raw = await storage.read('sync_queue');
     if (raw == null) return;
     // (round-5 red finding) a corrupt persisted queue must not crash
-    // init() — undecodable JSON starts an empty queue, and individually
+    // init() - undecodable JSON starts an empty queue, and individually
     // malformed entries are skipped rather than discarding the good
     // operations around them.
     final dynamic decoded;
@@ -160,7 +160,7 @@ class SyncService {
       try {
         final op = QueuedOperation.fromJson(item as Map<String, dynamic>);
         // (slot-C sweep) shape-check the fields that land in the pubsub
-        // topic — a corrupted/tampered queue file must not let a
+        // topic - a corrupted/tampered queue file must not let a
         // stored collectionId escape the /alexandria/sync/v1/
         // namespace.
         if (!_isValidField(op.collectionId) || !_isValidField(op.operation)) {

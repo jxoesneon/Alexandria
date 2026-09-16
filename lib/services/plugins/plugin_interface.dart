@@ -40,12 +40,12 @@ class PluginActionResult {
 /// permitted to reach (round-3 red finding).
 ///
 /// Every member access resolves to "absent" rather than throwing, so a
-/// denied plugin learns nothing — not even the shape of the real
+/// denied plugin learns nothing - not even the shape of the real
 /// service: lookup-style calls (`read('dek_x')`, `getIdentity()`,
 /// `fetch(name)`, …) answer `null`, while opaque operations over
 /// caller-supplied blobs (`sign(bytes)`, `encrypt(bytes)`, `seal(k)`, …)
 /// yield the inert capability itself so any further member access on
-/// their result — `.length`, `.publicKey`, … — still reads as absent
+/// their result - `.length`, `.publicKey`, … - still reads as absent
 /// ([length] covers the common case of dereferencing a byte result).
 class _DeniedCapability {
   const _DeniedCapability();
@@ -70,7 +70,7 @@ class _DeniedCapability {
 /// Runtime execution context provided to plugins.
 ///
 /// (round-3 red finding) The raw Riverpod `Ref`/`ProviderContainer` is
-/// kept PRIVATE — previously `context.read(provider)` resolved ANY
+/// kept PRIVATE - previously `context.read(provider)` resolved ANY
 /// provider in the application graph, so a manifest declaring
 /// `permissions: []` could still reach `secureStorageServiceProvider`
 /// (every content DEK), `identityServiceProvider` (a signing oracle for
@@ -86,7 +86,7 @@ class PluginContext {
   final Map<String, dynamic> storage;
 
   /// The permission set this context was issued under (the plugin
-  /// manifest's declared — and validated — permissions).
+  /// manifest's declared - and validated - permissions).
   final Set<PluginPermission> permissions;
 
   PluginContext({
@@ -103,7 +103,7 @@ class PluginContext {
   bool get hasReader => _ref != null || _container != null;
 
   /// Capability allowlist: which providers a plugin may resolve, and
-  /// which declared permission unlocks each. Deliberately small — only
+  /// which declared permission unlocks each. Deliberately small - only
   /// content-repository access is needed by the built-in DOI harvester.
   /// Secure storage, identity/signing, and credit services are NEVER on
   /// this list: no permission grants them (round-3 red finding).
@@ -121,7 +121,7 @@ class PluginContext {
   ///
   /// (round-4 red finding) an allowlisted provider is still narrowed to
   /// a capability VIEW, not the raw service: the content repository is
-  /// returned as a [PluginContentRepository] — manifest/metadata reads
+  /// returned as a [PluginContentRepository] - manifest/metadata reads
   /// only, no DEK/key-material/decrypt paths (they previously rode
   /// through the allowlisted object transitively), and mutations gated
   /// on the declared `contentWrite` permission.

@@ -153,7 +153,7 @@ void main() {
           data: Uint8List(1),
           checksum: 'x',
         ),
-        // Corrupt checksum on an in-range index — dropped, so the REAL
+        // Corrupt checksum on an in-range index - dropped, so the REAL
         // shard 0 later in the list still counts (first *valid* claim).
         ErasureShard(
           index: 1,

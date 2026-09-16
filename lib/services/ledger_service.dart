@@ -125,7 +125,7 @@ class LedgerEntry {
     this.crossSignatures = const [],
   });
 
-  /// The canonical byte string [signature] commits to — the exact
+  /// The canonical byte string [signature] commits to - the exact
   /// payload signed at [LedgerService.recordAction] time. Shared by the
   /// write path and the import-time verifier so they cannot drift.
   String get signedPayload =>
@@ -232,7 +232,7 @@ class LedgerService {
   /// Record a new action in the ledger.
   ///
   /// (round-3 red finding) Enforces [ReputationWeights.dailyLimits] on
-  /// the WRITE path — `isWithinDailyLimit` used to be dead code and
+  /// the WRITE path - `isWithinDailyLimit` used to be dead code and
   /// reputation accrued without bound. Returns null when today's count
   /// for [action] has already reached its configured limit.
   Future<LedgerEntry?> recordAction({
@@ -247,7 +247,7 @@ class LedgerService {
     final index = _entries.length;
     final previousHash = _previousHash;
 
-    // Sign the canonical entry payload — the same string an importer
+    // Sign the canonical entry payload - the same string an importer
     // will verify (see [LedgerEntry.signedPayload]).
     final entry0 = LedgerEntry(
       index: index,
@@ -295,7 +295,7 @@ class LedgerService {
 
   /// Import a ledger from JSON.
   ///
-  /// (round-3 red finding) Hash linkage alone is forgeable — computeHash
+  /// (round-3 red finding) Hash linkage alone is forgeable - computeHash
   /// is deterministic sha256 over public fields, so a crafted chain used
   /// to import cleanly and accrue real reputation. The ledger is the
   /// PERSONAL honor chain of the local identity: every imported entry

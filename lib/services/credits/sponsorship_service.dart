@@ -70,7 +70,7 @@ class SponsorshipService extends ChangeNotifier {
     // `!isFinite` first (round-1 red finding): `NaN < 5.0` is FALSE, so a
     // non-finite dwell slips past the attention threshold and mints a
     // sponsorship kickback for a measurement that never happened. Reject
-    // before any comparison — no receipt, no mint.
+    // before any comparison - no receipt, no mint.
     if (!dwellTimeSeconds.isFinite || dwellTimeSeconds < 5.0) {
       return null; // Minimum attention threshold (ALX-005 §5.1)
     }

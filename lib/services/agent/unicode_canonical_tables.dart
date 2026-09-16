@@ -1,4 +1,4 @@
-// GENERATED FILE — do not edit by hand.
+// GENERATED FILE - do not edit by hand.
 // Source: Unicode Character Database 16.0.0 via python3 unicodedata.
 // Canonical (non-compatibility) decomposition mappings and
 // non-zero canonical combining classes, used by

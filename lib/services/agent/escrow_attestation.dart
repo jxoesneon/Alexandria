@@ -8,7 +8,7 @@ import 'bounty_id_canonicalization.dart';
 /// crypto-agnostic. Same shape as `ReceiptSignatureVerifier` in
 /// work_receipt.dart: the canonical message bytes, the raw 64-byte
 /// signature, and the attestor's public key (encoding is the verifier's
-/// concern — hex by codebase convention).
+/// concern - hex by codebase convention).
 typedef EscrowAttestationVerifier = Future<bool> Function(
   Uint8List message,
   Uint8List signature,
@@ -18,7 +18,7 @@ typedef EscrowAttestationVerifier = Future<bool> Function(
 /// Cryptographic evidence that a bounty's escrow was attested by a
 /// FOREIGN attestor (ALX-011 / quorum A3).
 ///
-/// ONLY constructible via [EscrowAttestation.verify] — the private
+/// ONLY constructible via [EscrowAttestation.verify] - the private
 /// constructor means no code path can mint an "attestation" without a
 /// real Ed25519 signature check. This is enforcement by construction,
 /// not a data bag: it replaces the former caller-asserted
@@ -29,14 +29,14 @@ typedef EscrowAttestationVerifier = Future<bool> Function(
 /// Trust rules (mirroring the WorkReceipt attestation rules):
 ///  * The signature must verify over the canonical domain preimage
 ///    ([signingPreimage]) against [attestorPubkey].
-///  * The attestation must BIND the exact bounty — id, cid, and
+///  * The attestation must BIND the exact bounty - id, cid, and
 ///    escrowed amount ([bindsBounty]).
 ///  * It must be UNEXPIRED ([isExpired]).
-///  * The attestor must be FOREIGN to the poster — a self-vouch is no
+///  * The attestor must be FOREIGN to the poster - a self-vouch is no
 ///    attestation ([isSelfIssuedFor], same rule as
 ///    `WorkReceipt.isSelfIssued`).
 ///
-/// NOTE: signature validity alone confers NO trust — anyone can mint a
+/// NOTE: signature validity alone confers NO trust - anyone can mint a
 /// keypair and sign. Whether a valid attestation admits anything is the
 /// node's ambient trust-root decision (see `trustedAttestorPubkeys` on
 /// the `MoltbookService` constructor, which also bars the node's OWN key
@@ -53,7 +53,7 @@ class EscrowAttestation {
   final String cid;
 
   /// Escrowed amount in integer milli-units (`credits * 1000`, rounded)
-  /// — the same JCS discipline as `WorkReceipt.amountMilli`, so the
+  /// - the same JCS discipline as `WorkReceipt.amountMilli`, so the
   /// signed preimage is bit-identical across platforms (a Dart `25.0`
   /// and a JavaScript `25` cannot diverge the preimage).
   final int amountMilli;
@@ -74,7 +74,7 @@ class EscrowAttestation {
     required this.signature,
   });
 
-  /// Canonical signed statement — the exact byte preimage the attestor
+  /// Canonical signed statement - the exact byte preimage the attestor
   /// signs and verifiers recompute:
   /// `utf8('alexandria:escrow:v2:' + canonicalJson({amountMilli,
   ///   bountyId, cid, expiresAt}))`
@@ -83,7 +83,7 @@ class EscrowAttestation {
   /// `('x:y','z')` and `('x','y:z')` concatenated to identical bytes, so
   /// a signature minted for one (id, cid) pair re-verified for the
   /// other. Canonical JSON with sorted keys ([toCanonicalJson]) makes
-  /// field boundaries structural — no choice of string field values can
+  /// field boundaries structural - no choice of string field values can
   /// ever collide two distinct field tuples onto one preimage. The
   /// `alexandria:escrow:v2:` domain prefix additionally prevents
   /// preimage collisions with Beacon envelopes, work receipts, or any
@@ -113,7 +113,7 @@ class EscrowAttestation {
   /// amount, malformed or wrong-length signature, invalid signature, a
   /// throwing [verifyFn], or an already-expired attestation (relative
   /// to [now], default: real now). Callers can never obtain a
-  /// "verified" attestation that did not actually verify — and
+  /// "verified" attestation that did not actually verify - and
   /// `expiresAt` stays bound inside the signed preimage, so a poster
   /// cannot extend it post-hoc.
   static Future<EscrowAttestation?> verify({
@@ -190,7 +190,7 @@ class EscrowAttestation {
     }
   }
 
-  /// Largest |milli| product [bindsBounty] will attempt to round — the
+  /// Largest |milli| product [bindsBounty] will attempt to round - the
   /// same 2^53 ceiling [verify] enforces on [amountMilli], so a product
   /// outside this bound could never equal a verified amount anyway.
   static const double _maxMilliProduct = 9007199254740992.0;
@@ -198,14 +198,14 @@ class EscrowAttestation {
   /// True when this attestation cryptographically binds to [bounty]'s
   /// identifying fields: same id, same cid, same escrowed amount. An
   /// attestation minted for a different bounty (or a different amount)
-  /// does not bind — so attestations can never be replayed across
+  /// does not bind - so attestations can never be replayed across
   /// announcements.
   ///
   /// The guard is on the PRODUCT, not just
   /// [PreservationBounty.offeredCredits]: a finite offeredCredits of
   /// roughly 1.8e305 or more overflows to Infinity when milli-scaled,
   /// and `Infinity.round()` throws. Through `ingestBountyAnnouncement`
-  /// that throw is a persistent crash primitive — the dedup-upgrade
+  /// that throw is a persistent crash primitive - the dedup-upgrade
   /// path would re-throw on every later attested re-announcement of the
   /// poisoned id. Ingest must fail closed, never crash (H2).
   bool bindsBounty(PreservationBounty bounty) {
@@ -215,7 +215,7 @@ class EscrowAttestation {
     // literal spelling the attestor saw, while [PreservationBounty.id] is
     // the NFD-normalized form stored at ingest. Comparing canonically
     // (never by mutating the signed preimage) keeps an attestation signed
-    // for the composed spelling bound to the decomposed stored id — a
+    // for the composed spelling bound to the decomposed stored id - a
     // spelling mismatch can no longer deny a legitimate attestation or
     // fork the id space.
     return bountyIdsEquivalent(bountyId, bounty.id) &&
@@ -223,7 +223,7 @@ class EscrowAttestation {
         amountMilli == milli.round();
   }
 
-  /// True when the attestor IS the bounty's poster — a self-vouch that
+  /// True when the attestor IS the bounty's poster - a self-vouch that
   /// carries zero attestation weight, exactly like a self-issued
   /// WorkReceipt (`prover == verifier`). Attestation means a FOREIGN
   /// party vouched; a poster signing its own escrow claim is the same
@@ -232,7 +232,7 @@ class EscrowAttestation {
   /// [PreservationBounty] carries only the poster's derived
   /// `originAgentId` (`bcn_<first 12 pubkey hex>`), so this compares the
   /// attestor's derived agent id against it. A prefix collision can only
-  /// ever produce a FALSE self-issued verdict — fail-safe, since it
+  /// ever produce a FALSE self-issued verdict - fail-safe, since it
   /// rejects rather than admits.
   ///
   /// An undecodable/wrong-length [attestorPubkey] cannot be shown to be
@@ -241,7 +241,7 @@ class EscrowAttestation {
   /// The agent-id comparison is canonical (trim + case-fold): agent ids
   /// are `bcn_<hex>` and hex is case-insensitive, so a poster claiming
   /// `origin_agent_id` as an UPPERCASE or padded spelling of the
-  /// attestor's derived id is still the SAME claimed poster — raw `==`
+  /// attestor's derived id is still the SAME claimed poster - raw `==`
   /// would let exactly that spelling launder a self-vouch (H1 class).
   /// Over-matching only ever produces MORE self-issued verdicts, which
   /// is the fail-safe direction: it rejects rather than admits.

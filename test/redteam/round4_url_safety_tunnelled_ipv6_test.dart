@@ -1,26 +1,26 @@
-// RED TEAM PoC — Round-4: UrlSafety.requirePublicFetchUri blocks every
+// RED TEAM PoC - Round-4: UrlSafety.requirePublicFetchUri blocks every
 // inet_aton IPv4 spelling and the obvious IPv6 ranges (::, ::1,
-// fe80::/10, fc00::/7, ff00::/8, IPv4-MAPPED ::ffff:a.b.c.d) — but it
+// fe80::/10, fc00::/7, ff00::/8, IPv4-MAPPED ::ffff:a.b.c.d) - but it
 // does NOT recognise the OTHER IPv6 transition/translation forms that
 // embed an IPv4 address the kernel will route to:
 //
 //   lib/services/url_safety.dart::_requirePublicIpv6Bytes
 //
-//   * NAT64 well-known prefix 64:ff9b::/96 — on NAT64 networks (mobile
+//   * NAT64 well-known prefix 64:ff9b::/96 - on NAT64 networks (mobile
 //     carriers, Apple-mandated NAT64 nets, cloud VPCs) the last 32 bits
-//     ARE an IPv4 destination: 64:ff9b::a9fe:a9fe == 169.254.169.254 —
+//     ARE an IPv4 destination: 64:ff9b::a9fe:a9fe == 169.254.169.254 -
 //     the cloud metadata endpoint the v4 gate was built to protect.
-//   * 6to4 2002::/16 — bytes 2..5 are the tunnelled IPv4; anycast relays
+//   * 6to4 2002::/16 - bytes 2..5 are the tunnelled IPv4; anycast relays
 //     forward to it: 2002:7f00:1:: == 127.0.0.1.
-//   * Teredo 2001::/32 — embeds the (obfuscated) client IPv4.
-//   * IPv4-compatible ::/96 (deprecated) — ::7f00:1 == 127.0.0.1 on
+//   * Teredo 2001::/32 - embeds the (obfuscated) client IPv4.
+//   * IPv4-compatible ::/96 (deprecated) - ::7f00:1 == 127.0.0.1 on
 //     stacks that still honour it.
-//   * IPv4-translated ::ffff:0:0/96 (SIIT) — ::ffff:0:7f00:1 embeds
+//   * IPv4-translated ::ffff:0:0/96 (SIIT) - ::ffff:0:7f00:1 embeds
 //     127.0.0.1 but raw[10..11] are 00,00 so the existing v4-mapped
 //     check misses it.
 //
 // Verified empirically: InternetAddress.tryParse accepts every one of
-// these and _requirePublicIpv6Bytes lets them through — a Crossref
+// these and _requirePublicIpv6Bytes lets them through - a Crossref
 // pdfUrl or LNURL callback of https://[64:ff9b::a9fe:a9fe]/ fetches the
 // metadata service wherever NAT64/6to4/Teredo routing exists.
 //
@@ -66,14 +66,14 @@ void main() {
       await _expectRefused('https://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/x');
     });
 
-    // Deprecated IPv4-compatible ::/96 — :: and ::1 are already refused;
+    // Deprecated IPv4-compatible ::/96 - :: and ::1 are already refused;
     // the rest of the range is not.
     test('IPv4-compatible ::/96 embedding', () async {
       await _expectRefused('https://[::7f00:1]/x'); // 127.0.0.1
       await _expectRefused('https://[::a9fe:a9fe]/x'); // 169.254.169.254
     });
 
-    // SIIT IPv4-translated ::ffff:0:0/96 — the existing mapped check
+    // SIIT IPv4-translated ::ffff:0:0/96 - the existing mapped check
     // only inspects raw[10..11]==0xffff; this form puts the ffff at
     // bytes 8..9.
     test('IPv4-translated ::ffff:0:0/96 embedding', () async {

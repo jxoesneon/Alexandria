@@ -1,23 +1,23 @@
-// RED TEAM PoC — Round-7: scrubMetadata crashes outright on malformed
-// images — the exif-3.3.0 reader is invoked UNGUARDED.
+// RED TEAM PoC - Round-7: scrubMetadata crashes outright on malformed
+// images - the exif-3.3.0 reader is invoked UNGUARDED.
 //
 //   lib/services/metadata_scrubbing_service.dart
 //     :229   final data = await readExifFromBytes(bytes);          // input
 //     :252   final remaining = await readExifFromBytes(scrubbedBytes); // output
 //
 // extractMetadata() (:189) and detectSensitiveFields() (:200) both wrap
-// the same call in try/catch — scrubMetadata does not. The exif reader
+// the same call in try/catch - scrubMetadata does not. The exif reader
 // throws RangeError on truncated PNG chunk headers
 // (read_exif.dart:370 `data.sublist(4, 8)` after a short readSync) and
 // on degenerate JPEG streams (:239 `listRangeEqual`/`sublist` past EOF
-// is only partially caught — `_incrementBase` is guarded, the
+// is only partially caught - `_incrementBase` is guarded, the
 // `listRangeEqual` calls are not).
 //
-// Impact path: add_content_screen.dart:472 — a user with "strip
+// Impact path: add_content_screen.dart:472 - a user with "strip
 // metadata" enabled who picks a truncated/corrupt-but-sniffable image
 // gets `Error: RangeError…` and the upload aborts entirely. Privacy
 // fails closed (nothing ships), but the API contract and UX are
-// broken, and — critically — it MASKS the PNG verbatim-tail issue:
+// broken, and - critically - it MASKS the PNG verbatim-tail issue:
 // once this crash is fixed the tail-copy becomes reachable.
 //
 // Asserts the SECURE expectation: scrubMetadata must never throw on
@@ -79,7 +79,7 @@ void main() {
       'degenerate JPEG produced by the scrubber itself must not crash '
       'the verification pass', () async {
     // A stream that scrubs down to SOI + APP0 + EOI (everything else
-    // malformed): the round-6 walker emits exactly that — then the
+    // malformed): the round-6 walker emits exactly that - then the
     // :252 verification read throws inside _jpegReadParams.
     final jpeg = Uint8List.fromList([
       0xFF, 0xD8,

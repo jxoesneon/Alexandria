@@ -70,7 +70,7 @@ void main() {
     await tester.pumpWidget(createSubject(fake));
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
 
-    // The existing key may be funded — rotation must be confirmed.
+    // The existing key may be funded - rotation must be confirmed.
     await tester.tap(find.text('Generate new key'));
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
 

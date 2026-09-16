@@ -13,7 +13,7 @@ part 'database.g.dart';
 /// Production database: a persistent SQLite file under the platform
 /// application-support directory (ALX-011). Without this, every persisted
 /// table below (credit ledger, daily mint caps, awarded DOIs, work
-/// receipts) lived in an in-memory database and reset on restart — the
+/// receipts) lived in an in-memory database and reset on restart - the
 /// entire ALX-011 persistence layer was inert.
 ///
 /// [LazyDatabase] defers the open until first use, so reading this
@@ -21,16 +21,16 @@ part 'database.g.dart';
 /// First boot runs Drift's default onCreate; upgrades run the
 /// schemaVersion-8 [AppDatabase.migration]. The [AppDatabase] constructor
 /// keeps [NativeDatabase.memory] as its default executor so tests stay
-/// hermetic — only this provider wires the file-backed executor.
+/// hermetic - only this provider wires the file-backed executor.
 /// Injectable single-writer coordination seam (multi-PROCESS writer
-/// residual — see [DatabaseFileGuard]). Tests substitute a fake guard to
+/// residual - see [DatabaseFileGuard]). Tests substitute a fake guard to
 /// exercise contention policy without touching the filesystem.
 final databaseFileGuardProvider = Provider<DatabaseFileGuard>((ref) {
   return const DatabaseFileGuard();
 });
 
 final databaseProvider = Provider<AppDatabase>((ref) {
-  // Unit/widget tests have no path_provider platform channel — they get
+  // Unit/widget tests have no path_provider platform channel - they get
   // the hermetic in-memory executor (FLUTTER_TEST is always set under
   // `flutter test`). Every other context gets the persistent file.
   final isTest = Platform.environment['FLUTTER_TEST'] == 'true';
@@ -45,7 +45,7 @@ final databaseProvider = Provider<AppDatabase>((ref) {
             final dbFile = File(p.join(dir.path, 'alexandria.sqlite'));
             // Multi-PROCESS writer enforcement: the advisory exclusive
             // lock is acquired BEFORE the SQLite file is opened and held
-            // for the process lifetime — a second Alexandria process
+            // for the process lifetime - a second Alexandria process
             // racing this database fails loudly here instead of
             // interleaving ledger writes (WORKING_ON residual).
             await guard.acquire('${dbFile.path}.lock');
@@ -56,13 +56,13 @@ final databaseProvider = Provider<AppDatabase>((ref) {
     // LazyDatabase.close() awaits the open future first; when the opener
     // failed (e.g. no path_provider plugin in unit tests) close() would
     // rethrow that failure as an unhandled async error. A database that
-    // never opened needs no cleanup — swallow it.
+    // never opened needs no cleanup - swallow it.
     db.close().catchError((Object _) {});
   });
   return db;
 });
 
-/// Handle to a held exclusive file lock — see [DatabaseFileGuard].
+/// Handle to a held exclusive file lock - see [DatabaseFileGuard].
 /// [release] exists for tests and deliberate shutdown paths; the
 /// production wiring never calls it (the lock is process-lifetime).
 class DatabaseFileLock {
@@ -87,23 +87,23 @@ class DatabaseFileLock {
 }
 
 /// Multi-PROCESS single-writer enforcement for `alexandria.sqlite`
-/// (WORKING_ON residual: "multi-PROCESS writers remain out of scope" —
+/// (WORKING_ON residual: "multi-PROCESS writers remain out of scope" -
 /// closed to the extent the platform allows).
 ///
 /// Threat model closed: two OS processes (a duplicate app start, a
 /// headless runner alongside the UI, a crashed-then-relaunched instance
 /// racing a zombie) opening the SAME SQLite file each get their own
 /// connection and would interleave ledger writes with no shared
-/// in-memory reconciliation — the durable CAS primitives stop
+/// in-memory reconciliation - the durable CAS primitives stop
 /// double-mints on the rows they guard, but balance replay, daily-cap
 /// counters and the attested-burn accounting were never designed for
 /// unsynchronized cross-process mutation. The fix is an OS-level
-/// ADVISORY exclusive lock on `<db>.lock` (a sidecar file — locking the
+/// ADVISORY exclusive lock on `<db>.lock` (a sidecar file - locking the
 /// SQLite file itself would collide with SQLite's own POSIX locks),
 /// acquired BEFORE the file-backed executor opens and held for the
 /// process lifetime.
 ///
-/// CONTENTION POLICY — FAIL LOUD, never wait: a second process that
+/// CONTENTION POLICY - FAIL LOUD, never wait: a second process that
 /// cannot acquire throws [StateError] out of the lazy open, so every
 /// database use surfaces the failure immediately rather than silently
 /// queueing behind a holder that may be a zombie. Waiting was rejected:
@@ -114,12 +114,12 @@ class DatabaseFileLock {
 /// against temp files.
 ///
 /// HONEST BOUNDS that remain:
-///  * ADVISORY only — a non-cooperating process (foreign tooling, a
+///  * ADVISORY only - a non-cooperating process (foreign tooling, a
 ///    build that skips the guard) can still write the file; this is
 ///    mutual exclusion between cooperating Alexandria processes, not
 ///    access control.
 ///  * Network filesystems (NFS/SMB) may not honour flock/LockFile
-///    semantics — the app-support directory is local in practice.
+///    semantics - the app-support directory is local in practice.
 ///  * The lock auto-releases on process death (OS semantics), so a
 ///    crashed holder never strands the database.
 class DatabaseFileGuard {
@@ -128,7 +128,7 @@ class DatabaseFileGuard {
   /// Locks held for the process lifetime, keyed by lockfile path, so a
   /// second [acquire] of the same path in THIS process returns the
   /// existing handle instead of self-conflicting (flock/LockFile
-  /// conflicts are per-handle — a re-entrant acquire would otherwise
+  /// conflicts are per-handle - a re-entrant acquire would otherwise
   /// report false contention), and so GC can never drop the
   /// [RandomAccessFile] and silently release the lock.
   static final Map<String, DatabaseFileLock> _held =
@@ -136,7 +136,7 @@ class DatabaseFileGuard {
 
   /// Acquires the exclusive lock on [lockFilePath]. Returns the existing
   /// handle when this process already holds it. Throws [StateError]
-  /// when another process (or a non-registry handle) holds the lock —
+  /// when another process (or a non-registry handle) holds the lock -
   /// the documented fail-loud policy.
   Future<DatabaseFileLock> acquire(String lockFilePath) async {
     final existing = _held[lockFilePath];
@@ -145,7 +145,7 @@ class DatabaseFileGuard {
     try {
       // FileLock.exclusive is the NON-BLOCKING exclusive mode in this
       // SDK (the blocking variants are named blockingExclusive/
-      // blockingShared): contention throws instead of waiting — the
+      // blockingShared): contention throws instead of waiting - the
       // documented fail-loud policy.
       await raf.lock(FileLock.exclusive);
     } catch (e) {
@@ -217,15 +217,15 @@ class HonorValidations extends Table {
 /// work receipt whose verifier pubkey differs from the local identity
 /// (self-dealing guard, ALX-010).
 ///
-/// [attestedPubkey] (schema v7 — multi-identity sharding residual) scopes
+/// [attestedPubkey] (schema v7 - multi-identity sharding residual) scopes
 /// an attested MINT row to the canonical prover pubkey whose possession
 /// proof earned it. Attested DEBIT rows (egress) and every row written
-/// before the column existed carry NULL — the "unscoped" bucket the
+/// before the column existed carry NULL - the "unscoped" bucket the
 /// egress gate counts toward any currently-held key set. The wallet-wide
 /// semantics are preserved exactly under single-identity: the only
 /// prover key is always the currently-held one.
 ///
-/// [burnedAttested] (schema v8 — durable burn attribution, the
+/// [burnedAttested] (schema v8 - durable burn attribution, the
 /// sufficiency half of the attested-egress gate) records how much of an
 /// ORDINARY (unflagged) debit consumed the attested pool under the
 /// service's unattested-first burn rule, computed at write time by the
@@ -234,8 +234,8 @@ class HonorValidations extends Table {
 /// Attested-flagged egress rows carry their full |amount| here (the
 /// entire debit burns attested value by definition), mints and PoR
 /// penalty rows carry 0. With this column the durable coverage gate can
-/// sum `scoped attested mints − every durable attested burn` — the
-/// exact quantity the in-memory `_attestedBurned` cache tracks — making
+/// sum `scoped attested mints − every durable attested burn` - the
+/// exact quantity the in-memory `_attestedBurned` cache tracks - making
 /// [AppDatabase.insertAttestedDebitIfCovered] a SUFFICIENT condition,
 /// not merely a necessary one. Pre-v8 rows are backfilled by the
 /// migration replaying the ledger under the identical rule.
@@ -278,7 +278,7 @@ class AwardedDois extends Table {
 }
 
 /// Durable registry of preservation bounties this node has claimed
-/// (REV3 review — Safety veto fix). `PreservationBounty.isClaimed` is an
+/// (REV3 review - Safety veto fix). `PreservationBounty.isClaimed` is an
 /// in-memory flag that any holder of a returned reference could flip
 /// back, reopening a claimed bounty for a second escrow payout. This
 /// table's primary key is the restart-proof compare-and-swap: a claim
@@ -302,7 +302,7 @@ class ClaimedBounties extends Table {
 class WorkReceipts extends Table {
   TextColumn get receiptId => text()();
   // Per-receipt wire-format version (ALX-012): persisted so foreign
-  // artifacts keep their declared scheme — rows predating the column
+  // artifacts keep their declared scheme - rows predating the column
   // default to the legacy v1 (bare-domain) scheme.
   IntColumn get v => integer().withDefault(const Constant(1))();
   TextColumn get workType => text()(); // 'storage' | 'compute' | 'verification'
@@ -368,7 +368,7 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 6) {
             // (round-5 red finding) scrub legacy plaintext DEKs out of
-            // content_manifests.encryption_key — rehomed into secure
+            // content_manifests.encryption_key - rehomed into secure
             // storage first so no decryptability is lost.
             await _rehomeLegacyManifestKeys();
           }
@@ -377,13 +377,13 @@ class AppDatabase extends _$AppDatabase {
             // residual): attested mint rows gain the canonical prover
             // pubkey that earned them so the egress gate can sum over
             // CURRENTLY-HELD keys only. Pre-existing rows hydrate NULL
-            // — the unscoped bucket, which under the single-identity
+            // - the unscoped bucket, which under the single-identity
             // model is exactly the old wallet-wide semantics.
             await m.addColumn(
                 creditTransactions, creditTransactions.attestedPubkey);
           }
           if (from < 8) {
-            // Durable attested-burn attribution (WORKING_ON residual —
+            // Durable attested-burn attribution (WORKING_ON residual -
             // insertAttestedDebitIfCovered sufficiency): each debit row
             // records how much of it consumed the attested pool under
             // the unattested-first rule, so the durable egress gate can
@@ -398,7 +398,7 @@ class AppDatabase extends _$AppDatabase {
         },
         // Same sweep on every open: a row whose DEK could not be rehomed
         // during the v6 upgrade (keychain momentarily unavailable) keeps
-        // its key — data preservation beats scrub-once — and is retried
+        // its key - data preservation beats scrub-once - and is retried
         // here until the write to secure storage succeeds.
         beforeOpen: (details) async {
           await _rehomeLegacyManifestKeys();
@@ -407,14 +407,14 @@ class AppDatabase extends _$AppDatabase {
 
   /// (round-5 red finding) Moves any surviving plaintext DEK in
   /// [ContentManifests.encryptionKey] into secure storage under
-  /// `dek_<uuid>` — the same location ContentRepository.createContent
-  /// has written since the round-2 fix — then NULLs the column.
+  /// `dek_<uuid>` - the same location ContentRepository.createContent
+  /// has written since the round-2 fix - then NULLs the column.
   ///
   /// Ordering: the secure-storage write lands BEFORE the column is
   /// nulled, so a database upgraded from a pre-round-2 build never
   /// loses the only copy of a DEK. When the keychain is unreachable
   /// (headless/unit-test contexts have no flutter_secure_storage
-  /// channel) the row keeps its key and a later [beforeOpen] retries —
+  /// channel) the row keeps its key and a later [beforeOpen] retries -
   /// the plugin-facing leak is closed regardless by the projected view
   /// in PluginContentRepository, and no first-party code reads the
   /// column.
@@ -425,7 +425,7 @@ class AppDatabase extends _$AppDatabase {
             ..where((m) => m.encryptionKey.isNotNull()))
           .get();
     } catch (_) {
-      return; // table absent on a pre-create open — nothing to rehome
+      return; // table absent on a pre-create open - nothing to rehome
     }
     if (rows.isEmpty) return;
     SecureStorageService? storage;
@@ -436,7 +436,7 @@ class AppDatabase extends _$AppDatabase {
         storage ??= SecureStorageService();
         await storage.write('dek_${row.uuid}', key);
       } catch (_) {
-        continue; // keychain unreachable — keep the row, retry next open
+        continue; // keychain unreachable - keep the row, retry next open
       }
       await (update(contentManifests)..where((m) => m.uuid.equals(row.uuid)))
           .write(const ContentManifestsCompanion(encryptionKey: Value(null)));
@@ -449,13 +449,13 @@ class AppDatabase extends _$AppDatabase {
   /// and stamps each row with the attested share it consumed. Rules
   /// (mirrored exactly):
   ///  * amount >= 0 (mint): burn 0; attested mints accrue to the pool.
-  ///  * storageReward debit (PoR penalty): burn 0 — slashing may never
+  ///  * storageReward debit (PoR penalty): burn 0 - slashing may never
   ///    eat attested value; the runtime floor clamps the applied part.
   ///  * isAttested debit (egress): the WHOLE debit burns attested
-  ///    value — it settles against the attested pool directly.
+  ///    value - it settles against the attested pool directly.
   ///  * any other debit: burn = spend − max(pre-debit unattested, 0),
   ///    where unattested = balance − (attestedMinted − attestedBurned).
-  /// Ordering is `timestamp ASC, rowid ASC` — the exact replay order the
+  /// Ordering is `timestamp ASC, rowid ASC` - the exact replay order the
   /// service hydrates with (rowid = insertion chronology tiebreaker).
   Future<void> _backfillBurnedAttested() async {
     final rows = await customSelect(
@@ -596,7 +596,7 @@ class AppDatabase extends _$AppDatabase {
         // NULL on debits and legacy rows = the unscoped bucket.
         attestedPubkey: Value(data['attestedPubkey'] as String?),
         // Durable attested-burn attribution (schema v8): how much of a
-        // debit consumed the attested pool — the sufficiency input of
+        // debit consumed the attested pool - the sufficiency input of
         // [insertAttestedDebitIfCovered].
         burnedAttested:
             Value((data['burnedAttested'] as num?)?.toDouble() ?? 0.0),
@@ -605,7 +605,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
     // insertOrIgnore: a primary-key collision is an expected dedup event
     // (e.g. two instances racing the deterministic genesis id), NOT a
-    // database failure — the duplicate row is dropped, not thrown.
+    // database failure - the duplicate row is dropped, not thrown.
     await into(creditTransactions).insert(
       _creditTxCompanion(data),
       mode: InsertMode.insertOrIgnore,
@@ -616,7 +616,7 @@ class AppDatabase extends _$AppDatabase {
   /// reconciliation): identical `INSERT OR IGNORE` semantics, but run
   /// inside a transaction and reports via `changes()` whether THIS call
   /// actually landed the row. A deterministic-id writer (bounty payout,
-  /// escrow release/hold) that gets `false` back lost the durable race —
+  /// escrow release/hold) that gets `false` back lost the durable race -
   /// the primary key already belongs to another writer's row, so the
   /// caller's in-memory mint must reconcile against the canonical row
   /// instead of trusting its own write. Same pattern as
@@ -649,18 +649,18 @@ class AppDatabase extends _$AppDatabase {
     return row?.read(creditTransactions.amount);
   }
 
-  /// Escrow-hold candidate rows for [referenceId] — the durable half of
+  /// Escrow-hold candidate rows for [referenceId] - the durable half of
   /// `CreditService.releaseEscrow`'s hold scan (RE-W residual closure).
   /// A TARGETED read on `reference_id` returning full rows (amounts
   /// included), NOT the ~100k-row hydration replay window, so a hold row
   /// older than the window stays refundable.
   ///
-  /// The SQL pre-filter mirrors the releasable-hold shape — a negative
+  /// The SQL pre-filter mirrors the releasable-hold shape - a negative
   /// `priorityAccessDebit` carrying either the non-forgeable
   /// `tx_escrow_hold_<ref>_<micros>_<seq>` id (only debitEscrow can mint
   /// it) or, for rows written by pre-REV4a builds, the EXACT description
   /// `Bounty Escrow Hold (<referenceId>)` (unforgeable because
-  /// spendCredits always appends its ' (incl. 5% treasury fee)' suffix —
+  /// spendCredits always appends its ' (incl. 5% treasury fee)' suffix -
   /// a `contains` match would be forgeable and is deliberately not used).
   /// The service re-applies the full `_isReleasableHold` predicate
   /// (including the non-finite-amount guard) over these candidates, so
@@ -675,7 +675,7 @@ class AppDatabase extends _$AppDatabase {
           (t.id.like('tx_escrow_hold_%') |
               t.description.equals('Bounty Escrow Hold ($referenceId)')));
     final rows = await query.get();
-    // LIKE treats '_'/'%' in the prefix as wildcards — re-filter the id
+    // LIKE treats '_'/'%' in the prefix as wildcards - re-filter the id
     // exactly (the description leg is already an equality match) so only
     // literal prefix matches survive.
     return rows
@@ -691,9 +691,9 @@ class AppDatabase extends _$AppDatabase {
   /// attested debit row in [data] ONLY while the ledger's own attested
   /// sum over the CURRENTLY-HELD keys still covers [requiredCredits].
   ///
-  /// `attested_pubkey IS NULL` rows are the unscoped bucket — pre-v7
+  /// `attested_pubkey IS NULL` rows are the unscoped bucket - pre-v7
   /// legacy mints (wallet-scoped under single-identity) and the egress
-  /// debit rows themselves — and count toward any held-key set. Rows
+  /// debit rows themselves - and count toward any held-key set. Rows
   /// scoped to a prover key count only when that canonical key is in
   /// [heldAttestedPubkeys]: value minted under a retired or foreign key
   /// can never back an egress for keys the node no longer holds.
@@ -702,15 +702,15 @@ class AppDatabase extends _$AppDatabase {
   /// a debit can never exceed the durable ledger's net.
   ///
   /// SUFFICIENT since schema v8 (`burned_attested`): the durable sum
-  /// subtracts EVERY recorded attested burn — egress debits AND the
-  /// attested share ordinary (unflagged) debits consumed — so the gate
+  /// subtracts EVERY recorded attested burn - egress debits AND the
+  /// attested share ordinary (unflagged) debits consumed - so the gate
   /// computes the same `mints − burns` quantity the service's in-memory
   /// `_attestedBurned` cache tracks. A pass means the ledger itself
   /// covers the egress under the unattested-first rule, not merely that
   /// enough attested mints exist in isolation. Rows carry their own
   /// burn attribution, so no order-dependent replay state is needed at
   /// gate time. The egress row being inserted is stamped with
-  /// `burned_attested = requiredCredits` here — it burns attested value
+  /// `burned_attested = requiredCredits` here - it burns attested value
   /// in full by definition, so the next gate evaluation sees its cost.
   /// Returns false (and writes nothing) when either condition fails or
   /// the id was already taken.
@@ -723,7 +723,7 @@ class AppDatabase extends _$AppDatabase {
       final total = creditTransactions.amount.sum();
       // Scoped attested MINTS only (amount > 0): unscoped-bucket rows
       // (NULL) plus rows scoped to a currently-held key. Egress rows are
-      // isAttested debits — their cost is counted through
+      // isAttested debits - their cost is counted through
       // burned_attested below, never as negative mints.
       final scopedQuery = selectOnly(creditTransactions)
         ..addColumns([total])
@@ -737,7 +737,7 @@ class AppDatabase extends _$AppDatabase {
                         .isIn(heldAttestedPubkeys)));
       final minted = (await scopedQuery.getSingleOrNull())?.read(total) ?? 0.0;
       // Every durable attested burn, wallet-wide (internal burns draw
-      // on the all-keys pool — key scoping applies to mints only).
+      // on the all-keys pool - key scoping applies to mints only).
       final burnedCol = creditTransactions.burnedAttested.sum();
       final burnedQuery = selectOnly(creditTransactions)
         ..addColumns([burnedCol]);
@@ -749,7 +749,7 @@ class AppDatabase extends _$AppDatabase {
       var available = minted - burned;
       if (available > ledgerNet) available = ledgerNet;
       if (!(available >= requiredCredits)) return false;
-      // The egress row burns attested value in full — stamp it so the
+      // The egress row burns attested value in full - stamp it so the
       // durable burn sum stays sufficient for the NEXT writer even if
       // the caller forgot the column.
       final stamped = <String, dynamic>{...data}..['burnedAttested'] =
@@ -766,7 +766,7 @@ class AppDatabase extends _$AppDatabase {
   Future<List<Map<String, dynamic>>> getCreditTransactions(
       {int limit = 200}) async {
     final query = select(creditTransactions)
-      // dateTime() persists at SECOND resolution — same-second rows
+      // dateTime() persists at SECOND resolution - same-second rows
       // need a deterministic tiebreaker or the hydration replay sees
       // them in arbitrary order (round-1 phantom-debt flake: a penalty
       // replayed while the running balance is 0 floors to a no-op and
@@ -782,7 +782,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Net ledger balance as `SELECT SUM(amount)` over the FULL history.
-  /// Used as the hydration fallback when the replay window truncates —
+  /// Used as the hydration fallback when the replay window truncates -
   /// replaying a partial window would silently compute a wrong balance.
   Future<double> getLedgerBalanceSum() async {
     final total = creditTransactions.amount.sum();
@@ -792,7 +792,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Whether the genesis welcome allocation exists ANYWHERE in the
-  /// ledger — queried directly so the check is correct even when the
+  /// ledger - queried directly so the check is correct even when the
   /// hydration replay window truncates older rows (the in-memory scan
   /// would miss a genesis row beyond the window and re-grant it).
   /// Literals mirror CreditService._kGenesisTxId / _kGenesisMarker.
@@ -806,7 +806,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Whether a credit-transaction row with EXACTLY this primary key
-  /// exists — a direct point query like [hasGenesisTransaction], never
+  /// exists - a direct point query like [hasGenesisTransaction], never
   /// a scan of the hydrated replay window (which silently truncates
   /// rows beyond its limit and would misread a settled payout as
   /// missing). The bounty-claim crash-window reconciler uses this to
@@ -817,7 +817,7 @@ class AppDatabase extends _$AppDatabase {
     return row != null;
   }
 
-  /// All credit-transaction primary keys carrying [idPrefix] — a
+  /// All credit-transaction primary keys carrying [idPrefix] - a
   /// targeted index read, NEVER the hydrated replay window (which
   /// silently truncates rows beyond its limit). Rebuilding dedup sets
   /// (`tx_bounty_payout_*`, `tx_escrow_release_*`, `tx_escrow_hold_*`)
@@ -829,7 +829,7 @@ class AppDatabase extends _$AppDatabase {
       ..addColumns([creditTransactions.id])
       ..where(creditTransactions.id.like('$idPrefix%'));
     final rows = await query.get();
-    // LIKE treats '_'/'%' in the prefix as wildcards — re-filter
+    // LIKE treats '_'/'%' in the prefix as wildcards - re-filter
     // exactly so only literal prefix matches survive.
     return rows
         .map((r) => r.read(creditTransactions.id)!)
@@ -887,7 +887,7 @@ class AppDatabase extends _$AppDatabase {
   /// Atomically registers a bounty claim (REV3 review Safety CAS),
   /// mirroring [insertAwardedDoi]: `INSERT OR IGNORE` on the bounty_id
   /// primary key makes an already-claimed bounty the expected dedup
-  /// event, and `changes()` reports whether THIS call inserted the row —
+  /// event, and `changes()` reports whether THIS call inserted the row -
   /// the check-then-insert race window is closed by the primary key,
   /// not by a preceding read. A losing caller sees `false`, never a
   /// thrown PK violation.
@@ -917,7 +917,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// Releases a claim whose asynchronous work-evidence check failed, so
   /// the bounty can be claimed again once the CID is genuinely
-  /// replicated. Never invoked on the success path — a confirmed claim
+  /// replicated. Never invoked on the success path - a confirmed claim
   /// is permanent.
   Future<void> deleteClaimedBounty(String bountyId) async {
     await (delete(claimedBounties)..where((c) => c.bountyId.equals(bountyId)))
@@ -928,14 +928,14 @@ class AppDatabase extends _$AppDatabase {
   /// for [bountyId] ONLY while its `claimed_at` still equals
   /// [claimedAt], and reports the number of rows removed. A result of
   /// 0 means the row vanished or was replaced by a newer claim attempt
-  /// between the caller's observation and this delete — in that case
+  /// between the caller's observation and this delete - in that case
   /// the row is somebody else's and must be left standing.
   ///
   /// Bare [deleteClaimedBounty] remains the right tool for the claim
   /// healer (a loser may legitimately remove a genuinely stale or
   /// orphaned winner row regardless of who owns it), but every
-  /// self-cleanup path — a claim releasing ITS OWN row, the startup
-  /// sweep acting on a snapshot — must go through this method:
+  /// self-cleanup path - a claim releasing ITS OWN row, the startup
+  /// sweep acting on a snapshot - must go through this method:
   /// deleting by bare id would tear down a row a racing claim attempt
   /// re-inserted in the gap.
   Future<int> deleteClaimedBountyIfClaimedAt(
@@ -946,7 +946,7 @@ class AppDatabase extends _$AppDatabase {
         .go();
   }
 
-  /// Whether [bountyId] has a persisted claim row — survives service
+  /// Whether [bountyId] has a persisted claim row - survives service
   /// restarts, unlike the in-memory `PreservationBounty.isClaimed` flag.
   Future<bool> isBountyClaimed(String bountyId) async {
     final query = select(claimedBounties)
@@ -957,7 +957,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// The persisted claim timestamp (epoch millis) for [bountyId], or
   /// null when no claim row exists. The crash-window reconciler uses
-  /// this to tell a YOUNG in-flight claim (leave standing — a live
+  /// this to tell a YOUNG in-flight claim (leave standing - a live
   /// claimant still owns it) apart from a stale row (heal it) or an
   /// orphaned one (deleted between the lost CAS and this read).
   Future<int?> getClaimedBountyClaimedAt(String bountyId) async {
@@ -967,7 +967,7 @@ class AppDatabase extends _$AppDatabase {
     return row?.claimedAt;
   }
 
-  /// All claim rows whose claimedAt predates [epochMillis] — the
+  /// All claim rows whose claimedAt predates [epochMillis] - the
   /// startup reconciliation sweep's candidate set: stale rows nobody
   /// will ever retry (claims stranded by a crash between the CAS and
   /// the payout, or by a claim-release delete that threw).
@@ -980,7 +980,7 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> insertWorkReceipt(Map<String, dynamic> data) async {
     // insertOrIgnore: a receipt re-delivered by the verifier (or re-issued
-    // by a retry) collapses onto the same content-derived primary key —
+    // by a retry) collapses onto the same content-derived primary key -
     // a duplicate is expected, not a database error.
     await into(workReceipts).insert(
       WorkReceiptsCompanion.insert(
@@ -1010,17 +1010,17 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Conditional signature upgrade for an existing receipt row
-  /// (ALX-012 §5.8 — `insertWorkReceipt` first-insert-wins residual):
+  /// (ALX-012 §5.8 - `insertWorkReceipt` first-insert-wins residual):
   /// a receiptId that first arrived UNSIGNED must not permanently block
   /// the later SIGNED redelivery of the same artifact.
   ///
   /// Fills [verifierSig]/[proverSig] ONLY while the stored column is
-  /// still empty — a signed row is never touched, so an upgrade can
+  /// still empty - a signed row is never touched, so an upgrade can
   /// never downgrade or overwrite a signature (a second, different
   /// signature for the same receiptId would be a conflicting-attestation
   /// event: first-signed-wins, like first-insert-wins for the body).
   ///
-  /// CRYPTO BOUNDARY: this DAO is a syntactic conditional write — it
+  /// CRYPTO BOUNDARY: this DAO is a syntactic conditional write - it
   /// does NOT verify the signatures. The verification guard lives in
   /// the trust-aware ingest path
   /// (`CreditService.ingestWorkReceipt`), which checks the signatures
@@ -1062,7 +1062,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// Atomic spend-dedup primitive (Safety-mandated CAS): a single
   /// `UPDATE work_receipts SET spent=1 WHERE receipt_id=? AND spent=0`.
-  /// Returns true iff THIS call consumed the receipt — a lost race
+  /// Returns true iff THIS call consumed the receipt - a lost race
   /// (receipt missing or already spent) yields `updatedRows == 0`, so a
   /// replayed/parallel claim can never double-mint the same receipt.
   Future<bool> claimReceiptAtomically(String receiptId) async {
@@ -1126,7 +1126,7 @@ class AppDatabase extends _$AppDatabase {
         'metadata': m.metadata,
         'isEncrypted': m.isEncrypted,
         // (round-5 red finding) the key-material column is projected
-        // out of every map view — a caller holding the map must not
+        // out of every map view - a caller holding the map must not
         // find a plaintext DEK on a legacy (pre-scrub) row.
         'encryptionKey': null,
         'lastUpdated': m.lastUpdated,

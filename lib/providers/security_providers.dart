@@ -35,7 +35,7 @@ final didServiceProvider = Provider<SecurityOverviewService>((ref) {
 final activeIdentitiesProvider = FutureProvider<List<Keypair>>((ref) {
   // Watching the identity revision makes this rebuild automatically
   // after every identity mutation (mnemonic recovery, rotation,
-  // deletion) — previously a recovery left this serving the
+  // deletion) - previously a recovery left this serving the
   // pre-recovery DID, so exportPrivateKey threw on the new key id.
   ref.watch(identityRevisionProvider);
   final service = ref.watch(keyManagementServiceProvider);

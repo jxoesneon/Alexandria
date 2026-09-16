@@ -16,7 +16,7 @@ class FakeIdentityService implements IdentityService {
       StreamController<int>.broadcast(sync: true);
 
   // identityRevisionProvider is watched by identityStateProvider /
-  // activeIdentitiesProvider — the fake must expose a real stream.
+  // activeIdentitiesProvider - the fake must expose a real stream.
   @override
   Stream<int> get revisionStream => _revisionController.stream;
 

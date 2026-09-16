@@ -485,8 +485,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         child: ElevatedButton(
                           onPressed: () async {
                             // The backup marker is written only on this
-                            // explicit confirmation — not when the phrase
-                            // is merely shown — so the security
+                            // explicit confirmation - not when the phrase
+                            // is merely shown - so the security
                             // dashboard's "back up your identity" alert
                             // tracks what the user actually did.
                             try {
@@ -668,7 +668,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _createNewIdentity() async {
     final identityService = ref.read(identityServiceProvider);
-    // Never silently overwrite a stored identity — it may be funded or
+    // Never silently overwrite a stored identity - it may be funded or
     // bound to claims. If we cannot determine whether one exists, warn
     // rather than risk destroying it.
     bool identityExists;
@@ -827,7 +827,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (_isImporting) return;
     setState(() => _isImporting = true);
     try {
-      // Recovering REPLACES any stored identity — confirm before
+      // Recovering REPLACES any stored identity - confirm before
       // destroying a possibly funded keypair, even if the UI believes
       // none exists (stale cache). If existence cannot be determined,
       // proceed: the write itself is verified by IdentityService.
@@ -837,14 +837,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           if (!(await _confirmIdentityReplacement())) return;
         }
       } catch (_) {
-        // hasIdentity failed — proceed with the user-initiated import.
+        // hasIdentity failed - proceed with the user-initiated import.
       }
       if (!mounted) return;
       final mnemonicService = ref.read(mnemonicServiceProvider);
       final identity = await mnemonicService.recoverFromMnemonic(words);
       if (!mounted) return;
       if (identity != null) {
-        // The stored identity was just replaced — refresh every
+        // The stored identity was just replaced - refresh every
         // identity-derived provider so the rest of the app sees the
         // recovered keypair, not a previously cached one.
         ref.invalidate(identityStateProvider);

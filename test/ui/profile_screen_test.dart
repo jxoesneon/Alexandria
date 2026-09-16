@@ -13,7 +13,7 @@ class _FakeIdentityService implements IdentityService {
   AlexandriaIdentity? currentIdentity;
 
   /// Simulates keys present in storage while [currentIdentity] is null
-  /// — the stale-cache case where the UI shows "no identity" but a
+  /// - the stale-cache case where the UI shows "no identity" but a
   /// stored keypair would still be overwritten by a recovery.
   bool identityStored = false;
 
@@ -74,7 +74,7 @@ class _FakeMnemonicService implements MnemonicService {
   String? confirmedPhrase;
   int recoverCalls = 0;
 
-  /// When set, [recoverFromMnemonic] throws it — simulates a recovery
+  /// When set, [recoverFromMnemonic] throws it - simulates a recovery
   /// failure (e.g. post-write verification StateError).
   Object? recoverError;
 
@@ -268,7 +268,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       // Storage still holds an identity even though the provider
-      // serves null — recovery must confirm before overwriting it.
+      // serves null - recovery must confirm before overwriting it.
       final fakeIdentity = _FakeIdentityService(currentIdentity: null)
         ..identityStored = true;
       final fakeMnemonic = _FakeMnemonicService();

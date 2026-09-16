@@ -165,14 +165,14 @@ class CashuMintClient {
   /// (round-5 red finding) Every mint leg is gated exactly like the
   /// LNURL legs (`LnurlService._gatedGet`): the mint URL is
   /// caller-supplied remote configuration, and the melt paths POST
-  /// bearer Cashu proofs to it — an unchecked URL is SSRF plus
+  /// bearer Cashu proofs to it - an unchecked URL is SSRF plus
   /// cleartext token exfiltration.
   ///
   /// The request URL passes [UrlSafety.requirePublicFetchUri] BEFORE a
   /// single byte is requested (https only, http for .onion; every
   /// inet_aton/IPv6-literal spelling parsed; DNS answers checked). The
-  /// transport NEVER follows redirects internally — `followRedirects`
-  /// is pinned off — and each redirect hop a GET follows is re-gated.
+  /// transport NEVER follows redirects internally - `followRedirects`
+  /// is pinned off - and each redirect hop a GET follows is re-gated.
   /// A redirect on a proof-bearing POST is refused outright: re-issuing
   /// the request against an unvetted target would hand the tokens to a
   /// host the caller never named.

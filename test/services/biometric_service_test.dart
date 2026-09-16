@@ -214,7 +214,7 @@ void main() {
       test('secure-mode-off bypass does NOT record attestation', () async {
         final service = getService();
         await service.setSecureMode(false);
-        // Device supports biometrics but secure mode is off — the
+        // Device supports biometrics but secure mode is off - the
         // early allow is not a human-verification event.
         expect(await service.authenticate(), isTrue);
         expect(service.lastAuthenticatedAt, isNull);

@@ -63,7 +63,7 @@ void main() {
       final r = buildReceipt(amount: 5.0);
       final body = r.unsignedBody();
 
-      // Scheme version pins the canonicalization contract — and it is the
+      // Scheme version pins the canonicalization contract - and it is the
       // receipt's OWN v, not just the build constant (ALX-012).
       expect(body['v'], equals(WorkReceipt.wireVersion));
       expect(body['v'], equals(3));
@@ -258,7 +258,7 @@ void main() {
       expect(r.spent, isFalse);
       final spent = r.markSpent();
       expect(spent.spent, isTrue);
-      // spent is bookkeeping outside the canonical body — the id and the
+      // spent is bookkeeping outside the canonical body - the id and the
       // signed payload are unchanged.
       expect(spent.receiptId, equals(r.receiptId));
       expect(spent.canonicalJson(), equals(r.canonicalJson()));
@@ -302,7 +302,7 @@ void main() {
       expect(restored.verifierSig, equals(r.verifierSig));
 
       // Parse tolerance: a row predating the v column hydrates as the
-      // legacy scheme — representable, and still verifiable under the
+      // legacy scheme - representable, and still verifiable under the
       // bare-canonical domain.
       final legacyMap = Map<String, dynamic>.from(map)..remove('v');
       expect(WorkReceipt.fromDbMap(legacyMap).v, equals(1));
@@ -313,11 +313,11 @@ void main() {
     });
 
     test('samePubkey: two-tier canonical identity compare', () {
-      // Tier 1 — exact match after trimming (never case-folded).
+      // Tier 1 - exact match after trimming (never case-folded).
       expect(WorkReceipt.samePubkey('abc123', 'abc123'), isTrue);
       expect(WorkReceipt.samePubkey('  abc123  ', 'abc123'), isTrue);
 
-      // Tier 2 — hex case variants and interior space padding decode to
+      // Tier 2 - hex case variants and interior space padding decode to
       // identical key bytes (the strict decoder accepts both spellings).
       expect(WorkReceipt.samePubkey('AB12cd', 'ab12cd'), isTrue);
       expect(WorkReceipt.samePubkey('ab12 cd34', 'ab12cd34'), isTrue);
@@ -328,8 +328,8 @@ void main() {
       expect(WorkReceipt.samePubkey('zzZZ', 'ZZzz'), isFalse);
       expect(WorkReceipt.samePubkey('peer_AB', 'peer_ab'), isFalse);
 
-      // Non-hex respellings the old int.parse decoder accepted — '+',
-      // tab, NBSP, trailing newline — satisfy NEITHER tier.
+      // Non-hex respellings the old int.parse decoder accepted - '+',
+      // tab, NBSP, trailing newline - satisfy NEITHER tier.
       expect(WorkReceipt.samePubkey('+5ab', '05ab'), isFalse);
       expect(WorkReceipt.samePubkey('\t5ab', '05ab'), isFalse);
       expect(WorkReceipt.samePubkey('\u{A0}5ab', '05ab'), isFalse);

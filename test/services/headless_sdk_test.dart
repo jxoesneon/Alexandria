@@ -154,7 +154,7 @@ void main() {
       expect(verifyRes['result']['cid'], cid);
       expect(verifyRes['result']['isHealthy'], isFalse);
       // Honest provider accounting (round-2 fix): only the local node
-      // itself is reported — providers are no longer fabricated.
+      // itself is reported - providers are no longer fabricated.
       expect(verifyRes['result']['providerCount'], 1);
     });
 
@@ -200,7 +200,7 @@ void main() {
           () async {
         await sdk.startDaemon();
         final token = sdk.rpcAuthToken!;
-        // Flip the final character — a short-circuiting == would have
+        // Flip the final character - a short-circuiting == would have
         // differed only in timing; the gate must simply reject.
         final last = token[token.length - 1];
         final wrong =
@@ -246,7 +246,7 @@ void main() {
           'id': 12,
         }));
         // Authorized (passes the gate); pin fails honestly on missing
-        // content but the auth gate is what we are probing — the call
+        // content but the auth gate is what we are probing - the call
         // must reach dispatch rather than return 'unauthorized'.
         expect(
           ok['error']?['message'] ?? '',

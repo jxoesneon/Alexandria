@@ -1,15 +1,15 @@
-// RED TEAM PoC — LedgerService.importFromJson verifies ONLY the
+// RED TEAM PoC - LedgerService.importFromJson verifies ONLY the
 // previous-hash LINKAGE of imported entries; it never verifies the
 // Ed25519 `signature` field each entry carries
-// (lib/services/ledger_service.dart:277-299). A hand-crafted chain —
+// (lib/services/ledger_service.dart:277-299). A hand-crafted chain -
 // hashes are recomputable by anyone (computeHash is deterministic
-// sha256 over public fields) — imports cleanly and inflates
+// sha256 over public fields) - imports cleanly and inflates
 // totalReputation, which gates GovernanceService.canVote
 // (minReputationToVote=10) and scales every vote's weight.
 //
 // Companion gap: ReputationWeights.dailyLimits exist but recordAction
 // never consults them (isWithinDailyLimit is dead code at the write
-// path — nothing calls it before appending). Reputation accrual is
+// path - nothing calls it before appending). Reputation accrual is
 // unbounded in both time and quantity.
 //
 // Asserts the SECURE expectation: imported ledger entries that cannot
@@ -57,7 +57,7 @@ void main() {
     )));
 
     // Build a self-consistent 100-entry chain of validateHash actions
-    // (2.0 rep each). The chain hashes link correctly — the signatures
+    // (2.0 rep each). The chain hashes link correctly - the signatures
     // are all zeros and no public key is ever consulted.
     final entries = <Map<String, dynamic>>[];
     var prev = LedgerService.genesisHash;

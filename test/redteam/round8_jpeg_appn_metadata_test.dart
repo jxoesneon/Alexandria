@@ -1,8 +1,8 @@
-// RED TEAM PoC — Round-8: the round-7 fix added 'iCCP' to the PNG
+// RED TEAM PoC - Round-8: the round-7 fix added 'iCCP' to the PNG
 // strip set because ICC profiles embed 'desc'/'cprt' author/copyright
 // strings readable by exiftool-class extractors. The IDENTICAL carrier
-// in JPEG — APP2 (0xE2) segments signed "ICC_PROFILE\0" (chunked per
-// ICC.1: seq + count bytes after the signature) — is NOT in
+// in JPEG - APP2 (0xE2) segments signed "ICC_PROFILE\0" (chunked per
+// ICC.1: seq + count bytes after the signature) - is NOT in
 // _jpegStrippedMarkers:
 //
 //   lib/services/metadata_scrubbing_service.dart:335
@@ -12,7 +12,7 @@
 // ICC profile ships its 'desc'/'cprt' strings through every scrub.
 // Worse, the exif reader does not parse ICC at all, so
 // detectSensitiveFields() returns [] and the UI shows the user
-// "No sensitive fields detected — already clean" while the file
+// "No sensitive fields detected - already clean" while the file
 // carries identifying text; bytesChanged is false so the ORIGINAL
 // bytes ship (complete fail-open for this carrier class).
 //
@@ -20,7 +20,7 @@
 // Web" copyright/comment blocks) and APP3 (0xE3) 'Meta'/'Exif'
 // variants also pass through verbatim. The fail-closed fix is to drop
 // every APPn not required for decode (keep APP0 JFIF and APP14 Adobe),
-// or at minimum add 0xE2/0xEC/0xE3 to the strip set — matching the
+// or at minimum add 0xE2/0xEC/0xE3 to the strip set - matching the
 // privacy posture already taken for PNG ancillary chunks.
 //
 // Asserts the SECURE expectation: no 'ICC_PROFILE' signature, 'cprt'
@@ -74,7 +74,7 @@ void main() {
     final jpeg = Uint8List.fromList([
       0xFF, 0xD8, // SOI
       ..._jfif,
-      ..._seg(0xE2, icc), // APP2 — ICC profile, not stripped today
+      ..._seg(0xE2, icc), // APP2 - ICC profile, not stripped today
       0xFF, 0xD9, // EOI
     ]);
 
@@ -97,7 +97,7 @@ void main() {
       'an APP2 ICC behind a corrupt segment still survives via the '
       'round-6 resync path', () async {
     // The resync walker DROPS corrupt regions but then re-parses the
-    // next marker — APP2 arrives cleanly at a segment boundary and is
+    // next marker - APP2 arrives cleanly at a segment boundary and is
     // emitted verbatim. Fail-closed resync is not enough while 0xE2 is
     // absent from the strip set.
     final icc = [

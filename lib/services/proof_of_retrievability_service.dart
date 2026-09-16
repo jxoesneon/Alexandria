@@ -84,7 +84,7 @@ class PoRVerificationResult {
 /// verifier-signed [WorkReceipt]. The receipt's value is claimed locally
 /// ONLY when the local node is the prover of record (legacy self-checks
 /// always prove local bytes); a receipt naming a foreign prover is
-/// persisted UNSPENT as that prover's claim instrument — minting it
+/// persisted UNSPENT as that prover's claim instrument - minting it
 /// locally would pay the verifier for someone else's work.
 ///
 /// Local mints are always unattested (1.0x rarity): attestation requires a
@@ -94,7 +94,7 @@ class ProofOfRetrievabilityService {
   final Ref _ref;
   final Map<String, PoRChallenge> _pendingChallenges = {};
 
-  /// Injectable clock — production uses [DateTime.now]; tests supply a
+  /// Injectable clock - production uses [DateTime.now]; tests supply a
   /// controllable source so challenge-expiry purging is deterministic.
   final DateTime Function() _now;
 
@@ -111,7 +111,7 @@ class ProofOfRetrievabilityService {
   ProofOfRetrievabilityService(this._ref, {DateTime Function()? now})
       : _now = now ?? DateTime.now;
 
-  /// Legacy challenge factory — signature preserved for callers that
+  /// Legacy challenge factory - signature preserved for callers that
   /// predate verifier identity (UI integrity self-checks, security
   /// overview). Delegates to [issueChallenge] with no challenger key.
   PoRChallenge createChallenge({
@@ -145,8 +145,8 @@ class ProofOfRetrievabilityService {
     );
 
     // Bound the map before inserting (REV4 review / Safety 5): purge
-    // expired entries first — they are dead weight and cheaper to drop
-    // than a live challenge — then, if still at capacity, evict the
+    // expired entries first - they are dead weight and cheaper to drop
+    // than a live challenge - then, if still at capacity, evict the
     // OLDEST entry (the map is insertion-ordered, so the first key is
     // the oldest).
     final now = _now();
@@ -159,7 +159,7 @@ class ProofOfRetrievabilityService {
     return challenge;
   }
 
-  /// Number of retained pending challenges — exposed for tests
+  /// Number of retained pending challenges - exposed for tests
   /// exercising the [_maxPendingChallenges] bound.
   @visibleForTesting
   int get pendingChallengeCount => _pendingChallenges.length;
@@ -191,7 +191,7 @@ class ProofOfRetrievabilityService {
 
   /// Synchronous verification entry point (legacy callers: integrity
   /// self-check, security overview). The tag check, honor record and the
-  /// local 1.0x storage award all run inline — callers observe the new
+  /// local 1.0x storage award all run inline - callers observe the new
   /// balance when this returns `true`. Receipt signing and persistence
   /// finish asynchronously; the issued receipt is retrievable from the
   /// database or via [verifyAndIssueReceipt].
@@ -207,7 +207,7 @@ class ProofOfRetrievabilityService {
 
     // Legacy callers supply no prover pubkey and always prove locally-held
     // bytes, so the local node is the prover of record: mint the self-check
-    // award synchronously. The mint is ALWAYS unattested (1.0x) — a
+    // award synchronously. The mint is ALWAYS unattested (1.0x) - a
     // locally-signed receipt naming a foreign peer id can never carry
     // attestation weight for a local claim. The receipt artifact (which
     // records the claim as spent) is built and persisted asynchronously.
@@ -229,12 +229,12 @@ class ProofOfRetrievabilityService {
   /// recorded verifier key, and persists it via `insertWorkReceipt`.
   ///
   /// The receipt's value is claimed through the credit ledger ONLY when
-  /// the local node is the prover of record ([proverPubkey] absent — the
-  /// proof ran over local bytes — or equal to the node identity key). A
+  /// the local node is the prover of record ([proverPubkey] absent - the
+  /// proof ran over local bytes - or equal to the node identity key). A
   /// receipt naming a foreign prover is persisted UNSPENT: it is the
   /// prover's claim instrument and mints nothing here.
   ///
-  /// Returns [PoRVerificationResult] carrying the issued receipt — the
+  /// Returns [PoRVerificationResult] carrying the issued receipt - the
   /// artifact a forked client cannot forge for a foreign verifier.
   Future<PoRVerificationResult> verifyAndIssueReceipt({
     required PoRProof proof,
@@ -290,7 +290,7 @@ class ProofOfRetrievabilityService {
   }
 
   /// Synchronous local storage-reward mint for proofs over locally-held
-  /// bytes. Always unattested (1.0x rarity) — a locally-verified,
+  /// bytes. Always unattested (1.0x rarity) - a locally-verified,
   /// locally-signed proof can never carry foreign attestation weight.
   void _mintLocalStorageReward(PoRChallenge challenge, int sizeBytes) {
     try {
@@ -305,9 +305,9 @@ class ProofOfRetrievabilityService {
     }
   }
 
-  /// Builds, optionally signs, persists and — only when the local node is
-  /// the prover of record — claims the work receipt for a verified proof.
-  /// Never throws — a persistence or signing failure must not invalidate
+  /// Builds, optionally signs, persists and - only when the local node is
+  /// the prover of record - claims the work receipt for a verified proof.
+  /// Never throws - a persistence or signing failure must not invalidate
   /// an honestly verified proof.
   ///
   /// [localMintSettled] marks the synchronous [verifyProof] path, which
@@ -328,13 +328,13 @@ class ProofOfRetrievabilityService {
       identity = await _ref.read(identityServiceProvider).getIdentity();
       if (identity != null) localPubkeyHex = bytesToHex(identity.publicKey);
     } catch (_) {
-      // No secure storage in tests/headless runs — receipts stay unsigned.
+      // No secure storage in tests/headless runs - receipts stay unsigned.
     }
 
     final effectiveProver = proverPubkey ?? proverPeerId;
     final verifierPubkey = challenge.challengerPubkey ?? localPubkeyHex ?? '';
 
-    // The receipt asserts exactly the work that was proven — the verified
+    // The receipt asserts exactly the work that was proven - the verified
     // chunk bytes alone, never an extrapolation over sibling chunks.
     final sizeBytes = expectedChunkData.length;
     const peerCount = 2;
@@ -342,22 +342,22 @@ class ProofOfRetrievabilityService {
     // The local node may claim this receipt's value only when it IS the
     // prover of record: legacy callers supply no prover key (the proof is
     // always computed over local bytes), or the supplied key IS the node
-    // identity key — compared CANONICALLY via WorkReceipt.samePubkey, so
+    // identity key - compared CANONICALLY via WorkReceipt.samePubkey, so
     // a case-variant or space-padded prover_pubkey spelling the local key
     // (reachable via the MCP tool) still mints the local reward rather
     // than stranding it as an unclaimable foreign-prover instrument. A
     // receipt naming a foreign prover is persisted UNSPENT as that
-    // prover's claim instrument — minting it locally would pay the
+    // prover's claim instrument - minting it locally would pay the
     // verifier for someone else's work and burn the artifact.
     final localIsProver = proverPubkey == null ||
         (localPubkeyHex != null &&
             WorkReceipt.samePubkey(effectiveProver, localPubkeyHex));
 
-    // Sign the canonical body — but only ever AS the recorded verifier
+    // Sign the canonical body - but only ever AS the recorded verifier
     // key; signing under a different key would mint an unverifiable
     // artifact. The compare is canonical for the same reason: a
     // case-variant challengerPubkey spelling the local identity is still
-    // signable — string equality would silently strand the receipt
+    // signable - string equality would silently strand the receipt
     // unsigned.
     final issuedAt = DateTime.now();
     var receipt = _draftReceipt(
@@ -382,14 +382,14 @@ class ProofOfRetrievabilityService {
             .sign(receipt.signingPayload);
         receipt = receipt.withVerifierSig(base64Encode(sigBytes));
       } catch (_) {
-        // Signing failed — the receipt stays unsigned and unattested.
+        // Signing failed - the receipt stays unsigned and unattested.
       }
     }
 
     // Attestation weight requires a signature by a verifier FOREIGN to the
     // claiming node (`isVerifierSigned && verifier != local && !selfIssued`).
     // This path can only ever sign as the local key, so a locally-signed
-    // receipt can NEVER carry attestation weight for a local mint — the
+    // receipt can NEVER carry attestation weight for a local mint - the
     // local claim below always lands at the flat 1.0x rarity weight, and
     // the rarity flag itself is sealed: `awardStorageCredits` no longer
     // accepts a caller-supplied attestation (see CreditService).
@@ -422,7 +422,7 @@ class ProofOfRetrievabilityService {
       claimed = true;
     }
 
-    // A locally-claimed receipt is spent — it must never be replayed
+    // A locally-claimed receipt is spent - it must never be replayed
     // through the claim seam. A foreign-prover receipt stays UNSPENT: the
     // value belongs to whoever holds the prover key.
     if (claimed) {
@@ -431,17 +431,17 @@ class ProofOfRetrievabilityService {
         try {
           // Atomic requirement, now implemented: the receipt already
           // exists, so route through the conditional UPDATE WHERE
-          // receipt_id=? AND spent=0 checked by rows-affected — a single
+          // receipt_id=? AND spent=0 checked by rows-affected - a single
           // atomic op. Losing the CAS (false) means another claim landed
           // first; the artifact then stays reported as spent either way.
           spentPersisted = await db.claimReceiptAtomically(receipt.receiptId) ||
-              // A concurrent claim may have already consumed it —
+              // A concurrent claim may have already consumed it -
               // the row IS spent in that case, so report spent.
               (await db.getWorkReceipt(receipt.receiptId))?['spent'] == true;
         } catch (_) {}
       }
       // Report the state actually persisted (or the consumption itself
-      // when nothing was persisted) — not the pre-claim draft.
+      // when nothing was persisted) - not the pre-claim draft.
       if (spentPersisted) receipt = receipt.markSpent();
     }
 
@@ -459,11 +459,11 @@ class ProofOfRetrievabilityService {
     required DateTime issuedAt,
   }) {
     // The storage-reward value this receipt mints through the capped path
-    // — recorded on the receipt so a forked client's inflated
+    // - recorded on the receipt so a forked client's inflated
     // self-declaration is worthless. Locally-issued receipts are always
     // drafted at unattested (1.0x) rarity weight: attested rarity can only
     // be baked into a receipt by a FOREIGN verifier, never self-declared,
-    // and the attestation flag is sealed to tests — production callers
+    // and the attestation flag is sealed to tests - production callers
     // cannot pass it (see CreditService.rarityWeightFor).
     final rarityWeight = CreditService.rarityWeightFor(peerCount);
     final mbSize = sizeBytes / (1024 * 1024);

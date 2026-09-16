@@ -1,9 +1,9 @@
-// RED TEAM PoC — MeshTransportService.connectToPeer marks ANY
+// RED TEAM PoC - MeshTransportService.connectToPeer marks ANY
 // "/p2p/<id>" address reachable without a network exchange or
 // cryptographic proof.
 //
 // lib/services/mesh_transport_service.dart:210-243 performs the
-// "handshake" by calling _attemptSend on an EMPTY payload — and
+// "handshake" by calling _attemptSend on an EMPTY payload - and
 // _attemptSend (193-203) only checks local map state plus an enabled
 // transport tier. There is no socket, no ping, no peer-signature
 // verification. A Sybil can therefore:
@@ -20,11 +20,11 @@ import 'package:alexandria/services/mesh_transport_service.dart';
 
 void main() {
   test('unverifiable address must not become a reachable peer', () async {
-    final mesh = MeshTransportService(); // no bootstrap — empty swarm
+    final mesh = MeshTransportService(); // no bootstrap - empty swarm
     addTearDown(mesh.dispose);
 
     // Attacker-controlled garbage multiaddr. Nothing is listening at
-    // 192.0.2.1 (TEST-NET-1) — no real handshake could ever succeed.
+    // 192.0.2.1 (TEST-NET-1) - no real handshake could ever succeed.
     final ok = await mesh
         .connectToPeer('/ip4/192.0.2.1/tcp/9/p2p/QmPhantomSybilPeer0001');
 
@@ -64,7 +64,7 @@ void main() {
     addTearDown(mesh.dispose);
 
     // Bootstrap peers are pending; connectToPeer on one of them must
-    // not succeed without an actual endpoint — the stub _attemptSend
+    // not succeed without an actual endpoint - the stub _attemptSend
     // always returns true when a tier is enabled.
     final ok = await mesh.connectToPeer(
         '/dns4/node1.alexandria.network/tcp/4001/p2p/QmBootstrapNode1AlexandriaAlpha');

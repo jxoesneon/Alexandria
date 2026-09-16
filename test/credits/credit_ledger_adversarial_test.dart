@@ -1,7 +1,7 @@
 // Adversarial regression proofs for the persistent credit ledger (ALX-010).
 // Locks down every E-T2 exploit class: pre-hydration cap bypass, phantom
 // genesis spend, concurrent genesis double-grant, hydration-failure
-// divergence — plus NET-attested accounting (_attestedBalance /
+// divergence - plus NET-attested accounting (_attestedBalance /
 // _burnForDebit / replay in _rebuildBalance).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/data/database.dart' hide CreditTransaction;
@@ -53,7 +53,7 @@ void main() {
     await db.upsertDailyMinted(_dayKey(), 'storageReward', 150.0);
 
     final svc = CreditService(db: db, initialBalance: 0.0);
-    // Fire BEFORE awaiting ready — must mint nothing.
+    // Fire BEFORE awaiting ready - must mint nothing.
     final pre = svc.awardStorageCredits(
       sizeBytes: 500 * 1024 * 1024,
       peerCount: 8,

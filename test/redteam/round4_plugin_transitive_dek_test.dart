@@ -1,6 +1,6 @@
-// RED TEAM PoC — Round-4: the round-3 plugin facade restricts
+// RED TEAM PoC - Round-4: the round-3 plugin facade restricts
 // PluginContext.read to an allowlist containing only
-// contentRepositoryProvider — but the provider VALUE is the whole
+// contentRepositoryProvider - but the provider VALUE is the whole
 // ContentRepository, whose public surface reaches sensitive resources
 // transitively:
 //
@@ -9,7 +9,7 @@
 //         _storage.read('dek_$manifestUuid');
 //
 // A plugin declaring ONLY `contentRead` ("Can read content manifests")
-// receives the real ContentRepository and calls contentDekBase64 —
+// receives the real ContentRepository and calls contentDekBase64 -
 // pulling arbitrary content DEKs out of the keychain store that the
 // facade claims is NEVER on the allowlist ("Secure storage ... are NEVER
 // on this list"). The facade gates the provider NAME, not the
@@ -17,7 +17,7 @@
 // same key material flows through the allowlisted object.
 //
 // Asserts the SECURE expectation: a contentRead-scoped plugin must not
-// obtain content key material — the allowlisted capability needs a
+// obtain content key material - the allowlisted capability needs a
 // narrowed view (facade object exposing manifest reads only), not the
 // full repository.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,7 +49,7 @@ void main() {
     ]);
     addTearDown(container.dispose);
 
-    // Exactly what registerPlugin issues — declared permission:
+    // Exactly what registerPlugin issues - declared permission:
     // contentRead only.
     final ctx = PluginContext(
       container: container,
@@ -88,7 +88,7 @@ void main() {
 
     final denied = ctx.read(secureStorageServiceProvider);
     expect(denied, isNot(isA<SecureStorageService>()));
-    // noSuchMethod reads as absent — no key material leaks.
+    // noSuchMethod reads as absent - no key material leaks.
     expect(await denied.read('dek_victim-doc'), isNull);
   });
 }

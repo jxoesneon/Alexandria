@@ -1,11 +1,11 @@
-// RED TEAM PoC — IndexedDbBlockStore.putBlock stores a block LARGER
+// RED TEAM PoC - IndexedDbBlockStore.putBlock stores a block LARGER
 // than the configured capacity.
 //
 // lib/services/web_node_service.dart:19-29 evicts in a `while` loop
 // until the store is EMPTY, then stores the incoming block
 // unconditionally. A single oversized block therefore evicts the
 // entire shard cache AND lands anyway, leaving
-// currentUsage > maxCapacityBytes — on a browser web-node this is a
+// currentUsage > maxCapacityBytes - on a browser web-node this is a
 // remote-triggerable IndexedDB quota exhaustion: every peer that can
 // push a block can blow past the node's declared storage budget and
 // wipe all previously held blocks (availability + resource attack).

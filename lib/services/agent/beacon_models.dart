@@ -9,7 +9,7 @@ String bytesToHex(List<int> bytes) =>
 /// Parses a hex string to bytes.
 ///
 /// STRICT parser (ALX-012): after ASCII-space stripping, only
-/// `[0-9a-fA-F]` pairs are accepted — `int.parse`'s tolerance for
+/// `[0-9a-fA-F]` pairs are accepted - `int.parse`'s tolerance for
 /// `+` signs, tabs, NBSP and other respellings would let two distinct
 /// spellings of one key decode to identical bytes, which a canonical
 /// key guard (e.g. `WorkReceipt.samePubkey`) cannot see. The decoder's
@@ -328,7 +328,7 @@ class PreservationBounty {
   /// Returns a copy of this bounty, optionally overriding [isClaimed].
   ///
   /// `MoltbookService.activeBounties` hands out copies built this way so
-  /// no caller can reach the stored record's mutable claim flag —
+  /// no caller can reach the stored record's mutable claim flag -
   /// flipping `isClaimed` on a returned object used to reopen a claimed
   /// bounty for a second escrow payout (REV3 review Safety veto fix).
   PreservationBounty copyWith({bool? isClaimed}) {

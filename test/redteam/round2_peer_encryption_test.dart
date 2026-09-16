@@ -1,8 +1,8 @@
-// RED TEAM PoC — EncryptionService.encryptForPeer derives its AES-GCM
-// key as sha256(utf8.encode(peerPublicKey)) — a PUBLIC value.
+// RED TEAM PoC - EncryptionService.encryptForPeer derives its AES-GCM
+// key as sha256(utf8.encode(peerPublicKey)) - a PUBLIC value.
 //
 // lib/services/encryption_service.dart:42-47: the "peer key" is a hash
-// of a public-key STRING. A public key is, by definition, public —
+// of a public-key STRING. A public key is, by definition, public -
 // every node in the swarm can derive the identical key and decrypt.
 // There is no ECDH, no ephemeral key, no recipient private-key
 // involvement: this is obfuscation, not peer-to-peer confidentiality.
@@ -30,7 +30,7 @@ void main() {
     final ciphertext = await enc.encryptForPeer(secret, peerPublicKey);
 
     // Eavesdropper: knows ONLY the public key string (broadcast on the
-    // mesh) — derives the same key and decrypts. No private key, no
+    // mesh) - derives the same key and decrypts. No private key, no
     // handshake, no service internals.
     final eavesKey = await enc
         .keyFromBytes(sha256.convert(utf8.encode(peerPublicKey)).bytes);

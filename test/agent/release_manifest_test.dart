@@ -235,7 +235,7 @@ void main() {
               .ingest(SignedManifestBundle(manifest: wrongRole, timestamp: ts)),
           ManifestIngestResult.insufficientReleaseSignatures);
 
-      // Timestamp slot: a RELEASE key signs the freshness record —
+      // Timestamp slot: a RELEASE key signs the freshness record -
       // release keys carry zero timestamp weight.
       final m2 = await ReleaseManifest.issue(
           minWireVersion: 2,

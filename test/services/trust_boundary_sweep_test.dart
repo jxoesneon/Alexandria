@@ -85,7 +85,7 @@ void main() {
 
     test('preserveInBrowser throws when the store refuses the block', () async {
       // A block larger than the store capacity is refused by putBlock
-      // — the service must not hand back a CID for content it never
+      // - the service must not hand back a CID for content it never
       // stored.
       final oversized = Uint8List(1024);
       await expectLater(webNode.preserveInBrowser(oversized), throwsStateError);
@@ -149,7 +149,7 @@ void main() {
         'an unencodable op is refused at enqueue, not wedged in the '
         'queue', () async {
       await sync.init();
-      // jsonEncode throws on non-encodable values — this op is poison
+      // jsonEncode throws on non-encodable values - this op is poison
       // for both the persistence and publish paths, so it must be
       // refused up front.
       await expectLater(
@@ -181,7 +181,7 @@ void main() {
       addTearDown(sync2.dispose);
       await sync2.init();
 
-      // publishToPubsub throws for every op — queueOperation must not
+      // publishToPubsub throws for every op - queueOperation must not
       // propagate, and the op must age out at the retry bound.
       await sync2.queueOperation(
         collectionId: 'col',

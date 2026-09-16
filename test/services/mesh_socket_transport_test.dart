@@ -31,7 +31,7 @@ Future<({String peerId, Future<Uint8List> Function(Uint8List) signer})>
   );
 }
 
-/// Polls [check] until it holds or the timeout expires — socket
+/// Polls [check] until it holds or the timeout expires - socket
 /// teardown is delivered asynchronously through the pump.
 Future<void> _eventually(bool Function() check,
     {Duration timeout = const Duration(seconds: 5)}) async {
@@ -65,7 +65,7 @@ void main() {
           '/ip4/127.0.0.1/tcp/${server.port}/p2p/${responder.peerId}';
       expect(await dialer.connectToPeer(multiaddr), isTrue);
 
-      // Stand up the responder-side service on the SAME ticket — its
+      // Stand up the responder-side service on the SAME ticket - its
       // socket + broadcast stream attach a symmetric pump.
       final responderSvc = MeshTransportService(
         sessionProbe: (_) async => responderTicket,
@@ -114,9 +114,9 @@ void main() {
       dialer.onPayloadReceived.listen(inbox.add);
 
       // Feed a MAC-invalid frame directly onto the responder's socket
-      // — the wire path must parse the prefix, verify, and drop.
+      // - the wire path must parse the prefix, verify, and drop.
       final key = MeshTransportService.deriveSessionKey(responderTicket!);
-      // Direction 1 = responder→dialer — what the dialer's channel
+      // Direction 1 = responder→dialer - what the dialer's channel
       // expects inbound.
       final badFrame = MeshTransportService.encodeFrame(
           key, 0, Uint8List.fromList([1, 2, 3]), 1)
@@ -130,7 +130,7 @@ void main() {
           .toBytes());
       await sock.flush();
 
-      // A VALID frame behind it still parses — the tampered one is
+      // A VALID frame behind it still parses - the tampered one is
       // dropped by receiveFrame, not the stream.
       final goodFrame = MeshTransportService.encodeFrame(
           key, 1, Uint8List.fromList([9, 9, 9]), 1);
@@ -206,7 +206,7 @@ void main() {
           dialer.peers.firstWhere((p) => p.peerId == responder.peerId).address,
           equals(addrB));
 
-      // Kill the stale A link — the peer's record points at B and the
+      // Kill the stale A link - the peer's record points at B and the
       // installed channel is B's, so nothing may demote.
       ticketA!.socket!.destroy();
       await serverA.close();
@@ -220,7 +220,7 @@ void main() {
               'address');
       expect(dialer.hasChannelBinding(responder.peerId), isTrue);
 
-      // Now kill the CURRENT (B) link — that one demotes.
+      // Now kill the CURRENT (B) link - that one demotes.
       ticketB!.socket!.destroy();
       await _eventually(() => !dialer.peers
           .firstWhere((p) => p.peerId == responder.peerId)
@@ -248,7 +248,7 @@ void main() {
       expect(await dialer.connectToPeer(multiaddr), isTrue);
 
       final sock = responderTicket!.socket!;
-      // Declare a 0xFFFFFFFF frame — the pump must refuse to buffer.
+      // Declare a 0xFFFFFFFF frame - the pump must refuse to buffer.
       sock.add(Uint8List.fromList([0xff, 0xff, 0xff, 0xff, 0x00]));
       await sock.flush();
 

@@ -151,7 +151,7 @@ void main() {
       expect(svc.isRemotelyClaimed('bounty_x'), isFalse);
 
       // Event signed by claimant but the ENVELOPE signed by a different
-      // key — the transport binding refuses it (relayer laundering).
+      // key - the transport binding refuses it (relayer laundering).
       final relayer = await _newKey();
       final relayerEnv = await event.toEnvelope(relayer);
       expect(await svc.ingestBountyClaimEnvelope(relayerEnv), isFalse);
@@ -195,7 +195,7 @@ void main() {
       final recorded = svcA.remoteClaimFor(posted.id);
       expect(recorded, isNotNull);
       expect(recorded!.claimantAgentId, await _agentId(claimant));
-      // The stored record is now claimed — the listing stops offering
+      // The stored record is now claimed - the listing stops offering
       // it and cancelBounty refuses to free the spoken-for escrow.
       expect(svcA.activeBounties.any((b) => b.id == posted.id), isFalse);
       expect(await svcA.cancelBounty(posted.id), isFalse);
@@ -250,7 +250,7 @@ void main() {
       addTearDown(svcB.dispose);
       await svcB.setKeyPair(await _newKey());
 
-      // 1. Poster announces — the signed envelope flows over the
+      // 1. Poster announces - the signed envelope flows over the
       //    transport and lands attributed (unfunded: the post carries
       //    no attestation).
       final posted = await svcA.postPreservationBounty(

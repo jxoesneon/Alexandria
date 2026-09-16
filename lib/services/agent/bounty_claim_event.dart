@@ -18,7 +18,7 @@ import 'escrow_attestation.dart';
 /// the verification and attribution layer is fully exercised regardless
 /// of which transport is bound.
 ///
-/// TRANSPORT CONTRACT: implementations carry opaque [BeaconEnvelope]s —
+/// TRANSPORT CONTRACT: implementations carry opaque [BeaconEnvelope]s -
 /// they must never pre-validate, pre-fulfill, or mutate payloads. All
 /// trust decisions happen inside the ingest gates.
 abstract class BountyTransport {
@@ -29,13 +29,13 @@ abstract class BountyTransport {
   Stream<BeaconEnvelope> get envelopes;
 }
 
-/// In-process fan-out transport — a real [BountyTransport] useful for
+/// In-process fan-out transport - a real [BountyTransport] useful for
 /// tests, loopback dev harnesses, and pairing two service instances in
 /// one isolate. Delivery is synchronous broadcast to every *other*
 /// registered node; a node's own publications are not echoed back
 /// (matching remote-transport semantics, where echo suppression lives
 /// in the ingest layer's `_locallyPostedBountyIds` guard anyway).
-/// The bus itself is not a transport — [attach] returns the per-node
+/// The bus itself is not a transport - [attach] returns the per-node
 /// [BountyTransport] endpoint.
 class InMemoryBountyTransport {
   final _nodes = <int, _Node>{};
@@ -88,20 +88,20 @@ class _AttachedTransport implements BountyTransport {
 /// (ALX-006 / ALX-012 REV4 remote-claim seam).
 ///
 /// ONLY constructible via [BountyClaimEvent.verify] (signature-checked)
-/// or [BountyClaimEvent.issue] (locally signed) — no code path can mint
+/// or [BountyClaimEvent.issue] (locally signed) - no code path can mint
 /// an "event" that did not verify, same enforcement-by-construction rule
 /// as [EscrowAttestation].
 ///
 /// The signed preimage binds `bountyId`, `cid`, `claimedAt`,
 /// `claimNonce` and `claimantAgentId` under the domain
-/// `alexandria:bounty-claim:v2:` — domain separation keeps the event
+/// `alexandria:bounty-claim:v2:` - domain separation keeps the event
 /// non-replayable as an escrow attestation, a work receipt, or a Beacon
 /// envelope. The claimant's *agent id* is additionally bound to the
 /// signing key inside [verify] (derived `bcn_` id must match), so a
 /// claim event attributes an origin/claimant to a real key, never to a
 /// self-asserted string.
 ///
-/// REPLAY NOTE: replaying a claim event is idempotent — it re-asserts
+/// REPLAY NOTE: replaying a claim event is idempotent - it re-asserts
 /// the same signed fact about the same bounty. Settlement dedup lives
 /// in the durable `claimed_bounties` CAS and payout-row prefixes, so no
 /// freshness nonce is required until claim events trigger cross-ledger
@@ -114,13 +114,13 @@ class BountyClaimEvent {
   /// Hex-encoded Ed25519 pubkey of the claiming agent (the signing key).
   final String claimantPubkey;
 
-  /// `bcn_<first 12 pubkey hex>` derived id — proven inside [verify] to
+  /// `bcn_<first 12 pubkey hex>` derived id - proven inside [verify] to
   /// equal `deriveAgentId(claimantPubkey)`, so this is always an
   /// attributed identity, not a self-declared one.
   final String claimantAgentId;
 
   /// Bounty id as spelled in the signed preimage. Compare canonically
-  /// (`bountyIdsEquivalent` in bounty_id_canonicalization.dart) — the
+  /// (`bountyIdsEquivalent` in bounty_id_canonicalization.dart) - the
   /// stored record carries the NFD-normalized form.
   final String bountyId;
 
@@ -130,7 +130,7 @@ class BountyClaimEvent {
   /// Claim timestamp, epoch milliseconds (inside the signed preimage).
   final int claimedAt;
 
-  /// Random claim nonce (inside the signed preimage) — distinct events
+  /// Random claim nonce (inside the signed preimage) - distinct events
   /// for the same bounty get distinct signatures.
   final String claimNonce;
 
@@ -147,7 +147,7 @@ class BountyClaimEvent {
     required this.signature,
   });
 
-  /// The canonical signed statement — the exact byte preimage the
+  /// The canonical signed statement - the exact byte preimage the
   /// claimant signs and verifiers recompute. Canonical JSON (sorted
   /// keys) makes field boundaries structural; the
   /// `alexandria:bounty-claim:v2:` domain prefix prevents collisions
@@ -172,7 +172,7 @@ class BountyClaimEvent {
       );
 
   /// Constructs an event ONLY if the Ed25519 signature verifies AND the
-  /// declared [claimantAgentId] derives from [claimantPubkey] — the
+  /// declared [claimantAgentId] derives from [claimantPubkey] - the
   /// attribution binding. Returns null on any failure (malformed fields,
   /// bad signature, agent-id/pubkey mismatch, throwing [verifyFn]).
   /// [verifyFn] defaults to the same hex-Ed25519 oracle
@@ -197,7 +197,7 @@ class BountyClaimEvent {
         return null;
       }
       // Attribution binding: the claimed agent id must be the one
-      // derived from the signing key — otherwise the event names an
+      // derived from the signing key - otherwise the event names an
       // identity the signer cannot control (a bare self-assertion).
       final pkBytes = hexToBytes(claimantPubkey);
       if (pkBytes.length != 32) return null;
@@ -234,7 +234,7 @@ class BountyClaimEvent {
   }
 
   /// Parses and verifies a claim event out of a Beacon envelope payload.
-  /// Returns null for malformed payloads or failed verification —
+  /// Returns null for malformed payloads or failed verification -
   /// transports drop, never throw.
   static Future<BountyClaimEvent?> fromPayload(
     Map<String, dynamic> payload, {
@@ -307,7 +307,7 @@ class BountyClaimEvent {
       };
 
   /// Wraps this event in a signed Beacon v2 envelope of kind
-  /// [envelopeKind], signed by the same claimant [keyPair] — the
+  /// [envelopeKind], signed by the same claimant [keyPair] - the
   /// transport binding: `envelope.agentId == claimantAgentId` and
   /// `envelope.pubkey == claimantPubkey` are enforced by
   /// `MoltbookService.ingestBountyClaimEnvelope`.

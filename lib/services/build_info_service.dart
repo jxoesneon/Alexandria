@@ -10,7 +10,7 @@ final buildInfoServiceProvider = Provider<BuildInfo>((ref) {
 ///
 /// IMPORTANT (ALX-010 review decision): everything exposed by this class is
 /// *claimed* by the local client and carries ZERO trust weight. A forked or
-/// malicious client can claim any commit hash, digest, or channel — nothing
+/// malicious client can claim any commit hash, digest, or channel - nothing
 /// here is remotely verifiable. The ONLY enforceable trust invariant in
 /// Alexandria is peer-verified Ed25519 signatures over Beacon envelopes.
 ///
@@ -63,13 +63,13 @@ class BuildInfo {
 
   /// Claimed client semver, injected via `--dart-define=ALX_CLIENT_VERSION`
   /// (B3-lite review, ALX-012). Advisory only: identical zero-trust-weight
-  /// semantics to every other `claimed_*` value — a forked client can claim
+  /// semantics to every other `claimed_*` value - a forked client can claim
   /// any version string. Display and quarantine-heuristic use ONLY; it must
   /// never feed admission, rewards, or any gate.
   final String clientVersion;
 
   /// True only when a commit SHA was injected AND the artifact was compiled
-  /// in release mode. Still entirely self-declared — see class doc.
+  /// in release mode. Still entirely self-declared - see class doc.
   final bool isOfficialBuild;
 
   BuildInfo({
@@ -126,7 +126,7 @@ class BuildInfo {
   /// signed envelopes (REV3-D review, Safety-narrowed): exact commit
   /// SHA, artifact digest and build timestamp let a peer scan the swarm
   /// for known-vulnerable builds and correlate `bcn_*` agent ids with
-  /// developer commit activity — so only the low-entropy version,
+  /// developer commit activity - so only the low-entropy version,
   /// channel and protocol fields leave the node. The full map remains
   /// available for local display/diagnostics.
   Map<String, dynamic> get claimedBroadcastInfo => <String, dynamic>{

@@ -18,7 +18,7 @@ class EncryptionService {
   static const int peerEnvelopeVersion = 1;
 
   /// (round-6 red finding) Wire version for envelopes carrying several
-  /// AEAD boxes — one per plausible interpretation of an ambiguous peer
+  /// AEAD boxes - one per plausible interpretation of an ambiguous peer
   /// key (see [_resolvePeerAgreementKeyCandidates]). Layout:
   /// `version(1) ‖ ephemeralX25519Pub(32) ‖ boxCount(1) ‖ box × count`
   /// where every box is `nonce ‖ ciphertext ‖ tag` over the SAME
@@ -42,8 +42,8 @@ class EncryptionService {
     return Uint8List.fromList(secretBox.concatenation());
   }
 
-  /// Decrypts an [encryptData] SecretBox. Returns null — rather than
-  /// throwing — whenever the box is malformed or the MAC fails (wrong
+  /// Decrypts an [encryptData] SecretBox. Returns null - rather than
+  /// throwing - whenever the box is malformed or the MAC fails (wrong
   /// key, tampered ciphertext, or a ciphertext that was never a plain
   /// SecretBox, e.g. an [encryptForPeer] envelope probed with a
   /// public-derived key). Callers needing a hard failure should throw on
@@ -66,7 +66,7 @@ class EncryptionService {
   // Peer-addressed encryption (round-2 red finding)
   //
   // The previous implementation derived the AES key as
-  // sha256(utf8(peerPublicKey)) — a deterministic function of a PUBLIC
+  // sha256(utf8(peerPublicKey)) - a deterministic function of a PUBLIC
   // string, so every observer could decrypt. This is now real ECIES:
   // an ephemeral X25519 keypair agrees with the recipient's X25519
   // public key, the shared secret is HKDF-SHA256'd into an AES-256-GCM
@@ -82,16 +82,16 @@ class EncryptionService {
   /// the two spellings Alexandria uses:
   ///   * an Ed25519 identity public key (mapped to the birationally
   ///     equivalent X25519 Montgomery u-coordinate), or
-  ///   * a raw X25519 u-coordinate — the bytes returned by
+  ///   * a raw X25519 u-coordinate - the bytes returned by
   ///     [IdentityService.x25519PublicKeyBytes] (round-3 red finding:
   ///     the previous code mapped EVERY 32-byte input as Ed25519, so a
   ///     raw u-coordinate was double-mapped and never agreed with the
   ///     advertised private key).
   ///
-  /// (round-6 red finding) Key-type resolution is EXPLICIT — callers
+  /// (round-6 red finding) Key-type resolution is EXPLICIT - callers
   /// should prefix the encoded key with `ed25519:` or `x25519:` to pin
   /// the interpretation. An UNTAGGED 32-byte input that parses as a
-  /// canonical Ed25519 point is genuinely ambiguous — ~50% of real
+  /// canonical Ed25519 point is genuinely ambiguous - ~50% of real
   /// X25519 u-coordinates also parse as valid Edwards encodings, so
   /// guessing either way silently seals the envelope to a point whose
   /// private key nobody holds. For an ambiguous input this method
@@ -102,7 +102,7 @@ class EncryptionService {
   ///
   /// Undecodable or non-contributory identifiers are domain-separated-
   /// hashed into a u-coordinate: the resulting ciphertext is still
-  /// confidential — an eavesdropper cannot derive the shared secret —
+  /// confidential - an eavesdropper cannot derive the shared secret -
   /// but it is effectively sealed, since no private key is known to
   /// correspond to the mapped point. Callers should always pass the
   /// peer's real encoded key.
@@ -125,18 +125,18 @@ class EncryptionService {
       // (round-3 red finding) contributory-behaviour check: if a
       // low-order peer input slipped past the blocklist, X25519 yields
       // an all-zero secret that an eavesdropper can reproduce without
-      // any private key. A zero secret must never reach the AEAD layer —
+      // any private key. A zero secret must never reach the AEAD layer -
       // seal the payload to an unreachable key instead of throwing, so
       // a hostile peer key can never turn encryption into a public
       // broadcast.
       var sharedBytes = Uint8List.fromList(await shared.extractBytes());
       if (_isAllZero(sharedBytes)) {
         // (round-4 latent finding) the substitute secret must be keyed
-        // with the ephemeral PRIVATE material — the previous fallback
+        // with the ephemeral PRIVATE material - the previous fallback
         // hashed only public input (the peer key), so ANY observer could
         // recompute the "unreachable" key and decrypt the envelope.
-        // Ephemeral private bytes never leave this call, so no one —
-        // including the recipient — can recompute this seal.
+        // Ephemeral private bytes never leave this call, so no one -
+        // including the recipient - can recompute this seal.
         final ephemeralPrivate =
             Uint8List.fromList((await ephemeral.extract()).bytes);
         sharedBytes = Uint8List.fromList(crypto.sha256.convert([
@@ -164,7 +164,7 @@ class EncryptionService {
         ..add(ephemeralPubBytes)
         ..add(boxes.single);
     } else {
-      // (round-6 red finding) ambiguous peer key — one box per
+      // (round-6 red finding) ambiguous peer key - one box per
       // candidate agreement point so the recipient opens whichever
       // interpretation matches their advertised key.
       out
@@ -196,7 +196,7 @@ class EncryptionService {
     // boxes, one per candidate interpretation of an ambiguous peer key.
     // All boxes share the ephemeral key and the recipient's agreement
     // key, so exactly the box whose salt bound our real public key
-    // authenticates — the others are ignored.
+    // authenticates - the others are ignored.
     final version = envelope[0];
     List<Uint8List> boxes;
     if (version == peerEnvelopeVersion) {
@@ -225,7 +225,7 @@ class EncryptionService {
     final ephemeralPub = Uint8List.fromList(envelope.sublist(1, headerLen));
 
     // (round-3 red finding) a low-order ephemeral key forces an all-zero
-    // shared secret — refuse to even run the agreement rather than
+    // shared secret - refuse to even run the agreement rather than
     // produce a universally-decryptable envelope.
     if (_isLowOrderX25519Input(ephemeralPub)) {
       throw const FormatException(
@@ -240,7 +240,7 @@ class EncryptionService {
     );
 
     // Defence in depth: any low-order input not on the blocklist still
-    // collapses to the all-zero secret — reject it outright.
+    // collapses to the all-zero secret - reject it outright.
     if (_isAllZero(Uint8List.fromList(await shared.extractBytes()))) {
       throw const FormatException(
           'Peer envelope produced a non-contributory shared secret');
@@ -301,7 +301,7 @@ class EncryptionService {
   /// resolution is EXPLICIT: an `ed25519:` prefix forces the
   /// Edwards→Montgomery birational map, an `x25519:` prefix forces the
   /// raw u-coordinate interpretation, and an untagged input that parses
-  /// as a canonical Ed25519 point yields BOTH candidates — the birational
+  /// as a canonical Ed25519 point yields BOTH candidates - the birational
   /// map means ~50% of real Montgomery u-coordinates also parse as valid
   /// Edwards encodings, so picking one interpretation (~the previous
   /// `_isCanonicalEd25519Key` guess) silently sealed ~half of all
@@ -309,13 +309,13 @@ class EncryptionService {
   /// key nobody holds. [encryptForPeer] emits one box per candidate so
   /// the recipient always opens the box sealed to their actual key.
   ///
-  /// Every candidate is checked against the low-order blocklist — a
+  /// Every candidate is checked against the low-order blocklist - a
   /// low-order input (e.g. compressed y = −1, which maps to u = 0) is
   /// refused by sealing to an unreachable hash-derived point, exactly
   /// like an undecodable identifier: fail-closed, never fail-public.
   List<Uint8List> _resolvePeerAgreementKeyCandidates(String peerPublicKey) {
     var key = peerPublicKey.trim();
-    // Explicit key-type tags — the unambiguous contract.
+    // Explicit key-type tags - the unambiguous contract.
     bool? edOnly; // null = untagged, both interpretations allowed
     if (key.startsWith('ed25519:')) {
       edOnly = true;
@@ -348,7 +348,7 @@ class EncryptionService {
     return candidates;
   }
 
-  /// Domain-separated hash of an identifier into a u-coordinate — a
+  /// Domain-separated hash of an identifier into a u-coordinate - a
   /// ciphertext sealed to this point is confidential but has no known
   /// private key.
   Uint8List _sealedU(String peerPublicKey) {
@@ -796,7 +796,7 @@ class EncryptionService {
   /// True when [u] (a 32-byte Montgomery u-coordinate, raw or masked)
   /// is a known non-contributory X25519 input.
   static bool _isLowOrderX25519Input(Uint8List u) {
-    if (u.length != 32) return true; // not even a u-coordinate — refuse
+    if (u.length != 32) return true; // not even a u-coordinate - refuse
     final masked = Uint8List.fromList(u)..[31] &= 0x7F;
     for (final entry in _x25519LowOrderBlocklist) {
       if (_bytesEqual(u, entry) || _bytesEqual(masked, entry)) return true;
@@ -817,7 +817,7 @@ class EncryptionService {
   /// little-endian y < p with the sign bit in the top bit, such that the
   /// curve equation x² = (y²−1)/(dy²+1) has a solution (i.e. the
   /// candidate is a quadratic residue). Used ONLY to disambiguate the
-  /// two accepted 32-byte key spellings — never as a security boundary.
+  /// two accepted 32-byte key spellings - never as a security boundary.
   static bool _isCanonicalEd25519Key(Uint8List bytes) {
     if (bytes.length != 32) return false;
     final p = BigInt.two.pow(255) - BigInt.from(19);
@@ -828,7 +828,7 @@ class EncryptionService {
     for (var i = 31; i >= 0; i--) {
       y = (y << 8) | BigInt.from(yBytes[i]);
     }
-    if (y >= p) return false; // non-canonical — not an Ed25519 key
+    if (y >= p) return false; // non-canonical - not an Ed25519 key
     final y2 = (y * y) % p;
     final denominator = (d * y2 + BigInt.one) % p;
     if (denominator == BigInt.zero) return false;
@@ -893,7 +893,7 @@ class EncryptionService {
 
   /// Converts an Ed25519 private seed to the corresponding X25519 private
   /// key: the clamped first half of SHA-512(seed) (libsodium's
-  /// crypto_sign_ed25519_sk_to_curve25519 semantics — X25519 applies the
+  /// crypto_sign_ed25519_sk_to_curve25519 semantics - X25519 applies the
   /// clamp during scalar multiplication, so the unclamped half is passed).
   static Uint8List ed25519SeedToX25519Seed(Uint8List ed25519Seed) {
     if (ed25519Seed.length != 32) {

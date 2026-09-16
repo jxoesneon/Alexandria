@@ -1,8 +1,8 @@
-// RED TEAM PoC — Round-4: the round-3 fix dropped bytes after PNG's
-// IEND ("bytes after IEND are NOT part of the PNG stream — ancillary
+// RED TEAM PoC - Round-4: the round-3 fix dropped bytes after PNG's
+// IEND ("bytes after IEND are NOT part of the PNG stream - ancillary
 // chunks smuggled past the terminator rode through verbatim"). The JPEG
 // walker has the SAME hole left open: on EOI (0xFFD9) it copies the
-// marker AND everything after verbatim —
+// marker AND everything after verbatim -
 //
 //   lib/services/metadata_scrubbing_service.dart:304-306
 //     if (marker == 0xD9 || marker == 0xDA) {
@@ -11,7 +11,7 @@
 //     }
 //
 // SOS needs the verbatim copy (entropy data follows it), but EOI is the
-// END of the stream — nothing after 0xFFD9 is image data. Arbitrary
+// END of the stream - nothing after 0xFFD9 is image data. Arbitrary
 // payload appended post-EOI survives "scrubbing", exactly the covert
 // channel the PNG fix closed.
 //
@@ -32,8 +32,8 @@ void main() {
       0xFF, 0xE1, 0x00, 0x10, // APP1, len=16 (covers len bytes + 14 data)
       ...'Exif'.codeUnits, 0x00, 0x00,
       ...List.filled(8, 0x41), // padding to fill the declared segment
-      0xFF, 0xD9, // EOI — end of image stream
-      ...tail, // smuggled tail — not part of the image
+      0xFF, 0xD9, // EOI - end of image stream
+      ...tail, // smuggled tail - not part of the image
     ]);
 
     final result = await svc.scrubMetadata(jpeg);

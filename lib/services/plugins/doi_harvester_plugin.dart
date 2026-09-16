@@ -420,7 +420,7 @@ class DoiResolver {
     return null;
   }
 
-  /// Hard cap on a single PDF download — a hostile or buggy endpoint
+  /// Hard cap on a single PDF download - a hostile or buggy endpoint
   /// streaming unbounded bytes would otherwise exhaust node memory
   /// (red minor-observation hardening).
   static const int maxPdfBytes = 64 * 1024 * 1024; // 64 MiB
@@ -429,7 +429,7 @@ class DoiResolver {
   /// Aborts and returns null once the response exceeds [maxPdfBytes].
   ///
   /// SSRF gate (round-3 red finding): `pdfUrl` is publisher/Crossref
-  /// metadata — attacker-influenced remote input. Before ANY connection
+  /// metadata - attacker-influenced remote input. Before ANY connection
   /// is opened the URL must pass [UrlSafety.requirePublicFetchUri]
   /// (https-only, public host, DNS-checked). Redirects are followed
   /// manually and re-gated per hop so a public landing page cannot 302
@@ -444,7 +444,7 @@ class DoiResolver {
       for (var hop = 0; hop <= UrlSafety.maxRedirectHops; hop++) {
         await UrlSafety.requirePublicFetchUri(uri);
         final request = await client.getUrl(uri);
-        // (round-3 red finding) never let the transport auto-follow —
+        // (round-3 red finding) never let the transport auto-follow -
         // each Location target re-enters the SSRF gate above.
         request.followRedirects = false;
         request.headers.set('User-Agent',
@@ -646,7 +646,7 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
         }
 
         // Bound batch work: each entry costs network resolution plus a
-        // possible download — an unbounded list is a resource-exhaustion
+        // possible download - an unbounded list is a resource-exhaustion
         // vector (red minor-observation hardening).
         const maxBatchSize = 50;
         if (dois.length > maxBatchSize) {
@@ -707,7 +707,7 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
     try {
       final repository = context.read(contentRepositoryProvider);
       // (round-3 red finding) a denied capability resolves to an inert
-      // object, not a ContentRepository — fail closed rather than
+      // object, not a ContentRepository - fail closed rather than
       // operating on a capability shell.
       if (repository is! ContentRepository) {
         return {

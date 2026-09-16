@@ -1,23 +1,23 @@
-// RED TEAM PoC — Round-5: the round-4 plugin facade narrowed the
+// RED TEAM PoC - Round-5: the round-4 plugin facade narrowed the
 // repository's *methods* but not the *row objects* it returns.
 //
 //   lib/logic/content_repository.dart:583+ (PluginContentRepository)
-//   Manifest/metadata reads pass through unchanged — getAllManifests,
+//   Manifest/metadata reads pass through unchanged - getAllManifests,
 //   getManifestByUuid, watchAllManifests all hand the plugin the raw
 //   Drift ContentManifest row, whose `encryptionKey` column still
 //   exists and is still writable through AppDatabase.insertManifest
 //   (lib/data/database.dart:58, :244).
 //
-// Nothing in the CURRENT tree writes that column — but the round-2 fix
+// Nothing in the CURRENT tree writes that column - but the round-2 fix
 // deliberately left the column in place for schema compatibility, so
 // every database upgraded from a pre-fix build still holds plaintext
 // DEKs in it. A `contentRead`-scoped plugin reads them straight off the
-// manifest object — no storage provider needed. The facade's "every
+// manifest object - no storage provider needed. The facade's "every
 // path that reaches key material is closed by construction" claim is
 // violated by a *field*, not a method.
 //
 // Asserts the SECURE expectation: a plugin-facing manifest must never
-// carry the encryptionKey field — the plugin view must project it away
+// carry the encryptionKey field - the plugin view must project it away
 // (or the column must be wiped on read/migration).
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

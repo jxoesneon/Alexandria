@@ -1,4 +1,4 @@
-// PERMANENT REGRESSION SUITE — adversarial exploit tests for the
+// PERMANENT REGRESSION SUITE - adversarial exploit tests for the
 // claimVerifiedReceipt guard chain (ALX-010 attested mint + ALX-012
 // per-receipt `v`, domain-separated signingPayload, in-path Ed25519
 // verification + quorum-REV3 possession binding: ambient-identity
@@ -98,7 +98,7 @@ void main() {
   }
 
   /// Attaches the v3 issuance-acknowledgment counter-signature to an
-  /// already-signed receipt built OUTSIDE [signedReceipt] — for tests
+  /// already-signed receipt built OUTSIDE [signedReceipt] - for tests
   /// that construct the artifact by hand.
   Future<WorkReceipt> withAck(WorkReceipt r, {SimpleKeyPair? keyPair}) async {
     final ack =
@@ -106,8 +106,8 @@ void main() {
     return r.withProverSig(base64Encode(ack.bytes));
   }
 
-  /// Signs the REV3 possession-proof preimage — the ASCII bytes of
-  /// 'alexandria:receipt-claim:v{r.v}:{r.receiptId}' — under [keyPair]
+  /// Signs the REV3 possession-proof preimage - the ASCII bytes of
+  /// 'alexandria:receipt-claim:v{r.v}:{r.receiptId}' - under [keyPair]
   /// (default: the local prover key). claimVerifiedReceipt verifies it
   /// in-path under receipt.proverPubkey.
   Future<String> claimSig(WorkReceipt r, {SimpleKeyPair? keyPair}) async {
@@ -119,7 +119,7 @@ void main() {
   }
 
   /// Builds a receipt WITHOUT going through issue() (which recomputes the
-  /// id and would throw on hostile doubles) — the way a wire artifact /
+  /// id and would throw on hostile doubles) - the way a wire artifact /
   /// DB row arrives: fields verbatim via fromDbMap.
   WorkReceipt craftedReceipt(Map<String, dynamic> fields) {
     final base = WorkReceipt.issue(
@@ -150,7 +150,7 @@ void main() {
       db: db,
       initialBalance: 0.0,
       receiptVerifier: receiptVerifier,
-      // Ambient identity resolver (production wires IdentityService) —
+      // Ambient identity resolver (production wires IdentityService) -
       // the "local" prover key can no longer be asserted by the caller.
       localProverPubkeyHex: () => localPubHex,
     );
@@ -171,7 +171,7 @@ void main() {
         'EXPLOIT-CHECK: forged claim must not burn the row — the honest '
         'claim afterwards must still mint (DoS ordering)', () async {
       final attacker = await algorithm.newKeyPair();
-      // One unsigned artifact; two signatures over its payload — the
+      // One unsigned artifact; two signatures over its payload - the
       // attacker key's (forgery) and the real verifier's (honest).
       final unsigned = WorkReceipt.issue(
         workType: 'storage',
@@ -199,7 +199,7 @@ void main() {
           0.0);
       expect((await db.getWorkReceipt(forged.receiptId))!['spent'], isFalse);
 
-      // Now the SAME body with the REAL verifier signature — same
+      // Now the SAME body with the REAL verifier signature - same
       // receiptId, still-claimable row. v3 also needs the prover's
       // issuance-acknowledgment signature.
       final honestSig = await algorithm.sign(unsigned.signingPayload,
@@ -260,7 +260,7 @@ void main() {
         expiresAt:
             DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
       );
-      // Attacker signs 'alexandria:receipt:v1:<canonical>' — but the v1
+      // Attacker signs 'alexandria:receipt:v1:<canonical>' - but the v1
       // payload is the bare canonical JSON, so this must not verify.
       final wrongDomain = await algorithm.sign(
           Uint8List.fromList(
@@ -279,8 +279,8 @@ void main() {
         'cross-version: a legit v1 artifact re-presented as v2 dies on '
         'the tamper check even with a valid v1 signature', () async {
       final v1 = await signedReceipt(v: 1, proverPubkey: localPubHex);
-      // Re-issue identical fields at v2 — different canonical body,
-      // different recomputed id — keep the v1 signature attached.
+      // Re-issue identical fields at v2 - different canonical body,
+      // different recomputed id - keep the v1 signature attached.
       final asV2 = WorkReceipt.issue(
         v: 2,
         workType: 'storage',
@@ -313,7 +313,7 @@ void main() {
       final sig = await claimSig(r);
       expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: sig), 25.0);
       // Attacker re-delivers the same artifact (or an unspent-flagged
-      // copy) — must not unspend.
+      // copy) - must not unspend.
       await db.insertWorkReceipt({...r.toDbMap(), 'spent': false});
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isTrue);
       expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: sig), 0.0);
@@ -340,11 +340,11 @@ void main() {
         'zz_not_hex',
         'a', // odd-length single nibble
         '',
-        'ab', // 1 byte — far too short for ed25519
+        'ab', // 1 byte - far too short for ed25519
         verifierPubHex.substring(0, 62), // 31 bytes
         '0x$verifierPubHex', // 0x-prefixed
       ]) {
-        // Sign the payload with the REAL verifier key — only the pubkey
+        // Sign the payload with the REAL verifier key - only the pubkey
         // field is corrupt. A slip-through would mint.
         final r = await persist(await signedReceipt(
             proverPubkey: localPubHex, verifierPubkey: badKey));
@@ -409,7 +409,7 @@ void main() {
           reason: 'string compare misses the same key in different case');
       final minted = await svc.claimVerifiedReceipt(r,
           claimSignatureB64: await claimSig(r));
-      // SECURE expectation: 0.0 — a self-signed receipt must never mint
+      // SECURE expectation: 0.0 - a self-signed receipt must never mint
       // attested value regardless of key-string casing.
       expect(minted, 0.0,
           reason: 'BUG: case-variant pubkey defeats the self-dealing '
@@ -422,7 +422,7 @@ void main() {
         '(hexToBytes strips spaces) — same self-dealing bypass', () async {
       final spaced =
           localPubHex.split('').expand((c) => c == ' ' ? [c] : [c]).join();
-      // Insert a space every 8 chars — still decodes identically.
+      // Insert a space every 8 chars - still decodes identically.
       final padded =
           localPubHex.replaceAllMapped(RegExp('.{8}'), (m) => '${m[0]} ');
       expect(hexToBytes(padded), hexToBytes(localPubHex),
@@ -444,7 +444,7 @@ void main() {
         'EXPLOIT-CHECK: empty proverPubkey + foreign sig claimed by a '
         'node whose resolver returns "" — does the prover binding go '
         'vacuous?', () async {
-      // A service whose identity resolver serves the empty string —
+      // A service whose identity resolver serves the empty string -
       // the possession-bound equivalent of the old caller-supplied
       // localPubkeyHex="".
       final emptyIdentity = CreditService(
@@ -476,7 +476,7 @@ void main() {
     test(
         'EXPLOIT: amount=+Infinity receipt makes claimVerifiedReceipt '
         'THROW instead of returning 0.0 (tamper check outside try)', () async {
-      // issue() would throw on amountMilli, so craft via fromDbMap —
+      // issue() would throw on amountMilli, so craft via fromDbMap -
       // exactly what a DB row / wire artifact delivers.
       final hostile = craftedReceipt({
         'receiptId': 'h_inf',
@@ -573,13 +573,13 @@ void main() {
       final r =
           await persist(await signedReceipt(v: 99, proverPubkey: localPubHex));
       // The signature IS valid under the v99 domain; only the floor is
-      // enforced, so this is expected to CLAIM — flagging the missing
+      // enforced, so this is expected to CLAIM - flagging the missing
       // ceiling.
       final minted = await svc.claimVerifiedReceipt(r,
           claimSignatureB64: await claimSig(r));
       // ignore: avoid_print
       print('REV3 OBSERVE: v=99 claim minted $minted (window has no ceiling)');
-      // Not asserting 0 — documenting behavior; a {previous,current}
+      // Not asserting 0 - documenting behavior; a {previous,current}
       // grace window arguably should also cap at wireVersion.
     });
 
@@ -634,7 +634,7 @@ void main() {
           await svc.claimVerifiedReceipt(foreign,
               claimSignatureB64: await claimSig(foreign)),
           0.0);
-      // verifier == local (spelled in a different case — canonically the
+      // verifier == local (spelled in a different case - canonically the
       // local key, signed by it): the self-dealing guard refuses.
       final localVerif = await persist(await signedReceipt(
           proverPubkey: localPubHex,
@@ -671,14 +671,14 @@ void main() {
     // ASCII-space stripping it accepts only ^[0-9a-fA-F]+$ of even
     // length. The old int.parse-based decoder tolerated '+' signs, tabs,
     // NBSP and trailing newlines, so ONE key byte '0d' could be spelled
-    // '+d', '\td', 'd\n', NBSP+'d' — all decoding to identical bytes
+    // '+d', '\td', 'd\n', NBSP+'d' - all decoding to identical bytes
     // while differing as strings (evading `==`) AND evading the
     // canonical guard (WorkReceipt.samePubkey's tier-2 accepts only the
     // same strict class). Every respelled key must now fail closed:
     // strict decode throws inside the oracle adapter → verify false →
     // claim refuses, row unspent.
 
-    /// Index of the first byte pair whose high nibble is '0' — the only
+    /// Index of the first byte pair whose high nibble is '0' - the only
     /// pairs admitting value-preserving non-hex respellings (a 2-char
     /// chunk must parse to the same byte, so one char must carry the
     /// whole value: '0d' → '+d', '\td', 'd\n', NBSP+'d').
@@ -692,7 +692,7 @@ void main() {
     String respell(String hex, int i, String pair) =>
         hex.substring(0, i) + pair + hex.substring(i + 2);
 
-    /// A keypair whose pubkey hex contains a respellable '0d' byte —
+    /// A keypair whose pubkey hex contains a respellable '0d' byte -
     /// regenerated until one exists so the test is deterministic
     /// (~12.7% of random 32-byte keys have no zero-nibble byte).
     Future<(SimpleKeyPair, String)> respellableKey() async {
@@ -713,12 +713,12 @@ void main() {
       for (final pair in ['+$lo', '\t$lo', '\u00A0$lo', '$lo\n']) {
         final respelled = respell(hex, i, pair);
         // The respelling differs as a STRING, would have decoded to the
-        // same key bytes under the permissive decoder — and is not even
+        // same key bytes under the permissive decoder - and is not even
         // hex under the guard's strict view.
         expect(respelled, isNot(equals(hex)));
         expect(WorkReceipt.samePubkey(respelled, hex), isFalse,
             reason: 'guard must not equate a non-hex respelling: "$pair"');
-        // Signed by the REAL owner of the respelled key — under the old
+        // Signed by the REAL owner of the respelled key - under the old
         // decoder this artifact verified and claimed.
         final r = await persist(await signedReceipt(
           proverPubkey: localPubHex,
@@ -748,7 +748,7 @@ void main() {
         verifierPubkey: verifierPubHex,
       ));
       // The resolver serves the CANONICAL spelling of the same key the
-      // respelled prover field would decode to — the binding must still
+      // respelled prover field would decode to - the binding must still
       // refuse because the respelling is not valid strict hex at all.
       final canonSvc = CreditService(
         db: db,
@@ -772,7 +772,7 @@ void main() {
       final i = respellablePair(hex);
       final respelledLocal = respell(hex, i, '\t${hex[i + 1]}');
       // A clean, legitimately-claimable receipt naming the CANONICAL
-      // local key — claimed by a node whose resolver serves a respelled
+      // local key - claimed by a node whose resolver serves a respelled
       // 'local' spelling: the prover binding fails closed. The v3 ack
       // is signed by the receipt's actual prover key (kp), not the
       // default local key.
@@ -789,7 +789,7 @@ void main() {
       expect(await respelledSvc.claimVerifiedReceipt(r, claimSignatureB64: sig),
           0.0);
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
-      // And the SAME row still claims for the canonical spelling — the
+      // And the SAME row still claims for the canonical spelling - the
       // refusal was the binding, not a burned artifact.
       final canonSvc = CreditService(
         db: db,
@@ -822,7 +822,7 @@ void main() {
       // Attacker holds a copy of the artifact and signs the claim
       // preimage with ITS OWN key: valid Ed25519 signature, wrong
       // signer. Verification runs under receipt.proverPubkey, so this
-      // must refuse — the receipt is possession-bound, not bearer.
+      // must refuse - the receipt is possession-bound, not bearer.
       final attacker = await algorithm.newKeyPair();
       final r = await persist(await signedReceipt(proverPubkey: localPubHex));
       expect(
@@ -831,7 +831,7 @@ void main() {
           0.0);
       expect(svc.attestedBalance, 0.0);
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
-      // The refused attempt did not burn the row — the true prover's
+      // The refused attempt did not burn the row - the true prover's
       // claim still lands.
       expect(
           await svc.claimVerifiedReceipt(r,
@@ -869,7 +869,7 @@ void main() {
           await svc.claimVerifiedReceipt(r,
               claimSignatureB64: await claimSig(other)),
           0.0);
-      // Nothing consumed — all three refused before the CAS.
+      // Nothing consumed - all three refused before the CAS.
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
       expect((await db.getWorkReceipt(other.receiptId))!['spent'], isFalse);
       expect(svc.attestedBalance, 0.0);
@@ -881,7 +881,7 @@ void main() {
         '!!!not_base64!!!',
         base64Encode(Uint8List(63)), // one byte short
         base64Encode(Uint8List(65)), // one byte long
-        base64Encode(Uint8List(64)), // zeros — shape-valid, verifies false
+        base64Encode(Uint8List(64)), // zeros - shape-valid, verifies false
       ]) {
         final r = await persist(await signedReceipt(proverPubkey: localPubHex));
         expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: bad), 0.0,
@@ -922,7 +922,7 @@ void main() {
       // This node's identity is `other`, but the artifact names
       // localPubHex as prover and the claim signature IS valid under
       // that prover key (e.g. obtained alongside a copied artifact).
-      // The resolver binding — not just the signature — must refuse.
+      // The resolver binding - not just the signature - must refuse.
       final other = await algorithm.newKeyPair();
       final otherHex = bytesToHex((await other.extractPublicKey()).bytes);
       final mismatched = CreditService(

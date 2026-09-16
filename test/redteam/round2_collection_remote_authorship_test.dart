@@ -1,4 +1,4 @@
-// RED TEAM PoC — CollectionService.mergeRemoteState applies unsigned,
+// RED TEAM PoC - CollectionService.mergeRemoteState applies unsigned,
 // unauthenticated remote state to LOCAL collections.
 //
 // lib/services/collection_service.dart:533-585 merges attacker JSON
@@ -9,7 +9,7 @@
 //   1. overwrite name/description of a collection it has NO role in,
 //   2. mint a forged author for the write (repudiation/spoofing), and
 //   3. pin a FAR-FUTURE wallTime so every subsequent legitimate edit
-//      loses the LWW comparison — a durable metadata lockout.
+//      loses the LWW comparison - a durable metadata lockout.
 // SyncService publishes queued ops to /alexandria/sync/v1/<id> with no
 // signing either, so wire input reaches this merge unauthenticated.
 //
@@ -23,7 +23,7 @@ import 'package:alexandria/services/collection_service.dart';
 import 'package:alexandria/services/identity_service.dart';
 import 'package:alexandria/services/secure_storage_service.dart';
 
-/// Deterministic fake identity — mirrors test harness conventions.
+/// Deterministic fake identity - mirrors test harness conventions.
 class _FakeIdentityService extends IdentityService {
   final AlexandriaIdentity _identity;
   _FakeIdentityService(this._identity) : super(SecureStorageService());
@@ -119,7 +119,7 @@ void main() {
     final svc = CollectionService(_FakeIdentityService(ownerId));
     final col = await svc.createCollection(name: 'Stable');
 
-    // wallTime arrives as a STRING — HybridLogicalClock.fromJson does
+    // wallTime arrives as a STRING - HybridLogicalClock.fromJson does
     // `json['wallTime'] as int` with no type guard, so a hostile sync
     // message throws inside the merge path.
     Object? thrown;

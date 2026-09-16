@@ -50,7 +50,7 @@ void main() {
 
     // The flag-on egress comparison is `credits > attestedBalance`:
     // 50 > 40 must reject. Flag is off, so the reachable assertion is the
-    // payouts-disabled reason — but the arithmetic the gate WILL apply is
+    // payouts-disabled reason - but the arithmetic the gate WILL apply is
     // proven here: attestedBalance is net, not gross.
     final bridge = CryptoBridgeService(creditService: svc);
     expect(bridge.egressRejectionReason(50.0),
@@ -82,7 +82,7 @@ void main() {
     final svc = CreditService(db: db, initialBalance: 0.0);
     await svc.ready;
 
-    // Flavor A: PoR slash penalty — debits _balance only (slashing may
+    // Flavor A: PoR slash penalty - debits _balance only (slashing may
     // never eat attested value; _attestedBalance is left alone). The
     // attestedBalance getter must still clamp to balance (never exceed).
     svc.awardStorageCredits(
@@ -96,7 +96,7 @@ void main() {
         reason: 'getter must clamp attested to balance after penalty');
     expect(svc.attestedBalance, 95.0);
 
-    // Flavor B: escrow debit — burns attested when unattested is empty.
+    // Flavor B: escrow debit - burns attested when unattested is empty.
     expect(svc.debitEscrow(amount: 50.0, referenceId: 'b1'), isTrue);
     expect(svc.attestedBalance, 45.0);
     expect(svc.balance, 45.0);

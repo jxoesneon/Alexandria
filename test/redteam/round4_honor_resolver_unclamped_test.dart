@@ -1,5 +1,5 @@
-// RED TEAM PoC — Round-4: HonorSystem gained a reputationResolver seam
-// (round-3 hardening) — caller claims are clamped to
+// RED TEAM PoC - Round-4: HonorSystem gained a reputationResolver seam
+// (round-3 hardening) - caller claims are clamped to
 // maxClaimedReputation when no resolver is wired. But the RESOLVED
 // (attested) value is used RAW:
 //
@@ -7,20 +7,20 @@
 //     final resolved = reputationResolver?.call(validatorId) ??
 //         reputation.clamp(0, maxClaimedReputation);
 //
-// HonorBandwidthService — the sibling fix from the same round —
+// HonorBandwidthService - the sibling fix from the same round -
 // explicitly clamps even ATTESTED values ("a compromised or buggy
 // attestation source must not mint unbounded priority either",
 // maxAttestedHonor/maxAttestedPoR). HonorSystem applies no such bound:
 //
 //   * resolver returns a negative score → log(reputation + 10) with a
-//     negative argument → NaN → NaN.round() THROWS — a buggy attestation
+//     negative argument → NaN → NaN.round() THROWS - a buggy attestation
 //     source crashes every trust computation;
 //   * resolver returns a huge score → unbounded weight dominates every
 //     tally (the exact failure maxClaimedReputation exists to prevent).
 //
 // Asserts the SECURE expectation: attested reputation must be clamped
 // into a sane range exactly like claimed reputation and like the
-// bandwidth service's attested values — a broken resolver must degrade
+// bandwidth service's attested values - a broken resolver must degrade
 // to bounded weight, never NaN/unbounded.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/logic/honor_system.dart';

@@ -1,6 +1,6 @@
 // Tests for the round-5 residual closure: post-handshake channel
 // binding in MeshTransportService. The handshake (round-3/4) proved
-// identity but derived no key material — a relay passing the HELLO/ACK
+// identity but derived no key material - a relay passing the HELLO/ACK
 // could splice later frames. Now every frame is
 // seq ‖ payload ‖ HMAC-SHA256(channelKey, …) where the channel key is
 // HKDF-SHA256(salt = ephemeral X25519 shared secret, ikm = handshake
@@ -85,7 +85,7 @@ void main() {
           MeshTransportService.deriveSessionKey(responderTicket!);
 
       // Responder → dialer direction: a frame MAC'd under the
-      // responder-derived key must verify on the dialer's channel —
+      // responder-derived key must verify on the dialer's channel -
       // proving both ends derived the same secret.
       final payload = Uint8List.fromList(utf8.encode('hello dialer'));
       final inbound =
@@ -174,11 +174,11 @@ void main() {
       final f0 = MeshTransportService.encodeFrame(key, 0, Uint8List(4));
       final f5 = MeshTransportService.encodeFrame(key, 5, Uint8List(4));
       expect(await svc.receiveFrame('peer-A', f5), isTrue);
-      // Older seq after a newer one — replay.
+      // Older seq after a newer one - replay.
       expect(await svc.receiveFrame('peer-A', f0), isFalse);
       // Exact replay of the accepted frame.
       expect(await svc.receiveFrame('peer-A', f5), isFalse);
-      // Gap ahead is fine — seq only needs to be ahead.
+      // Gap ahead is fine - seq only needs to be ahead.
       expect(
           await svc.receiveFrame(
               'peer-A', MeshTransportService.encodeFrame(key, 9, Uint8List(4))),
@@ -203,7 +203,7 @@ void main() {
 
       // Attacker holds the full public transcript (HELLO+ACK lines)
       // but NOT the ephemeral DH secret. A transcript-only derivation
-      // — what a transcript-binding-only design would produce — must
+      // - what a transcript-binding-only design would produce - must
       // not verify.
       final eavesdropperKey =
           MeshTransportService.deriveSessionKey(MeshHandshakeTicket(
@@ -213,7 +213,7 @@ void main() {
         responderSignature: ticket.responderSignature,
         dialerEphemeral: ticket.dialerEphemeral,
         responderEphemeral: ticket.responderEphemeral,
-        sharedSecret: Uint8List(32), // zeroed — no DH knowledge
+        sharedSecret: Uint8List(32), // zeroed - no DH knowledge
       ));
       final forged = MeshTransportService.encodeFrame(
           eavesdropperKey, 99, Uint8List.fromList([9, 9, 9]));
@@ -335,7 +335,7 @@ void main() {
           .first
           .timeout(const Duration(seconds: 5));
       final parts = line.trim().split(' ');
-      // Legacy 5-part ACK: proto ACK nonce peerId sig — no eph field.
+      // Legacy 5-part ACK: proto ACK nonce peerId sig - no eph field.
       expect(parts.length, equals(5));
       expect(parts[1], equals('ACK'));
       expect(bound, isNull,
@@ -344,7 +344,7 @@ void main() {
 
     test('unsigned ACK answers never bind a channel', () async {
       // The endpoint claims a REAL self-certifying peerId but holds no
-      // private key — the unsigned ACK must be rejected before any
+      // private key - the unsigned ACK must be rejected before any
       // channel exists.
       final id = await _responderIdentity();
       final server = await ServerSocket.bind('127.0.0.1', 0);

@@ -129,7 +129,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     }
 
-    // Words are populated into the provider — the phrase grid renders.
+    // Words are populated into the provider - the phrase grid renders.
     final widgetContainer = ProviderScope.containerOf(
         tester.element(find.byType(OnboardingScreen)));
     final words = widgetContainer.read(mnemonicProvider);
@@ -163,7 +163,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Import Recovery Phrase'), findsOneWidget);
-    // The 24-field grid builds lazily — TextField.controller is public,
+    // The 24-field grid builds lazily - TextField.controller is public,
     // so fill the built cells, scroll, and fill the next batch.
     final words = List.filled(23, 'abandon') + ['art'];
     await fillWordFields(tester, words);
@@ -205,7 +205,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
     // Either the complete step (biometrics unavailable -> true) or the
-    // error snackbar — both paths end onboarding.
+    // error snackbar - both paths end onboarding.
     final completed = find.text('Enter the library').evaluate().isNotEmpty ||
         find.textContaining('Biometric').evaluate().isNotEmpty;
     expect(completed, isTrue);

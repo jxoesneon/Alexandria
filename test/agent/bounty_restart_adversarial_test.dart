@@ -1,25 +1,25 @@
-// SCRATCH RE-EVALUATOR FILE — REV4b fix-diff verification + regression hunt.
+// SCRATCH RE-EVALUATOR FILE - REV4b fix-diff verification + regression hunt.
 // Probes ONLY holes the fix diffs themselves introduced:
 //   E  postPreservationBounty can re-use a tombstoned id (bounty_<ms>
-//      collision after a same-ms cancel) — the new escrow debits onto a
+//      collision after a same-ms cancel) - the new escrow debits onto a
 //      dead id and is stranded forever (cancel refuses, release refuses).
 //   E2 `_cancelledBountyIds`/`_locallyPostedBountyIds`/`_escrowedBountyIds`
-//      are in-memory only — after a restart a cancelled id re-ingests as
+//      are in-memory only - after a restart a cancelled id re-ingests as
 //      a FUNDED live record (zombie), and a still-live locally-posted
 //      bounty becomes un-cancellable (escrow stranded at service layer).
 //   F  correlated write loss: payout row lost AND tombstone write fails
 //      in the same db-fault window → after restart + row aging the id
 //      re-pays (E1 resurrected).
 //   F2 slow (not failed) payout insert → tombstone lands, payout lands
-//      later → paid AND tombstoned coexistence — verify consistency.
+//      later → paid AND tombstoned coexistence - verify consistency.
 //   G  the healer's bare deleteClaimedBounty acts on a STALE claimedAt
-//      read — a racing claim's freshly re-won row is torn down, leaving
+//      read - a racing claim's freshly re-won row is torn down, leaving
 //      a PAID claim with no durable row (E2 corruption shape survives).
 //   H  _isCanonicalBountyId misses invisible ranges outside
 //      200B-200F/FEFF/whitespace: bidi overrides 202A-202E, isolates
 //      2066-2069, word joiner 2060, ALM 061C, soft hyphen 00AD, MVS 180E,
-//      tag chars, lone surrogates — invisible-id spoofing survives.
-// Every test asserts the SECURE expectation — a FAILURE marks a LIVE hole.
+//      tag chars, lone surrogates - invisible-id spoofing survives.
+// Every test asserts the SECURE expectation - a FAILURE marks a LIVE hole.
 import 'dart:async';
 import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
@@ -118,7 +118,7 @@ class _CorrelatedWriteLossDb extends AppDatabase {
   }
 }
 
-/// Slow-but-successful payout insert parked behind [gate] — the claim's
+/// Slow-but-successful payout insert parked behind [gate] - the claim's
 /// bounded settle-wait expires, the probe misses, the tombstone lands,
 /// then the real payout row arrives.
 class _SlowPayoutDb extends AppDatabase {
@@ -150,7 +150,7 @@ class _SlowPayoutDb extends AppDatabase {
 
 /// Parks the FIRST conditional delete so the healer's stale-read →
 /// delete window can be observed: while it is parked, a racing claim
-/// deletes the stale row and re-wins a FRESH row — then the parked
+/// deletes the stale row and re-wins a FRESH row - then the parked
 /// conditional delete executes and MUST miss it (claimedAt no longer
 /// matches the observed snapshot).
 class _FirstDeleteGateDb extends AppDatabase {
@@ -183,7 +183,7 @@ void main() {
 
       // Probe the collision window: consecutive posts sharing a
       // millisecond reuse bounty_<ms>. Envelope signing makes each
-      // post ~>=1ms, so the window is narrow — but nothing in the
+      // post ~>=1ms, so the window is narrow - but nothing in the
       // post path checks the tombstone, so WHEN it happens the escrow
       // strands. Conditional probe: if a collision occurs the funds
       // must still be recoverable.
@@ -195,7 +195,7 @@ void main() {
           p = await svc.postPreservationBounty(
               cid: 'bafk_r$i', title: 't', offeredCredits: 5.0, force: true);
         } on StateError {
-          // R1: cancelled escrows are no longer refunded — the probe
+          // R1: cancelled escrows are no longer refunded - the probe
           // budget (200 holds × 5 ℭ of 1000) is finite. Stop probing.
           break;
         }
@@ -203,13 +203,13 @@ void main() {
           collision = p; // re-posted onto a cancelled id
         } else {
           // R1: the cancel delists + tombstones but refuses the refund
-          // (cross-ledger guard) — the escrow stays locked.
+          // (cross-ledger guard) - the escrow stays locked.
           expect(await svc.cancelBounty(p.id), isFalse);
           tombstoned.add(p.id);
         }
       }
       if (collision == null) {
-        // No same-ms collision in 300 posts — the window is latent
+        // No same-ms collision in 300 posts - the window is latent
         // (clock granularity + signing latency), and _isDeadBountyId
         // regenerates before the debit anyway, so the collision can
         // never materialize. Reported as a reasoned finding, not a
@@ -221,7 +221,7 @@ void main() {
       expect(cs.balance, lessThan(1000.0));
       // …the id stays dead to the cancel path:
       expect(await svc.cancelBounty(collision.id), isFalse);
-      // …but the hold itself is not stranded — releaseEscrow remains
+      // …but the hold itself is not stranded - releaseEscrow remains
       // the operator reconciliation hatch and refunds the summed holds.
       expect(
           await cs.releaseEscrow(referenceId: collision.id), greaterThan(0.0),
@@ -253,7 +253,7 @@ void main() {
       // Restart: fresh services on the same database.
       final cs2 = CreditService(db: db, initialBalance: 0.0);
       await cs2.ready;
-      expect(cs2.balance, 75.0); // hold replayed — escrow still locked
+      expect(cs2.balance, 75.0); // hold replayed - escrow still locked
       final attestor = await _newKey();
       final svc2 = MoltbookService(
           creditService: cs2,
@@ -262,7 +262,7 @@ void main() {
 
       // The durable hold row rebuilds _locallyPostedBountyIds, so the
       // record-less cancel still tombstones the id and reports success
-      // (no release was owed by this path — the refund stays refused).
+      // (no release was owed by this path - the refund stays refused).
       expect(await svc2.cancelBounty(posted.id), isTrue);
 
       final re =
@@ -275,7 +275,7 @@ void main() {
               'too — the tombstone is not durable');
       // The dead record can never pay out: self-claim guard + unfunded.
       expect(await svc2.claimBounty(posted.id), isFalse);
-      expect(cs2.balance, 75.0); // escrow still locked — never refunded
+      expect(cs2.balance, 75.0); // escrow still locked - never refunded
       // …and a re-cancel observes the tombstone.
       expect(await svc2.cancelBounty(posted.id), isFalse);
     });
@@ -307,7 +307,7 @@ void main() {
           reason: 'the record-less cancel tombstones the id — the '
               'cross-ledger guard means the cancel path never refunds, '
               'but the hold stays releasable on demand');
-      // The underlying primitive still works — the hold IS releasable —
+      // The underlying primitive still works - the hold IS releasable -
       // the refund refusal lives at the moltbook layer, not the ledger.
       expect(await cs2.releaseEscrow(referenceId: posted.id), 25.0);
     });
@@ -333,12 +333,12 @@ void main() {
           escrowAttestation: await _attestBounty(attestor, bounty));
 
       // Durable-first: the throwing CAS fails the mutator closed
-      // (0.0, nothing mutated) — no in-memory mint exists to orphan
+      // (0.0, nothing mutated) - no in-memory mint exists to orphan
       // across a crash, so no tombstone is owed and the claim row
       // releases for a clean retry.
       db.armed = true; // payout row AND tombstone row both fail
       expect(await svc1.claimBounty(bounty.id), isFalse);
-      expect(cs1.balance, 100.0); // nothing minted — fail closed
+      expect(cs1.balance, 100.0); // nothing minted - fail closed
       db.armed = false;
       expect(await db.hasCreditTransaction('tx_bounty_payout_${bounty.id}'),
           isFalse);
@@ -439,7 +439,7 @@ void main() {
       final attestor = await _newKey();
       final hex = await _pubHex(attestor);
       final att = await _attestBounty(attestor, bounty);
-      // Two service instances on one CreditService+db — the topology the
+      // Two service instances on one CreditService+db - the topology the
       // promoted suite already uses (svcA/svcB sharing the belt).
       final svcB = MoltbookService(
           creditService: cs, db: db, trustedAttestorPubkeys: {hex});
@@ -465,7 +465,7 @@ void main() {
       expect(await svcC.claimBounty(bounty.id), isTrue);
       expect(cs.balance, 125.0);
 
-      // Now B's parked conditional delete executes — its observed
+      // Now B's parked conditional delete executes - its observed
       // claimedAt no longer matches C's fresh row, so it must miss.
       db.deleteGate.complete();
       expect(await claimB, isFalse);

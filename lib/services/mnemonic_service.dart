@@ -13,17 +13,17 @@ final mnemonicServiceProvider = Provider((ref) {
   return MnemonicService(
     identityService,
     // The backup marker MUST live in the same keychain
-    // SecurityOverviewService reads — the shared SecureStorageService.
+    // SecurityOverviewService reads - the shared SecureStorageService.
     storage: ref.watch(secureStorageServiceProvider),
     // A recovery replaces the stored identity out-of-band: force the
     // identity cache to reload so getIdentity() can never serve the
-    // pre-recovery keypair (split-brain). Wired here — by construction —
+    // pre-recovery keypair (split-brain). Wired here - by construction -
     // so no UI call site can forget it.
     onIdentityRecovered: identityService.reloadIdentity,
   );
 });
 
-/// BIP-39 English wordlist — the complete, official 2048-word list,
+/// BIP-39 English wordlist - the complete, official 2048-word list,
 /// vendored verbatim (one word per line, in BIP-39 index order) from
 /// https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
 /// which is public domain (CC0-1.0 / MIT-licensed BIP text).
@@ -2108,7 +2108,7 @@ class MnemonicResult {
 
 /// Service for BIP-39 mnemonic backup and recovery.
 ///
-/// TRUST MODEL — entropy source: an Alexandria identity is an Ed25519
+/// TRUST MODEL - entropy source: an Alexandria identity is an Ed25519
 /// keypair whose stored private key IS a 32-byte seed. A backup phrase
 /// therefore encodes that seed directly as BIP-39 entropy
 /// (ENT = 256 bits -> 24 words). This intentionally deviates from the
@@ -2127,7 +2127,7 @@ class MnemonicService {
 
   /// Shared secure store for the backup marker. This MUST be the same
   /// [SecureStorageService] instance/keychain that
-  /// `SecurityOverviewService` reads — previously this was a bare
+  /// `SecurityOverviewService` reads - previously this was a bare
   /// `const FlutterSecureStorage()`, which uses a DIFFERENT macOS
   /// keychain (no `usesDataProtectionKeychain: false`), so the marker
   /// written here was invisible to the security alerts.
@@ -2145,7 +2145,7 @@ class MnemonicService {
   /// Optional hook invoked after [recoverFromMnemonic] successfully
   /// replaces the stored identity. The provider wires this to
   /// [IdentityService.reloadIdentity] so no stale identity survives in
-  /// any cache — enforced by construction so UI call sites can't
+  /// any cache - enforced by construction so UI call sites can't
   /// forget it.
   final Future<void> Function()? onIdentityRecovered;
 
@@ -2314,7 +2314,7 @@ class MnemonicService {
         ? entropy
         : Uint8List.fromList(sha256.convert(entropy).bytes);
 
-    // Derive the keypair and persist through IdentityService — the
+    // Derive the keypair and persist through IdentityService - the
     // single owner of the identity keys and their cache.
     final identity = await _identityService.importIdentity(privateKeySeed);
 
@@ -2339,7 +2339,7 @@ class MnemonicService {
 
   /// Backup current identity as mnemonic.
   ///
-  /// The phrase is DERIVED FROM the stored private key — it encodes the
+  /// The phrase is DERIVED FROM the stored private key - it encodes the
   /// identity's own 32-byte Ed25519 seed as BIP-39 entropy, so
   /// [recoverFromMnemonic] restores the same keypair and public key.
   /// (Previously this generated a fresh random mnemonic, which meant the
@@ -2349,7 +2349,7 @@ class MnemonicService {
   /// length (e.g. an imported raw key of unusual size), the key bytes
   /// are reduced to 256-bit entropy via SHA-256. In that case recovery
   /// restores the keypair derived from SHA-256(privateKey), which
-  /// cannot equal the original key — a documented limitation; such
+  /// cannot equal the original key - a documented limitation; such
   /// identities should be re-seeded through
   /// [IdentityService.generateIdentity].
   Future<MnemonicResult?> backupCurrentIdentity() async {
@@ -2369,7 +2369,7 @@ class MnemonicService {
   ///
   /// The marker is a SHA-256 of the phrase (never the phrase itself),
   /// written to the shared [SecureStorageService] store under
-  /// [SecureStorageKeys.mnemonicBackup] — the same key and keychain
+  /// [SecureStorageKeys.mnemonicBackup] - the same key and keychain
   /// `SecurityOverviewService` checks before warning about a missing
   /// backup. This is deliberately a separate step from
   /// [backupCurrentIdentity]: the marker is written on explicit user
@@ -2385,7 +2385,7 @@ class MnemonicService {
   /// mutations: a confirmation racing an [IdentityService.importIdentity]
   /// cannot resurrect a stale marker. Additionally, when [phrase] is a
   /// decodable BIP-39 phrase, the public key it recovers is derived and
-  /// passed along — the marker is then written only while that key is
+  /// passed along - the marker is then written only while that key is
   /// still the stored one, so the outcome is independent of the
   /// serialized order.
   Future<void> markBackupConfirmed(String phrase) async {

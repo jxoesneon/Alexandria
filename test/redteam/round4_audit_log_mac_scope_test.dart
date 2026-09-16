@@ -1,5 +1,5 @@
-// RED TEAM PoC — Round-4: the round-3 fix made getRecentLogs verify the
-// write-side HMAC — but the MAC covers ONLY parts[0..2]
+// RED TEAM PoC - Round-4: the round-3 fix made getRecentLogs verify the
+// write-side HMAC - but the MAC covers ONLY parts[0..2]
 // (timestamp|event|details):
 //
 //   lib/services/audit_log_service.dart:93-97
@@ -11,13 +11,13 @@
 // `actor` (parts[4]) and `status` (parts[5]) are OUTSIDE the MAC. An
 // attacker who can append to audit_trail.log takes ANY genuine signed
 // line, rewrites the unprotected trailing columns, and the line still
-// verifies as a TRUSTED entry — 'Denied' becomes 'Success', 'attacker'
+// verifies as a TRUSTED entry - 'Denied' becomes 'Success', 'attacker'
 // becomes 'victim'. The round-3 fix authenticates what happened but not
-// who it was attributed to or how it ended — the two fields a frame-up
+// who it was attributed to or how it ended - the two fields a frame-up
 // attack actually changes.
 //
 // Asserts the SECURE expectation: a line whose actor/status columns were
-// tampered must be dropped or flagged — it must not surface trusted.
+// tampered must be dropped or flagged - it must not surface trusted.
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
@@ -71,7 +71,7 @@ void main() {
     addTearDown(container.dispose);
     final svc = container.read(auditLogServiceProvider);
 
-    // One genuine SIGNED entry — a denied access attempt by the attacker.
+    // One genuine SIGNED entry - a denied access attempt by the attacker.
     await svc.log('grant_access',
         details: 'CID: bafySecret',
         actor: 'did:alex:attacker',
@@ -83,11 +83,11 @@ void main() {
     final parts = original.trim().split('|');
     expect(parts.length, greaterThanOrEqualTo(6));
 
-    // Attacker (file-write access — the exact adversary the read-side
+    // Attacker (file-write access - the exact adversary the read-side
     // HMAC was built to stop) rewrites ONLY the unprotected columns:
     // keep timestamp|event|details|hmac intact, flip actor→victim and
     // status→Success. The signed prefix is untouched, so the MAC still
-    // verifies — the forged attribution surfaces as trusted.
+    // verifies - the forged attribution surfaces as trusted.
     final forged = '${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}'
         '|did:alex:victim|Success\n';
     await file.writeAsString(forged);
@@ -120,13 +120,13 @@ void main() {
     final file = File('${tmp.path}/audit_trail.log');
     final lines = await file.readAsLines();
     // Attacker deletes the LAST entry (e.g. the one that incriminates
-    // them) — lines carry no sequence number or link, so absence is
+    // them) - lines carry no sequence number or link, so absence is
     // silent.
     await file.writeAsString('${lines.first}\n');
 
     final logs = await svc.getRecentLogs(10);
     // SECURE expectation: an audit log must not silently lose its tail.
-    // There is no API that reports truncation — the only signal would be
+    // There is no API that reports truncation - the only signal would be
     // a chain/sequence field on surviving lines, which does not exist.
     expect(logs.length, equals(2),
         reason: 'the log silently lost its tail — entries carry no sequence '

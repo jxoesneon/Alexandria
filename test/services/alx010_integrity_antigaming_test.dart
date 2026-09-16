@@ -39,7 +39,7 @@ class _FakeAuditLogService extends AuditLogService {
       {String? details, String? actor, String status = 'Success'}) async {}
 }
 
-/// IPFS stub that can corrupt a stored payload after ingest — simulating a
+/// IPFS stub that can corrupt a stored payload after ingest - simulating a
 /// malicious or bit-rotted peer serving altered bytes for a valid CID.
 class _CorruptibleIpfs extends IpfsService {
   _CorruptibleIpfs(super.ref);
@@ -134,7 +134,7 @@ void main() {
       final ok = await repo.retrieveContent(cid);
       expect(ok.length, 512);
 
-      // Corrupt the stored payload — retrieval must refuse it
+      // Corrupt the stored payload - retrieval must refuse it
       ipfs.corrupt(cid);
       await expectLater(
         repo.retrieveContent(cid),
@@ -159,7 +159,7 @@ void main() {
       ipfs.corrupt(v.cid);
       final bad = await repo.probeContentIntegrity(v.cid);
       expect(bad.payloadHashOk, isFalse);
-      // Signature over the CID binding still verifies — the binding is
+      // Signature over the CID binding still verifies - the binding is
       // intact even though the stored bytes are not.
       expect(bad.signatureValid, isTrue);
     });
@@ -301,7 +301,7 @@ void main() {
 
     test('daily storage mint cap is enforced', () {
       var minted = 0.0;
-      // Each call at max size would mint 50.0 — 5 calls = 250 > 200 cap
+      // Each call at max size would mint 50.0 - 5 calls = 250 > 200 cap
       for (var i = 0; i < 5; i++) {
         minted += credits.awardStorageCredits(
           sizeBytes: 500 * 1024 * 1024,

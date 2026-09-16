@@ -25,7 +25,7 @@ class ContentRepository {
   CidService get _cidService => _ref.read(cidServiceProvider);
   IdentityService get _identity => _ref.read(identityServiceProvider);
 
-  /// Maximum versions (editions) allowed per manifest — anti-fragmentation cap.
+  /// Maximum versions (editions) allowed per manifest - anti-fragmentation cap.
   static const int maxVersionsPerManifest = 20;
 
   /// Minimum payload size for a standalone version row.
@@ -54,7 +54,7 @@ class ContentRepository {
       final wrappedKey = base64Encode(await _encryption.keyToBytes(dek));
       // (round-2 red finding) The DEK lives ONLY in flutter_secure_storage
       // under 'dek_$uuid'. It must NEVER be written into the plaintext
-      // content_manifests.encryptionKey column — that row ships through
+      // content_manifests.encryptionKey column - that row ships through
       // collection-sync metadata paths and sits in unencrypted SQLite, so
       // a copy there voids encryption-at-rest for anyone who can read the
       // database file or a backup export.
@@ -106,9 +106,9 @@ class ContentRepository {
 
   /// Returns the base64 data-encryption key for [manifestUuid] from
   /// secure storage ('dek_$uuid'), or null for unencrypted/absent
-  /// content. This is the ONLY supported way to recover a content DEK —
+  /// content. This is the ONLY supported way to recover a content DEK -
   /// the manifest row intentionally carries no key material (round-2 red
-  /// finding). NEVER exposed to plugins — see [asPluginCapability]
+  /// finding). NEVER exposed to plugins - see [asPluginCapability]
   /// (round-4 red finding).
   Future<String?> contentDekBase64(String manifestUuid) async {
     return _storage.read('dek_$manifestUuid');
@@ -116,14 +116,14 @@ class ContentRepository {
 
   /// (round-4 red finding) The plugin-facing view of this repository.
   ///
-  /// The round-3 facade gated which PROVIDER a plugin could read — but
+  /// The round-3 facade gated which PROVIDER a plugin could read - but
   /// handed over the full [ContentRepository], whose public surface
   /// reaches the keychain transitively (`contentDekBase64` → every
   /// stored DEK; `retrieveManifestContent` → decrypt-anything). A
   /// `contentRead`-scoped plugin could therefore exfiltrate the very
   /// key material the capability list claims is "NEVER" reachable.
   ///
-  /// [asPluginCapability] returns a [PluginContentRepository] — a real
+  /// [asPluginCapability] returns a [PluginContentRepository] - a real
   /// [ContentRepository] sharing this instance's [Ref], but with every
   /// key-material/decrypt path closed and mutation methods gated on the
   /// declared `contentWrite` permission. Manifest/metadata reads pass
@@ -210,7 +210,7 @@ class ContentRepository {
   ///  - [maxVersionsPerManifest] cap blocks fragmentation attacks.
   ///  - [minVersionBytes] floor blocks dust/empty edition rows.
   ///  - Payloads that are byte-fragments of an existing version are flagged
-  ///    (not rejected — visibility is a display concern, never a gate).
+  ///    (not rejected - visibility is a display concern, never a gate).
   Future<String> addContentVersion({
     required String manifestUuid,
     required Uint8List fileData,
@@ -265,7 +265,7 @@ class ContentRepository {
 
   /// Computed integrity probe for the Safe Harbor panel (ALX-010): re-hashes
   /// the stored payload against its CID digest and verifies the edition's
-  /// Ed25519 signature. Reports only checks that actually ran — never asserts.
+  /// Ed25519 signature. Reports only checks that actually ran - never asserts.
   Future<ContentIntegrityReport> probeContentIntegrity(String cid) async {
     final chunks = <int>[];
     await for (final chunk in _ipfs.getFile(cid)) {
@@ -380,7 +380,7 @@ class ContentRepository {
 
   /// Writes [m]'s content columns back to its row WITHOUT touching
   /// `encryptionKey`. (round-6 red finding) `update().replace()` copies
-  /// every column — so a manifest fetched through
+  /// every column - so a manifest fetched through
   /// [PluginContentRepository]'s projected view (`encryptionKey: null`)
   /// wrote the hidden column back as NULL, destroying legacy plaintext
   /// DEKs the schema-v6 migration deliberately keeps until they are
@@ -399,7 +399,7 @@ class ContentRepository {
       metadata: Value(m.metadata),
       isEncrypted: Value(m.isEncrypted),
       lastUpdated: Value(m.lastUpdated),
-      // encryptionKey: absent — never a writable column on this path.
+      // encryptionKey: absent - never a writable column on this path.
     ));
   }
 
@@ -556,7 +556,7 @@ class ContentRepository {
   }
 }
 
-/// Result of [ContentRepository.probeContentIntegrity] — the computed state
+/// Result of [ContentRepository.probeContentIntegrity] - the computed state
 /// behind the Safe Harbor panel. Every field reflects a check that ran;
 /// [signatureValid] is null for legacy unsigned version records.
 class ContentIntegrityReport {
@@ -592,11 +592,11 @@ class ContentIntegrityReport {
 /// unchanged; every path that reaches key material is closed by
 /// construction:
 ///   * [contentDekBase64] reads `dek_<uuid>` straight out of secure
-///     storage — a plugin holding only `contentRead` used it to pull
+///     storage - a plugin holding only `contentRead` used it to pull
 ///     arbitrary content DEKs through the allowlisted repository. It
 ///     now reads as absent (`null`), matching the facade's "denied
 ///     reads as absent" convention.
-///   * [retrieveManifestContent] auto-decrypts with the stored DEK —
+///   * [retrieveManifestContent] auto-decrypts with the stored DEK -
 ///     refused outright.
 ///   * Mutation methods ([createContent], [saveManifest], [saveNote],
 ///     [commitNote], [addAnnotation], [addVersion],
@@ -604,12 +604,12 @@ class ContentIntegrityReport {
 ///     `contentWrite` permission ([_canWrite]).
 ///
 /// [retrieveContent]/[downloadContent] remain available: they reach no
-/// stored key material — decryption there uses only a caller-supplied
-/// DEK the plugin already possesses — and the returned bytes are
+/// stored key material - decryption there uses only a caller-supplied
+/// DEK the plugin already possesses - and the returned bytes are
 /// CID-verified ciphertext for encrypted content.
 ///
 /// (round-5 red finding) The round-4 facade narrowed the METHODS but
-/// returned the raw Drift rows — whose `encryptionKey` column still
+/// returned the raw Drift rows - whose `encryptionKey` column still
 /// holds plaintext DEKs on databases upgraded from pre-round-2 builds
 /// (the schema-v6 migration rehomes then NULLs the column, but a row
 /// survives until its rehome succeeds). Every manifest read below is
@@ -657,7 +657,7 @@ class PluginContentRepository extends ContentRepository {
     }
   }
 
-  /// Key material is never a plugin capability — reads as absent.
+  /// Key material is never a plugin capability - reads as absent.
   @override
   Future<String?> contentDekBase64(String manifestUuid) async => null;
 

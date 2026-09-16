@@ -1,8 +1,8 @@
-// RED TEAM PoC — Round-5: every remote-metadata fetch in the codebase
+// RED TEAM PoC - Round-5: every remote-metadata fetch in the codebase
 // was brought under UrlSafety.requirePublicFetchUri (LNURL .well-known
 // and callback legs, DOI harvester PDF downloads) EXCEPT
 // CashuMintClient, which still fetches a caller-supplied `mintUrl`
-// with a plain http.Client — no scheme restriction (http:// is fine),
+// with a plain http.Client - no scheme restriction (http:// is fine),
 // no inet_aton/IPv6 literal parsing, no DNS-answer check, and default
 // redirect following:
 //
@@ -10,7 +10,7 @@
 //     final uri = Uri.parse('$cleanUrl/v1/keys');
 //     final res = await _client.get(uri, ...);   // no gate, redirects on
 //
-// The melt path POSTs bearer Cashu proofs to that URL — a mint URL
+// The melt path POSTs bearer Cashu proofs to that URL - a mint URL
 // influenced by remote/untrusted configuration, or a 302 from a public
 // mint into 169.254.169.254, is SSRF plus cleartext token exfiltration.
 // The live sweep caller sits behind the payouts kill switch today, but

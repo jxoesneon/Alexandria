@@ -3,7 +3,7 @@
 // round-4 fixed-prefix denylist can't see them.
 //
 //   * ISATAP (RFC 5214): IID = 0000:5EFE:vvvv:vvvv or
-//     0200:5EFE:vvvv:vvvv — bytes 12-15 are the tunnel destination;
+//     0200:5EFE:vvvv:vvvv - bytes 12-15 are the tunnel destination;
 //     it is re-gated through the IPv4 private-range table.
 //   * 6rd (RFC 5969): the embedded v4 follows an operator-chosen
 //     prefix; for a FULL 32-bit embed inside a ≤/64 delegated prefix
@@ -36,7 +36,7 @@ Future<void> _expectAllowed(String url) async {
 }
 
 /// Builds a global-unicast v6 literal carrying [v4] as a 32-bit
-/// embed starting at [bitOffset] — simulating a 6rd operator
+/// embed starting at [bitOffset] - simulating a 6rd operator
 /// prefix of ANY length (nibble-boundary or arbitrary, e.g. /28,
 /// /29, /36). The embed is OR-ed into a zeroed buffer and the
 /// 2000::/3 marker bits are forced AFTERWARDS so prefix material
@@ -54,7 +54,7 @@ String _v6WithEmbed(int v4, int bitOffset) {
   return InternetAddress.fromRawAddress(raw).address;
 }
 
-/// Same construction for a PARTIAL 24-bit embed — the shape a
+/// Same construction for a PARTIAL 24-bit embed - the shape a
 /// 6rd relay configured with `IPv4PrefixLen = 8` leaves: only the
 /// low 24 bits of the tunnelled v4 sit in the literal.
 String _v6WithEmbed24(int v4low24, int bitOffset) {
@@ -76,7 +76,7 @@ void main() {
       await _expectRefused('https://[2001:db8:1::5efe:7f00:1]/x');
       // 10.0.0.1
       await _expectRefused('https://[2001:db8::5efe:a00:1]/x');
-      // 169.254.169.254 — cloud metadata
+      // 169.254.169.254 - cloud metadata
       await _expectRefused('https://[2001:db8::5efe:a9fe:a9fe]/x');
       // 192.168.0.1
       await _expectRefused('https://[2001:db8::5efe:c0a8:1]/x');
@@ -103,9 +103,9 @@ void main() {
       await _expectRefused('https://[2001:db8:a00:1::]/x');
       // embedded 127.0.0.1
       await _expectRefused('https://[2a01:e30:7f00:1::]/x');
-      // embedded 169.254.169.254 — metadata endpoint
+      // embedded 169.254.169.254 - metadata endpoint
       await _expectRefused('https://[2a01:e30:a9fe:a9fe::]/x');
-      // embedded 100.64.0.1 — CGNAT
+      // embedded 100.64.0.1 - CGNAT
       await _expectRefused('https://[2a01:e30:6440:1::]/x');
     });
 
@@ -140,7 +140,7 @@ void main() {
     test(
         'non-nibble (arbitrary prefix) embeds of metadata IPs are '
         'refused', () async {
-      // Prefixes like /29, /33 — off the nibble grid entirely.
+      // Prefixes like /29, /33 - off the nibble grid entirely.
       for (final offset in [3, 7, 19, 29, 31]) {
         final addr = _v6WithEmbed(0xa9fea9fe, offset);
         await _expectRefused('https://[$addr]/x');
@@ -151,7 +151,7 @@ void main() {
         'ordinary embeds at the same shifted offsets are not '
         'overblocked', () async {
       // A public value (8.8.8.8) at every scanned offset stays
-      // fetchable — the denylist is exact-match, not a range.
+      // fetchable - the denylist is exact-match, not a range.
       for (final offset in [4, 12, 20, 28]) {
         final addr = _v6WithEmbed(0x08080808, offset);
         await _expectAllowed('https://[$addr]/x');
@@ -160,7 +160,7 @@ void main() {
 
     test('no false-positives on real global-unicast literals', () async {
       // The documented collision: the offset-12 window of Cloudflare's
-      // anycast resolver decodes to 100.112.4.116 ∈ 100.64.0.0/10 —
+      // anycast resolver decodes to 100.112.4.116 ∈ 100.64.0.0/10 -
       // a RANGE check at shifted offsets would refuse a real DNS
       // resolver. Exact-match does not.
       await _expectAllowed('https://[2606:4700:4700::1111]/x');
@@ -214,7 +214,7 @@ void main() {
     test(
         'a full-32 public embed whose low-24 IS the metadata '
         'fingerprint fails closed (documented ambiguity)', () async {
-      // 168.254.169.254 is a PUBLIC v4 — but under a v4PrefixLen = 0
+      // 168.254.169.254 is a PUBLIC v4 - but under a v4PrefixLen = 0
       // relay its full-32 embed presents the same 24-bit window a
       // v4PrefixLen = 8 metadata embed does. The gate cannot see the
       // relay config, so it refuses: fail-closed on that one literal.

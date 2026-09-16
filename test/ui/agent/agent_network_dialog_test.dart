@@ -49,7 +49,7 @@ void main() {
       expect(find.text('Compute Cycles'), findsOneWidget);
       expect(find.text('Credits Earned'), findsOneWidget);
 
-      // Claimed build provenance renders as advisory display only —
+      // Claimed build provenance renders as advisory display only -
       // including the claimed client version (ALX-012 B3-lite). In tests
       // no dart-defines are injected, so the dev sentinels are shown.
       expect(find.textContaining('Claimed build:'), findsOneWidget);

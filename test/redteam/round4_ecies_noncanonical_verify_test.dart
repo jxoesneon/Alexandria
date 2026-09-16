@@ -1,28 +1,28 @@
-// RED TEAM — Round-4 VERIFICATION of the round-3 ECIES contributory
-// fix (expected to PASS — this file is the regression record).
+// RED TEAM - Round-4 VERIFICATION of the round-3 ECIES contributory
+// fix (expected to PASS - this file is the regression record).
 //
 //   lib/services/encryption_service.dart
 //
 // The blocklist covers the full 12-value libsodium set AND the check
 // compares both the raw and the bit-255-masked input. Under RFC 7748
-// masking (package:cryptography clears u bit 255 — verified in
+// masking (package:cryptography clears u bit 255 - verified in
 // src/dart/x25519.dart: unpackedPublicKey[15] &= 0x7FFF) the complete
 // non-contributory input set is {x, x+2^255} for
-// x ∈ {0, 1, p-1, p, p+1, u8a, u8b} — 14 inputs, all caught.
+// x ∈ {0, 1, p-1, p, p+1, u8a, u8b} - 14 inputs, all caught.
 //
 // This file hammers every spelling: each canonical low-order u, its
 // +2^255 sibling, and each value with both bits that decode to the same
-// point. Every envelope must be sealed to an unreachable point — an
+// point. Every envelope must be sealed to an unreachable point - an
 // eavesdropper who knows the public peer string AND the public seal
 // derivation must still be unable to open it.
 //
 // NOTE on the residual design hazard (not a live break): the all-zero
 // defence-in-depth fallback at encryptForPeer derives its substitute
 // secret from sha256('alexandria:x25519-non-contributory:v1:' +
-// peerPublicKey) — a PUBLIC input. If a low-order input ever slipped
+// peerPublicKey) - a PUBLIC input. If a low-order input ever slipped
 // past the blocklist (e.g. an X25519 backend that does not mask bit
 // 255, where u8a+p / u8b+p are non-contributory and unlisted), the
-// "seal" would be publicly reproducible — exactly the broadcast the
+// "seal" would be publicly reproducible - exactly the broadcast the
 // comment claims to prevent. Recommend keying the fallback with the
 // ephemeral private key or random bytes.
 import 'dart:convert';
@@ -35,14 +35,14 @@ import 'package:alexandria/services/encryption_service.dart';
 String _hex(List<int> b) =>
     b.map((e) => e.toRadixString(16).padLeft(2, '0')).join();
 
-/// Reproduces EncryptionService._sealedU — the unreachable point a
+/// Reproduces EncryptionService._sealedU - the unreachable point a
 /// refused input maps to. Public knowledge.
 Uint8List _sealedU(String peerPublicKey) => Uint8List.fromList(crypto.sha256
     .convert(
         utf8.encode('alexandria:x25519-unresolvable-peer:v1:$peerPublicKey'))
     .bytes);
 
-/// Reproduces the non-contributory fallback secret — also public.
+/// Reproduces the non-contributory fallback secret - also public.
 List<int> _fallbackSecret(String peerPublicKey) => crypto.sha256
     .convert(
         utf8.encode('alexandria:x25519-non-contributory:v1:$peerPublicKey'))

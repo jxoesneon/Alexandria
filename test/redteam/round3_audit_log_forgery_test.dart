@@ -1,17 +1,17 @@
-// RED TEAM PoC — AuditLogService signs each entry with an HMAC at
+// RED TEAM PoC - AuditLogService signs each entry with an HMAC at
 // write time (lib/services/audit_log_service.dart:46-53), but
 // getRecentLogs NEVER verifies it: the signature column is parsed and
 // discarded (line 74), and `status` is taken straight off the line.
 // An attacker who can append to audit_trail.log (or a hostile writer
-// of a synced/restored log file) fabricates arbitrary events — e.g.
+// of a synced/restored log file) fabricates arbitrary events - e.g.
 // 'access_denied ... Denied' to trigger the high-severity alert in
 // SecurityOverviewService.getCurrentAlerts, or 'grant_access ...
-// Success' to launder a fake ACL grant — and the UI reports them as
+// Success' to launder a fake ACL grant - and the UI reports them as
 // genuine. The HMAC is write-time theatre: tamper-evidence is claimed,
 // never enforced.
 //
 // Asserts the SECURE expectation: an entry whose signature cannot be
-// verified must not surface as a trusted 'Success' log — it must be
+// verified must not surface as a trusted 'Success' log - it must be
 // dropped or flagged unverified.
 import 'dart:io';
 import 'package:flutter/services.dart';
@@ -57,7 +57,7 @@ void main() {
     // One genuine entry.
     await svc.log('genuine_event', details: 'real', status: 'Success');
 
-    // Attacker appends a forged line straight to the file — bogus
+    // Attacker appends a forged line straight to the file - bogus
     // signature column, 'Success' status, fake actor.
     final file = File('${tmp.path}/audit_trail.log');
     await file.writeAsString(

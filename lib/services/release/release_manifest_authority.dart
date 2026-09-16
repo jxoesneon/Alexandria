@@ -8,7 +8,7 @@ import 'release_manifest.dart';
 
 /// Evaluation outcome of [ReleaseManifestAuthority.ingest]. Kept as a
 /// rich enum rather than a bool so callers (and tests) can distinguish
-/// refusal causes — every refusal fails closed identically, but the
+/// refusal causes - every refusal fails closed identically, but the
 /// reason matters for operator diagnostics.
 enum ManifestIngestResult {
   /// Accepted: threshold met, freshness proven, sequence advanced, and
@@ -21,28 +21,28 @@ enum ManifestIngestResult {
   malformed,
 
   /// Fewer than `releaseThreshold` DISTINCT release-key signatures
-  /// verified — includes forged signatures and signatures from keys not
+  /// verified - includes forged signatures and signatures from keys not
   /// in the release role.
   insufficientReleaseSignatures,
 
   /// Fewer than `timestampThreshold` DISTINCT timestamp-key signatures
-  /// verified — includes release-role signatures presented in the
+  /// verified - includes release-role signatures presented in the
   /// timestamp slot (wrong-role signatures never count).
   insufficientTimestampSignatures,
 
-  /// The manifest's own `expires_at` has passed — the signer quorum let it
+  /// The manifest's own `expires_at` has passed - the signer quorum let it
   /// lapse; it can no longer pin the floor.
   expiredManifest,
 
-  /// The timestamp record's `expires_at` has passed — the manifest is
+  /// The timestamp record's `expires_at` has passed - the manifest is
   /// not proven current (freeze/replay protection).
   staleTimestamp,
 
-  /// `sequence` is not strictly greater than the last accepted one —
+  /// `sequence` is not strictly greater than the last accepted one -
   /// a rollback attempt (replayed or regressed manifest).
   rollback,
 
-  /// `min_wire_version` is below the current effective floor — the
+  /// `min_wire_version` is below the current effective floor - the
   /// raise-only rule: a manifest can RAISE the floor, NEVER lower it
   /// (no central kill switch, RFC §3.3/§5.1).
   floorLower,
@@ -54,40 +54,40 @@ enum ManifestIngestResult {
 ///
 /// Semantics implemented (each is a load-bearing security property):
 ///
-///  * **m-of-n threshold verification** — the manifest body
+///  * **m-of-n threshold verification** - the manifest body
 ///    (`alexandria:release-manifest:v1:` preimage) must carry at least
 ///    `registry.releaseThreshold` DISTINCT release-keyId signatures that
 ///    verify under the registry's release keys. Forged, malformed or
 ///    wrong-role signatures never count.
-///  * **Timestamp-role freshness** — a bundle additionally needs a
+///  * **Timestamp-role freshness** - a bundle additionally needs a
 ///    [ManifestTimestamp] binding `manifest_hash`/`sequence`, signed by
 ///    `timestampThreshold` distinct timestamp keyIds, and unexpired at
 ///    evaluation time. The timestamp role maps to the online quorum
 ///    key (TUF): replaying an old manifest cannot mint freshness.
-///  * **Rollback resistance** — `sequence` must strictly exceed the
+///  * **Rollback resistance** - `sequence` must strictly exceed the
 ///    last accepted sequence. The cursor survives restarts when the
 ///    caller wires the `persistedSequence`/`onSequenceAccepted`
 ///    constructor arguments to durable storage (injection seam;
 ///    in-memory by default).
-///  * **Raise-only floor** — `min_wire_version < effectiveFloor`
+///  * **Raise-only floor** - `min_wire_version < effectiveFloor`
 ///    refuses outright. A valid manifest can raise the effective
 ///    claimable wire floor above the per-verifier compile-time
 ///    [baselineFloor] but NEVER lower it: a release manifest can retire
-///    a wire epoch at this verifier but can never resurrect one —
+///    a wire epoch at this verifier but can never resurrect one -
 ///    retirement stays a per-verifier, socially coordinated act (Safety
 ///    B4: no central kill switch, and no reverse-direction lever that
 ///    would be one).
-///  * **Staleness** — both `manifest.expires_at` (the signer quorum-set bound
+///  * **Staleness** - both `manifest.expires_at` (the signer quorum-set bound
 ///    keeping an abandoned manifest from pinning forever) and
 ///    `timestamp.expires_at` (the freshness bound) are enforced against
 ///    an injectable clock.
 ///
 /// NOTE ON AUTHORITY: an accepted manifest only changes this node's
-/// [effectiveFloor] — it governs nothing remotely, matching the RFC's
+/// [effectiveFloor] - it governs nothing remotely, matching the RFC's
 /// "each verifier's floor is its own" model. Consumers read
 /// [effectiveFloor] instead of the compile-time constant; the
 /// CreditService claim path keeps its constant until the orchestrator
-/// wires this authority in (documented seam — the production trigger
+/// wires this authority in (documented seam - the production trigger
 /// conditions of RFC §5.1 are not yet met).
 class ReleaseManifestAuthority {
   ReleaseManifestAuthority({
@@ -110,11 +110,11 @@ class ReleaseManifestAuthority {
   final ReleaseKeyRegistry _registry;
 
   /// The per-verifier compile-time floor this authority wraps (e.g.
-  /// `CreditService.minClaimableWireVersion`, injected by the caller —
+  /// `CreditService.minClaimableWireVersion`, injected by the caller -
   /// the authority never reaches across domain boundaries itself).
   final int baselineFloor;
 
-  /// Highest `min_wire_version` ever accepted — the floor ratchet.
+  /// Highest `min_wire_version` ever accepted - the floor ratchet.
   /// Because ingest refuses `minWireVersion < effectiveFloor`, this is
   /// monotone non-decreasing for the life of the authority. Starts at 0
   /// (no manifest accepted) so [effectiveFloor] is `max(baselineFloor,
@@ -123,7 +123,7 @@ class ReleaseManifestAuthority {
 
   /// The last accepted manifest sequence (-1 = none accepted yet).
   /// Restored via the `persistedSequence` constructor argument and
-  /// pushed back out through `_onSequenceAccepted` — the rollback
+  /// pushed back out through `_onSequenceAccepted` - the rollback
   /// cursor's durability is the caller's storage seam.
   int _acceptedSequence;
   int get acceptedSequence => _acceptedSequence;
@@ -133,7 +133,7 @@ class ReleaseManifestAuthority {
   final EscrowAttestationVerifier _verifyFn;
 
   /// The effective claimable wire floor: `max(baselineFloor, highest
-  /// accepted manifest floor)`. Monotone — manifests raise, never lower.
+  /// accepted manifest floor)`. Monotone - manifests raise, never lower.
   int get effectiveFloor =>
       _acceptedFloor > baselineFloor ? _acceptedFloor : baselineFloor;
 
@@ -150,7 +150,7 @@ class ReleaseManifestAuthority {
     final ts = bundle.timestamp;
     final now = _clock().millisecondsSinceEpoch;
 
-    // Structural sanity — a manifest asserting a non-positive floor or
+    // Structural sanity - a manifest asserting a non-positive floor or
     // carrying non-positive times can never be meaningful.
     if (manifest.minWireVersion < 1 ||
         manifest.sequence < 1 ||
@@ -161,7 +161,7 @@ class ReleaseManifestAuthority {
       return ManifestIngestResult.malformed;
     }
 
-    // Timestamp binding: the record must cover THIS manifest — same
+    // Timestamp binding: the record must cover THIS manifest - same
     // sequence and the canonical body hash. A mismatch is a record for
     // a different manifest entirely.
     if (ts.sequence != manifest.sequence ||
@@ -185,9 +185,9 @@ class ReleaseManifestAuthority {
     }
 
     // Raise-only floor (no central kill switch, and no reverse lever):
-    // a manifest asserting a floor below the current effective floor —
+    // a manifest asserting a floor below the current effective floor -
     // whether below the compile-time baseline or below a previously
-    // accepted manifest — is refused, so the floor ratchets upward only.
+    // accepted manifest - is refused, so the floor ratchets upward only.
     if (manifest.minWireVersion < effectiveFloor) {
       return ManifestIngestResult.floorLower;
     }
@@ -228,14 +228,14 @@ class ReleaseManifestAuthority {
     return ManifestIngestResult.accepted;
   }
 
-  /// Envelope ingest path — the signed-manifest transport the RFC's
+  /// Envelope ingest path - the signed-manifest transport the RFC's
   /// trigger condition (ii) names: manifests ride the same Beacon
   /// envelope channel as bounty announcements. Fail-closed chain:
   ///  * `envelope.kind` must be [ReleaseManifest.envelopeKind];
   ///  * [BeaconEnvelope.verify] must pass (signature + key-derived
   ///    agent id);
   ///  * the envelope signer must be a REGISTERED release key (either
-  ///    role) — a manifest channel open to arbitrary agents would let
+  ///    role) - a manifest channel open to arbitrary agents would let
   ///    any Sybil flood the evaluator with structurally-valid junk;
   ///    quorum-signed envelopes additionally attribute the carrier;
   ///  * the payload must parse as a bundle, then the full [ingest]

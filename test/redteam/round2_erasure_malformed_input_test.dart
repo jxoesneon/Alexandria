@@ -1,21 +1,21 @@
-// RED TEAM PoC — ErasureCodingService trusts serialized shard/block
+// RED TEAM PoC - ErasureCodingService trusts serialized shard/block
 // metadata completely and crashes (or allocates unboundedly) on
 // adversarial input.
 //
 // lib/services/erasure_coding_service.dart:
 //   * decode() line 211: `fullGenMatrix[shardIdx]` indexes the
 //     (k+m)-row generator matrix with an attacker-controlled
-//     `ErasureShard.index` — an index ≥ k+m or < 0 throws an uncaught
+//     `ErasureShard.index` - an index ≥ k+m or < 0 throws an uncaught
 //     RangeError (not the handled StateError), crashing remote-shard
 //     processing.
 //   * decode() line 223: `selectedShards[j].data[byteIdx]` assumes
-//     every shard has block.shardSize bytes — a forged shard with a
+//     every shard has block.shardSize bytes - a forged shard with a
 //     SHORT data array and a *valid self-consistent checksum* crashes
 //     the loop with RangeError.
 //   * decode() lines 205/234: `raw.sublist(0, block.originalSize)`
-//     trusts a wire-supplied originalSize — inflated/negative values
+//     trusts a wire-supplied originalSize - inflated/negative values
 //     throw RangeError.
-//   * encode() line 120 validates only k>0/m>0 — GF(256) cannot
+//   * encode() line 120 validates only k>0/m>0 - GF(256) cannot
 //     represent >255 shard rows; k+m ≥ 256 makes log[x^y] index a
 //     256-entry table out of bounds mid-encode.
 //
@@ -40,7 +40,7 @@ void main() {
 
   test('shard index outside the generator matrix must fail controlled', () {
     // k=2,m=1 → generator matrix has 3 rows. Attacker supplies a shard
-    // at index 9 with a perfectly valid checksum — checksum proves
+    // at index 9 with a perfectly valid checksum - checksum proves
     // only self-consistency, never provenance.
     final block = ErasureBlock(
       blockId: 'b1',
@@ -111,7 +111,7 @@ void main() {
 
   test('encode must reject parameters GF(256) cannot represent', () {
     // k+m ≥ 256 overflows the GF log/exp tables (256 entries) inside
-    // _buildCauchyMatrix — GF256.log[x^y] with x^y ≥ 256 is a raw
+    // _buildCauchyMatrix - GF256.log[x^y] with x^y ≥ 256 is a raw
     // index-out-of-range, and duplicate x^y columns silently produce
     // a singular/invalid matrix. NOTE: RangeError IS an ArgumentError
     // subtype, so the secure expectation must exclude it explicitly.

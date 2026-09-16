@@ -1,7 +1,7 @@
 // Cross-ledger payout rail tests (ALX-006/ALX-012 REV4): the poster-side
 // escrow-release path that evaluates VERIFIED remote claim events as
 // settlement evidence. A verified claim must durably consume the
-// poster's escrow (never refund it — the claimant's payout already
+// poster's escrow (never refund it - the claimant's payout already
 // minted on its own ledger, so refunding the backing hold is the
 // round-1 cross-ledger double-mint); unproven escrows stay locked
 // unless an operator explicitly reconciles.
@@ -21,7 +21,7 @@ Future<SimpleKeyPair> _newKey() => Ed25519().newKeyPair();
 Future<String> _pubHex(SimpleKeyPair kp) async =>
     bytesToHex((await kp.extractPublicKey()).bytes);
 
-/// Foreign-attestor signature over the canonical escrow attestation —
+/// Foreign-attestor signature over the canonical escrow attestation -
 /// what makes a remote announcement claimable (the announcer's own
 /// `funded` flag is forgeable and stripped at ingest).
 Future<EscrowAttestation?> _attestBounty(
@@ -47,7 +47,7 @@ Future<EscrowAttestation?> _attestBounty(
 }
 
 /// Issues a signed claim event for [bountyId]/[cid] and wraps it in a
-/// Beacon envelope signed by the same claimant key — the transport
+/// Beacon envelope signed by the same claimant key - the transport
 /// binding `envelope.agentId == claimantAgentId` requires.
 Future<BeaconEnvelope> _claimEnvelope(
   SimpleKeyPair claimant, {
@@ -90,7 +90,7 @@ void main() {
       expect(svc.activeBounties.any((b) => b.id == posted.id), isFalse);
 
       // The durable spent-tombstone landed: the escrow is provably
-      // consumed — releaseEscrow refuses it forever (never a refund).
+      // consumed - releaseEscrow refuses it forever (never a refund).
       expect(await db.hasCreditTransaction('tx_escrow_release_${posted.id}'),
           isTrue);
       expect(await cs.releaseEscrow(referenceId: posted.id), 0.0);
@@ -190,7 +190,7 @@ void main() {
       final posted = await svc.postPreservationBounty(
           cid: 'bafk_binding', title: 't', offeredCredits: 20.0, force: true);
 
-      // Claimant A signs the event; impostor B wraps it — the
+      // Claimant A signs the event; impostor B wraps it - the
       // envelope-signer/claimant binding must refuse it.
       final claimant = await _newKey();
       final impostor = await _newKey();
@@ -220,7 +220,7 @@ void main() {
           bountyId: 'bounty_foreign_999', cid: 'bafk_theirs');
       expect(await svc.ingestBountyClaimEnvelope(env), isTrue);
       expect(svc.isRemotelyClaimed('bounty_foreign_999'), isTrue);
-      // No hold exists for that id on this ledger — nothing released.
+      // No hold exists for that id on this ledger - nothing released.
       expect(
           await db.hasCreditTransaction('tx_escrow_release_bounty_foreign_999'),
           isFalse);
@@ -295,7 +295,7 @@ void main() {
           await svc.releaseBountyEscrow(posted.id,
               operatorReconciliation: true),
           BountyEscrowRelease.settledToVerifiedClaim);
-      expect(cs.balance, 75.0); // consumed — NOT refunded to the poster
+      expect(cs.balance, 75.0); // consumed - NOT refunded to the poster
     });
 
     test(
@@ -347,7 +347,7 @@ void main() {
       expect(csP.balance, 70.0);
 
       // Claimant side: holds the poster's record backed by a FOREIGN
-      // attestor's escrow attestation — the only admissible funding
+      // attestor's escrow attestation - the only admissible funding
       // proof (a self-declared `funded` flag is stripped at ingest).
       final attestor = await _newKey();
       final csC = CreditService(initialBalance: 50.0);
@@ -380,7 +380,7 @@ void main() {
       expect(await db.hasCreditTransaction('tx_escrow_release_${posted.id}'),
           isTrue);
       expect(await csP.releaseEscrow(referenceId: posted.id), 0.0);
-      expect(csP.balance, 70.0); // consumed — never refunded
+      expect(csP.balance, 70.0); // consumed - never refunded
       expect(await svcP.cancelBounty(posted.id), isFalse);
     });
   });

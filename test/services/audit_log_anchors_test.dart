@@ -1,17 +1,17 @@
 // Campaign-2 tests: audit-log redundant head anchors.
 //
-// The chain head used to live ONLY in secure storage — an attacker
+// The chain head used to live ONLY in secure storage - an attacker
 // with secure-storage WRITE could delete it and truncate the log
 // undetectably. Now the head is persisted redundantly:
 //   * a MAC'd sidecar file (<log>.head) rewritten on every signed
-//     write — the reader takes the higher-seq anchor of
+//     write - the reader takes the higher-seq anchor of
 //     {storage, sidecar};
 //   * periodic in-file checkpoint lines, MAC'd and chain-linked like
 //     ordinary entries;
 //   * anomaly markers: 'audit_log_anchor_conflict' and
 //     'audit_log_head_anchor_missing'.
 // Residual documented in the service: a persistent attacker with a
-// captured older anchor pair can still roll back BOTH consistently —
+// captured older anchor pair can still roll back BOTH consistently -
 // closing that needs an external anchor.
 import 'dart:convert';
 import 'dart:io';
@@ -123,7 +123,7 @@ void main() {
       await writeEntries(service, 4);
       final lines = await logFile().readAsLines();
       // Craft a checkpoint line at index 4 with a VALID MAC but a
-      // recorded head digest that does not match line 3 — exercises
+      // recorded head digest that does not match line 3 - exercises
       // the recorded-head consistency check independently of the MAC.
       final ts = DateTime.now().toIso8601String();
       final prevDigest =
@@ -145,13 +145,13 @@ void main() {
         'detection — the sidecar anchor still exposes the gap', () async {
       await writeEntries(service, 3);
       // Attacker: deletes the secure-storage head and truncates the
-      // tail — but cannot touch the sidecar.
+      // tail - but cannot touch the sidecar.
       await storage.delete('audit_chain_head_v1');
       final lines = await logFile().readAsLines();
       await logFile().writeAsString('${lines.first}\n');
 
       // Fresh service instance: no in-memory head, anchors resolve
-      // from disk — the sidecar still reports seq 2.
+      // from disk - the sidecar still reports seq 2.
       final fresh = svc();
       final logs = await fresh.getRecentLogs(20);
       final gaps = logs.where((l) => l.event == 'audit_log_tail_gap');
@@ -205,7 +205,7 @@ void main() {
         '(audit_log_anchor_conflict)', () async {
       await writeEntries(service, 3);
       // Attacker rewrites ONLY the storage anchor: same seq, forged
-      // digest — impossible for honest writes.
+      // digest - impossible for honest writes.
       storage._data['audit_chain_head_v1'] = '2:${'a' * 64}';
       final logs = await service.getRecentLogs(20);
       expect(
@@ -232,7 +232,7 @@ void main() {
       await writeEntries(service, 4); // checkpoint at index 4
       await storage.delete('audit_chain_head_v1');
       await headFile().delete();
-      // Truncate the tail back TO the checkpoint — the recovered
+      // Truncate the tail back TO the checkpoint - the recovered
       // checkpoint becomes the remembered head; further truncation
       // below it is detectable by the next read.
       final lines = await logFile().readAsLines();

@@ -1,4 +1,4 @@
-// Safety item 3 — rotation self-vouch guard. importIdentity rotation
+// Safety item 3 - rotation self-vouch guard. importIdentity rotation
 // replaces the node's key, so a receipt verifier-signed by the RETIRED
 // key looked foreign post-rotation and minted attested value. The
 // knownLocalPubkeys history resolver extends the self-dealing check
@@ -39,13 +39,13 @@ class _FakeSecureStorage implements SecureStorageService {
 
 void main() {
   final algorithm = Ed25519();
-  // Key A — the node's RETIRED identity (verifier of the receipt).
+  // Key A - the node's RETIRED identity (verifier of the receipt).
   late SimpleKeyPair keyA;
   late String pubA;
-  // Key B — the node's CURRENT identity post-rotation (the prover).
+  // Key B - the node's CURRENT identity post-rotation (the prover).
   late SimpleKeyPair keyB;
   late String pubB;
-  // Key C — a genuinely foreign verifier.
+  // Key C - a genuinely foreign verifier.
   late SimpleKeyPair keyC;
   late String pubC;
 
@@ -73,7 +73,7 @@ void main() {
   }
 
   /// Receipt: prover = B (the current local key), verifier = [verifier]
-  /// keypair/pubkey (default A — the retired local key).
+  /// keypair/pubkey (default A - the retired local key).
   Future<WorkReceipt> signedReceipt({
     String? verifierPubkey,
     SimpleKeyPair? verifierKeyPair,
@@ -96,7 +96,7 @@ void main() {
     final sig = await algorithm.sign(unsigned.signingPayload,
         keyPair: verifierKeyPair ?? keyA);
     var signed = unsigned.withVerifierSig(base64Encode(sig.bytes));
-    // v3 issuance acknowledgment (ALX-012 §5.8) — counter-signed by
+    // v3 issuance acknowledgment (ALX-012 §5.8) - counter-signed by
     // the prover of record (B, the current identity).
     if (signed.v >= WorkReceipt.minAckWireVersion) {
       final ack = await algorithm.sign(signed.ackPayload, keyPair: keyB);
@@ -159,7 +159,7 @@ void main() {
       final svc = svcWith(knownLocal: () async => {pubB});
       await svc.ready;
       // Without A in the history the retired-key signature passes the
-      // current-key check — the pre-fix mint path this guard closes.
+      // current-key check - the pre-fix mint path this guard closes.
       expect(
           await svc.claimVerifiedReceipt(r,
               claimSignatureB64: await claimSig(r)),
@@ -242,7 +242,7 @@ void main() {
       final identity = IdentityService(storage);
       addTearDown(identity.dispose);
 
-      // Install A, sign the receipt under A, then rotate to B — the
+      // Install A, sign the receipt under A, then rotate to B - the
       // production rotation path is importIdentity.
       await identity.importIdentity(
           Uint8List.fromList(await keyA.extractPrivateKeyBytes()));

@@ -70,7 +70,7 @@ class IngestionPipelineManager extends StateNotifier<IngestionState> {
   final Ref _ref;
   final _uuid = const Uuid();
 
-  /// Per-file ingest ceiling — the same 512 MiB bound
+  /// Per-file ingest ceiling - the same 512 MiB bound
   /// AddContentScreen.maxFileBytes enforces (campaign-2 hardening).
   /// This pipeline reads `file.path` off disk itself, so the picker's
   /// declared size AND the materialized buffer are both checked before
@@ -121,7 +121,7 @@ class IngestionPipelineManager extends StateNotifier<IngestionState> {
 
     try {
       // (campaign-2 hardening) bound the ingest BEFORE the byte buffer
-      // is touched — the picker's declared size is checked first so an
+      // is touched - the picker's declared size is checked first so an
       // oversized file is refused even when its bytes were never
       // materialized; _readFileBytes re-checks the actual buffer.
       if (file.size > maxIngestBytes) {
@@ -198,7 +198,7 @@ class IngestionPipelineManager extends StateNotifier<IngestionState> {
     } else {
       // (campaign-2 hardening) previously returned an empty buffer,
       // which ingested a phantom zero-byte manifest and reported the
-      // item "completed" — fail loudly instead.
+      // item "completed" - fail loudly instead.
       throw StateError('No file data available (bytes not read)');
     }
     if (bytes.length > maxIngestBytes) {

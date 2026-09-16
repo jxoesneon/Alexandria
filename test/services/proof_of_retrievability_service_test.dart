@@ -151,7 +151,7 @@ void main() {
       addTearDown(c.dispose);
       final svc = c.read(proofOfRetrievabilityServiceProvider);
 
-      // Flood well past the 256 cap — the map stays bounded.
+      // Flood well past the 256 cap - the map stays bounded.
       final first = svc.issueChallenge(cid: 'c_first', totalChunks: 1);
       for (var i = 0; i < 300; i++) {
         svc.issueChallenge(cid: 'c_$i', totalChunks: 1);
@@ -161,7 +161,7 @@ void main() {
       expect(svc.pendingChallenge(first.challengeId), isNull);
 
       // Expired entries are purged BEFORE eviction: advance the clock
-      // past the 5-minute TTL — the next insert purges all 256 stale
+      // past the 5-minute TTL - the next insert purges all 256 stale
       // entries rather than evicting a live challenge.
       now = now.add(const Duration(minutes: 6));
       final fresh = svc.issueChallenge(cid: 'c_fresh', totalChunks: 1);
@@ -247,11 +247,11 @@ void main() {
       expect(receipt.challengeNonce, bytesToHex(challenge.nonce));
       expect(receipt.verifierSig, isNotEmpty);
       expect(receipt.isSelfIssued, isFalse);
-      // Artifact-level: a valid attested claim FOR THE PROVER — but this
+      // Artifact-level: a valid attested claim FOR THE PROVER - but this
       // node must neither mint it nor burn it.
       expect(receipt.isAttestedClaim, isTrue);
       expect(receipt.spent, isFalse);
-      // workUnits records exactly the proven chunk bytes — never an
+      // workUnits records exactly the proven chunk bytes - never an
       // extrapolation over sibling chunks.
       expect(receipt.workUnits, chunk.length.toDouble());
       expect(receipt.amount, greaterThan(0));
@@ -266,7 +266,7 @@ void main() {
       });
       expect(ok, isTrue);
 
-      // Persisted UNSPENT — the claim instrument stays live for the prover.
+      // Persisted UNSPENT - the claim instrument stays live for the prover.
       final row = await db.getWorkReceipt(receipt.receiptId);
       expect(row, isNotNull);
       expect(row!['spent'], isFalse);
@@ -304,7 +304,7 @@ void main() {
       expect(receipt.verifierSig, isNotEmpty); // locally signed
       // A locally-signed receipt can never carry attestation weight for a
       // local mint: verifier must be FOREIGN to the claiming node. Here
-      // nothing is minted at all — the receipt is the prover's instrument.
+      // nothing is minted at all - the receipt is the prover's instrument.
       expect(receipt.spent, isFalse);
       expect(creditService.balance, equals(before));
       final row = await db.getWorkReceipt(receipt.receiptId);
@@ -315,8 +315,8 @@ void main() {
         'verifyProof mints synchronously at 1.0x even when proverPeerId '
         'names a foreign node', () async {
       final chunk = chunkOf('self-check bytes held locally');
-      // Even when the challenge carries the local verifier key — so the
-      // async receipt is locally SIGNED naming 'anything_but_self' — the
+      // Even when the challenge carries the local verifier key - so the
+      // async receipt is locally SIGNED naming 'anything_but_self' - the
       // caller-controlled peer id can never unlock attestation weight.
       final challenge = service.issueChallenge(
         cid: 'bafy_sync_mint',
@@ -335,7 +335,7 @@ void main() {
 
       expect(ok, isTrue);
       // The award lands before verifyProof returns (no stale balance) and
-      // at unattested weight: the tiny chunk clamps to the 0.1 floor —
+      // at unattested weight: the tiny chunk clamps to the 0.1 floor -
       // NOT 0.3, which a 3x attested rarity weight would have paid.
       expect(creditService.balance, closeTo(before + 0.1, 1e-9));
     });
@@ -409,7 +409,7 @@ void main() {
       expect(receipt.verifierSig, isNotEmpty);
 
       // The local node IS the prover: minted locally at 1.0x and the
-      // receipt is consumed — spent in memory and in the database row.
+      // receipt is consumed - spent in memory and in the database row.
       expect(receipt.spent, isTrue);
       expect(creditService.balance, greaterThan(before));
       final row = await db.getWorkReceipt(receipt.receiptId);
@@ -419,7 +419,7 @@ void main() {
     test(
         'case-variant prover_pubkey spelling the local key still mints '
         'the local reward (canonical compare, not stranded)', () async {
-      // The MCP tool surface can deliver prover_pubkey in any hex case —
+      // The MCP tool surface can deliver prover_pubkey in any hex case -
       // a syntactic `==` against the node identity would strand the
       // storage reward as an unclaimable foreign-prover instrument.
       final chunk = chunkOf('local bytes proven via MCP-issued proof');
@@ -442,7 +442,7 @@ void main() {
       expect(result.valid, isTrue);
       final receipt = result.receipt!;
       expect(receipt.proverPubkey, identity.pubkeyHex.toUpperCase());
-      // Recognized as the local prover: minted at 1.0x and spent —
+      // Recognized as the local prover: minted at 1.0x and spent -
       // NOT persisted unspent as someone else's claim instrument.
       expect(receipt.spent, isTrue);
       expect(creditService.balance, greaterThan(before));
@@ -489,7 +489,7 @@ void main() {
       );
       expect(unknown.valid, isFalse);
 
-      // Consume a challenge once — replay is rejected (expired/or consumed
+      // Consume a challenge once - replay is rejected (expired/or consumed
       // challenges share the same _validateProof rejection path).
       final chunk = chunkOf('replay payload');
       final challenge = service.issueChallenge(

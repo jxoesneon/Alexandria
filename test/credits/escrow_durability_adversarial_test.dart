@@ -1,9 +1,9 @@
-// SCRATCH RE-EVALUATOR FILE — REV4a fix-diff verification + regression hunt.
+// SCRATCH RE-EVALUATOR FILE - REV4a fix-diff verification + regression hunt.
 // Probes ONLY holes the fix diffs themselves introduced:
 //   A  releaseEscrow never re-checks _paidBountyIds AFTER the awaited
-//      payout-row probe — a same-isolate awardBountyEscrow landing in the
+//      payout-row probe - a same-isolate awardBountyEscrow landing in the
 //      probe window mints AND the release refunds (TOCTOU double-dip).
-//   B  `_txSeq` resets per process — a hold id `tx_escrow_hold_<ref>_<seq>`
+//   B  `_txSeq` resets per process - a hold id `tx_escrow_hold_<ref>_<seq>`
 //      can collide with a pre-restart row for a recycled referenceId →
 //      insertOrIgnore drops a REAL debit → release refunds a hold the
 //      durable ledger never recorded (phantom mint on next hydrate).
@@ -13,7 +13,7 @@
 //   C  delete-path history record end-to-end (never-read key → delete →
 //      reinstall → self-vouch claim must still refuse).
 //   D  a hydrated hold row carrying a non-finite amount is refused.
-// Every test asserts the SECURE expectation — a FAILURE marks a LIVE hole.
+// Every test asserts the SECURE expectation - a FAILURE marks a LIVE hole.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -52,7 +52,7 @@ class _FakeSecureStorage implements SecureStorageService {
 /// Parks the releaseEscrow payout probe behind [probeGate] and (when
 /// [holdPayoutRows]) parks the durable payout-row insert behind
 /// [payoutGate]. Lets a synchronous awardBountyEscrow run INSIDE the
-/// probe await — the window between the probe and the no-await
+/// probe await - the window between the probe and the no-await
 /// check/scan/add region.
 class _ProbeGateDb extends AppDatabase {
   final Completer<void> probeGate = Completer<void>();
@@ -139,7 +139,7 @@ void main() {
       // Interleave: a claim-settlement path (claimBounty →
       // awardBountyEscrow is synchronous) runs while the release's
       // durable probe is parked. The award mints and enqueues its
-      // payout row — which stays parked so the probe cannot see it.
+      // payout row - which stays parked so the probe cannot see it.
       expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'victim', cid: 'c'),
           20.0);
       expect(s.balance, 50.0); // 50 - 20 hold + 20 payout
@@ -157,7 +157,7 @@ void main() {
       await s.settled;
 
       // Canonical outcome: if both rows landed, the ledger itself
-      // records the double-mint — it survives a restart.
+      // records the double-mint - it survives a restart.
       final s2 = svc(onDb: gdb);
       await s2.ready;
       expect(s2.balance, 50.0,
@@ -197,7 +197,7 @@ void main() {
       final seq = int.parse(probeRow.id.split('_').last);
       await s1.settled;
 
-      // The pre-restart hold row for the recycled referenceId — in a
+      // The pre-restart hold row for the recycled referenceId - in a
       // real restart _txSeq is 0 again, so `tx_escrow_hold_shared_<n>`
       // repeats; here we force the exact id the NEXT hold will claim.
       await db.insertCreditTransaction(_txRow(
@@ -213,7 +213,7 @@ void main() {
       await s2.ready;
       expect(s2.balance, 79.0); // 100 - 1 probe - 20 seeded hold
 
-      // The re-posted hold mints `tx_escrow_hold_shared_<seq+1>` — the
+      // The re-posted hold mints `tx_escrow_hold_shared_<seq+1>` - the
       // SAME primary key as the seeded row. The in-memory list gains
       // it; the durable insert is insertOrIgnore-DROPPED.
       expect(s2.debitEscrow(amount: 20.0, referenceId: 'shared'), isTrue);
@@ -226,7 +226,7 @@ void main() {
           reason: 'two distinct debits of -20 must both persist — '
               'insertOrIgnore silently dropped the second');
 
-      // The in-memory scan sees both holds and refunds the SUM — but
+      // The in-memory scan sees both holds and refunds the SUM - but
       // only one debit is durable.
       expect(await s2.releaseEscrow(referenceId: 'shared'), 40.0);
       await s2.settled;
@@ -275,7 +275,7 @@ void main() {
       final pubB = bytesToHex((await keyB.extractPublicKey()).bytes);
 
       final storage = _FakeSecureStorage();
-      // Pre-feature install of A — no history blob ever written.
+      // Pre-feature install of A - no history blob ever written.
       await storage.write('alexandria_identity_private_key',
           bytesToHex(await keyA.extractPrivateKeyBytes()));
       await storage.write('alexandria_identity_public_key', pubA);
@@ -307,7 +307,7 @@ void main() {
       );
       final vsig = await algorithm.sign(unsigned.signingPayload, keyPair: keyA);
       var receipt = unsigned.withVerifierSig(base64Encode(vsig.bytes));
-      // v3 issuance acknowledgment — prover B counter-signs the ack
+      // v3 issuance acknowledgment - prover B counter-signs the ack
       // domain (the claim is still refused on the self-issued guard).
       if (receipt.v >= WorkReceipt.minAckWireVersion) {
         final ack = await algorithm.sign(receipt.ackPayload, keyPair: keyB);
@@ -415,7 +415,7 @@ void main() {
             referenceId: const Value('rel'),
           ),
         );
-        // A STALE but never-paid, never-released hold — the case the
+        // A STALE but never-paid, never-released hold - the case the
         // getEscrowHoldRows listing (RE-W closure) exists for.
         b.insert(
           db.creditTransactions,
@@ -453,11 +453,11 @@ void main() {
 
       final s = CreditService(db: db, initialBalance: 0.0);
       await s.ready;
-      // Sanity: the window truncated (SUM fallback) — balance is the
+      // Sanity: the window truncated (SUM fallback) - balance is the
       // full-table sum: -20 +20 +15 -7.5 + pads.
       expect(s.balance, greaterThan(17.0));
 
-      // The durable payout row exists — a re-pay must refuse.
+      // The durable payout row exists - a re-pay must refuse.
       expect(await db.hasCreditTransaction('tx_bounty_payout_old'), isTrue);
       // …but the dedup rebuild only scans the hydrated window:
       expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'old', cid: 'cid_old'),
@@ -465,10 +465,10 @@ void main() {
           reason: 'payout row is beyond the 100k window — refused '
               'because _paidBountyIds is rebuilt from the targeted '
               'prefix listing, not the truncated replay window');
-      // The release dedup missed 'rel' for the same reason — but its
+      // The release dedup missed 'rel' for the same reason - but its
       // hold is also beyond the window so the scan still refuses.
       expect(await s.releaseEscrow(referenceId: 'rel'), 0.0);
-      // 'old' was durably PAID — releasing its escrow would be the
+      // 'old' was durably PAID - releasing its escrow would be the
       // payout↔refund double-dip; the refusal stands even though the
       // beyond-window hold row is unreachable by the in-memory scan.
       expect(await s.releaseEscrow(referenceId: 'old'), 0.0,
@@ -476,7 +476,7 @@ void main() {
               'tx_bounty_payout_old row makes the release refuse; '
               'the stranded-hold bound is documented on releaseEscrow');
       // RE-W CLOSED: the unpaid 'stale' hold lives beyond the replay
-      // window but IS reachable through getEscrowHoldRows — a stale
+      // window but IS reachable through getEscrowHoldRows - a stale
       // cancel now refunds instead of stranding.
       final before = s.balance;
       expect(await s.releaseEscrow(referenceId: 'stale'), 7.5,

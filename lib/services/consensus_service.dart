@@ -11,7 +11,7 @@ final consensusServiceProvider = Provider((ref) {
   final identityService = ref.watch(identityServiceProvider);
   final ledgerService = ref.watch(ledgerServiceProvider);
   // Human attestation is bound to the biometric service's
-  // last-real-authentication clock — see [ConsensusService.castVote].
+  // last-real-authentication clock - see [ConsensusService.castVote].
   final biometricService = ref.watch(biometricServiceProvider);
   return ConsensusService(
     identityService,
@@ -30,14 +30,14 @@ final consensusServiceProvider = Provider((ref) {
 /// tests and headless embedders can supply their own evidence source.
 ///
 /// TRUST MODEL: the clock must be fed ONLY by genuine authentication
-/// events — never by a caller's claim and never by a fail-open bypass.
+/// events - never by a caller's claim and never by a fail-open bypass.
 /// [BiometricService.authenticate] returns true without prompting when
 /// biometrics are unavailable or secure mode is off; those paths do
 /// NOT update the clock, so "the user was allowed through" is never
 /// mistaken for "a human was verified".
 typedef HumanAttestationClock = DateTime? Function();
 
-/// Verifies (and consumes) a per-vote human attestation token — the
+/// Verifies (and consumes) a per-vote human attestation token - the
 /// STRONG human-binding path that supersedes the temporal
 /// [HumanAttestationClock] window (campaign-2 hardening).
 ///
@@ -46,11 +46,11 @@ typedef HumanAttestationClock = DateTime? Function();
 /// device-credential prompt, committing to the exact ballot fields
 /// (voterKey ‖ changeId ‖ choice ‖ issuedAt ‖ nonce). The verifier
 /// returns true only when the token's MAC covers THESE fields, it is
-/// inside its TTL, and it has never been consumed — a token minted
+/// inside its TTL, and it has never been consumed - a token minted
 /// for another change, another choice, or another voter attests
 /// nothing, and a replayed token refuses.
 ///
-/// TRUST MODEL: same as [HumanAttestationClock] — the source must be
+/// TRUST MODEL: same as [HumanAttestationClock] - the source must be
 /// fed only by genuine authentication events, and every failure mode
 /// (throw, malformed, stale) attests nothing. Wired to
 /// [BiometricService.consumeVoteAttestation] in production; injectable
@@ -83,14 +83,14 @@ class Vote {
   /// Whether this ballot is an ATTESTED human vote.
   ///
   /// (WORKING_ON residual, closed this round) `isHuman` used to be a
-  /// caller-declared flag even on `weightAttested` ballots — the tally
+  /// caller-declared flag even on `weightAttested` ballots - the tally
   /// trusted the signature's weight but took humanity on faith. Now,
   /// on a service-minted attested ballot, `isHuman` is DERIVED, not
   /// declared: [ConsensusService.castVote] sets it only when a
   /// [HumanAttestationClock] reports a real device-credential
   /// authentication within the attestation window. A caller asking for
   /// `isHuman: true` without biometric evidence produces a ballot with
-  /// `isHuman == false` — fail-closed.
+  /// `isHuman == false` - fail-closed.
   ///
   /// Wire-deserialized votes still carry whatever flag their author
   /// claimed, but they are `weightAttested == false` and therefore
@@ -102,7 +102,7 @@ class Vote {
   /// path was used ([ConsensusService.castVote] with
   /// `humanAttestationToken`). Non-null only on attested ballots whose
   /// `isHuman` was derived from a field-bound token rather than the
-  /// recency window — a human ballot carrying this pin is bound to
+  /// recency window - a human ballot carrying this pin is bound to
   /// THAT vote, not just to a recent unlock. The token is single-use
   /// and already consumed, so persisting it here leaks no replayable
   /// credential.
@@ -110,12 +110,12 @@ class Vote {
 
   /// (round-3 red finding) Whether [weight] was derived locally from
   /// ledger state at cast time. Votes deserialized from the wire carry
-  /// `weightAttested = false` — a serialized `weight` is a self-declared
+  /// `weightAttested = false` - a serialized `weight` is a self-declared
   /// claim and is NEVER load-bearing in [ChangeRequest.approvalWeight] /
   /// [ChangeRequest.rejectionWeight] tallies.
   ///
   /// (round-4 red finding) The marker is UNFORGEABLE BY CONSTRUCTION:
-  /// the public constructor accepts — and IGNORES — a `weightAttested`
+  /// the public constructor accepts - and IGNORES - a `weightAttested`
   /// argument, always producing an unattested vote. Only the private
   /// [Vote._attested] constructor, reachable solely from
   /// [ConsensusService.castVote] inside this library, can mint an
@@ -131,11 +131,11 @@ class Vote {
     required this.timestamp,
     this.isHuman = true,
     this.humanAttestation,
-    // Ignored — see field doc. Retained only for call-site compatibility.
+    // Ignored - see field doc. Retained only for call-site compatibility.
     bool weightAttested = false,
   }) : weightAttested = false;
 
-  /// The only attested-vote constructor — private to this library so
+  /// The only attested-vote constructor - private to this library so
   /// attestation can be minted exclusively by [ConsensusService.castVote]
   /// after deriving the weight from ledger state (round-4 red finding).
   Vote._attested({
@@ -183,7 +183,7 @@ class ChangeRequest {
   final DateTime timestamp;
   final List<Vote> votes;
 
-  /// (round-5 red finding) Was a public mutable field — any holder of a
+  /// (round-5 red finding) Was a public mutable field - any holder of a
   /// returned reference could write `status = approved`/`vetoed` and
   /// [isApproved] would honour the forged terminal state. Now private;
   /// the only transition path is [resolve], which moves pending → a
@@ -224,7 +224,7 @@ class ChangeRequest {
   }
 
   /// Calculate total approval weight. (round-3 red finding) Only votes
-  /// whose weight was attested at cast time count — wire-deserialized
+  /// whose weight was attested at cast time count - wire-deserialized
   /// votes declare whatever weight their author wanted and are tallied
   /// as zero. (round-4 red finding) Tallies are deduplicated by
   /// [Vote.voterKey]: [votes] is a publicly mutable list, so a copied
@@ -249,7 +249,7 @@ class ChangeRequest {
   /// Count human approvals (for AI proposals).
   ///
   /// (round-4 red finding) The human quorum counts only ATTESTED human
-  /// approvals — the same trust class as the weight tally. Previously
+  /// approvals - the same trust class as the weight tally. Previously
   /// any wire ballot could self-assert `isHuman` (weightAttested=false)
   /// and satisfy `humanThreshold` without a single ledger-derived vote;
   /// and the count is deduplicated by [Vote.voterKey] so a duplicated
@@ -259,7 +259,7 @@ class ChangeRequest {
   /// attestation, `isHuman` on a counted ballot is now itself derived:
   /// [ConsensusService.castVote] sets it only when a biometric-bound
   /// [HumanAttestationClock] attests a human presence within the
-  /// attestation window — a self-asserted flag can no longer satisfy
+  /// attestation window - a self-asserted flag can no longer satisfy
   /// the human quorum even through the real cast path.
   int get humanApprovalCount {
     final seenKeys = <String>{};
@@ -324,7 +324,7 @@ class ChangeRequest {
               ?.map((v) => Vote.fromJson(v as Map<String, dynamic>))
               .toList() ??
           [],
-      // (round-4 red finding) wire status is unverifiable — a
+      // (round-4 red finding) wire status is unverifiable - a
       // deserialized request claiming 'approved'/'vetoed' would enter
       // pre-resolved with zero votes. Always re-enter as pending,
       // mirroring GovernanceService.addProposal's
@@ -448,7 +448,7 @@ class ConsensusService {
 
   /// Resolves the authenticated uploader of a target CID from trusted
   /// content metadata. Injectable for tests / future content-registry
-  /// integration; the default resolves only LOCALLY-ATTESTED uploads —
+  /// integration; the default resolves only LOCALLY-ATTESTED uploads -
   /// content this node created itself (a `createContent` ledger entry
   /// under the local identity). Anything else yields null, which makes
   /// veto/fast-track authority unprovable rather than claimable
@@ -459,12 +459,12 @@ class ConsensusService {
   /// human-attested ballots: returns the timestamp of the last REAL
   /// device-credential authentication on this node (wired to
   /// [BiometricService.lastAuthenticatedAt] by the provider). When
-  /// null — or when the clock reports nothing recent — every ballot
+  /// null - or when the clock reports nothing recent - every ballot
   /// minted by [castVote] carries `isHuman == false` regardless of
   /// the caller's claim: unattested means not counted.
   final HumanAttestationClock? _humanAttestationClock;
 
-  /// (campaign-2 hardening) Verifier for per-vote attestation tokens —
+  /// (campaign-2 hardening) Verifier for per-vote attestation tokens -
   /// the STRONG human-binding path in [castVote]. Wired to
   /// [BiometricService.consumeVoteAttestation] by the provider. When a
   /// caller supplies `humanAttestationToken` it is checked against the
@@ -511,7 +511,7 @@ class ConsensusService {
   /// Create a new change request.
   ///
   /// (round-3 red finding) [uploaderKey] is retained for API
-  /// compatibility but is IGNORED — uploader authority is resolved from
+  /// compatibility but is IGNORED - uploader authority is resolved from
   /// attested content metadata (see [_resolveUploaderKey]), never from a
   /// caller claim. A proposer can no longer name themself uploader of
   /// someone else's content to self-mint veto/fast-track power.
@@ -576,7 +576,7 @@ class ConsensusService {
   /// ledger entry under the local identity) has a provable uploader.
   /// Residual limitation: for remote content there is no signed
   /// uploader attestation format yet, so veto/fast-track is simply
-  /// unavailable — unprovable is safer than self-minted.
+  /// unavailable - unprovable is safer than self-minted.
   Future<Uint8List?> _resolveUploaderKey(String targetCid) async {
     final resolver = _uploaderResolver;
     if (resolver != null) return resolver(targetCid);
@@ -591,34 +591,34 @@ class ConsensusService {
   /// Cast a vote on a change request.
   ///
   /// (round-3 red finding) [reputation] and [daysActive] are retained
-  /// for API compatibility but are IGNORED — a caller cannot declare
+  /// for API compatibility but are IGNORED - a caller cannot declare
   /// its own weight. Weight is derived from the local ledger
   /// ([LedgerService.totalReputation]) and the identity's real account
-  /// age, and the resulting vote is marked `weightAttested` so it — and
-  /// only it — counts in the tally.
+  /// age, and the resulting vote is marked `weightAttested` so it - and
+  /// only it - counts in the tally.
   ///
   /// (WORKING_ON residual, closed this round) [isHuman] is likewise a
   /// caller CLAIM, not a fact. The stored ballot's `isHuman` is true
   /// only when the claim is made AND the [_humanAttestationClock]
   /// reports a real device-credential authentication within
-  /// [humanAttestationWindow] of the cast — a biometric-authenticated
+  /// [humanAttestationWindow] of the cast - a biometric-authenticated
   /// vote event, bound by recency. Without that evidence the claim
   /// fails closed: the ballot is minted `isHuman == false`, which both
   /// keeps it out of [ChangeRequest.humanApprovalCount] and prices its
   /// weight at the AI factor (an unproven human claim must not even
   /// double its own weight). A clock that throws attests nothing.
   ///
-  /// (campaign-2 hardening — per-vote binding) [humanAttestationToken]
+  /// (campaign-2 hardening - per-vote binding) [humanAttestationToken]
   /// is the STRONG path: a short-lived token minted by
   /// [BiometricService.attestVoteIntent] behind a real device-credential
   /// prompt, committing to exactly (voterKey, requestId, approve). When
-  /// supplied it must verify — a forged, stale, replayed, or
+  /// supplied it must verify - a forged, stale, replayed, or
   /// wrong-field token REFUSES THE CAST entirely (returns null): a
   /// caller presenting attestation evidence that fails must not get a
   /// silent downgrade to an AI-priced ballot, which would hide the
   /// forgery attempt inside an apparently ordinary vote. When no token
   /// is supplied, [isHuman] falls back to the temporal
-  /// [_humanAttestationClock] window (compat path — one recent unlock
+  /// [_humanAttestationClock] window (compat path - one recent unlock
   /// covers every vote in the window, which is why the token path
   /// dominates when available). A verified token is pinned onto the
   /// minted ballot as [Vote.humanAttestation] and folded into the
@@ -655,7 +655,7 @@ class ConsensusService {
     //
     // Human attestation (WORKING_ON residual, closed): the caller's
     // `isHuman` claim is honoured ONLY when the attestation clock
-    // reports a device-credential authentication inside the window —
+    // reports a device-credential authentication inside the window -
     // and a clock reading in the FUTURE attests nothing either (a
     // skewed/fake source cannot pre-mint human ballots). The derived
     // flag feeds BOTH the stored ballot and the weight factor, so an
@@ -663,7 +663,7 @@ class ConsensusService {
     //
     // (campaign-2 hardening) STRONG path first: a supplied token must
     // verify against THIS ballot's fields (this voter's key, this
-    // request, this choice) — binding the biometric event to this
+    // request, this choice) - binding the biometric event to this
     // exact vote, not merely to a recent unlock. Verification also
     // CONSUMES the token (single-use), so it is deliberately run only
     // after the pending/identity/duplicate checks above: a rejected
@@ -701,9 +701,9 @@ class ConsensusService {
     );
 
     // Create vote data to sign. (campaign-2 hardening) the signed
-    // payload folds in the attestation binding — 'att:<token>' when a
+    // payload folds in the attestation binding - 'att:<token>' when a
     // per-vote token verified, 'att:window' for the temporal-fallback
-    // human path, 'att:none' otherwise — so the ballot signature
+    // human path, 'att:none' otherwise - so the ballot signature
     // commits to WHICH kind of human evidence authorized it.
     final attBinding = attestedIsHuman
         ? (humanAttestationToken != null
@@ -717,7 +717,7 @@ class ConsensusService {
     );
 
     // (round-4 red finding) attestation is minted ONLY through the
-    // private constructor — the weight above was derived from ledger
+    // private constructor - the weight above was derived from ledger
     // state, so this is the one place an attested ballot may exist.
     // The consumed token is pinned onto the ballot (it is single-use
     // and burned, so persisting it leaks nothing replayable).
@@ -751,8 +751,8 @@ class ConsensusService {
 
   /// Whether the attestation clock reports a real device-credential
   /// authentication inside [humanAttestationWindow]. Every failure
-  /// mode — no clock wired, clock throws, no authentication yet,
-  /// stale authentication, or a timestamp in the future — returns
+  /// mode - no clock wired, clock throws, no authentication yet,
+  /// stale authentication, or a timestamp in the future - returns
   /// false. Fail-closed by construction.
   bool _hasRecentHumanAttestation() {
     final clock = _humanAttestationClock;

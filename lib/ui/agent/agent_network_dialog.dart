@@ -280,7 +280,7 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
                                       color: Colors.cyanAccent),
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                // Self-declared provenance only — never verified (ALX-010)
+                                // Self-declared provenance only - never verified (ALX-010)
                                 // claimed_client_version is advisory display
                                 // only (ALX-012 B3-lite): never a gate.
                                 Text(
@@ -542,7 +542,7 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
     return null;
   }
 
-  /// Attempts to claim [bounty] and reports the REAL outcome — the
+  /// Attempts to claim [bounty] and reports the REAL outcome - the
   /// service rejects unfunded, self-posted, already-claimed, and
   /// evidence-less claims, so the snackbar must reflect the result.
   Future<void> _claimBounty(
@@ -650,7 +650,7 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
               const Spacer(),
               // Claim button only appears when the post resolves to a
               // tracked bounty, and is disabled when that bounty carries
-              // no escrow — claiming an unfunded announcement is a no-op
+              // no escrow - claiming an unfunded announcement is a no-op
               // that must not masquerade as success (E-T5 #3).
               if (matchedBounty != null)
                 TextButton(

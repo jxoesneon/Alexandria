@@ -9,7 +9,7 @@ import '../agent/beacon_models.dart';
 /// A single role-slotted manifest signature (ALX-012 §5.1).
 ///
 /// Each signature names the signer quorum `keyId` it was produced under and
-/// the TUF-style [role] it belongs to — `'release'` signatures cover the
+/// the TUF-style [role] it belongs to - `'release'` signatures cover the
 /// manifest body (threshold quorum), `'timestamp'` signatures cover the
 /// freshness record (online-key quorum). The role slot is part of the
 /// verification semantics: a signature is only ever evaluated against
@@ -48,12 +48,12 @@ class ManifestSignature {
 /// (`constant → verifier policy → threshold-signed manifest`).
 ///
 /// A manifest asserts a claimable wire floor `minWireVersion` under a
-/// monotonically increasing [sequence] (rollback resistance — a
+/// monotonically increasing [sequence] (rollback resistance - a
 /// manifest only ever supersedes strictly-lower sequences) with a hard
 /// [expiresAt] staleness bound (an abandoned manifest cannot pin the
 /// floor forever).
 ///
-/// CONSTRUCTIBLE FREELY — unlike `EscrowAttestation`/`BountyClaimEvent`
+/// CONSTRUCTIBLE FREELY - unlike `EscrowAttestation`/`BountyClaimEvent`
 /// the manifest is a data carrier; its authority comes exclusively from
 /// `ReleaseManifestAuthority.ingest`, which performs the m-of-n
 /// threshold check, the timestamp-role freshness check, the rollback
@@ -62,20 +62,20 @@ class ManifestSignature {
 ///
 /// The canonical signed body (what the release keys sign) is
 /// `utf8('alexandria:release-manifest:v1:' + canonicalJson({expires_at,
-/// issued_at, min_wire_version, sequence}))` — canonical JSON with
+/// issued_at, min_wire_version, sequence}))` - canonical JSON with
 /// sorted keys makes field boundaries structural, and the domain prefix
 /// keeps the preimage non-replayable as any other artifact class.
 class ReleaseManifest {
   /// Beacon envelope kind carrying a manifest bundle payload.
   static const String envelopeKind = 'release_manifest';
 
-  /// Manifest format version — the `v1` in the preimage domain.
+  /// Manifest format version - the `v1` in the preimage domain.
   static const int manifestVersion = 1;
 
   /// The wire floor this manifest asserts (RFC `min_wire_version`).
   final int minWireVersion;
 
-  /// Monotonic sequence number — rollback resistance: an authority only
+  /// Monotonic sequence number - rollback resistance: an authority only
   /// accepts a manifest whose sequence is strictly greater than the
   /// last accepted one.
   final int sequence;
@@ -84,7 +84,7 @@ class ReleaseManifest {
   /// freshness guarantee lives in the timestamp record).
   final int issuedAt;
 
-  /// Expiry, epoch milliseconds — after this the manifest is stale and
+  /// Expiry, epoch milliseconds - after this the manifest is stale and
   /// ignored. Prevents an abandoned manifest pinning the floor
   /// indefinitely (RFC: "expiry … prevents indefinite pinning").
   final int expiresAt;
@@ -102,7 +102,7 @@ class ReleaseManifest {
     required this.signatures,
   });
 
-  /// The canonical unsigned body — also the hash input for the
+  /// The canonical unsigned body - also the hash input for the
   /// timestamp role's `manifest_hash` binding.
   Map<String, dynamic> toSignedBody() => {
         'expires_at': expiresAt,
@@ -137,7 +137,7 @@ class ReleaseManifest {
       issuedAt: issuedAt,
       expiresAt: expiresAt);
 
-  /// SHA-256 hex of the canonical body — the value the timestamp
+  /// SHA-256 hex of the canonical body - the value the timestamp
   /// record's `manifest_hash` must equal to bind this manifest.
   String get contentHash =>
       sha256.convert(utf8.encode(toCanonicalJson(toSignedBody()))).toString();
@@ -155,7 +155,7 @@ class ReleaseManifest {
       };
 
   /// Parses a manifest map (e.g. out of an envelope payload). Returns
-  /// null on any malformed field — transports drop, never throw.
+  /// null on any malformed field - transports drop, never throw.
   static ReleaseManifest? fromJson(Object? raw) {
     if (raw is! Map) return null;
     final m = raw.cast<String, dynamic>();
@@ -189,7 +189,7 @@ class ReleaseManifest {
   /// quorum-side issuance helper: signs the manifest under every
   /// release-role [releaseSigners] keypair (keyId → keypair). The
   /// authority counts DISTINCT keyIds, so the caller supplies the
-  /// registry keyIds it controls. Not part of the verification path —
+  /// registry keyIds it controls. Not part of the verification path -
   /// exists so quorum tooling/tests produce well-formed manifests.
   static Future<ReleaseManifest> issue({
     required int minWireVersion,
@@ -225,14 +225,14 @@ class ReleaseManifest {
 /// The TUF "timestamp" role: a freshness record signed by the online
 /// timestamp quorum binding a manifest's content hash and sequence at
 /// a point in time. This is the anti-freeze/anti-replay half of the
-/// design — an attacker (or a stale mirror) replaying an old, still-
+/// design - an attacker (or a stale mirror) replaying an old, still-
 /// unexpired manifest cannot mint a fresh timestamp signature, so
 /// manifest freshness is enforced through the timestamp role rather
 /// than the manifest's own (longer) expiry alone.
 class ManifestTimestamp {
   static const int timestampVersion = 1;
 
-  /// Sequence of the manifest this record covers — must equal the
+  /// Sequence of the manifest this record covers - must equal the
   /// manifest's own `sequence`.
   final int sequence;
 
@@ -243,7 +243,7 @@ class ManifestTimestamp {
   /// When the timestamp quorum signed, epoch milliseconds.
   final int timestamp;
 
-  /// Freshness expiry, epoch milliseconds — after this the record is
+  /// Freshness expiry, epoch milliseconds - after this the record is
   /// stale (TUF timestamps are deliberately short-lived).
   final int expiresAt;
 
@@ -358,7 +358,7 @@ class ManifestTimestamp {
 
 /// The ingest/transport unit: a manifest plus the timestamp-role
 /// freshness record that binds it. Verification is meaningless on an
-/// unbundled manifest — freshness is a property of the pair.
+/// unbundled manifest - freshness is a property of the pair.
 class SignedManifestBundle {
   final ReleaseManifest manifest;
   final ManifestTimestamp timestamp;
@@ -382,7 +382,7 @@ class SignedManifestBundle {
 
   /// Wraps this bundle in a signed Beacon v2 envelope of kind
   /// [ReleaseManifest.envelopeKind]. The authority requires the envelope
-  /// signer to be a release key — [keyPair] should belong to a
+  /// signer to be a release key - [keyPair] should belong to a
   /// registered quorum member (either role).
   Future<BeaconEnvelope> toEnvelope(SimpleKeyPair keyPair) =>
       BeaconEnvelope.create(

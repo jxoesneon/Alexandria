@@ -58,18 +58,18 @@ class HonorBandwidthService {
   /// Attestation source for peer honor credentials (round-3 red
   /// finding). When wired, caller-supplied `baseHonorScore`/
   /// `verifiedPoRCount` are REPLACED by the attested values. When
-  /// absent, self-declared scores contribute NOTHING to priority —
+  /// absent, self-declared scores contribute NOTHING to priority -
   /// ordering falls back to FIFO plus the anti-starvation age term, so
   /// a forged INT_MAX claim can never starve honest queued work.
   final HonorAttestationResolver? attestationResolver;
 
-  /// Hard bounds applied even to ATTESTED values — a compromised or
+  /// Hard bounds applied even to ATTESTED values - a compromised or
   /// buggy attestation source must not mint unbounded priority either.
   static const int maxAttestedHonor = 100000;
   static const int maxAttestedPoR = 10000;
 
   /// [maxConcurrent] is clamped to at least 1: a zero/negative budget
-  /// would leave every enqueued task pending forever — the completer
+  /// would leave every enqueued task pending forever - the completer
   /// futures would hang silently instead of running (availability bug,
   /// not a footgun worth allowing).
   HonorBandwidthService({
@@ -82,7 +82,7 @@ class HonorBandwidthService {
 
   /// (round-3 red finding) `baseHonorScore` and `verifiedPoRCount` are
   /// caller-supplied CLAIMS: without an [attestationResolver] they are
-  /// ignored entirely — a request can no longer declare itself to the
+  /// ignored entirely - a request can no longer declare itself to the
   /// front of the queue.
   Future<T> enqueueRequest<T>({
     required String requestId,
@@ -142,7 +142,7 @@ class HonorBandwidthService {
       final pA = a.computeEffectivePriority(now);
       final pB = b.computeEffectivePriority(now);
       final cmp = pB.compareTo(pA); // Descending priority
-      // (round-3 red finding) deterministic FIFO tiebreak — equal
+      // (round-3 red finding) deterministic FIFO tiebreak - equal
       // priorities resolve by arrival order so a peer cannot win by
       // exploiting sort instability on forged-equal credentials.
       return cmp != 0 ? cmp : a.requestTime.compareTo(b.requestTime);
@@ -152,7 +152,7 @@ class HonorBandwidthService {
     _inFlightCount++;
 
     // (campaign-2 hardening) a task that throws SYNCHRONOUSLY used to
-    // escape _processQueue with _inFlightCount already incremented —
+    // escape _processQueue with _inFlightCount already incremented -
     // the slot leaked forever (the queue would deadlock once all
     // permits leaked) and the completer never resolved, hanging the
     // caller. Invoke inside try/catch so a sync throw completes the

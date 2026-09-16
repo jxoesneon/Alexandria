@@ -1,4 +1,4 @@
-// RED TEAM PoC — Round-3: the new ECIES path in
+// RED TEAM PoC - Round-3: the new ECIES path in
 // EncryptionService.encryptForPeer / decryptFromPeer performs X25519
 // WITHOUT a non-contributory (low-order point / all-zero shared
 // secret) check. package:cryptography's X25519 returns the all-zero
@@ -9,15 +9,15 @@
 // CONSEQUENCE 1 (confidentiality collapse): a hostile peer can publish
 // an "identity public key" whose Ed25519 encoding maps to a low-order
 // Montgomery point. EncryptionService.ed25519PublicToX25519 maps the
-// canonical low-order encodings onto u=0/u=1/… — e.g. the Ed25519
+// canonical low-order encodings onto u=0/u=1/… - e.g. the Ed25519
 // compressed point y = -1 (bytes EC FF…FF 7F) converts to u = 0.
 // encryptForPeer then derives the AEAD key from a PUBLIC CONSTANT
 // (all-zero secret) and public salts (ephPub ‖ u). ANY observer can
-// recompute the key and read the plaintext — the sender believes the
+// recompute the key and read the plaintext - the sender believes the
 // data is sealed to that peer; it is sealed to no one.
 //
 // CONSEQUENCE 2 (recipient-side acceptance): decryptFromPeer likewise
-// accepts an envelope whose ephemeral key is a low-order point — the
+// accepts an envelope whose ephemeral key is a low-order point - the
 // shared secret is again the all-zero constant, so an attacker can
 // forge a decryptable envelope to any victim whose public key is
 // known (it always is), injecting attacker-chosen plaintext into the
@@ -27,7 +27,7 @@
 // treats every 32-byte input as an ED25519 key and re-runs the
 // Edwards→Montgomery map. IdentityService.x25519PublicKeyBytes()
 // documents its return value as "the value a sender needs inside
-// EncryptionService.encryptForPeer" — but passing that u-coordinate
+// EncryptionService.encryptForPeer" - but passing that u-coordinate
 // gets it re-mapped, producing a ciphertext the real recipient key
 // can never open (silent data loss reported as success).
 //
@@ -73,7 +73,7 @@ void main() {
   final x = X25519();
 
   // The Ed25519 compressed encoding of y = -1 (mod p): converts to
-  // Montgomery u = 0 — a low-order point with no private key.
+  // Montgomery u = 0 - a low-order point with no private key.
   final lowOrderEd = Uint8List.fromList([0xec, ...List.filled(30, 0xff), 0x7f]);
   final lowOrderU = EncryptionService.ed25519PublicToX25519(lowOrderEd);
   assert(lowOrderU.every((b) => b == 0), 'expected u=0 mapping');
@@ -84,11 +84,11 @@ void main() {
     final secret =
         Uint8List.fromList(utf8.encode('sealed-bid: pay 42 credits'));
 
-    // Attacker "identity" — a syntactically valid 32-byte public key
+    // Attacker "identity" - a syntactically valid 32-byte public key
     // string (hex spelling of the low-order point).
     final envelope = await enc.encryptForPeer(secret, _hex(lowOrderEd));
 
-    // Eavesdropper path — zero private knowledge required:
+    // Eavesdropper path - zero private knowledge required:
     //   shared = X25519(anything, u=0) = 0*32  (public constant)
     //   salt   = ephPub (from envelope) ‖ u=0 (from the public key)
     final eavesKp = await x.newKeyPair();
@@ -137,7 +137,7 @@ void main() {
         Uint8List.fromList((await victimKp.extractPublicKey()).bytes);
 
     // Forger crafts an envelope with ephPub = u=0. Victim computes
-    // shared = X25519(victimPriv, 0) = 0 — the forger knows it too.
+    // shared = X25519(victimPriv, 0) = 0 - the forger knows it too.
     final forgeKp = await x.newKeyPair();
     final shared = await x.sharedSecretKey(
       keyPair: forgeKp,
@@ -191,7 +191,7 @@ void main() {
 
     final data = Uint8List.fromList(utf8.encode('peer-shared DEK'));
 
-    // Path A (works): sender passes the Ed25519 key — mapped once.
+    // Path A (works): sender passes the Ed25519 key - mapped once.
     final envA = await enc.encryptForPeer(data, _hex(edPub));
     expect(await enc.decryptFromPeer(envA, xPriv), equals(data));
 

@@ -24,7 +24,7 @@ class FakeSecurityOverviewService implements SecurityOverviewService {
   List<PorChallenge> issuedChallenges = const [];
   bool verifyResult = true;
 
-  /// When set, [generateNewKeypair] throws it — simulates a rotation
+  /// When set, [generateNewKeypair] throws it - simulates a rotation
   /// failure (e.g. post-write verification StateError).
   Object? generateError;
 

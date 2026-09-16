@@ -2,8 +2,8 @@
 // return residual closure) and the schema-v8 `burned_attested` durable
 // burn attribution.
 //
-// The contract under test: for every `*Durable` mutator — and for the
-// reordered `releaseEscrow` — a returned success provably corresponds to
+// The contract under test: for every `*Durable` mutator - and for the
+// reordered `releaseEscrow` - a returned success provably corresponds to
 // a durably-committed ledger row at return time (no `settled` wait, no
 // post-hoc reconcile). The synchronous UI-convenience forms keep their
 // documented optimistic semantics.
@@ -64,7 +64,7 @@ void main() {
           isTrue);
       expect(s.balance, 30.0);
 
-      // The row the debit just wrote — durable at return time, not after
+      // The row the debit just wrote - durable at return time, not after
       // a settle window.
       final debitId = s.transactions.firstWhere((t) => t.amount == -20.0).id;
       expect(await db.hasCreditTransaction(debitId), isTrue,
@@ -140,7 +140,7 @@ void main() {
       expect(a.attestedBalance, 100.0);
       expect(b.attestedBalance, 100.0);
 
-      // Instance A durably egresses 80 — B's in-memory view stays at
+      // Instance A durably egresses 80 - B's in-memory view stays at
       // 100 (stale), while the durable pool is now 20.
       expect(
           await a.spendCreditsDurable(
@@ -212,7 +212,7 @@ void main() {
         'across instances via the CAS', () async {
       final a = svc();
       // B hydrates BEFORE the payout so its in-memory dedup set cannot
-      // know about it — the deterministic-id CAS is what refuses.
+      // know about it - the deterministic-id CAS is what refuses.
       final b = svc();
       await a.ready;
       await b.ready;
@@ -225,7 +225,7 @@ void main() {
           reason: 'the payout row is the durable dedup record — it must '
               'exist at return, not after a settle window');
 
-      // The sibling instance that never saw the payout loses the CAS —
+      // The sibling instance that never saw the payout loses the CAS -
       // no settle, no reconcile, a plain 0.0.
       expect(
           await b.awardBountyEscrowDurable(
@@ -356,7 +356,7 @@ void main() {
           isTrue);
       expect(s.attestedBalance, 50.0);
 
-      // A fresh instance replays the same ledger — the durable burn
+      // A fresh instance replays the same ledger - the durable burn
       // column and the replay rule agree row-for-row.
       final s2 = svc();
       await s2.ready;

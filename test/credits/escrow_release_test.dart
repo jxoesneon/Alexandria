@@ -1,4 +1,4 @@
-// Safety 6c — releaseEscrow: the cancel/refund half of debitEscrow.
+// Safety 6c - releaseEscrow: the cancel/refund half of debitEscrow.
 // Covers: exact-once refund, replay refusal, restart durability via the
 // deterministic tx_escrow_release_* row id, unknown/empty referenceId
 // refusal without id-burn, in-memory operation, and the hold-vs-spend
@@ -40,11 +40,11 @@ void main() {
       expect(await s.releaseEscrow(referenceId: 'bounty_1'), 20.0);
       expect(s.balance, 50.0);
 
-      // Replay: the in-memory dedup set refuses — no second mint.
+      // Replay: the in-memory dedup set refuses - no second mint.
       expect(await s.releaseEscrow(referenceId: 'bounty_1'), 0.0);
       expect(s.balance, 50.0);
 
-      // The persisted release row carries the deterministic id — the
+      // The persisted release row carries the deterministic id - the
       // durable "already released" record.
       await s.settled;
       final rows = await db.getCreditTransactions();
@@ -99,7 +99,7 @@ void main() {
       await s.ready;
       expect(await s.releaseEscrow(referenceId: 'bounty_late'), 0.0);
 
-      // The escrow is posted AFTER the probe — refusal gates run before
+      // The escrow is posted AFTER the probe - refusal gates run before
       // the dedup set-add, so the probe did not burn the id.
       fund(s, 50.0);
       expect(s.debitEscrow(amount: 10.0, referenceId: 'bounty_late'), isTrue);
@@ -154,7 +154,7 @@ void main() {
         'release call racing hydration still lands correctly — it '
         'awaits hydration internally', () async {
       // Seed a hold, settle, then release from a FRESH service without
-      // awaiting ready first — releaseEscrow awaits _hydrated itself.
+      // awaiting ready first - releaseEscrow awaits _hydrated itself.
       final first = svc();
       await first.ready;
       fund(first, 50.0);
@@ -162,7 +162,7 @@ void main() {
       await first.settled;
 
       final second = svc();
-      // No `await second.ready` — the call itself must wait for the
+      // No `await second.ready` - the call itself must wait for the
       // persisted ledger rather than refuse on phantom state.
       expect(await second.releaseEscrow(referenceId: 'bounty_6'), 20.0);
       expect(second.balance, 50.0);
@@ -173,7 +173,7 @@ void main() {
     test('rapid _recordTransaction calls produce distinct ids', () async {
       final s = CreditService(initialBalance: 0.0);
       await s.ready;
-      // Back-to-back mints — under the old micros+_transactions.length
+      // Back-to-back mints - under the old micros+_transactions.length
       // scheme, identical micros on successive rows were safe only
       // within one list; the static seq makes collision impossible
       // in-process regardless of timing.
@@ -194,7 +194,7 @@ void main() {
       await b.ready;
       a.awardVerificationCredits(action: 'a', targetId: 't', amount: 1);
       b.awardVerificationCredits(action: 'a', targetId: 't', amount: 1);
-      // Old scheme: both lists were length 0 — a shared micros stamp
+      // Old scheme: both lists were length 0 - a shared micros stamp
       // would collide and the second insertOrIgnore would drop a real
       // ledger row. The process-wide seq suffix can never collide.
       expect(a.transactions.first.id, isNot(b.transactions.first.id));

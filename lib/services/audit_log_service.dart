@@ -27,7 +27,7 @@ class AuditLogService {
   //   ts|event|details|v2:<seq>:<prevDigestHex>:<hmacHex>|actor|status
   // where <seq> is the entry's line index, <prevDigestHex> is the
   // SHA-256 of the PREVIOUS raw log line ('genesis' for the first), and
-  // the HMAC covers EVERY column — the round-3 MAC only covered
+  // the HMAC covers EVERY column - the round-3 MAC only covered
   // timestamp|event|details, leaving actor/status freely rewritable by
   // anyone with file-append access (a denied 'attacker' line could be
   // relabelled 'victim|Success' and still verify). The seq+prev digest
@@ -59,8 +59,8 @@ class AuditLogService {
   //     second-domain artifact rewritten on every signed write,
   //     carrying 'v1|<seq>|<digest>|<hmac>' where the HMAC covers
   //     'audit-head:v1|<seq>|<digest>'. The reader takes the HIGHER-seq
-  //     anchor of {secure storage, sidecar} as the expected head — a
-  //     rolled-back single anchor can never LOWER the expectation —
+  //     anchor of {secure storage, sidecar} as the expected head - a
+  //     rolled-back single anchor can never LOWER the expectation -
   //     and flags a same-seq/different-digest disagreement as
   //     'audit_log_anchor_conflict'.
   //   * IN-FILE CHECKPOINT LINES every [checkpointEvery] signed
@@ -69,13 +69,13 @@ class AuditLogService {
   //     '<headSeq>:<headDigest>' of the entry just written. They are
   //     chain members (deleting one breaks the next line's prev link),
   //     MAC'd (forging one needs the key), and verified on read against
-  //     the recorded predecessor digest — a tampered checkpoint is
+  //     the recorded predecessor digest - a tampered checkpoint is
   //     flagged like any tampered line.
   //
   // The detection guarantee this adds: deleting the secure-storage
   // head no longer blinds the reader (the sidecar still exposes
   // truncation), and deleting EVERY anchor while signed lines remain
-  // is itself surfaced as 'audit_log_head_anchor_missing' — so a
+  // is itself surfaced as 'audit_log_head_anchor_missing' - so a
   // single-shot attacker with file+secure-storage write cannot
   // silently truncate: they must either leave an anchor (→ gap
   // markers), forge one (→ impossible without the key), or delete all
@@ -84,7 +84,7 @@ class AuditLogService {
   // WHAT THIS CANNOT CLOSE (documented residual): an attacker who
   // holds BOTH domains persistently and previously CAPTURED an older
   // anchor pair can roll storage+sidecar back to a consistent earlier
-  // head and truncate to it — no purely-local mechanism distinguishes
+  // head and truncate to it - no purely-local mechanism distinguishes
   // a rolled-back anchor from a fresh one. Likewise, erasing the log
   // file, the sidecar AND the storage head atomically leaves nothing
   // to check. Closing tail-rollback entirely needs an external anchor:
@@ -94,13 +94,13 @@ class AuditLogService {
   //
   // ─────────────────────────────────────────────────────────────────
 
-  /// Sidecar anchor file suffix — `<log path>.head`.
+  /// Sidecar anchor file suffix - `<log path>.head`.
   static const String _headFileSuffix = '.head';
 
   /// Event name carried by in-file checkpoint lines.
   static const String _checkpointEvent = 'audit_chain_checkpoint';
 
-  /// True when the two head anchors disagree at the same seq — an
+  /// True when the two head anchors disagree at the same seq - an
   /// impossible state for honest writes, so it means one anchor was
   /// rewritten. Surfaced as a Tampered marker on the next read.
   bool _anchorConflict = false;
@@ -109,7 +109,7 @@ class AuditLogService {
   int _nextSeq = 0;
   String _prevDigest = _genesisDigest;
 
-  /// The head this service knows was written — either from a write it
+  /// The head this service knows was written - either from a write it
   /// performed itself or from the persisted secure-storage checkpoint.
   /// Never re-derived from the log file itself (that would mask a
   /// truncation).
@@ -142,7 +142,7 @@ class AuditLogService {
         _prevDigest = lines.isEmpty ? _genesisDigest : _lineDigest(lines.last);
       }
     } catch (_) {
-      // Unreadable file — start a fresh chain.
+      // Unreadable file - start a fresh chain.
     }
     // Resolve the redundant head anchors (secure storage + sidecar
     // file); the higher-seq anchor wins so a single rolled-back anchor
@@ -154,7 +154,7 @@ class AuditLogService {
     var digest = anchors.digest;
     if (seq == null) {
       // No external anchor: recover the last VERIFIED in-file
-      // checkpoint as a conservative head — a MAC'd watermark that
+      // checkpoint as a conservative head - a MAC'd watermark that
       // still constrains the chain when secure storage was wiped but
       // the log file survived.
       final recovered = await _recoverCheckpointHead(keyBytes);
@@ -167,7 +167,7 @@ class AuditLogService {
       _expectedHeadSeq = seq;
       _expectedHeadDigest = digest;
       // Never reopen a sequence window the checkpoint already
-      // closed — a truncated file must not mint lower seqs.
+      // closed - a truncated file must not mint lower seqs.
       if (_nextSeq <= seq) _nextSeq = seq + 1;
     }
   }
@@ -183,8 +183,8 @@ class AuditLogService {
     }
   }
 
-  /// Resolves both head anchors — secure storage `_chainHeadKey` and
-  /// the MAC'd sidecar `<log>.head` — returning the higher-seq
+  /// Resolves both head anchors - secure storage `_chainHeadKey` and
+  /// the MAC'd sidecar `<log>.head` - returning the higher-seq
   /// candidate plus a conflict flag when they claim the same seq with
   /// different digests (impossible for honest writes ⇒ one anchor was
   /// rewritten). The returned `any` flag reports whether at least one
@@ -260,8 +260,8 @@ class AuditLogService {
   }
 
   /// Scans the log file tail-to-head for the most recent checkpoint
-  /// line that FULLY verifies — MAC, own seq position, and the
-  /// recorded predecessor head — returning `(seq, lineDigest)` of the
+  /// line that FULLY verifies - MAC, own seq position, and the
+  /// recorded predecessor head - returning `(seq, lineDigest)` of the
   /// checkpoint itself. Used only when both external anchors are
   /// absent (campaign-2 hardening).
   Future<(int, String)?> _recoverCheckpointHead(Uint8List? keyBytes) async {
@@ -305,7 +305,7 @@ class AuditLogService {
   }
 
   /// Persists the chain head to BOTH anchors: secure storage and the
-  /// MAC'd sidecar file. Best-effort — an unwritable anchor degrades
+  /// MAC'd sidecar file. Best-effort - an unwritable anchor degrades
   /// to the other, never to no anchor silently (the missing-anchor
   /// read marker covers total absence).
   Future<void> _writeHeadAnchors(SecureStorageService storage,
@@ -328,7 +328,7 @@ class AuditLogService {
       sha256.convert(utf8.encode(rawLine)).toString();
 
   /// The MAC input for a v2 line: EVERY stored column plus the chain
-  /// fields — nothing on the line is outside the signature.
+  /// fields - nothing on the line is outside the signature.
   static String _v2MacInput(int seq, String prev, String p0, String p1,
       String p2, String p4, String p5) {
     return 'v2|$seq|$prev|$p0|$p1|$p2|$p4|$p5';
@@ -347,7 +347,7 @@ class AuditLogService {
 
     final timestamp = DateTime.now().toIso8601String();
     // Fields are '|'-delimited, so every remote-controllable value is
-    // backslash-escaped before joining — otherwise a `|` or newline in
+    // backslash-escaped before joining - otherwise a `|` or newline in
     // details/actor would forge extra columns or fake log lines (red
     // minor-observation hardening).
     final p1 = _esc(action);
@@ -381,12 +381,12 @@ class AuditLogService {
     _expectedHeadDigest = digest;
     if (keyBase64 != null) {
       final keyBytes = base64Decode(keyBase64);
-      // (campaign-2 hardening) persist the head to BOTH anchors —
+      // (campaign-2 hardening) persist the head to BOTH anchors -
       // deleting only the secure-storage copy can no longer blind
       // truncation detection.
       await _writeHeadAnchors(storage, keyBytes, seq, digest);
       // Periodic in-file checkpoint: a MAC'd, chain-linked line
-      // recording the head just written — a second redundant anchor
+      // recording the head just written - a second redundant anchor
       // embedded in the log stream itself.
       if (file != null && _nextSeq % checkpointEvery == 0) {
         await _writeCheckpoint(file, keyBytes);
@@ -421,23 +421,23 @@ class AuditLogService {
   }
 
   Future<List<AuditLog>> getRecentLogs(int limit) async {
-    // A non-positive limit is a caller bug — clamp it rather than let
+    // A non-positive limit is a caller bug - clamp it rather than let
     // `sublist(0, negative)` throw RangeError at the tail of the read.
     if (limit <= 0) return const [];
     await init();
     await _ensureChainState();
     if (_logFile == null) return const [];
 
-    // (round-3 red finding) the write-side HMAC is VERIFIED on read —
+    // (round-3 red finding) the write-side HMAC is VERIFIED on read -
     // a forged line appended to the log file must never surface as a
     // trusted entry. (round-4 red finding) the v2 MAC covers the WHOLE
     // line (actor/status included) and each line chains to its
-    // predecessor, so tampering with ANY column — or deleting middle or
-    // tail lines — is detectable. Rules:
+    // predecessor, so tampering with ANY column - or deleting middle or
+    // tail lines - is detectable. Rules:
     //   * 'nosig' line → surfaced flagged 'Unverified' (legacy unsigned).
     //   * signed line, no verifier key → dropped (cannot be checked).
     //   * MAC or chain mismatch → surfaced flagged 'Tampered' with the
-    //     claimed actor stripped — flagged, never trusted, never silent.
+    //     claimed actor stripped - flagged, never trusted, never silent.
     //   * missing tail (file's last line != remembered head) → gap
     //     marker entries are synthesized so the absence is visible.
     final storage = _ref.read(secureStorageServiceProvider);
@@ -445,7 +445,7 @@ class AuditLogService {
     final keyBytes = keyBase64 != null ? base64Decode(keyBase64) : null;
 
     // (campaign-2 hardening) re-resolve the head anchors FRESH on every
-    // read — a mid-session anchor deletion must not hide behind the
+    // read - a mid-session anchor deletion must not hide behind the
     // state loaded once at init. The higher-seq anchor feeds the
     // expected head below; `anchors.any` drives the missing-anchor
     // marker, and a same-seq/different-digest disagreement is flagged.
@@ -489,7 +489,7 @@ class AuditLogService {
           status: 'Unverified',
         );
       } else if (keyBytes == null) {
-        // Signed entry but no verifier key — cannot check → drop.
+        // Signed entry but no verifier key - cannot check → drop.
         entry = null;
       } else if (signature.startsWith('v2:')) {
         final fields = signature.split(':');
@@ -513,7 +513,7 @@ class AuditLogService {
         var chainOk = seq == i && claimedPrev == prevDigest;
         // (campaign-2 hardening) checkpoint lines carry a recorded head
         // '<S>:<D>' that must name the line directly before them and
-        // hash to it — a MAC-valid line whose watermark lies is still
+        // hash to it - a MAC-valid line whose watermark lies is still
         // tampered.
         if (chainOk && event == _checkpointEvent) {
           chainOk = _checkpointConsistent(details, i, nonEmpty);
@@ -528,7 +528,7 @@ class AuditLogService {
             : _tampered(event, timestamp);
       } else {
         // Legacy signed line (round-3 format): MAC covered only
-        // parts[0..2] — verify it for backward compatibility; a failure
+        // parts[0..2] - verify it for backward compatibility; a failure
         // is still surfaced flagged rather than trusted.
         final payload = '${parts[0]}|${parts[1]}|${parts[2]}';
         final expected =
@@ -551,7 +551,7 @@ class AuditLogService {
     // head says how many entries SHOULD exist; if the file ends earlier
     // the missing tail is reported as gap markers instead of vanishing.
     // (campaign-2 hardening) the expectation is the HIGHER-seq source
-    // of {in-memory head, secure-storage anchor, sidecar anchor} — a
+    // of {in-memory head, secure-storage anchor, sidecar anchor} - a
     // single rolled-back or deleted anchor can no longer lower it.
     final gapMarkers = <AuditLog>[];
     var expectedSeq = _expectedHeadSeq;
@@ -581,12 +581,12 @@ class AuditLogService {
       }
     }
 
-    // (campaign-2 hardening) anchor-anomaly markers — surfaced like
+    // (campaign-2 hardening) anchor-anomaly markers - surfaced like
     // gap markers so anchor tampering is visible, never silent:
     //   * 'audit_log_anchor_conflict': the two anchors claim the same
-    //     seq with different digests — one of them was rewritten.
+    //     seq with different digests - one of them was rewritten.
     //   * 'audit_log_head_anchor_missing': the file still carries
-    //     v2-signed lines but NO head anchor exists anywhere — the
+    //     v2-signed lines but NO head anchor exists anywhere - the
     //     only way signed lines lose every anchor is deletion.
     final anomalyTs =
         verified.isEmpty ? DateTime.now() : verified.last.timestamp;

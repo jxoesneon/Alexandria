@@ -1,17 +1,17 @@
 // ALX-012 residual-closure coverage:
-//  1. Signed WorkReceipt UPGRADE — an unsigned first insert must not
+//  1. Signed WorkReceipt UPGRADE - an unsigned first insert must not
 //     permanently block a later signed redelivery carrying the same
 //     receiptId. CreditService.ingestWorkReceipt verifies each incoming
 //     signature in-path before persisting it, never overwrites a stored
 //     signature (first-signed-wins, like first-insert-wins for the
 //     body), and never touches `spent`.
-//  2. Remote-claim FRESHNESS — claimVerifiedReceipt accepts
+//  2. Remote-claim FRESHNESS - claimVerifiedReceipt accepts
 //     (verifierNonce, expiryMillis) TOGETHER; the possession signature
 //     must cover the extended preimage
 //     'alexandria:receipt-claim:v{v}:{receiptId}:{nonce}:{expiry}'.
 //     Missing halves, stale expiry, a mismatched nonce and replay all
 //     fail closed, leaving the row unspent for the true prover.
-//  3. Prover-key-scoped attested balances — attested mints are recorded
+//  3. Prover-key-scoped attested balances - attested mints are recorded
 //     under `attested_pubkey`; only value scoped to CURRENTLY-HELD keys
 //     (plus the unscoped legacy bucket) backs an egress. A rotated-out
 //     key's minted value stops counting.
@@ -44,7 +44,7 @@ void main() {
     return algorithm.verify(message, signature: Signature(sig, publicKey: pk));
   }
 
-  /// An UNSIGNED artifact — what a verifier emits before signing (or a
+  /// An UNSIGNED artifact - what a verifier emits before signing (or a
   /// redelivery that lost its signatures in transit).
   WorkReceipt unsignedReceipt({
     int v = 3,
@@ -111,7 +111,7 @@ void main() {
     String nonce,
     int expiry, {
     SimpleKeyPair? keyPair,
-    // Signs an ARBITRARY preimage — lets the tests forge mismatched
+    // Signs an ARBITRARY preimage - lets the tests forge mismatched
     // freshness parameters.
     Uint8List? preimageOverride,
   }) async {
@@ -160,11 +160,11 @@ void main() {
       expect(row!['verifierSig'], isEmpty);
       expect(row['proverSig'], isNull);
 
-      // First claim attempt refuses — the artifact is still unsigned.
+      // First claim attempt refuses - the artifact is still unsigned.
       expect(
           await svc.claimVerifiedReceipt(unsigned, claimSignatureB64: ''), 0.0);
 
-      // The signed redelivery carries the SAME receiptId — it must
+      // The signed redelivery carries the SAME receiptId - it must
       // upgrade the stored signatures, not be deduped away.
       final signed = await withProverSig(await withVerifierSig(unsigned));
       expect(await svc.ingestWorkReceipt(signed), isTrue);
@@ -220,7 +220,7 @@ void main() {
       final signed = await signedReceipt();
       expect(await svc.ingestWorkReceipt(signed), isTrue);
 
-      // Same receiptId, same shape, different signature bytes — the
+      // Same receiptId, same shape, different signature bytes - the
       // stored column is non-empty so the redelivery is a no-op.
       final imposter = signed.withVerifierSig(
           base64Encode(Uint8List.fromList(List.filled(64, 0xCC))));
@@ -237,7 +237,7 @@ void main() {
       expect(await svc.ingestWorkReceipt(signed), isTrue);
 
       // Forge an artifact that NAMES the stored id but carries a
-      // different canonical body — computeReceiptId != receiptId.
+      // different canonical body - computeReceiptId != receiptId.
       final tampered = WorkReceipt.fromDbMap({
         ...signed.toDbMap(),
         'amount': 9999.0, // body changed; receiptId left stale
@@ -469,7 +469,7 @@ void main() {
 
       // Rotation: key A leaves the held set; the wallet now holds only
       // key B. A fresh service instance rehydrates the scoped mint but
-      // resolves the CURRENT held set — A's shard is unreachable.
+      // resolves the CURRENT held set - A's shard is unreachable.
       held = {proverPubHexB};
       final rotated = CreditService(
         db: db,

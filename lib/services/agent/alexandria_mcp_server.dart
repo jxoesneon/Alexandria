@@ -36,7 +36,7 @@ class AlexandriaMcpServer {
   final ProofOfRetrievabilityService _porService;
   final IpfsService _ipfsService;
 
-  /// Node identity service — the PoR verifier-of-record. Challenges are
+  /// Node identity service - the PoR verifier-of-record. Challenges are
   /// stamped with, and work receipts are signed under, this key (the
   /// Moltbook key remains the agent's social identity only). Optional so
   /// tests can run the server without secure storage.
@@ -52,12 +52,12 @@ class AlexandriaMcpServer {
   /// so tests can stub the scholarly APIs.
   final DoiResolver _doiResolver;
 
-  /// DOIs already rewarded through the ingest tool — one payout per work,
+  /// DOIs already rewarded through the ingest tool - one payout per work,
   /// ever. In-memory fallback used only when no [_db] is injected.
   final Set<String> _awardedDois = {};
 
   /// Agent-facing payout rails (Cashu export, Lightning sweep) stay closed
-  /// until the attestation layer exists — 𝒞→BTC egress is the profit motive
+  /// until the attestation layer exists - 𝒞→BTC egress is the profit motive
   /// for every mint exploit (ALX-010).
   static const bool agentPayoutsEnabled = false;
 
@@ -388,7 +388,7 @@ class AlexandriaMcpServer {
 
     // REAL verification gate (round-2 red finding): a "verification
     // bounty" requires verified input. The DOI must resolve to a real
-    // scholarly record via Crossref/OpenAlex/doi.org — regex-valid
+    // scholarly record via Crossref/OpenAlex/doi.org - regex-valid
     // fabrications mint nothing and are NOT recorded in the dedup set,
     // so a transient resolver outage never permanently burns a real DOI.
     DoiRecord? record;
@@ -413,13 +413,13 @@ class AlexandriaMcpServer {
     final dossier = Uint8List.fromList(utf8.encode(record.toMarkdownDossier()));
     final assignedCid = await _ipfsService.addFile(dossier);
 
-    // One payout per unique work — looping the same DOI mints nothing.
+    // One payout per unique work - looping the same DOI mints nothing.
     // Dedupe is persisted (AwardedDois) so it survives restarts and new
     // server instances; the in-memory set is only a no-db fallback.
     bool duplicate;
     final db = _db;
     if (db != null) {
-      // insertAwardedDoi returns false on PK conflict (insertOrIgnore) —
+      // insertAwardedDoi returns false on PK conflict (insertOrIgnore) -
       // the return value is the authoritative dedup signal; a raced
       // insert can never double-mint.
       duplicate = !(await db.insertAwardedDoi(doi, cid: assignedCid));
@@ -435,7 +435,7 @@ class AlexandriaMcpServer {
       }));
     }
 
-    // Report the ACTUAL minted amount — awardVerificationCredits returns
+    // Report the ACTUAL minted amount - awardVerificationCredits returns
     // the post-daily-cap figure, so the response can never overstate
     // earnings when the 100 ℭ/day verificationReward clamp bites.
     final minted = _creditService.awardVerificationCredits(
@@ -473,10 +473,10 @@ class AlexandriaMcpServer {
 
   Future<Map<String, dynamic>> _replicateCid(String cid, double credits) async {
     if (credits <= 0) return _errorResponse('Credits must be > 0.');
-    // DURABLE-FIRST (optimistic-return residual — adopted): the debit
+    // DURABLE-FIRST (optimistic-return residual - adopted): the debit
     // commits through the insert-if-absent CAS BEFORE the balance
     // mutates, so a reported success provably corresponds to a
-    // durably-committed row — an agent tool response never precedes
+    // durably-committed row - an agent tool response never precedes
     // its own collateral.
     final success = await _creditService.spendCreditsDurable(
       amount: credits,
@@ -498,8 +498,8 @@ class AlexandriaMcpServer {
     }));
   }
 
-  /// The PoR verifier-of-record is the node identity key — the same key
-  /// [ProofOfRetrievabilityService] signs receipts with — so a valid proof
+  /// The PoR verifier-of-record is the node identity key - the same key
+  /// [ProofOfRetrievabilityService] signs receipts with - so a valid proof
   /// yields a properly signed work receipt. The Moltbook key stays the
   /// agent's social identity and never stamps or signs receipts.
   Future<String?> _verifierPubkeyHex() async {
@@ -514,7 +514,7 @@ class AlexandriaMcpServer {
 
   Future<Map<String, dynamic>> _requestPorChallenge(String cid) async {
     // The challenge records THIS node's verifier key so the issued work
-    // receipt names a real verifier — not a bare self-declared peer id.
+    // receipt names a real verifier - not a bare self-declared peer id.
     final challengerPubkey = await _verifierPubkeyHex();
     final challenge = _porService.issueChallenge(
       cid: cid,
@@ -549,7 +549,7 @@ class AlexandriaMcpServer {
           'No pending PoR challenge with id $challengeId (request one first via alexandria_request_por_challenge)');
     }
 
-    // Fetch the audited payload — verification requires the bytes exist here.
+    // Fetch the audited payload - verification requires the bytes exist here.
     final chunks = <int>[];
     await for (final chunk in _ipfsService.getFile(challenge.cid)) {
       chunks.addAll(chunk);
@@ -567,8 +567,8 @@ class AlexandriaMcpServer {
     );
     // Verifier-side issuance: a valid proof yields a WorkReceipt naming the
     // challenger (verifier) and the prover. When the caller supplies no
-    // prover_pubkey, this node's identity key is used — the same key that
-    // verifies — making the receipt honestly self-issued, minted locally at
+    // prover_pubkey, this node's identity key is used - the same key that
+    // verifies - making the receipt honestly self-issued, minted locally at
     // 1.0x and spent. A FOREIGN prover_pubkey yields a signed claim
     // instrument persisted UNSPENT: its value belongs to the prover key
     // holder, never to this node (ALX-010).
@@ -588,7 +588,7 @@ class AlexandriaMcpServer {
 
     final receipt = result.receipt;
     // Canonical identity reporting (receipt_attested robustness fix):
-    // WorkReceipt.isSelfIssued / isAttestedClaim are SYNTACTIC reads —
+    // WorkReceipt.isSelfIssued / isAttestedClaim are SYNTACTIC reads -
     // literal `==` on the key strings. A `prover_pubkey` spelled as a
     // case-variant or space-padded form of the verifier key slips past
     // `==` while the claim path (WorkReceipt.samePubkey, byte-level
@@ -655,7 +655,7 @@ class AlexandriaMcpServer {
     }
     // DURABLE-FIRST (payout-rail precondition): the attested debit
     // commits through spendCreditsDurable BEFORE the bearer token is
-    // assembled — an emitted Cashu token can never outrun its own
+    // assembled - an emitted Cashu token can never outrun its own
     // collateral, which the optimistic form could not promise.
     final token =
         await _cryptoBridgeService.exportCreditsAsCashuTokenDurable(credits);

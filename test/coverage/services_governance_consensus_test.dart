@@ -282,7 +282,7 @@ void main() {
       expect(restored.uploaderKey, isNotNull);
       expect(restored.uploaderKey!.first, 9);
       expect(restored.isAiProposal, isTrue);
-      // Wire status is unverifiable — always re-enters pending.
+      // Wire status is unverifiable - always re-enters pending.
       expect(restored.status, ChangeRequestStatus.pending);
     });
 
@@ -342,7 +342,7 @@ void main() {
         currentValue: 1,
         proposedValue: 2,
       );
-      // Identity disappears between proposal and vote — the guard must
+      // Identity disappears between proposal and vote - the guard must
       // fail closed rather than mint an unattributed ballot.
       identity.returnNullIdentity = true;
       await expectLater(

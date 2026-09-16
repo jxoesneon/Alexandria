@@ -1,4 +1,4 @@
-// RED TEAM verification — Round-7: ECIES v2 multi-box envelope abuse.
+// RED TEAM verification - Round-7: ECIES v2 multi-box envelope abuse.
 //
 //   lib/services/encryption_service.dart:184-275
 //     v2 layout: version(1) ‖ ephemeralX25519Pub(32) ‖ boxCount(1)
@@ -7,7 +7,7 @@
 // Probes: boxCount bounds (OOM/alloc), per-box AEAD independence,
 // downgrade (box stripping / version rewrite), and the tagged
 // ed25519:/x25519: contract on both encrypt and decrypt.
-// All asserts are the SECURE expectation — expected to PASS.
+// All asserts are the SECURE expectation - expected to PASS.
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,7 +49,7 @@ void main() {
         throwsA(isA<FormatException>()));
     expect(() => enc.decryptFromPeer(v2(1, List.filled(64, 1)), peer.xPriv),
         throwsA(isA<FormatException>()));
-    // count=255 on a short payload: divisibility/min-box-length fails —
+    // count=255 on a short payload: divisibility/min-box-length fails -
     // and the parse never allocates count×payload.
     expect(() => enc.decryptFromPeer(v2(255, List.filled(100, 1)), peer.xPriv),
         throwsA(isA<FormatException>()));
@@ -66,7 +66,7 @@ void main() {
       'ambiguous untagged key produces a v2 envelope; each box is '
       'independently authenticated', () async {
     final peer = await makePeer(9);
-    // The peer's Ed25519 identity pubkey, UNTAGGED — canonical Ed point
+    // The peer's Ed25519 identity pubkey, UNTAGGED - canonical Ed point
     // that is also a valid-looking u-coordinate → two candidates → v2.
     final env = await enc.encryptForPeer(data, _hex(peer.edPub));
     expect(env[0], 2, reason: 'ambiguous key must emit the multi-box form');
@@ -75,7 +75,7 @@ void main() {
     final payload = env.sublist(34);
     final boxLen = payload.length ~/ count;
 
-    // Untampered decrypt — the box sealed to our real u opens.
+    // Untampered decrypt - the box sealed to our real u opens.
     final plain = await enc.decryptFromPeer(env, peer.xPriv);
     expect(plain, data);
 
@@ -107,7 +107,7 @@ void main() {
     final payload = env.sublist(34);
     final boxLen = payload.length ~/ count;
 
-    // Strip everything but the LAST box (sealed to the raw-u reading —
+    // Strip everything but the LAST box (sealed to the raw-u reading -
     // NOT this ed-derived recipient's key) and rewrap as v1.
     final strippedToWrong = Uint8List.fromList(
         [1, ...env.sublist(1, 33), ...payload.sublist((count - 1) * boxLen)]);

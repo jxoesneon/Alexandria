@@ -1,4 +1,4 @@
-// RED TEAM probes — numeric input validation on the mint paths.
+// RED TEAM probes - numeric input validation on the mint paths.
 //
 // awardStorageCredits computes `(mbSize * 0.1 * rarityWeight)
 // .clamp(0.1, 50.0)` BEFORE the daily cap (credit_service.dart:446-447):
@@ -6,7 +6,7 @@
 // guaranteed +0.1 ℭ mint. Any future caller that forwards
 // attacker-influenced sizes mints free credits on empty input.
 // awardComputeCredits, by contrast, passes its formula straight to
-// _capDailyMint, whose lower clamp is 0 — the inconsistency itself is
+// _capDailyMint, whose lower clamp is 0 - the inconsistency itself is
 // the tell.
 //
 // Asserts the SECURE expectation; failure marks a live mint-on-garbage.
@@ -35,7 +35,7 @@ void main() {
     final cs = CreditService(initialBalance: 0.0);
     final sp = SponsorshipService(creditService: cs, initialOptIn: true);
     final slot = sp.catalog.first;
-    // `dwellTimeSeconds < 5.0` is false for NaN — the check passes.
+    // `dwellTimeSeconds < 5.0` is false for NaN - the check passes.
     final receipt =
         sp.recordDwellImpression(slot: slot, dwellTimeSeconds: double.nan);
     expect(receipt, isNull,

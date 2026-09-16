@@ -303,7 +303,7 @@ void main() {
       final service = PluginService();
       final plugin = _FakePlugin()..throwOnHook = true;
       service.registerPlugin(plugin);
-      // Must not rethrow — the failing plugin is logged and skipped.
+      // Must not rethrow - the failing plugin is logged and skipped.
       await service.dispatchHook(PluginHook.onStartup, {'x': 1});
     });
   });
@@ -315,7 +315,7 @@ void main() {
       final data = Uint8List.fromList(utf8.encode('payload'));
       final pub = List<int>.generate(32, (i) => (i * 7) & 0xFF);
 
-      // Base58 — the AlexandriaIdentity spelling.
+      // Base58 - the AlexandriaIdentity spelling.
       final base58 = AlexandriaIdentity(
         publicKey: Uint8List.fromList(pub),
         privateKey: Uint8List(64),
@@ -364,7 +364,7 @@ void main() {
       ));
       expect(tor.proxyAddress, '[::1]:9150');
 
-      // Bare IPv6 literal — re-bracketed for the setProxy grammar.
+      // Bare IPv6 literal - re-bracketed for the setProxy grammar.
       await service.updateTransport(const TransportConfig(
         protocol: TransportProtocol.tor,
         enabled: false,

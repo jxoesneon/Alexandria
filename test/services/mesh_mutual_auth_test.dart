@@ -1,6 +1,6 @@
 // Tests for the dialer-auth residual closure: mutual handshake
 // authentication in ALX-MESH/1. Previously the transcript carried ONE
-// signature (responder only) — the dialer was anonymous, so an active
+// signature (responder only) - the dialer was anonymous, so an active
 // MITM could run a *separate* handshake as itself toward the dialer and
 // a responder had no way to know WHO it bound a channel to. The mutual
 // (7-field) HELLO carries the dialer's self-certifying peerId plus an
@@ -85,7 +85,7 @@ void main() {
       expect(transcript, contains(base64Encode(ticket.responderSignature)));
 
       // The responder-derived key verifies frames on the dialer's
-      // channel — proving both ends derived the same key from the
+      // channel - proving both ends derived the same key from the
       // mutual transcript.
       final key = MeshTransportService.deriveSessionKey(ticket);
       final inbound = MeshTransportService.encodeFrame(key, 0, Uint8List(3));
@@ -106,7 +106,7 @@ void main() {
       });
 
       // Craft a 7-field HELLO claiming the victim's peerId but signed
-      // by the attacker's key — self-certifying verification must fail.
+      // by the attacker's key - self-certifying verification must fail.
       final socket = await Socket.connect('127.0.0.1', server.port);
       addTearDown(socket.destroy);
       const nonce = '0011223344556677';
@@ -153,8 +153,8 @@ void main() {
         'an ACK signed without the dialer-identity binding is '
         'rejected by a mutual dialer', () async {
       // A responder that signs the PRE-mutual form (no dialerPeerId in
-      // the signature) — e.g. a relay replaying responder material or
-      // an endpoint trying to re-attribute the session — must fail the
+      // the signature) - e.g. a relay replaying responder material or
+      // an endpoint trying to re-attribute the session - must fail the
       // dialer's verification.
       final responder = await _identity(7);
       final dialer = await _identity(90);
@@ -173,7 +173,7 @@ void main() {
         final responderPair = await X25519().newKeyPair();
         final responderEph =
             base64Encode((await responderPair.extractPublicKey()).bytes);
-        // Sign WITHOUT the dialerPeerId — the stale form.
+        // Sign WITHOUT the dialerPeerId - the stale form.
         final sig = await responder.signer(
             MeshTransportService.handshakeSignBytes(
                 nonce, responder.peerId, addr, dialerEph, responderEph));
@@ -198,7 +198,7 @@ void main() {
     test(
         'a MITM cannot complete a handshake toward the responder '
         'while claiming an identity it does not own', () async {
-      // The MITM dials the responder presenting the VICTIM's peerId —
+      // The MITM dials the responder presenting the VICTIM's peerId -
       // it holds no matching private key, so the responder refuses
       // before the ephemeral exchange. This is the responder-side half
       // of "a MITM can't complete a handshake without owning the
@@ -216,12 +216,12 @@ void main() {
       });
 
       // MITM service configured to CLAIM the victim's peerId but with
-      // no signer — the plumbing refuses to even emit the mutual form
+      // no signer - the plumbing refuses to even emit the mutual form
       // (it cannot produce a signature), and a manual attempt without
       // valid signature material was covered above.
       final mitm = MeshTransportService(localPeerId: victim.peerId);
       addTearDown(mitm.dispose);
-      // With identity but NO signer, the dial degrades to anonymous —
+      // With identity but NO signer, the dial degrades to anonymous -
       // the responder still authenticates only itself; the MITM gains
       // no channel it can attribute to the victim identity.
       final ok = await mitm.connectToPeer(
@@ -303,7 +303,7 @@ void main() {
         'a reflected outbound frame fails the inbound MAC '
         '(direction binding)', () async {
       // A relay that copies our own outbound frame back at us must not
-      // get it accepted as peer traffic — the direction byte inside
+      // get it accepted as peer traffic - the direction byte inside
       // the MAC domain makes the two directions non-interchangeable.
       final ticket = MeshHandshakeTicket(
         peerId: 'peer-A',

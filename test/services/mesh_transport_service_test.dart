@@ -68,7 +68,7 @@ void main() {
     });
 
     test('selectBestTransport returns peer tier when active', () async {
-      // Probe simulates a completed handshake — registration alone is
+      // Probe simulates a completed handshake - registration alone is
       // no longer proof of reachability (round-3 fix).
       final probedMesh =
           MeshTransportService(handshakeProbe: (_) async => true);
@@ -152,7 +152,7 @@ void main() {
     });
 
     test('connectToPeer updates an existing peer', () async {
-      // Inject a probe that simulates a completed handshake — the
+      // Inject a probe that simulates a completed handshake - the
       // default probe performs a real TCP connect (round-2 fix).
       final probedMesh =
           MeshTransportService(handshakeProbe: (_) async => true);
@@ -191,7 +191,7 @@ void main() {
       );
       addTearDown(bootstrapped.dispose);
 
-      // Seeded candidates are pending/unproven — never claimed reachable
+      // Seeded candidates are pending/unproven - never claimed reachable
       expect(bootstrapped.peers.length, equals(4));
       expect(bootstrapped.activePeers, isEmpty);
       for (final p in bootstrapped.peers) {

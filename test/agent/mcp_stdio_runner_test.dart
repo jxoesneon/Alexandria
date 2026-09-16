@@ -148,7 +148,7 @@ void main() {
       // Third call inside the window → protocol-level rate error.
       final third = await call('alexandria_search_archive');
       expect(third!['error']['code'], -32029);
-      // A different tool is unaffected — budgets are independent.
+      // A different tool is unaffected - budgets are independent.
       expect(
           (await call('alexandria_get_wallet_balance'))!['result']['isError'],
           isFalse);
@@ -306,7 +306,7 @@ void main() {
       final received = <String>[];
       var sockBuf = '';
       good.listen((d) {
-        // Frame across TCP chunk boundaries — buffer until '\n'.
+        // Frame across TCP chunk boundaries - buffer until '\n'.
         sockBuf += utf8.decode(d);
         var nl = sockBuf.indexOf('\n');
         while (nl != -1) {
@@ -394,7 +394,7 @@ void main() {
         return received.take(n).toList();
       }
 
-      // One write, two frames — this is the batching pattern the JS
+      // One write, two frames - this is the batching pattern the JS
       // bridge produces when stdin races the connect callback.
       conn.write('${jsonEncode({'auth': 'tok-batch'})}\n'
           '${jsonEncode(_req('tok-batch', 'ping', id: 42))}\n');

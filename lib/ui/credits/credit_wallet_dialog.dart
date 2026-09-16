@@ -606,7 +606,7 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                       );
                                     } else {
                                       // Redemption is disabled at the service layer
-                                      // (ALX-010) — show the documented reason.
+                                      // (ALX-010) - show the documented reason.
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
                                         const SnackBar(

@@ -176,9 +176,9 @@ class CidService {
   }
 
   /// Structural CID validation (round-2 red finding): decodes the
-  /// multibase payload and verifies the multihash/CID framing — version,
+  /// multibase payload and verifies the multihash/CID framing - version,
   /// codec varint, hash-function varint, and an exact digest-length
-  /// match — instead of the old shape check that rubber-stamped any
+  /// match - instead of the old shape check that rubber-stamped any
   /// ≥40-char 'b'/'z' string or 46-char 'Qm…'.
   ///
   /// CIDv0 (`Qm…`, base58btc, no multibase char) must decode to a bare

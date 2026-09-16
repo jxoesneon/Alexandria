@@ -25,7 +25,7 @@ class _FakeSecureStorage implements SecureStorageService {
   Future<bool> containsKey(String key) async => _data.containsKey(key);
 }
 
-/// Storage that silently drops the next N writes to chosen keys —
+/// Storage that silently drops the next N writes to chosen keys -
 /// simulates the partial-write failure that produced a persisted
 /// priv(B)+pub(A) "Franken" keypair.
 class _DroppingSecureStorage extends _FakeSecureStorage {
@@ -44,7 +44,7 @@ class _DroppingSecureStorage extends _FakeSecureStorage {
   }
 }
 
-/// Storage that throws on chosen keys — simulates a write failing
+/// Storage that throws on chosen keys - simulates a write failing
 /// mid-sequence (e.g. OS-level keychain error).
 class _ThrowingSecureStorage extends _FakeSecureStorage {
   final Map<String, int> failedWrites = {};
@@ -62,7 +62,7 @@ class _ThrowingSecureStorage extends _FakeSecureStorage {
   }
 }
 
-/// The public key that a stored private key derives to — the invariant
+/// The public key that a stored private key derives to - the invariant
 /// that must NEVER be violated in storage.
 Future<Uint8List> _derivePublic(Uint8List privateKey) async {
   final keyPair = await Ed25519().newKeyPairFromSeed(privateKey);
@@ -82,7 +82,7 @@ String _hexEncode(Uint8List bytes) =>
     bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
 /// Asserts the stored private key actually derives the stored public
-/// key — the invariant the "Franken keypair" bug violated.
+/// key - the invariant the "Franken keypair" bug violated.
 Future<void> _expectCoherentStoredPair(Map<String, String> data) async {
   final privHex = data['alexandria_identity_private_key'];
   final pubHex = data['alexandria_identity_public_key'];
@@ -182,7 +182,7 @@ void main() {
       expect(imported.privateKey, equals(seed));
       expect(imported.publicKey, equals(Uint8List.fromList(publicKey.bytes)));
 
-      // The cache is refreshed atomically — no stale identity.
+      // The cache is refreshed atomically - no stale identity.
       expect(await service.getIdentity(), same(imported));
       expect(await service.hasIdentity(), isTrue);
     });
@@ -245,7 +245,7 @@ void main() {
           Uint8List.fromList((await keyPairB.extractPublicKey()).bytes);
       final seedB = Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
 
-      // Fire a cold-ish read in the middle of the import — every
+      // Fire a cold-ish read in the middle of the import - every
       // result must be a coherent pair (A before, B after), never a
       // priv/pub mix.
       final results = await Future.wait([
@@ -379,7 +379,7 @@ void main() {
 
       // Every public-key write throws: both import attempts fail
       // verification AND the rollback restore writes throw too. The
-      // StateError must still surface — and the cache must be dropped
+      // StateError must still surface - and the cache must be dropped
       // and the revision bumped even though the rollback never
       // completed.
       faulty.failNextWrites('alexandria_identity_public_key', 999);
@@ -391,7 +391,7 @@ void main() {
       expect(svc.revision, greaterThan(revisionBefore));
 
       // The cache was dropped: the next read re-resolves from storage
-      // and returns a NEW instance of the surviving identity — never
+      // and returns a NEW instance of the surviving identity - never
       // the stale cached object. (The throwing pub write aborts each
       // write sequence before the private key lands, so storage still
       // holds the coherent A pair.)
@@ -425,7 +425,7 @@ void main() {
       expect(healed!.privateKey, equals(identityA.privateKey));
       expect(healed.publicKey, equals(expectedPublicKey));
 
-      // Storage itself was repaired — the derived public key was
+      // Storage itself was repaired - the derived public key was
       // rewritten over the corrupt value.
       expect(
         storage._data['alexandria_identity_public_key'],
@@ -447,7 +447,7 @@ void main() {
 
     test('unhealable stored material reads as no identity', () async {
       await service.generateIdentity();
-      // Garbage hex for the private key — cannot decode or derive.
+      // Garbage hex for the private key - cannot decode or derive.
       storage._data['alexandria_identity_private_key'] = 'zz-not-hex';
 
       final cold = IdentityService(storage);
@@ -455,7 +455,7 @@ void main() {
     });
 
     test('hasIdentity is false on a partially-written store', () async {
-      // Private key only — previously reported true while
+      // Private key only - previously reported true while
       // getIdentity() returned null.
       await storage.write('alexandria_identity_private_key', 'abcd');
       expect(await service.hasIdentity(), isFalse);
@@ -481,7 +481,7 @@ void main() {
       final first = await service.importIdentity(seed);
 
       // Simulate an aged account (governance minAccountAgeDays): roll
-      // the stored creation time back, then re-import the same seed —
+      // the stored creation time back, then re-import the same seed -
       // recovery must NOT reset it to now.
       final aged = DateTime(2024, 1, 1);
       storage._data['alexandria_identity_created'] = aged.toIso8601String();

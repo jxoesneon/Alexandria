@@ -30,7 +30,7 @@ void main() {
 
     test('checks content health and heals pinned items', () async {
       // healContent → IpfsService.pinCid now requires the block to be
-      // actually retrievable (round-2 fix — phantom pins are refused),
+      // actually retrievable (round-2 fix - phantom pins are refused),
       // so the test stores real content first.
       final ipfs = container.read(ipfsServiceProvider);
       final cid = await ipfs
@@ -48,7 +48,7 @@ void main() {
       final heal = await preservation.healContent(cid);
       expect(heal, isTrue);
 
-      // A fabricated identifier must NOT heal — nothing to pin.
+      // A fabricated identifier must NOT heal - nothing to pin.
       expect(await preservation.healContent('bafy_sample_test'), isFalse);
     });
   });

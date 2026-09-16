@@ -5,7 +5,7 @@ final secureStorageServiceProvider = Provider((ref) => SecureStorageService());
 
 /// Storage key names shared across services that all live in the SAME
 /// [SecureStorageService] keychain. Never write these keys through a
-/// second `FlutterSecureStorage` instance — platform options differ
+/// second `FlutterSecureStorage` instance - platform options differ
 /// (e.g. macOS data-protection keychain), which splits the store.
 class SecureStorageKeys {
   SecureStorageKeys._();

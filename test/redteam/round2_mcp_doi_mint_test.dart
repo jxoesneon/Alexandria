@@ -1,20 +1,20 @@
-// RED TEAM PoC — alexandria_ingest_doi mints 15 ℭ per DOI that is only
-// REGEX-VALID — nothing is resolved, fetched, verified, or ingested.
+// RED TEAM PoC - alexandria_ingest_doi mints 15 ℭ per DOI that is only
+// REGEX-VALID - nothing is resolved, fetched, verified, or ingested.
 //
-// lib/services/agent/alexandria_mcp_server.dart:367-410 — `_ingestDoi`
+// lib/services/agent/alexandria_mcp_server.dart:367-410 - `_ingestDoi`
 // checks `^10\.\d{4,9}/\S+$` (any fabricated string passes:
 // `10.0000/fake-1`), fabricates a "CID" from the string, writes the
 // award as 'Verified and ingested scientific paper' via
 // awardVerificationCredits, and returns credits_earned:15. The only
 // bound is the persisted per-DOI dedup plus the 100 ℭ/day
-// verificationReward cap — so an MCP-connected agent drains the full
+// verificationReward cap - so an MCP-connected agent drains the full
 // verification budget every day for work that never existed. The
-// award text claims verification that was never performed — this is
+// award text claims verification that was never performed - this is
 // mint-on-garbage at the agent tool boundary, and the minted balance
 // is spendable inside Alexandria even while payout rails are closed.
 //
 // Asserts the SECURE expectation: a "verification reward" must require
-// verified input — a syntactically-valid fabricated DOI must mint
+// verified input - a syntactically-valid fabricated DOI must mint
 // nothing. Failure marks a live unearned-mint oracle.
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,10 +56,10 @@ void main() {
       db: db,
     );
 
-    // An agent mints on fabricated-but-regex-valid DOIs — no paper
+    // An agent mints on fabricated-but-regex-valid DOIs - no paper
     // exists, nothing was fetched or verified. Measure the REAL ledger
     // effect (the response hardcodes credits_earned:15.0 regardless of
-    // what the capped mint actually granted — itself a misreport).
+    // what the capped mint actually granted - itself a misreport).
     var claimed = 0.0;
     for (var i = 0; i < 10; i++) {
       final res = await server.callTool('alexandria_ingest_doi', {

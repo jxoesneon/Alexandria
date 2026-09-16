@@ -1,6 +1,6 @@
 // Canonical-equivalence (NFC/NFD) bounty-id tests: composed vs
 // decomposed spellings of the same id must resolve to ONE id at every
-// trust boundary — ingest dedup, claimBounty, cancelBounty, and
+// trust boundary - ingest dedup, claimBounty, cancelBounty, and
 // EscrowAttestation.bindsBounty.
 import 'dart:convert';
 
@@ -57,7 +57,7 @@ void main() {
     });
 
     test('Hangul syllables decompose algorithmically', () {
-      // U+AC01 '각' ⇔ U+1100 U+1161 U+11A8 — canonical equivalence.
+      // U+AC01 '각' ⇔ U+1100 U+1161 U+11A8 - canonical equivalence.
       const composed = 'bounty_각';
       const decomposed = 'bounty_각';
       expect(bountyIdsEquivalent(composed, decomposed), isTrue);
@@ -78,7 +78,7 @@ void main() {
     });
 
     test('compatibility (NFKD-only) forms are NOT folded', () {
-      // U+FF45 'ｅ' (fullwidth e) is a <compat> mapping — it is NOT
+      // U+FF45 'ｅ' (fullwidth e) is a <compat> mapping - it is NOT
       // canonically equivalent to 'e' and must stay distinct.
       expect(bountyIdsEquivalent('bounty_e', 'bounty_ｅ'), isFalse);
     });
@@ -140,7 +140,7 @@ void main() {
       // resolve to the same canonical id.
       const composedId = 'bounty_café';
       const decomposedId = 'bounty_café';
-      // funded:true on the wire is necessary but NOT sufficient — the
+      // funded:true on the wire is necessary but NOT sufficient - the
       // stored record becomes funded only because the trusted
       // attestation binds it (the flag alone is forgeable noise).
       final bounty = foreign(decomposedId, agentId, funded: true);
@@ -195,7 +195,7 @@ void main() {
         force: true,
       );
       await svc.cancelBounty(posted.id);
-      // Re-announce under the same canonical id — dead forever.
+      // Re-announce under the same canonical id - dead forever.
       final attacker = await _newKey();
       final agentId = BeaconEnvelope.deriveAgentId(
           (await attacker.extractPublicKey()).bytes);

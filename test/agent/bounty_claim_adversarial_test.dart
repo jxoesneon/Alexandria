@@ -34,7 +34,7 @@ class _GatedIpfsService extends IpfsService {
 final _gatedIpfsProvider =
     Provider<IpfsService>((ref) => _GatedIpfsService(ref));
 
-/// AppDatabase whose insertClaimedBounty throws once — models a
+/// AppDatabase whose insertClaimedBounty throws once - models a
 /// transient sqlite error on the CAS path.
 class _FlakyInsertDb extends AppDatabase {
   bool failNext = true;
@@ -50,7 +50,7 @@ class _FlakyInsertDb extends AppDatabase {
   }
 }
 
-/// AppDatabase whose deleteClaimedBounty throws — models a transient
+/// AppDatabase whose deleteClaimedBounty throws - models a transient
 /// sqlite error on the claim-release path (E-REV4-Br: an unguarded throw
 /// propagated to callers AND leaked the in-flight mark).
 class _ThrowingDeleteDb extends AppDatabase {
@@ -67,7 +67,7 @@ class _ThrowingDeleteDb extends AppDatabase {
 }
 
 /// AppDatabase whose hydration parks at the first query until
-/// [hydrateGate] completes — models a slow ledger load so a claim can
+/// [hydrateGate] completes - models a slow ledger load so a claim can
 /// be driven deterministically inside the unhydrated window.
 class _GatedHydrateDb extends AppDatabase {
   final Completer<void> hydrateGate = Completer<void>();
@@ -80,7 +80,7 @@ class _GatedHydrateDb extends AppDatabase {
 }
 
 /// AppDatabase whose deleteClaimedBounty parks until [deleteGate]
-/// completes — models real IO latency between claimBounty's in-memory
+/// completes - models real IO latency between claimBounty's in-memory
 /// mark release and the durable row delete landing.
 class _SlowDeleteDb extends AppDatabase {
   final Completer<void> deleteGate = Completer<void>();
@@ -191,7 +191,7 @@ void main() {
       expect(await svc.claimBounty(bounty.id), isFalse);
       expect(await svc.claimBounty(bounty.id), isFalse);
       expect(cs.balance, 125.0);
-      // ALSO: postPreservationBounty returns a copy — mutation cannot
+      // ALSO: postPreservationBounty returns a copy - mutation cannot
       // reach the stored record or the locally-posted guard.
       final cs2 = CreditService(initialBalance: 100.0);
       final poster = MoltbookService(creditService: cs2, db: db);
@@ -203,7 +203,7 @@ void main() {
       expect(await poster.claimBounty(posted.id), isFalse);
     });
 
-    // ── CLASS 2: restart replay — independent CreditService ─────────
+    // ── CLASS 2: restart replay - independent CreditService ─────────
     test(
         'C2a: restart replay refused by durable CAS even with a FRESH '
         'CreditService (belt dedup not shared)', () async {
@@ -261,7 +261,7 @@ void main() {
 
       expect(await svcA.claimBounty(bounty.id), isTrue);
       expect(cs.balance, 125.0);
-      // No shared durable state: svcB's in-memory guards don't know —
+      // No shared durable state: svcB's in-memory guards don't know -
       // but the shared CreditService's _paidBountyIds belt refuses the
       // payout (0.0), and claimBounty now treats a refused payout as a
       // failed claim: returns false, releases the marks.
@@ -315,13 +315,13 @@ void main() {
       expect(await claimA, isFalse);
       expect(await db.isBountyClaimed(bounty.id), isFalse);
 
-      // The bounty is genuinely claimable again — and B's un-poisoned
+      // The bounty is genuinely claimable again - and B's un-poisoned
       // record can now win it (svcB has no ipfsService → the evidence
       // check is skipped → CAS wins → pays out).
       expect(await svcB.claimBounty(bounty.id), isTrue);
       expect(cs.balance, 125.0); // exactly one payout, by B
 
-      // A THIRD fresh instance on the same db is refused — the durable
+      // A THIRD fresh instance on the same db is refused - the durable
       // row now stands won.
       final svcC = MoltbookService(
           creditService: cs, db: db, trustedAttestorPubkeys: {hex});
@@ -367,7 +367,7 @@ void main() {
       }
       // Claim 2 slips into the window: the durable delete is parked but
       // the in-flight mark is still held (release order is delete-THEN-
-      // mark), so claim2 bails cleanly — and even if it reached the CAS
+      // mark), so claim2 bails cleanly - and even if it reached the CAS
       // it would lose WITHOUT poisoning the stored record.
       expect(await svc.claimBounty(bounty.id), isFalse);
       // Let the delete land.
@@ -405,7 +405,7 @@ void main() {
       expect(await svc.claimBounty(bounty.id), isFalse);
       // Bounty still listed as active and NOT marked…
       expect(svc.activeBounties.any((b) => b.id == bounty.id), isTrue);
-      // …and the transient error healed — the retry wins the real CAS
+      // …and the transient error healed - the retry wins the real CAS
       // and pays out (failNext already consumed).
       expect(await svc.claimBounty(bounty.id), isTrue);
       expect(await db.isBountyClaimed(bounty.id), isTrue);
@@ -423,7 +423,7 @@ void main() {
           id: 'bounty_del_throw', cid: 'bafk_del_throw', offeredCredits: 25.0);
       final (att, hex) = await _freshTrustedAttestation(bounty);
       // No ipfsService → evidence check is skipped → claim reaches the
-      // payout path. Refuse the payout by pre-consuming the dedup id —
+      // payout path. Refuse the payout by pre-consuming the dedup id -
       // that drives claimBounty into the delete-on-refusal path whose
       // delete throws.
       cs.awardBountyEscrow(amount: 1.0, bountyId: bounty.id, cid: 'other');
@@ -431,12 +431,12 @@ void main() {
           creditService: cs, db: db, trustedAttestorPubkeys: {hex});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
-      // The throwing delete must be swallowed inside claimBounty —
+      // The throwing delete must be swallowed inside claimBounty -
       // returns false, never propagates, and releases the in-flight
       // mark so the record stays listed and retryable.
       expect(await svc.claimBounty(bounty.id), isFalse);
       expect(svc.activeBounties.any((b) => b.id == bounty.id), isTrue);
-      // Retry reaches the same path cleanly (row CAS still wins — the
+      // Retry reaches the same path cleanly (row CAS still wins - the
       // row was inserted but its delete threw; either way no throw,
       // no deadlock): returns false via CAS-loss or payout-refusal.
       expect(await svc.claimBounty(bounty.id), isFalse);
@@ -455,7 +455,7 @@ void main() {
       final svc = MoltbookService(
           creditService: cs, db: db, trustedAttestorPubkeys: {hex});
 
-      // Two SPELLING VARIANTS of "the same" id — the attestor must
+      // Two SPELLING VARIANTS of "the same" id - the attestor must
       // attest each separately (bindsBounty is raw ==), so each variant
       // is a distinct escrowed bounty, not a dedup bypass.
       for (final id in ['bounty_variant', 'BOUNTY_VARIANT']) {
@@ -466,7 +466,7 @@ void main() {
       expect(await svc.claimBounty('bounty_variant'), isTrue);
       // A whitespace-padded claim arg does NOT match the stored id.
       expect(await svc.claimBounty(' bounty_variant '), isFalse);
-      // The uppercase variant is a separate funded bounty — pays too.
+      // The uppercase variant is a separate funded bounty - pays too.
       expect(await svc.claimBounty('BOUNTY_VARIANT'), isTrue);
       expect(cs.balance, 150.0); // two distinct escrows paid once each
       // And each variant's durable row is independent.
@@ -631,12 +631,12 @@ void main() {
       final db = AppDatabase();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
-      // NOT awaited — hydration still in flight.
+      // NOT awaited - hydration still in flight.
       final paid =
           cs.awardBountyEscrow(amount: 25.0, bountyId: 'bounty_pre', cid: 'c');
       expect(paid, 0.0);
       await cs.ready;
-      // The refusal did NOT consume the id — the real payout succeeds.
+      // The refusal did NOT consume the id - the real payout succeeds.
       expect(
           cs.awardBountyEscrow(amount: 25.0, bountyId: 'bounty_pre', cid: 'c'),
           25.0);
@@ -665,7 +665,7 @@ void main() {
           MoltbookService(creditService: cs, trustedAttestorPubkeys: {hex});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
-      // awardBountyEscrowDurable awaits _hydrated BEFORE paying — the
+      // awardBountyEscrowDurable awaits _hydrated BEFORE paying - the
       // claim parks inside the window rather than minting against a
       // phantom (unhydrated) ledger or refusing a legitimate escrow.
       var done = false;
@@ -680,7 +680,7 @@ void main() {
       expect(done, isFalse,
           reason: 'the claim must still be parked on hydration — '
               'nothing may mint before the ledger is real');
-      // Balance is still 0.0 — even the genesis grant lives inside the
+      // Balance is still 0.0 - even the genesis grant lives inside the
       // parked hydration.
       expect(cs.balance, 0.0);
 

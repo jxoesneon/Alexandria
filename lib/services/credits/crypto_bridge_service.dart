@@ -150,7 +150,7 @@ class CryptoBridgeService extends ChangeNotifier {
   /// Service-level kill switch for every ℭ→external-value path (ALX-010).
   /// Stays closed until verifier-signed work receipts exist and
   /// [CreditService.attestedBalance] reflects foreign-verified value. The MCP
-  /// layer keeps its own flag as belt; this is the load-bearing suspender —
+  /// layer keeps its own flag as belt; this is the load-bearing suspender -
   /// direct callers (e.g. the human wallet dialog) cannot route around it.
   static const bool payoutsEnabled = false;
 
@@ -174,11 +174,11 @@ class CryptoBridgeService extends ChangeNotifier {
   /// Returns a human-readable reason an egress of [credits] ℭ is barred, or
   /// null when the request is well-formed and the kill switch is open.
   ///
-  /// This is an ADVISORY, request-level check — it is deliberately NOT the
+  /// This is an ADVISORY, request-level check - it is deliberately NOT the
   /// attested-budget gate (round-1 red finding): a per-request
   /// `requested <= attestedBalance` comparison here is only a rate limit,
   /// because each approved call then settles through the debit path. The
-  /// CUMULATIVE budget lives in the debit itself — every egress path below
+  /// CUMULATIVE budget lives in the debit itself - every egress path below
   /// calls [CreditService.spendCredits] (or its durable variant) with
   /// `isAttested: true`, which
   /// refuses atomically once the attested pool is exhausted. Only
@@ -223,7 +223,7 @@ class CryptoBridgeService extends ChangeNotifier {
   }
 
   /// Sets the preferred Cashu mint, gated through
-  /// [UrlSafety.requirePublicFetchUri] at set time (orchestrator seam —
+  /// [UrlSafety.requirePublicFetchUri] at set time (orchestrator seam -
   /// the request-time gate in [CashuMintClient] already refuses private
   /// targets, but a mint URL that can never pass the gate is dead config
   /// and should be rejected where it is entered). `.onion` mints over
@@ -253,11 +253,11 @@ class CryptoBridgeService extends ChangeNotifier {
   /// Exports a specified amount of Archival Credits into an anonymous Chaumian E-Cash bearer token
   ///
   /// OPTIMISTIC-RETURN SEMANTICS (kept synchronous for the existing
-  /// MCP/UI call sites — documented seam): the attested debit settles
+  /// MCP/UI call sites - documented seam): the attested debit settles
   /// through the write-behind path, so the returned bearer token can
   /// precede the durable row by a settle window. The durable gate still
   /// makes the over-spend non-canonical and rolls the local debit back,
-  /// but an emitted token cannot be recalled — new callers should use
+  /// but an emitted token cannot be recalled - new callers should use
   /// [exportCreditsAsCashuTokenDurable], where a returned token
   /// provably corresponds to a durably-committed debit.
   CashuToken? exportCreditsAsCashuToken(double creditsToExport) {
@@ -273,7 +273,7 @@ class CryptoBridgeService extends ChangeNotifier {
     final totalSats = (creditsToExport * satsPerCredit).toInt();
     if (totalSats <= 0) return null;
 
-    // Deduct from local wallet balance — settled against the ATTESTED pool
+    // Deduct from local wallet balance - settled against the ATTESTED pool
     // (isAttested: true): only foreign-verifier-backed value may ever leave
     // the system, and the refusal lands atomically inside the debit so the
     // cumulative attested budget can never be raced or re-read stale.
@@ -301,11 +301,11 @@ class CryptoBridgeService extends ChangeNotifier {
   }
 
   /// DURABLE variant of [exportCreditsAsCashuToken] (optimistic-return
-  /// residual — the egress half of the closure): the attested debit is
+  /// residual - the egress half of the closure): the attested debit is
   /// committed through
   /// [CreditService.spendCreditsDurable] BEFORE the bearer token is
   /// assembled, so a non-null return provably corresponds to a
-  /// durably-committed debit — the token can never outrun its own
+  /// durably-committed debit - the token can never outrun its own
   /// collateral.
   Future<CashuToken?> exportCreditsAsCashuTokenDurable(
       double creditsToExport) async {
@@ -344,7 +344,7 @@ class CryptoBridgeService extends ChangeNotifier {
   ///
   /// DISABLED (ALX-010): always returns 0. Until proofs are verified against a
   /// real mint (NUT-03 swap + /v1/checkstate), crediting ℭ here would mint
-  /// unbacked value for fabricated tokens — a local spent-set is not proof of
+  /// unbacked value for fabricated tokens - a local spent-set is not proof of
   /// mint backing. See [redemptionDisabledReason].
   double redeemCashuToken(String tokenString) {
     final token = CashuToken.deserialize(tokenString);
@@ -364,7 +364,7 @@ class CryptoBridgeService extends ChangeNotifier {
 
   /// Simulates a non-custodial Lightning payment sweep to the user's configured Lightning Address
   ///
-  /// OPTIMISTIC-RETURN SEMANTICS — same seam as
+  /// OPTIMISTIC-RETURN SEMANTICS - same seam as
   /// [exportCreditsAsCashuToken]: the returned `true` precedes the
   /// durable debit's settle. Prefer [sweepToLightningAddressDurable]
   /// for `true ⇒ committed` semantics.
@@ -373,7 +373,7 @@ class CryptoBridgeService extends ChangeNotifier {
     String? customAddress,
   }) {
     // ALX-010 service gate: a simulated payout is still a ℭ→external-value
-    // path (it burns real credits for a pretend payment) — gated identically.
+    // path (it burns real credits for a pretend payment) - gated identically.
     if (egressRejectionReason(creditsToSweep) != null) return false;
 
     final target = customAddress ?? _lightningAddress;
@@ -384,7 +384,7 @@ class CryptoBridgeService extends ChangeNotifier {
 
     final sats = (creditsToSweep * satsPerCredit).toInt();
 
-    // Attested-pool debit (isAttested: true) — a simulated payout is still a
+    // Attested-pool debit (isAttested: true) - a simulated payout is still a
     // ℭ→external-value path, so it draws on the same cumulative
     // foreign-verifier budget as a real sweep.
     final success = _creditService.spendCredits(
@@ -401,7 +401,7 @@ class CryptoBridgeService extends ChangeNotifier {
     return success;
   }
 
-  /// DURABLE variant of [sweepToLightningAddress] — the attested debit
+  /// DURABLE variant of [sweepToLightningAddress] - the attested debit
   /// is committed through [CreditService.spendCreditsDurable] before
   /// `true` is returned (optimistic-return residual closure on the
   /// egress paths).
@@ -439,7 +439,7 @@ class CryptoBridgeService extends ChangeNotifier {
     String? customAddress,
     String? preferredMint,
   }) async {
-    // ALX-010 service gate — fail closed before any network IO. The reason is
+    // ALX-010 service gate - fail closed before any network IO. The reason is
     // surfaced verbatim so callers (MCP tools, wallet UI) can display it.
     final rejection = egressRejectionReason(creditsToSweep);
     if (rejection != null) {
@@ -497,15 +497,15 @@ class CryptoBridgeService extends ChangeNotifier {
       );
 
       if (meltResult.paid) {
-        // 5. Deduct credits on successful payment confirmation — settled
+        // 5. Deduct credits on successful payment confirmation - settled
         // against the ATTESTED pool (isAttested: true): sats already left on
         // the wire, so the cumulative foreign-verifier budget must be
         // enforced by the debit itself, not a stale pre-flight read.
-        // DURABLE debit (optimistic-return residual — closed on the real
+        // DURABLE debit (optimistic-return residual - closed on the real
         // egress path): spendCreditsDurable commits the ledger row
         // through the durable attested-coverage gate BEFORE returning,
         // so a 'confirmed' result provably corresponds to a
-        // durably-committed debit. A refusal is a reconciliation event —
+        // durably-committed debit. A refusal is a reconciliation event -
         // never report 'confirmed' on a stale ledger.
         final debited = await _creditService.spendCreditsDurable(
           amount: creditsToSweep,

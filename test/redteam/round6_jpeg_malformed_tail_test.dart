@@ -1,4 +1,4 @@
-// RED TEAM PoC — Round-6: the JPEG scrubber's malformed-input bail-out
+// RED TEAM PoC - Round-6: the JPEG scrubber's malformed-input bail-out
 // is FAIL-OPEN for privacy. Every "we cannot parse this" branch in
 // _stripJpegMetadataSegments resolves by copying the remainder of the
 // stream VERBATIM:
@@ -8,8 +8,8 @@
 //     :356-359  marker == 0x00 (stream fell out of entropy mode) → verbatim
 //     :371-375  segLen < 2 || past EOF                      → verbatim
 //
-// Anything metadata-bearing AFTER the malformed point — a complete,
-// valid APP1/Exif segment with GPS coordinates — ships inside
+// Anything metadata-bearing AFTER the malformed point - a complete,
+// valid APP1/Exif segment with GPS coordinates - ships inside
 // `scrubbedBytes` untouched. Worse, the exif-3.3.0 reader used for both
 // pre-scrub detection (`wanted`) and post-scrub verification
 // (`remaining`) scans only the first ~4 KiB and stops at the FIRST
@@ -17,11 +17,11 @@
 // scan loop `break`s on the first 'Exif' APP1). So:
 //
 //   * wanted/removedFields are populated by APP1#1 (before the fault),
-//     which IS stripped — `wasModified` is true and the caller
+//     which IS stripped - `wasModified` is true and the caller
 //     (add_content_screen.dart:473-475) ships `scrubbedBytes`;
 //   * `remaining` cannot see APP1#2 past the fault either, so the
 //     verification pass reports the fields "genuinely gone" while a
-//     full Exif/GPS APP1 sits verbatim in the emitted file — a false
+//     full Exif/GPS APP1 sits verbatim in the emitted file - a false
 //     "removed" claim AND a privacy leak in one step.
 //
 // Asserts the SECURE expectation: no 'Exif\0\0' APP1 payload may be
@@ -82,11 +82,11 @@ void main() {
     final jpeg = Uint8List.fromList([
       0xFF, 0xD8, // SOI
       ..._jfifApp0,
-      ...app1, // APP1#1 — parsed, reported, stripped
+      ...app1, // APP1#1 - parsed, reported, stripped
       // APP2 with a corrupt length field: 0xFFFF runs past EOF, so the
       // walker bails out and copies EVERYTHING below verbatim.
       0xFF, 0xE2, 0xFF, 0xFF, 0x49, 0x43, 0x43, // 'ICC'
-      ...app1, // APP1#2 — a second, complete Exif/GPS segment
+      ...app1, // APP1#2 - a second, complete Exif/GPS segment
       ..._sosAndScan,
     ]);
 
@@ -110,7 +110,7 @@ void main() {
     final jpeg = Uint8List.fromList([
       0xFF, 0xD8, // SOI
       ..._jfifApp0,
-      ...app1, // APP1#1 — stripped
+      ...app1, // APP1#1 - stripped
       // Stray stuffed-0xFF byte where a marker is expected: the walker
       // reads marker code 0x00 and copies the rest verbatim.
       0xFF, 0x00,
@@ -131,7 +131,7 @@ void main() {
     final jpeg = Uint8List.fromList([
       0xFF, 0xD8, // SOI
       ..._jfifApp0,
-      ...app1, // APP1#1 — stripped
+      ...app1, // APP1#1 - stripped
       0x42, // non-0xFF byte where a marker must be → verbatim tail
       ...app1, // APP1#2
       ..._sosAndScan,

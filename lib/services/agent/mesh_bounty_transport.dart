@@ -10,22 +10,22 @@ import 'bounty_claim_event.dart';
 ///
 /// WHY THE MESH CHANNEL (and not `IpfsService.publishToPubsub`): the
 /// mesh layer is the only transport in-tree that carries real
-/// peer-authenticated frames — every outbound payload leaves as
+/// peer-authenticated frames - every outbound payload leaves as
 /// `seq ‖ payload ‖ HMAC-SHA256(channelKey, …)` under a key derived
 /// from the ALX-MESH/1 ephemeral-X25519 handshake, and inbound frames
 /// are MAC-verified and replay-checked by `receiveFrame` before
 /// release. `IpfsService.publishToPubsub` is a loopback stub that
-/// echoes to its own controller with `sender: 'self'` — binding a
+/// echoes to its own controller with `sender: 'self'` - binding a
 /// transport to it would deliver envelopes only to ourselves, which is
 /// strictly less real than InMemoryBountyTransport. When dart_ipfs
 /// gains a real pubsub backend this class can be swapped at the seam.
 ///
-/// WIRE FORMAT: each outbound envelope is one mesh frame payload —
+/// WIRE FORMAT: each outbound envelope is one mesh frame payload -
 /// `utf8(jsonEncode(envelope.toJson()))`. Inbound payloads are decoded
 /// and parsed structurally ONLY ([BeaconEnvelope.parse]); signature
 /// verification, kind allowlists and trust decisions all live in
 /// `MoltbookService`'s ingest gates, per the [BountyTransport]
-/// contract — the transport never pre-validates or mutates.
+/// contract - the transport never pre-validates or mutates.
 ///
 /// FAN-OUT MODEL: the mesh channel is point-to-point, so publish is a
 /// unicast to every currently-proven peer (`isReachable` AND
@@ -34,7 +34,7 @@ import 'bounty_claim_event.dart';
 /// not needed at this layer.
 ///
 /// HONEST DELIVERY BOUND: `MeshTransportService.sendPayload` reports
-/// "frame dispatched toward a route" — the wire dispatch inside the
+/// "frame dispatched toward a route" - the wire dispatch inside the
 /// mesh layer is itself an injected seam (`MeshFrameTransport`), and
 /// inbound delivery requires the node's socket listener to feed
 /// `receiveFrame` (an orchestrator wiring step, not something this
@@ -50,7 +50,7 @@ class MeshBountyTransport implements BountyTransport {
 
   final MeshTransportService _mesh;
 
-  /// Inbound payload size cap — a peer can only send frames the channel
+  /// Inbound payload size cap - a peer can only send frames the channel
   /// MACs, but a compromised/misbehaving proven peer could still push
   /// oversized garbage; drop it before decode costs accrue.
   final int maxEnvelopeBytes;
@@ -66,14 +66,14 @@ class MeshBountyTransport implements BountyTransport {
     try {
       return BeaconEnvelope.parse(utf8.decode(payload));
     } catch (_) {
-      return null; // undecodable frames drop — never surface
+      return null; // undecodable frames drop - never surface
     }
   }
 
   /// Fans the envelope out to every proven mesh channel. Per-peer
   /// dispatch failures are isolated (one wedged peer cannot block the
   /// rest) and reported via [lastFanout]. Completes normally even when
-  /// no peer is currently proven — the caller treats transport as
+  /// no peer is currently proven - the caller treats transport as
   /// best-effort and the durable ledger, not the broadcast, is the
   /// settlement record.
   @override
@@ -93,7 +93,7 @@ class MeshBountyTransport implements BountyTransport {
     lastFanout = delivered;
   }
 
-  /// How many proven channels the last [publish] dispatched onto —
+  /// How many proven channels the last [publish] dispatched onto -
   /// operator-observable honesty about delivery reach.
   int lastFanout = 0;
 }

@@ -1,21 +1,21 @@
-// RED TEAM PoC — the plugin "sandbox" has no walls.
+// RED TEAM PoC - the plugin "sandbox" has no walls.
 //
 // lib/services/plugin_service.dart:
-//   * `_validatePermissions` (line 378) is `return true;` — declared
+//   * `_validatePermissions` (line 378) is `return true;` - declared
 //     permissions are never checked at install OR at execution.
 //   * `registerPlugin` hands every plugin a PluginContext carrying the
 //     app's Riverpod `Ref` (line 233). PluginContext.read()
-//     (plugin_interface.dart:54) resolves ANY provider in the graph —
+//     (plugin_interface.dart:54) resolves ANY provider in the graph -
 //     there is no allowlist, no permission check, no scoping.
 //
 // So a plugin manifest declaring `permissions: []` can still, from
 // inside executeAction:
 //   * read secureStorageServiceProvider → every stored DEK
-//     ('dek_<uuid>' — the keys round-2 moved OUT of the database are
+//     ('dek_<uuid>' - the keys round-2 moved OUT of the database are
 //     back in reach for any plugin), the mnemonic-backup marker, the
 //     audit HMAC key 'master_key_v1', etc.
 //   * read identityServiceProvider → sign() oracle over arbitrary
-//     bytes — forge ledger entries, votes, receipts, Beacon envelopes.
+//     bytes - forge ledger entries, votes, receipts, Beacon envelopes.
 //   * read creditServiceProvider → inspect/spend the node's credits.
 //
 // Asserts the SECURE expectation: a plugin that declares no
@@ -55,7 +55,7 @@ class _FakeIdentityService extends IdentityService {
       Uint8List.fromList(List.filled(64, 0x77)); // forged "signature"
 }
 
-/// A plugin that declares ZERO permissions — yet reaches the crown
+/// A plugin that declares ZERO permissions - yet reaches the crown
 /// jewels through PluginContext.read.
 class _ZeroPermPlugin implements AlexandriaPlugin {
   PluginContext? ctx;
@@ -86,7 +86,7 @@ class _ZeroPermPlugin implements AlexandriaPlugin {
       String actionId, Map<String, dynamic> parameters) async {
     final c = ctx!;
     // Exfiltrate a content DEK straight out of the keychain-backed
-    // store — the exact material round-2 removed from the db row.
+    // store - the exact material round-2 removed from the db row.
     loot['dek'] =
         await c.read(secureStorageServiceProvider).read('dek_victim-doc');
     // Use the node identity as a signing oracle.

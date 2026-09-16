@@ -68,12 +68,12 @@ class GovernanceVote {
 
   /// (round-3 red finding) Whether [weight] was derived from local
   /// ledger state at cast time ([GovernanceService.vote]). A vote
-  /// deserialized from the wire carries `weightAttested = false` — its
+  /// deserialized from the wire carries `weightAttested = false` - its
   /// declared weight and signature are self-asserted and never
   /// load-bearing in resolution tallies.
   ///
   /// (round-4 red finding) Unforgeable by construction: the public
-  /// constructor IGNORES any `weightAttested` argument — only the
+  /// constructor IGNORES any `weightAttested` argument - only the
   /// private [GovernanceVote._attested] constructor, reachable solely
   /// from [GovernanceService.vote] in this library, mints attestation.
   final bool weightAttested;
@@ -84,11 +84,11 @@ class GovernanceVote {
     required this.approve,
     required this.timestamp,
     required this.signature,
-    // Ignored — see field doc. Retained for call-site compatibility.
+    // Ignored - see field doc. Retained for call-site compatibility.
     bool weightAttested = false,
   }) : weightAttested = false;
 
-  /// Private attested-vote constructor — only [GovernanceService.vote]
+  /// Private attested-vote constructor - only [GovernanceService.vote]
   /// may mint attestation, after deriving weight from the ledger
   /// (round-4 red finding, same fix as ConsensusService's attested
   /// vote constructor).
@@ -131,7 +131,7 @@ class Proposal {
   final DateTime deadline;
   final List<GovernanceVote> votes;
 
-  /// (campaign-2 hardening) Was a public mutable field — the same
+  /// (campaign-2 hardening) Was a public mutable field - the same
   /// finding class as `ChangeRequest.status` (round-5): any holder of
   /// a returned reference could write `status = approved`/`executed`
   /// and the [GovernanceService.activeProposals] filter and
@@ -139,7 +139,7 @@ class Proposal {
   /// gate would honour the forged lifecycle state. Now private; the
   /// only transition paths are [activate] and [resolve], which move
   /// draft → active → {approved, rejected, expired} and
-  /// approved → executed — never backward and never terminal →
+  /// approved → executed - never backward and never terminal →
   /// anything.
   ProposalStatus _status;
   final String signature;
@@ -168,8 +168,8 @@ class Proposal {
   }
 
   /// Lifecycle transition: active may resolve to approved, rejected or
-  /// expired; approved may resolve to executed. Every other move —
-  /// terminal → anything, draft → terminal, backward transitions — is
+  /// expired; approved may resolve to executed. Every other move -
+  /// terminal → anything, draft → terminal, backward transitions - is
   /// a no-op rather than a rewrite of a decided outcome.
   void resolve(ProposalStatus next) {
     final allowed = (_status == ProposalStatus.active &&
@@ -180,7 +180,7 @@ class Proposal {
     if (allowed) _status = next;
   }
 
-  /// Calculate total approval weight (raw view of declared weights —
+  /// Calculate total approval weight (raw view of declared weights -
   /// display only; resolution uses the attested getters below).
   double get approvalWeight =>
       votes.where((v) => v.approve).fold(0.0, (sum, v) => sum + v.weight);
@@ -196,10 +196,10 @@ class Proposal {
   double get approvalPercentage =>
       totalVoteWeight > 0 ? approvalWeight / totalVoteWeight : 0;
 
-  /// (round-3 red finding) attested tallies — only votes whose weight
+  /// (round-3 red finding) attested tallies - only votes whose weight
   /// was ledger-derived at cast time count toward resolution. A
   /// serialized vote can declare any weight it likes; it tallies zero.
-  /// (round-4 red finding) deduplicated by [GovernanceVote.voterId] —
+  /// (round-4 red finding) deduplicated by [GovernanceVote.voterId] -
   /// [votes] is a publicly mutable list, so a copied attested ballot
   /// must never double-count.
   double get attestedApprovalWeight => _attestedTally(approve: true);
@@ -219,26 +219,26 @@ class Proposal {
   double get attestedTotalVoteWeight =>
       attestedApprovalWeight + attestedRejectionWeight;
 
-  /// Check if quorum is met (raw/declared view — display only).
+  /// Check if quorum is met (raw/declared view - display only).
   bool hasQuorum(double totalEligibleWeight) {
     final quorum = GovernanceConstants.quorumThresholds[type] ?? 0.25;
     return totalVoteWeight / totalEligibleWeight >= quorum;
   }
 
-  /// Quorum check over ATTESTED weight only — used by resolution.
+  /// Quorum check over ATTESTED weight only - used by resolution.
   bool hasAttestedQuorum(double totalEligibleWeight) {
     if (totalEligibleWeight <= 0) return false;
     final quorum = GovernanceConstants.quorumThresholds[type] ?? 0.25;
     return attestedTotalVoteWeight / totalEligibleWeight >= quorum;
   }
 
-  /// Check if proposal passes (raw/declared view — display only).
+  /// Check if proposal passes (raw/declared view - display only).
   bool passes() {
     final threshold = GovernanceConstants.passThresholds[type] ?? 0.50;
     return approvalPercentage >= threshold;
   }
 
-  /// Pass check over ATTESTED weight only — used by resolution.
+  /// Pass check over ATTESTED weight only - used by resolution.
   bool attestedPasses() {
     final threshold = GovernanceConstants.passThresholds[type] ?? 0.50;
     final total = attestedTotalVoteWeight;
@@ -276,7 +276,7 @@ class Proposal {
               ?.map((v) => GovernanceVote.fromJson(v as Map<String, dynamic>))
               .toList() ??
           [],
-      // (round-4 red finding) wire status is unverifiable — the same
+      // (round-4 red finding) wire status is unverifiable - the same
       // strip-unverifiable-fields rule as [GovernanceService.addProposal]
       // and ChangeRequest.fromJson: a deserialized proposal re-enters
       // as a draft rather than importing a claimed 'active'/'approved'.
@@ -305,18 +305,18 @@ class GovernanceService {
   /// `MoltbookService.ingestBountyAnnouncement`): a caller-supplied
   /// proposal's votes and status are CLAIMS, not facts. Until
   /// proposal/vote signature verification lands in the transport layer:
-  ///   * `votes` are always stripped — each GovernanceVote carries its
+  ///   * `votes` are always stripped - each GovernanceVote carries its
   ///     own signature and there is no vote-verification machinery yet,
   ///     so an announcer could fabricate tallies. Votes may only accrue
   ///     through [vote], which checks eligibility and signs locally.
-  ///   * `status` is reset to [ProposalStatus.draft] — a remote
+  ///   * `status` is reset to [ProposalStatus.draft] - a remote
   ///     'active'/'approved' claim is unverifiable, so ingested
   ///     proposals enter the pipeline as drafts until locally activated.
   ///
   /// [signatureVerified] is the seam for future verification: the
   /// transport may set it ONLY after verifying [Proposal.signature]
   /// against the canonical signed payload
-  /// (`id|title|payload|created`) out-of-band — it must never be
+  /// (`id|title|payload|created`) out-of-band - it must never be
   /// populated from wire data. When set, the proposer's claimed status
   /// is preserved (votes are still stripped: they are separately
   /// signed and separately unverified).
@@ -442,7 +442,7 @@ class GovernanceService {
       return false;
     }
 
-    // Calculate vote weight from ledger-attested reputation — never
+    // Calculate vote weight from ledger-attested reputation - never
     // from a caller-supplied figure (round-3 red finding).
     final weight = _ledgerService.totalReputation;
 
@@ -473,7 +473,7 @@ class GovernanceService {
   ///
   /// (round-3 red finding) the hardcoded `totalEligibleWeight = 1000.0`
   /// is gone: resolution now runs over ATTESTED weight only, with the
-  /// eligible base set to the locally-attestable electorate — this
+  /// eligible base set to the locally-attestable electorate - this
   /// node's own ledger reputation, which must cover at least the
   /// attested votes cast. Residual: the true remote electorate size is
   /// unknowable until cross-signed vote attestations land in the

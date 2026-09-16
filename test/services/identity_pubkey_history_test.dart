@@ -1,4 +1,4 @@
-// Safety item 3 — IdentityService's append-only local-pubkey history.
+// Safety item 3 - IdentityService's append-only local-pubkey history.
 // Rotation (importIdentity / generateIdentity) must accrete every key
 // ever installed so a receipt signed by a RETIRED key stays
 // self-issued forever. Scaffolding mirrors identity_service_test.dart.

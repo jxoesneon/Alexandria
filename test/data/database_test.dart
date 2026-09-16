@@ -19,9 +19,9 @@ void main() {
     // (round-5 red finding) v6: rehome-and-scrub of the legacy
     // content_manifests.encryption_key column. v7 adds
     // credit_transactions.attested_pubkey (multi-identity attested
-    // sharding — the prover-key-scoped egress gate). v8 adds
+    // sharding - the prover-key-scoped egress gate). v8 adds
     // credit_transactions.burned_attested (durable attested-burn
-    // attribution — the sufficient egress gate).
+    // attribution - the sufficient egress gate).
     test('schemaVersion is 8', () {
       expect(db.schemaVersion, equals(8));
     });
@@ -261,7 +261,7 @@ void main() {
       expect(match.metadata, '{}');
       expect(match.isEncrypted, isTrue);
       // (round-5 red finding) insertManifest no longer accepts key
-      // material — DEKs live only in secure storage under dek_<uuid>.
+      // material - DEKs live only in secure storage under dek_<uuid>.
       expect(match.encryptionKey, isNull);
     });
 
@@ -377,7 +377,7 @@ void main() {
         'verifierSig': 'sig',
         'spent': true,
       });
-      // Legacy path on an already-spent row is a harmless no-op — it can
+      // Legacy path on an already-spent row is a harmless no-op - it can
       // never resurrect a consumed receipt.
       await db.markReceiptSpent('rcpt_legacy');
       expect(await db.claimReceiptAtomically('rcpt_legacy'), isFalse);
@@ -423,7 +423,7 @@ void main() {
     });
 
     test('insertAwardedDoi reports the atomic dedup result', () async {
-      // First registration wins; the losing duplicate sees false — the
+      // First registration wins; the losing duplicate sees false - the
       // affected-rows signal closes the check-then-insert race window.
       expect(await db.insertAwardedDoi('10.1/race', cid: 'c1'), isTrue);
       expect(await db.insertAwardedDoi('10.1/race', cid: 'c2'), isFalse);
@@ -442,7 +442,7 @@ void main() {
       expect(await db.insertClaimedBounty('bounty_y', 'bafk_y'), isTrue);
       expect(await db.isBountyClaimed('bounty_y'), isTrue);
 
-      // delete releases a failed claim — the id is claimable again.
+      // delete releases a failed claim - the id is claimable again.
       await db.deleteClaimedBounty('bounty_x');
       expect(await db.isBountyClaimed('bounty_x'), isFalse);
       expect(await db.insertClaimedBounty('bounty_x', 'bafk_x'), isTrue);
@@ -461,8 +461,8 @@ void main() {
           isTrue);
       expect(await db.getClaimedBountyClaimedAt('bounty_own'), ownTs);
 
-      // A mismatched timestamp — e.g. the caller's snapshot of a row
-      // that a racing claim deleted and re-inserted — must NOT remove
+      // A mismatched timestamp - e.g. the caller's snapshot of a row
+      // that a racing claim deleted and re-inserted - must NOT remove
       // the current row, and reports 0.
       expect(
           await db.deleteClaimedBountyIfClaimedAt('bounty_own', ownTs + 1), 0);
@@ -496,7 +496,7 @@ void main() {
         'hash': 'h_probe',
       });
       expect(await db.hasCreditTransaction('tx_probe'), isTrue);
-      // Exact-match only — a different id is not a prefix/substring hit.
+      // Exact-match only - a different id is not a prefix/substring hit.
       expect(await db.hasCreditTransaction('tx_probe_extra'), isFalse);
       expect(await db.hasCreditTransaction('tx_'), isFalse);
     });
@@ -558,7 +558,7 @@ void main() {
         () async {
       expect(await db.hasGenesisTransaction(), isFalse);
 
-      // Legacy builds wrote genesis under a random id — the description
+      // Legacy builds wrote genesis under a random id - the description
       // marker still identifies it.
       await db.insertCreditTransaction({
         'id': 'tx_random_old',
@@ -709,7 +709,7 @@ void main() {
       await db.insertWorkReceipt({...row('rcpt_v2'), 'v': 2});
       expect((await db.getWorkReceipt('rcpt_v2'))!['v'], 2);
 
-      // An unknown FUTURE version is still representable — the declared
+      // An unknown FUTURE version is still representable - the declared
       // v is stored verbatim, never clamped.
       await db.insertWorkReceipt({...row('rcpt_v9'), 'v': 9});
       expect((await db.getWorkReceipt('rcpt_v9'))!['v'], 9);
@@ -796,7 +796,7 @@ void main() {
         "'h_p', 0)",
       );
 
-      // The real migration path — a Migrator bound to this database, so
+      // The real migration path - a Migrator bound to this database, so
       // the ALTER TABLE actually executes.
       await db.migration.onUpgrade(db.createMigrator(), 3, 4);
 
@@ -829,7 +829,7 @@ void main() {
               r.data['id'] as String: r.data['burned_attested']
           },
           equals({
-            'tx_legacy': 0.0, // mint — never a burn
+            'tx_legacy': 0.0, // mint - never a burn
             'tx_ord_debit': 3.0, // unattested pool was dry → all attested
             'tx_egress': 2.0, // attested egress burns its full debit
             'tx_penalty': 0.0, // PoR slashing never eats attested value

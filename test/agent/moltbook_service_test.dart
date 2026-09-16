@@ -12,7 +12,7 @@ import 'package:alexandria/services/credits/credit_service.dart';
 import 'package:alexandria/services/credits/poch_service.dart';
 import 'package:alexandria/services/ipfs_service.dart';
 
-/// IpfsService whose blockstore reads always fail — proves claimBounty
+/// IpfsService whose blockstore reads always fail - proves claimBounty
 /// contains stream errors instead of propagating them (E-T5 #6).
 class _ThrowingIpfsService extends IpfsService {
   _ThrowingIpfsService(super.ref);
@@ -26,10 +26,10 @@ class _ThrowingIpfsService extends IpfsService {
 final _throwingIpfsProvider =
     Provider<IpfsService>((ref) => _ThrowingIpfsService(ref));
 
-/// A fresh Ed25519 attestor identity — FOREIGN to every test poster.
+/// A fresh Ed25519 attestor identity - FOREIGN to every test poster.
 Future<SimpleKeyPair> _newAttestor() => Ed25519().newKeyPair();
 
-/// Builds a REAL, construction-verified [EscrowAttestation] — the
+/// Builds a REAL, construction-verified [EscrowAttestation] - the
 /// successor to the old caller-asserted `escrowAttested: true` bool.
 /// The signature genuinely verifies over the canonical domain preimage,
 /// so ingest sees cryptographic evidence, not a caller claim.
@@ -40,7 +40,7 @@ Future<SimpleKeyPair> _newAttestor() => Ed25519().newKeyPair();
 /// an attestation that is expired at real ingest time.
 /// [attestorPubkeyOverride] rewrites the hex spelling the attestation
 /// carries (e.g. UPPERCASE / space-padded) while [signer] still signs
-/// with [attestor]'s real key — every decodable spelling verifies.
+/// with [attestor]'s real key - every decodable spelling verifies.
 Future<EscrowAttestation?> _attestEscrow(
   SimpleKeyPair attestor, {
   required String bountyId,
@@ -93,14 +93,14 @@ Future<EscrowAttestation?> _attestBounty(
       attestorPubkeyOverride: attestorPubkeyOverride,
     );
 
-/// Hex pubkey of [kp] — the value the service's ambient
+/// Hex pubkey of [kp] - the value the service's ambient
 /// `trustedAttestorPubkeys` set must contain for ingest to honor this
 /// attestor's attestation.
 Future<String> _pubHex(SimpleKeyPair kp) async =>
     bytesToHex((await kp.extractPublicKey()).bytes);
 
 /// Mints a fresh foreign attestor, attests [bounty], and returns the
-/// construction-verified attestation plus the attestor's pubkey hex —
+/// construction-verified attestation plus the attestor's pubkey hex -
 /// everything a `MoltbookService(trustedAttestorPubkeys: {hex})` needs
 /// to admit a legitimately funded announcement.
 Future<(EscrowAttestation?, String)> _freshTrustedAttestation(
@@ -217,7 +217,7 @@ void main() {
       expect(bounty.offeredCredits, 25.0);
       expect(bounty.funded, isTrue);
       expect(creditService.balance, initialBalance - 25.0); // Escrowed!
-      // E-T5 #5: escrow is a fee-exempt hold — no treasury skim on posting.
+      // E-T5 #5: escrow is a fee-exempt hold - no treasury skim on posting.
       expect(creditService.protocolTreasury, initialTreasury);
 
       // Verify bounty listed in active bounties
@@ -311,7 +311,7 @@ void main() {
         ipfsService: ipfsService,
       );
 
-      // Store the payload so even the work-evidence check would pass —
+      // Store the payload so even the work-evidence check would pass -
       // the ONLY thing stopping the claim must be the self-dealing guard.
       final cid = await ipfsService.addFile(Uint8List.fromList([1, 2, 3, 4]));
       final bounty = await ipfsMoltbook.postPreservationBounty(
@@ -350,7 +350,7 @@ void main() {
         offeredCredits: 20.0,
       );
       // A real TRUSTED foreign attestation so the funded guard admits
-      // the bounty — without it the claim would reject before the
+      // the bounty - without it the claim would reject before the
       // blockstore check this test targets. The attestor's key is the
       // ambient trust root, injected at construction (REV3).
       final (att, attestorHex) = await _freshTrustedAttestation(bounty);
@@ -401,7 +401,7 @@ void main() {
         escrowAttestation: att,
       );
 
-      // getFile throws synchronously inside the stream — claim must
+      // getFile throws synchronously inside the stream - claim must
       // swallow it, release the claim mark, and report failure.
       expect(await ipfsMoltbook.claimBounty(bounty.id), isFalse);
       expect(
@@ -457,13 +457,13 @@ void main() {
       );
       expect(await claimant.claimBounty(bounty.id), isTrue);
       // Ingest stores a copy, so the claim flag lives on the stored
-      // record — a claimed bounty drops out of activeBounties.
+      // record - a claimed bounty drops out of activeBounties.
       expect(
         claimant.activeBounties.any((b) => b.id == bounty.id),
         isFalse,
       );
 
-      // Claimant +25: escrow paid out in full, treasury untouched —
+      // Claimant +25: escrow paid out in full, treasury untouched -
       // the whole post+claim cycle minted nothing.
       expect(creditService.balance, 100.0);
       expect(creditService.protocolTreasury, treasuryBefore);
@@ -548,7 +548,7 @@ void main() {
 
       final success = await ipfsMoltbook.claimBounty(bounty.id);
       expect(success, isTrue);
-      // The stored copy carries the claim flag — the caller's object
+      // The stored copy carries the claim flag - the caller's object
       // is never aliased into the registry (H3).
       expect(bounty.isClaimed, isFalse);
       expect(
@@ -566,7 +566,7 @@ void main() {
         'forged remote funded flag mints nothing — unattested announcements are display-only (E-T5r #1)',
         () async {
       // Attacker announces funded:true with an arbitrary origin id and a
-      // huge offer. There is NO escrow behind this — the flag is a bare
+      // huge offer. There is NO escrow behind this - the flag is a bare
       // claim on the wire and must be stripped on ingest.
       final forged = _foreignBounty(
         id: 'bounty_forged_funded',
@@ -581,7 +581,7 @@ void main() {
           moltbookService.activeBounties.firstWhere((b) => b.id == forged.id);
       expect(stored.funded, isFalse);
 
-      // Claim must fail and mint nothing — no IpfsService needed for the
+      // Claim must fail and mint nothing - no IpfsService needed for the
       // funded guard to reject it.
       expect(await moltbookService.claimBounty(forged.id), isFalse);
       expect(creditService.balance, 100.0);
@@ -604,7 +604,7 @@ void main() {
       );
 
       // Attacker pre-stages the bytes so even the work-evidence check
-      // would pass — the ONLY thing stopping the mint must be the
+      // would pass - the ONLY thing stopping the mint must be the
       // missing escrow attestation.
       final cid = await ipfsService.addFile(Uint8List.fromList([1, 2, 3, 4]));
       ipfsMoltbook.ingestBountyAnnouncement(_foreignBounty(
@@ -631,7 +631,7 @@ void main() {
         offeredCredits: 500.0,
       );
       // Attacker claims a foreign attestor's pubkey but signs with its
-      // OWN key — the signature cannot verify against the claimed
+      // OWN key - the signature cannot verify against the claimed
       // attestor, so verify() must refuse to construct the attestation.
       final claimedAttestor = await _newAttestor();
       final attackerKey = await _newAttestor();
@@ -695,7 +695,7 @@ void main() {
       );
       expect(attestation, isNotNull);
 
-      // ...cannot vouch for bounty B (different id → no binding) — even
+      // ...cannot vouch for bounty B (different id → no binding) - even
       // though the attestor IS in the trusted set, so the binding check
       // is the only thing rejecting it.
       final bountyB = _foreignBounty(
@@ -749,7 +749,7 @@ void main() {
       expect(expired, isNotNull);
       expect(expired!.isExpired(), isTrue);
 
-      // Trusted attestor — only expiry strips funded.
+      // Trusted attestor - only expiry strips funded.
       final svc = MoltbookService(
         creditService: creditService,
         trustedAttestorPubkeys: {await _pubHex(attestor)},
@@ -794,7 +794,7 @@ void main() {
     test(
         'self-issued attestation from the POSTER key strips funded (ALX-011 A3)',
         () async {
-      // Attestation means a FOREIGN party vouched — a poster signing its
+      // Attestation means a FOREIGN party vouched - a poster signing its
       // own escrow claim is the same self-declaration as the `funded`
       // flag. Mirror of WorkReceipt.isSelfIssued.
       final posterKp = await Ed25519().newKeyPair();
@@ -809,7 +809,7 @@ void main() {
         funded: true,
       );
 
-      // The poster's OWN key attests — cryptographically valid, bound to
+      // The poster's OWN key attests - cryptographically valid, bound to
       // the bounty, trusted by the set, but self-issued, so it carries
       // zero weight.
       final selfVouch = await _attestBounty(posterKp, bounty);
@@ -837,7 +837,7 @@ void main() {
       // The proven exploit: attacker mints its own keypair, signs a
       // perfectly valid attestation, and claims escrow that does not
       // exist. Signature validity is proof of key possession, not
-      // trust — the ambient trustedAttestorPubkeys set is the only
+      // trust - the ambient trustedAttestorPubkeys set is the only
       // trust root (empty on moltbookService → fail-closed).
       final bounty = _foreignBounty(
         id: 'bounty_sybil_attestor',
@@ -879,12 +879,12 @@ void main() {
         () async {
       // Second proven exploit: self-attestation via the node's OWN
       // key. isSelfIssuedFor only compares the attestor against the
-      // bounty's CLAIMED originAgentId — it cannot catch the local
+      // bounty's CLAIMED originAgentId - it cannot catch the local
       // key vouching for a foreign-origin bounty. The local-key bar
       // keys off the real keypair (_pubkeyHex), not the claimed id.
       final localKp = await Ed25519().newKeyPair();
       final localHex = await _pubHex(localKp);
-      // The local key sits in the ambient trust root — trusted, but it
+      // The local key sits in the ambient trust root - trusted, but it
       // is OUR key, so it still cannot attest.
       final localSvc = MoltbookService(
         creditService: creditService,
@@ -901,7 +901,7 @@ void main() {
       final selfAttested = await _attestBounty(localKp, bounty);
       expect(selfAttested, isNotNull);
       expect(selfAttested!.bindsBounty(bounty), isTrue);
-      // Not self-issued w.r.t. the poster — the foreign originAgentId
+      // Not self-issued w.r.t. the poster - the foreign originAgentId
       // differs from the local agent id, so ONLY the local-key check
       // can catch this.
       expect(selfAttested.isSelfIssuedFor(bounty), isFalse);
@@ -997,7 +997,7 @@ void main() {
 
     test('non-finite offeredCredits never throws and never funds (F3)',
         () async {
-      // (NaN * 1000).round() throws — bindsBounty must guard isFinite
+      // (NaN * 1000).round() throws - bindsBounty must guard isFinite
       // BEFORE the conversion so a malformed announcement fails closed
       // instead of crashing ingest.
       for (final bad in <double>[double.nan, double.infinity]) {
@@ -1007,7 +1007,7 @@ void main() {
           offeredCredits: bad,
         );
         // A trusted, well-formed attestation (minted for a finite
-        // amount — a NaN amount cannot even be expressed in
+        // amount - a NaN amount cannot even be expressed in
         // amountMilli): binding must evaluate to false, not throw.
         final attestor = await _newAttestor();
         final att = await _attestEscrow(
@@ -1037,7 +1037,7 @@ void main() {
     test(
         'dedup upgrade: poisoned id is revived by a later TRUSTED attestation binding the stored record (F4)',
         () async {
-      // The ambient trust root is fixed at construction — mint the
+      // The ambient trust root is fixed at construction - mint the
       // attestor first so the service can be configured to trust it.
       final attestor = await _newAttestor();
       final svc = MoltbookService(
@@ -1056,7 +1056,7 @@ void main() {
       expect(stored.funded, isFalse);
 
       // 2. The legit re-announcement arrives carrying a trusted
-      //    attestation binding the STORED record's id/cid/amount —
+      //    attestation binding the STORED record's id/cid/amount -
       //    plus decoy fields that must NOT be adopted.
       final att = await _attestBounty(attestor, stored);
       svc.ingestBountyAnnouncement(
@@ -1075,7 +1075,7 @@ void main() {
 
       stored = svc.activeBounties.firstWhere((b) => b.id == 'bounty_poisoned');
       expect(stored.funded, isTrue);
-      // Stored record fields are untouched — only funded flipped.
+      // Stored record fields are untouched - only funded flipped.
       expect(stored.title, 'Foreign bounty bounty_poisoned');
       expect(stored.urgency, 'normal');
       expect(stored.offeredCredits, 25.0);
@@ -1090,7 +1090,7 @@ void main() {
         offeredCredits: 25.0,
       ));
 
-      // Valid signature, valid binding — but the attestor is NOT in
+      // Valid signature, valid binding - but the attestor is NOT in
       // the trusted set (the Sybil case again, via the upgrade path).
       final sybil = await _newAttestor();
       final stored = moltbookService.activeBounties
@@ -1121,7 +1121,7 @@ void main() {
         offeredCredits: 25.0,
       );
       // Both attestors must sit in the ambient trust root at
-      // construction (REV3) — there is no per-call override anymore.
+      // construction (REV3) - there is no per-call override anymore.
       final (att, attestorHex) = await _freshTrustedAttestation(bounty);
       final (att2, hex2) = await _freshTrustedAttestation(bounty);
       final svc = MoltbookService(
@@ -1135,8 +1135,8 @@ void main() {
       final stored = svc.activeBounties.firstWhere((b) => b.id == bounty.id);
       expect(stored.funded, isTrue);
 
-      // A later announcement — even one carrying another valid trusted
-      // attestation — changes nothing about the funded record.
+      // A later announcement - even one carrying another valid trusted
+      // attestation - changes nothing about the funded record.
       svc.ingestBountyAnnouncement(
         PreservationBounty(
           id: bounty.id,
@@ -1154,7 +1154,7 @@ void main() {
       expect(after.cid, 'bafk_funded_first');
       expect(after.title, 'Foreign bounty bounty_funded_first');
       expect(after.offeredCredits, 25.0);
-      // activeBounties hands out defensive copies (REV3) — a stored
+      // activeBounties hands out defensive copies (REV3) - a stored
       // record is never aliased to callers, so two reads are never
       // identical even when the underlying record is unchanged.
       expect(identical(after, stored), isFalse);
@@ -1181,7 +1181,7 @@ void main() {
       );
 
       // Broadcast-first ordering: the throw happened BEFORE any ledger
-      // touch — no escrow was debited and no unclaimable funded bounty
+      // touch - no escrow was debited and no unclaimable funded bounty
       // lingers in the registry.
       expect(creditService.balance, 100.0);
       expect(
@@ -1197,7 +1197,7 @@ void main() {
         () async {
       // The exploit: the node attests with its OWN key, but the
       // attestation carries a non-canonical spelling of the local pubkey
-      // (UPPERCASE / space-padded — all decode to identical bytes). A
+      // (UPPERCASE / space-padded - all decode to identical bytes). A
       // raw `attestorPubkey != _pubkeyHex` compare would see "different"
       // keys and admit the local self-attestation.
       final localKp = await Ed25519().newKeyPair();
@@ -1223,7 +1223,7 @@ void main() {
           trustedAttestorPubkeys: {spelling},
         );
         await fresh.setKeyPair(localKp);
-        // verify() accepts every decodable spelling — the signature is
+        // verify() accepts every decodable spelling - the signature is
         // genuinely valid, so ONLY the canonical local-key bar can
         // reject this attestation.
         final att = await _attestBounty(
@@ -1251,7 +1251,7 @@ void main() {
         'trusted-set membership is canonical: non-canonical spelling of a TRUSTED foreign key still admits (H1)',
         () async {
       // The other half of the encoding bug: a configured trust root may
-      // spell keys uppercase or padded — membership must compare decoded
+      // spell keys uppercase or padded - membership must compare decoded
       // key bytes, not strings, or legit attestations are dropped.
       final attestor = await _newAttestor();
       final attestorHex = await _pubHex(attestor);
@@ -1289,11 +1289,11 @@ void main() {
         'overflow offeredCredits (milli product → Infinity) never throws and never funds — both ingest paths (H2)',
         () async {
       // 1e306 is finite, but 1e306 * 1000 overflows to Infinity and
-      // Infinity.round() throws — the old guard only checked
+      // Infinity.round() throws - the old guard only checked
       // offeredCredits.isFinite, so bindsBounty crashed ingest.
       const overflow = 1e306;
 
-      // Path 1 — first-seen ingest with a trusted, well-formed
+      // Path 1 - first-seen ingest with a trusted, well-formed
       // attestation: binding must evaluate to false, not throw.
       final bounty = _foreignBounty(
         id: 'bounty_overflow',
@@ -1323,7 +1323,7 @@ void main() {
       var stored = svc.activeBounties.firstWhere((b) => b.id == bounty.id);
       expect(stored.funded, isFalse);
 
-      // Path 2 — dedup upgrade on the same poisoned id. The old code
+      // Path 2 - dedup upgrade on the same poisoned id. The old code
       // threw INSIDE the upgrade check too, so an attested
       // re-announcement of a poisoned overflow id was a persistent
       // crash primitive.
@@ -1349,7 +1349,7 @@ void main() {
       // Attack: an attested funded announcement that ALSO carries
       // is_claimed:true. If the wire flag were stored, the escrow would
       // be funded-but-permanently-unclaimable (and invisible to
-      // activeBounties). Built through fromJson — the real wire path.
+      // activeBounties). Built through fromJson - the real wire path.
       final wireJson = _foreignBounty(
         id: 'bounty_wire_claimed',
         cid: 'bafk_wire_claimed',
@@ -1374,7 +1374,7 @@ void main() {
       expect(stored.funded, isTrue);
       expect(stored.isClaimed, isFalse);
 
-      // Genuinely claimable — the escrow is not dead-locked (no
+      // Genuinely claimable - the escrow is not dead-locked (no
       // IpfsService → work-evidence check skipped).
       expect(await svc.claimBounty(bounty.id), isTrue);
       expect(creditService.balance, 125.0);
@@ -1384,7 +1384,7 @@ void main() {
         'post-ingest mutation of the caller object cannot touch the stored record (H3)',
         () async {
       // The funded fast-path used to store the caller's object verbatim
-      // when funded == bounty.funded — mutating the caller's object
+      // when funded == bounty.funded - mutating the caller's object
       // afterwards flipped the stored record's claim state.
       final bounty = _foreignBounty(
         id: 'bounty_aliased',
@@ -1421,7 +1421,7 @@ void main() {
         funded: false,
       ).toJson()
         ..['is_claimed'] = true);
-      // The trust root is ambient — mint the attestor and configure the
+      // The trust root is ambient - mint the attestor and configure the
       // service before either ingest (REV3).
       final attestor = await _newAttestor();
       final svc = MoltbookService(
@@ -1458,7 +1458,7 @@ void main() {
       // attestor's derived id, hoping the later legit re-announcement
       // is rejected as "self-issued". With the origin-match gate the
       // legit re-announcement (claiming the REAL poster) no longer
-      // mislabels the attestation — it is a CONFLICT: different claimed
+      // mislabels the attestation - it is a CONFLICT: different claimed
       // poster for the same bounty id → no upgrade, stored record
       // untouched (fail-closed, same denial a wrong-cid poison gives).
       final attestor = await _newAttestor();
@@ -1477,7 +1477,7 @@ void main() {
         offeredCredits: 25.0,
         originAgentId: attestorAgentId, // attacker-chosen poison
         createdAt: DateTime.now(),
-        funded: true, // stripped — no attestation
+        funded: true, // stripped - no attestation
       ));
       var stored =
           svc.activeBounties.firstWhere((b) => b.id == 'bounty_origin_poison');
@@ -1514,7 +1514,7 @@ void main() {
       // announcement re-claims the ATTESTOR's own id as origin while
       // presenting that attestor's (valid, trusted) attestation. Under
       // the old rule the stored origin made the check pass; under the
-      // origin-match gate the mismatched claim is a conflict — and even
+      // origin-match gate the mismatched claim is a conflict - and even
       // evaluated on its own terms, "attestor == claimed poster" is
       // self-issued. Either way: no upgrade.
       final attestor = await _newAttestor();
@@ -1565,7 +1565,7 @@ void main() {
         () async {
       // The intended behavior: poison = faithful copy of the real
       // announcement minus attestation (same claimed poster); the legit
-      // attested re-announcement re-claims that same poster — the
+      // attested re-announcement re-claims that same poster - the
       // self-issuance check now asks "is the attestor the poster THIS
       // announcement claims", which is the stored claim too. Foreign →
       // upgrade. The attestor is minted first so its key can sit in the
@@ -1606,7 +1606,7 @@ void main() {
         'dedup upgrade: matching origin where the attestor IS the claimed poster stays a self-vouch (H4)',
         () async {
       // Stored record AND re-announcement both claim the attestor's own
-      // derived id as the poster — origins match, so isSelfIssuedFor is
+      // derived id as the poster - origins match, so isSelfIssuedFor is
       // evaluated and correctly reads self-issued. No upgrade.
       final posterKp = await Ed25519().newKeyPair();
       final posterHex = await _pubHex(posterKp);
@@ -1624,7 +1624,7 @@ void main() {
 
       // First announcement claims the poster id but carries NO
       // attestation → stored unfunded. The poster's key sits in the
-      // ambient trust root — trusted, yet self-vouching (REV3).
+      // ambient trust root - trusted, yet self-vouching (REV3).
       final svc = MoltbookService(
         creditService: creditService,
         trustedAttestorPubkeys: {posterHex},
@@ -1635,7 +1635,7 @@ void main() {
       expect(stored.funded, isFalse);
 
       // The poster's own key attests, trusted, binding the stored
-      // record — a self-vouch must never fund, on either ingest path.
+      // record - a self-vouch must never fund, on either ingest path.
       final selfVouch = await _attestEscrow(
         posterKp,
         bountyId: stored.id,
@@ -1660,7 +1660,7 @@ void main() {
       // LIVE stored objects, so any holder of a returned reference could
       // flip isClaimed=false post-claim and claim again. Now the getter
       // returns defensive copies and claimBounty is gated by the durable
-      // claimed_bounties CAS — neither is reachable through a copy.
+      // claimed_bounties CAS - neither is reachable through a copy.
       final db = AppDatabase();
       addTearDown(db.close);
 
@@ -1677,7 +1677,7 @@ void main() {
       );
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
-      // Two reads are different objects — the stored record never
+      // Two reads are different objects - the stored record never
       // escapes the registry.
       final copy1 = svc.activeBounties.firstWhere((b) => b.id == bounty.id);
       final copy2 = svc.activeBounties.firstWhere((b) => b.id == bounty.id);
@@ -1687,7 +1687,7 @@ void main() {
       expect(await svc.claimBounty(bounty.id), isTrue);
       expect(creditService.balance, 125.0);
 
-      // The attack: flip the retained copy's flag back — it must be a
+      // The attack: flip the retained copy's flag back - it must be a
       // no-op for the registry. The durable row AND the stored record's
       // flag both still refuse the second claim.
       copy1.isClaimed = false;
@@ -1707,7 +1707,7 @@ void main() {
         'a claimed bounty stays claimed across service restart on the same database (REV3)',
         () async {
       // Restart simulation: a fresh MoltbookService has empty in-memory
-      // _bounties/_claimedBountyIds — only the shared database carries
+      // _bounties/_claimedBountyIds - only the shared database carries
       // the claim forward.
       final db = AppDatabase();
       addTearDown(db.close);
@@ -1730,8 +1730,8 @@ void main() {
       expect(await db.isBountyClaimed(bounty.id), isTrue);
 
       // "Restart": new service, same database. Re-ingesting the same
-      // attested announcement stores a fresh in-memory record — funded,
-      // and locally isClaimed:false — but the durable row still refuses
+      // attested announcement stores a fresh in-memory record - funded,
+      // and locally isClaimed:false - but the durable row still refuses
       // the second claim.
       final second = MoltbookService(
         creditService: creditService,
@@ -1754,7 +1754,7 @@ void main() {
       // CAS loss against a DURABLY SETTLED claim heals the stored
       // record to claimed (REV4b crash-window reconciliation): the payout
       // row proves the escrow was spent, so the listing must stop
-      // offering it — the record leaves activeBounties rather than
+      // offering it - the record leaves activeBounties rather than
       // staying a visible, never-claimable zombie.
       expect(second.activeBounties.any((b) => b.id == bounty.id), isFalse,
           reason: 'a settled claim is healed to isClaimed, not left '
@@ -1771,7 +1771,7 @@ void main() {
       final throwingIpfs = container.read(_throwingIpfsProvider);
       final goodIpfs = container.read(ipfsServiceProvider);
 
-      // Work evidence exists in the GOOD blockstore — the failing
+      // Work evidence exists in the GOOD blockstore - the failing
       // blockstore's read error is the only thing standing between the
       // claim and the payout.
       final cid = await goodIpfs.addFile(Uint8List.fromList([7, 7, 7, 7]));
@@ -1799,7 +1799,7 @@ void main() {
         isFalse,
       );
 
-      // Retry on a service whose blockstore genuinely has the bytes —
+      // Retry on a service whose blockstore genuinely has the bytes -
       // the released claim can be won again.
       final retry = MoltbookService(
         creditService: creditService,
@@ -1842,7 +1842,7 @@ void main() {
       expect(await moltbookService.claimBounty('bounty_wire_noatt'), isFalse);
 
       // 2. Trusted attestation: funded survives, claimed still stripped
-      //    — the escrow is live, not dead-locked.
+      //    - the escrow is live, not dead-locked.
       final attested = PreservationBounty.fromJson(wire('bounty_wire_att'));
       final (att, attestorHex) = await _freshTrustedAttestation(attested);
       final svc = MoltbookService(
@@ -1872,7 +1872,7 @@ void main() {
       final info = envelope!.clientInfo;
       expect(info, isNotNull);
 
-      // Exactly the broadcast-safe subset — no more, no less.
+      // Exactly the broadcast-safe subset - no more, no less.
       expect(
         info!.keys.toSet(),
         equals({
@@ -1890,7 +1890,7 @@ void main() {
       // And it equals the service's claimed broadcast shape verbatim.
       expect(info, equals(BuildInfo.current().claimedBroadcastInfo));
 
-      // client_info rides inside the signed payload — the envelope
+      // client_info rides inside the signed payload - the envelope
       // still verifies with it present.
       expect(await envelope.verify(), isTrue);
     });

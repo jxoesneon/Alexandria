@@ -165,7 +165,7 @@ void main() {
     // 2048 B + 512 B + 2 MiB total → MB formatting
     expect(find.textContaining('MB on mesh'), findsOneWidget);
 
-    // Search filter — CID match keeps exactly the epub card.
+    // Search filter - CID match keeps exactly the epub card.
     await tester.enterText(find.byType(TextField), 'cid-epub');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
@@ -179,7 +179,7 @@ void main() {
     expect(find.text('Showing 3 of 3 editions'), findsOneWidget);
 
     // Filter chips live in a horizontally scrollable row inside the
-    // 380px sidebar — scroll them into view before tapping.
+    // 380px sidebar - scroll them into view before tapping.
     final briefsChip = find.text('Briefs (1)');
     await tester.ensureVisible(briefsChip);
     await tester.pump();
@@ -253,7 +253,7 @@ void main() {
     await settle(tester);
     await openTab(tester, 'Editions');
 
-    // The brief card is not active — tap it.
+    // The brief card is not active - tap it.
     await tester.tap(find.text('Executive Brief'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
@@ -397,7 +397,7 @@ void main() {
           r'$x+y$ plus display $$a^2$$ end.',
     ));
     await settle(tester);
-    // Rich-text runs — assert the plain runs still appear.
+    // Rich-text runs - assert the plain runs still appear.
     expect(find.textContaining('bolded'), findsWidgets);
     expect(find.textContaining('mono'), findsWidgets);
   });
@@ -449,7 +449,7 @@ void main() {
     await tester.tapAt(tester.getCenter(slider));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
-    // Slider moved — the percentage label should no longer read 0%.
+    // Slider moved - the percentage label should no longer read 0%.
     expect(find.text('0%'), findsNothing);
   });
 

@@ -22,7 +22,7 @@ class IndexedDbBlockStore {
   /// Stores [data] under [cid], evicting least-recently-used blocks as
   /// needed. A block LARGER than [maxCapacityBytes] is REFUSED outright
   /// (round-2 red finding): the previous loop evicted everything and
-  /// then stored it anyway, leaving currentUsage > capacity — a remote
+  /// then stored it anyway, leaving currentUsage > capacity - a remote
   /// quota-exhaustion primitive that also wiped the whole store.
   Future<bool> putBlock(String cid, Uint8List data) async {
     if (_blocks.containsKey(cid)) {
@@ -93,7 +93,7 @@ class WebNodeService {
   /// Stores [data] and returns its computed CID. Throws [StateError]
   /// when the store refuses the block (slot-C sweep fix: the previous
   /// code returned a CID even when `putBlock` had refused an oversized
-  /// block — a "successfully preserved" handle that always retrieved
+  /// block - a "successfully preserved" handle that always retrieved
   /// null).
   Future<String> preserveInBrowser(Uint8List data) async {
     final cidService = _ref.read(cidServiceProvider);
@@ -110,7 +110,7 @@ class WebNodeService {
   /// Retrieves a block by CID. (slot-C sweep fix) Content-addressing
   /// integrity: the store is caller-keyed, so a poisoned or mistaken
   /// `putBlock` could alias a CID to foreign bytes. The returned bytes
-  /// are re-hashed and the CID re-derived — a mismatch is refused
+  /// are re-hashed and the CID re-derived - a mismatch is refused
   /// (fail closed) rather than silently serving mislabeled content.
   Future<Uint8List?> retrieveFromBrowser(String cid) async {
     final data = await blockStore.getBlock(cid);

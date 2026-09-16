@@ -27,8 +27,8 @@ class LnurlPayInvoice {
 
 /// Non-redirecting fetch transport for an LNURL network leg.
 ///
-/// Implementations MUST return the raw response — including 3xx
-/// statuses — without following `Location` internally. The service
+/// Implementations MUST return the raw response - including 3xx
+/// statuses - without following `Location` internally. The service
 /// re-gates every redirect target through
 /// [UrlSafety.requirePublicFetchUri] before following it manually
 /// (round-3 red finding). `package:http` clients follow redirects
@@ -111,8 +111,8 @@ class LnurlService {
     // Step 2: Request BOLT11 payment request from callback URL.
     // SSRF gate (round-2 red finding, deepened in round-3): the callback
     // is attacker-controlled input from an untrusted .well-known
-    // document. It is fetched through [_callbackFetch] — a transport
-    // that provably cannot follow redirects internally — and every hop
+    // document. It is fetched through [_callbackFetch] - a transport
+    // that provably cannot follow redirects internally - and every hop
     // is re-gated by [UrlSafety.requirePublicFetchUri] (https, or http
     // for .onion; every inet_aton spelling parsed; DNS answers checked).
     final callbackBase = Uri.parse(callback);
@@ -156,7 +156,7 @@ class LnurlService {
       _sendNonRedirecting(_ownedCallbackClient!, uri);
 
   /// Issues one GET that never follows redirects at the transport
-  /// layer — the 3xx response is returned to the caller so the target
+  /// layer - the 3xx response is returned to the caller so the target
   /// can be re-validated before it is fetched.
   static Future<http.Response> _sendNonRedirecting(
       http.Client client, Uri uri) {

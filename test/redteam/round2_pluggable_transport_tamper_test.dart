@@ -1,14 +1,14 @@
-// RED TEAM PoC — "Shadowsocks AEAD" is neither AEAD nor encryption.
+// RED TEAM PoC - "Shadowsocks AEAD" is neither AEAD nor encryption.
 //
 // lib/services/pluggable_transport_service.dart:79-101 implements
 // `shadowsocksAead` as salt ‖ (plaintext XOR repeating-salt), with the
 // 16-byte salt prepended in CLEARTEXT. Consequences:
 //   * Confidentiality: any observer reads the salt off the wire and
-//     recovers the plaintext keystream directly — the "cipher" is
+//     recovers the plaintext keystream directly - the "cipher" is
 //     self-decrypting for anyone with the ciphertext.
 //   * Integrity: there is no MAC/tag. A MITM flipping ciphertext bit i
 //     predictably flips plaintext bit i and `deobfuscate` returns the
-//     forged plaintext with NO error — a silent tampering channel for
+//     forged plaintext with NO error - a silent tampering channel for
 //     anything routed over this profile.
 //   * No key material exists at all: knowledge of the public profile
 //     name fully decodes every frame.
@@ -76,7 +76,7 @@ void main() {
     final wire = svc.obfuscate(Uint8List.fromList(utf8.encode('hello')));
 
     // Append attacker junk: length field still says 5 so the reader
-    // silently truncates and ignores the tail — the profile is a
+    // silently truncates and ignores the tail - the profile is a
     // framing wrapper, not TLS; a receiver must at minimum refuse a
     // record carrying MORE bytes than the declared length.
     final padded = Uint8List.fromList([...wire, 0xAA, 0xBB, 0xCC]);

@@ -72,7 +72,7 @@ class KeyManagementScreen extends ConsumerWidget {
   /// provider stay coherent.
   Future<void> _generateNewKey(BuildContext context, WidgetRef ref) async {
     // Replacing the active keypair permanently destroys every claim
-    // bound to its public key — never do it silently.
+    // bound to its public key - never do it silently.
     var hasExisting =
         ref.read(activeIdentitiesProvider).valueOrNull?.isNotEmpty ?? false;
     if (!hasExisting) {

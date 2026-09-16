@@ -79,7 +79,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      // The card reads plugin.enabled at build time — PluginService is
+      // The card reads plugin.enabled at build time - PluginService is
       // not a ChangeNotifier, so assert the flag flips on the service,
       // then force a fresh mount (an identical pumpWidget does not
       // rebuild the const widget subtree).
@@ -117,7 +117,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.textContaining('Installed:'), findsOneWidget);
-      // Let the first snackbar expire — ScaffoldMessenger queues the
+      // Let the first snackbar expire - ScaffoldMessenger queues the
       // next one behind its 4-second display duration.
       await tester.pump(const Duration(seconds: 4));
 
@@ -168,7 +168,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Valid theme — one bad hex color exercises the parse fallback.
+      // Valid theme - one bad hex color exercises the parse fallback.
       await tester.tap(find.byIcon(Icons.add_circle));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -188,7 +188,7 @@ void main() {
       expect(find.text('Installed: Theme X'), findsOneWidget);
       await tester.pump(const Duration(seconds: 4));
 
-      // The themes list only re-reads pluginService.themes on rebuild —
+      // The themes list only re-reads pluginService.themes on rebuild -
       // bounce through the plugins tab to force it.
       await tester.tap(find.text('PLUGINS'));
       await tester.pump();
@@ -197,7 +197,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       expect(find.text('Theme X'), findsOneWidget);
 
-      // Tapping the card activates the theme — PluginService is not a
+      // Tapping the card activates the theme - PluginService is not a
       // ChangeNotifier, so assert on the service, then force a fresh
       // mount for the ACTIVE badge render.
       await tester.tap(find.text('Theme X'));
@@ -543,7 +543,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      // Export Config opens the MCP config dialog — scroll it into
+      // Export Config opens the MCP config dialog - scroll it into
       // view first (it sits below the fold inside the scrollable).
       await tester.ensureVisible(find.text('Export Config'));
       await tester.pump();
@@ -606,7 +606,7 @@ void main() {
       expect(find.textContaining('broadcast to Moltbook'), findsOneWidget);
 
       // The freshly posted, funded bounty resolves via the beacon
-      // payload id and shows an enabled 'Claim Bounty' button — the
+      // payload id and shows an enabled 'Claim Bounty' button - the
       // self-claim guard then refuses it.
       await tester.pump(const Duration(seconds: 4));
       final claim = find.text('Claim Bounty');

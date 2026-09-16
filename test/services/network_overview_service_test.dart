@@ -76,7 +76,7 @@ void main() {
           address: '/ip4/1.2.3.4/p2p/peer-1',
           tier: TransportTier.lanMdns,
           latencyMs: 5,
-          // Round-3: isReachable defaults to false (proof, not a flag) —
+          // Round-3: isReachable defaults to false (proof, not a flag) -
           // the fake inserts directly, so declare the handshake-proven
           // state it is simulating.
           isReachable: true,

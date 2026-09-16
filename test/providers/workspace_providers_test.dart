@@ -335,7 +335,7 @@ void main() {
       final container = _makeContainer();
       addTearDown(container.dispose);
 
-      // Declared size over the cap — bytes never materialized.
+      // Declared size over the cap - bytes never materialized.
       final file = PlatformFile(
         name: 'huge.bin',
         size: IngestionPipelineManager.maxIngestBytes + 1,

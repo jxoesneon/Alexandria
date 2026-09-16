@@ -350,7 +350,7 @@ void main() {
     testWidgets('rejects an oversized file before scrub/ingest',
         (tester) async {
       final repo = _FakeContentRepository();
-      // Declared size over the cap; tiny byte payload — the declared
+      // Declared size over the cap; tiny byte payload - the declared
       // size alone must trigger rejection before bytes are touched.
       final files = [
         PlatformFile(
@@ -374,7 +374,7 @@ void main() {
         'a total failure keeps the screen and reports per-file '
         'errors', (tester) async {
       final repo = _FakeContentRepository();
-      // Only oversized files — nothing ingests, so the form must stay
+      // Only oversized files - nothing ingests, so the form must stay
       // open with the failure summary visible.
       final files = [
         PlatformFile(

@@ -69,8 +69,8 @@ class SecurityOverviewService {
       ));
     } else {
       // Same key AND same store that MnemonicService.markBackupConfirmed
-      // writes (previously this read 'alexandria_mnemonic_backup_hash' —
-      // a key that was never written — while the marker lived in a
+      // writes (previously this read 'alexandria_mnemonic_backup_hash' -
+      // a key that was never written - while the marker lived in a
       // different keychain, so the backup warning could never clear).
       final backup = await _ref
           .read(secureStorageServiceProvider)
@@ -150,8 +150,8 @@ class SecurityOverviewService {
     if (type != KeyType.ed25519) {
       throw ArgumentError('Only Ed25519 keypairs are currently supported.');
     }
-    // Rotation MUST go through IdentityService — the single owner of the
-    // identity keys/cache — so the stored and cached identities can
+    // Rotation MUST go through IdentityService - the single owner of the
+    // identity keys/cache - so the stored and cached identities can
     // never diverge (split-brain).
     final identity =
         await _ref.read(identityServiceProvider).generateIdentity();
@@ -174,7 +174,7 @@ class SecurityOverviewService {
   // ------------------------------------------------------------------
   //
   // (security-round finding) The export previously keyed AES with
-  // sha256(utf8(password)) — a SINGLE-ROUND UNSALTED hash. Anyone
+  // sha256(utf8(password)) - a SINGLE-ROUND UNSALTED hash. Anyone
   // holding an exported blob could brute-force the password at GPU
   // hashcat rates, and identical passwords produced identical keys
   // (cross-blob correlation). The wrapping key is now derived with
@@ -186,7 +186,7 @@ class SecurityOverviewService {
   // FORMAT BREAK (documented, deliberate): exports produced before
   // this change are raw base64 AES-GCM ciphertexts keyed by
   // SHA-256(password); v2 exports are base64(JSON envelope). There is
-  // no in-app importer — the blob is written out for the user — so no
+  // no in-app importer - the blob is written out for the user - so no
   // in-tree reader needs compat; any external consumer must detect
   // the envelope ('v': 2) and apply the stated KDF.
 
@@ -284,7 +284,7 @@ class SecurityOverviewService {
         peerDid.length > maxPeerDidLength ||
         !peerDid.startsWith('did:') ||
         // Whitespace/controls are not valid in a DID; '|' and '\' are
-        // rejected too — neither is legal DID syntax, and both are the
+        // rejected too - neither is legal DID syntax, and both are the
         // audit log's column delimiter and escape lead-in.
         peerDid.codeUnits
             .any((c) => c <= 0x20 || c == 0x7F || c == 0x7C || c == 0x5C)) {
@@ -293,7 +293,7 @@ class SecurityOverviewService {
   }
 
   /// Reads the access-policy store; a corrupt or non-map payload is
-  /// treated as EMPTY — fail-closed, because policies are grants:
+  /// treated as EMPTY - fail-closed, because policies are grants:
   /// dropping unreadable grants denies access rather than trusting
   /// malformed data (previously a corrupted store threw
   /// FormatException/CastError up through every ACL read).
@@ -313,7 +313,7 @@ class SecurityOverviewService {
     final map = _readPolicyMap(await storage.read(_accessPoliciesKey));
     final list = (map[cid] as List<dynamic>?) ?? [];
     // Per-entry decode guard: one malformed policy entry must not throw
-    // away or crash the whole ACL read — it is simply not a grant.
+    // away or crash the whole ACL read - it is simply not a grant.
     return list
         .whereType<Map>()
         .map((e) {
@@ -379,7 +379,7 @@ class SecurityOverviewService {
     final porService = _ref.read(por.proofOfRetrievabilityServiceProvider);
     final challenge = porService.createChallenge(cid: cid, totalChunks: 1);
     // The PoR service's own (bounded, TTL'd) pending-challenge map is the
-    // single source of truth — the duplicate map this service used to
+    // single source of truth - the duplicate map this service used to
     // keep was written but never cleaned (REV4 review / Efficiency 7a).
     return PorChallenge(
       challengeId: challenge.challengeId,

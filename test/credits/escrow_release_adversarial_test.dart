@@ -1,8 +1,8 @@
-// SCRATCH EVALUATOR FILE — adversarial REV4a pass over the landed diff:
+// SCRATCH EVALUATOR FILE - adversarial REV4a pass over the landed diff:
 //   * CreditService.releaseEscrow (Safety 6c escrow refund)
 //   * KnownLocalPubkeysResolver rotation self-vouch guard (Safety item 3)
 //   * _txSeq monotonic txId suffix (Safety 6f)
-// Every test asserts the SECURE expectation — a FAILURE marks a LIVE
+// Every test asserts the SECURE expectation - a FAILURE marks a LIVE
 // exploit; passes mark dead classes. Do not promote as-is.
 import 'dart:async';
 import 'dart:convert';
@@ -40,10 +40,10 @@ class _FakeSecureStorage implements SecureStorageService {
   Future<bool> containsKey(String key) async => data.containsKey(key);
 }
 
-/// Db that parks escrow-release row inserts while [armed] — models the
+/// Db that parks escrow-release row inserts while [armed] - models the
 /// crash window between releaseEscrow's in-memory refund and the durable
 /// dedup row landing. With [throwWhenArmed] the write errors instead of
-/// parking — models a store that loses the release row outright.
+/// parking - models a store that loses the release row outright.
 class _GatedReleaseInsertDb extends AppDatabase {
   final Completer<void> gate = Completer<void>();
   bool armed = false;
@@ -63,7 +63,7 @@ class _GatedReleaseInsertDb extends AppDatabase {
   @override
   Future<bool> insertCreditTransactionIfAbsent(
       Map<String, dynamic> data) async {
-    // The release row is now persisted through the ifAbsent CAS —
+    // The release row is now persisted through the ifAbsent CAS -
     // gate the same crash window there.
     if (armed && (data['id'] as String).startsWith('tx_escrow_release_')) {
       if (throwWhenArmed) {
@@ -148,9 +148,9 @@ void main() {
   }
 
   /// Receipt: prover = B (current local key), verifier = [vKey]/[vPub]
-  /// (default A — the retired local key). v3 attaches the issuance
+  /// (default A - the retired local key). v3 attaches the issuance
   /// acknowledgment ([WorkReceipt.ackPayload]) under [proverKeyPair]
-  /// (default B — the prover of record).
+  /// (default B - the prover of record).
   Future<WorkReceipt> signedReceipt({
     String? verifierPubkey,
     SimpleKeyPair? verifierKeyPair,
@@ -189,7 +189,7 @@ void main() {
   }
 
   /// Writes key [kp] into secure storage the way a PRE-FEATURE install
-  /// did — no pubkey-history append ever ran for it.
+  /// did - no pubkey-history append ever ran for it.
   Future<void> seedStorageWithKey(
       _FakeSecureStorage storage, SimpleKeyPair kp, String pubHex) async {
     await storage.write('alexandria_identity_private_key',
@@ -212,7 +212,7 @@ void main() {
       // The claim settles: escrow is paid to the claimant.
       expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'b1', cid: 'c'), 20.0);
       expect(s.balance, 50.0);
-      // The hold row still matches the release predicate — a cancel that
+      // The hold row still matches the release predicate - a cancel that
       // lands after the payout must NOT refund a spent escrow.
       final refund = await s.releaseEscrow(referenceId: 'b1');
       expect(refund, 0.0,
@@ -267,7 +267,7 @@ void main() {
           cid: 'bafy_dip', title: 'dip', offeredCredits: 20.0, force: true);
       expect(cs.balance, 30.0);
 
-      // A settled claim leaves exactly this durable proof-of-payment —
+      // A settled claim leaves exactly this durable proof-of-payment -
       // the same row the REV4 crash reconciler probes via
       // hasCreditTransaction. claimed_bounties is CLAIMANT-LOCAL: a
       // remote claim never lands in the poster's table.
@@ -321,7 +321,7 @@ void main() {
       fund(s, 50.0);
       // The release predicate is (type=priorityAccessDebit, amount<0,
       // description CONTAINS 'Bounty Escrow Hold'). spendCredits writes
-      // description='$reason (incl. 5% treasury fee)' — reason is fully
+      // description='$reason (incl. 5% treasury fee)' - reason is fully
       // caller-controlled, so the marker is forgeable.
       expect(
           s.spendCredits(
@@ -335,7 +335,7 @@ void main() {
           reason: 'a plain spendCredits debit must NEVER be releasable — '
               'the docstring claims exactly this and it is false');
       expect(s.balance, 20.0);
-      // The spend legitimately executed and was never refunded — its
+      // The spend legitimately executed and was never refunded - its
       // 5% treasury fee is honestly earned (treasury starts at 50.0).
       expect(s.protocolTreasury, 51.5);
     });
@@ -394,7 +394,7 @@ void main() {
 
       expect(await a.releaseEscrow(referenceId: 'b9'), 20.0);
       await a.settled; // the release tombstone is durable now
-      // Stale-view B never saw the release in memory — but the durable
+      // Stale-view B never saw the release in memory - but the durable
       // release-tombstone probe revalidates at write time, so the
       // second refund now refuses instead of minting an unbacked
       // in-memory artifact (multi-instance stale-view closure).
@@ -428,7 +428,7 @@ void main() {
       await a.settled; // release row durable now
 
       // B re-posts under the same referenceId (its view never learned
-      // of the release) and releases — matching BOTH hold rows in its
+      // of the release) and releases - matching BOTH hold rows in its
       // own view. The durable release-tombstone probe now catches A's
       // release at write time, so the stale-view double-refund refuses.
       b.debitEscrow(amount: 10.0, referenceId: 'b10');
@@ -463,7 +463,7 @@ void main() {
       await a.settled;
 
       // DURABLE-FIRST (optimistic-return residual): the release call
-      // itself awaits the dedup-row CAS — with the write parked the
+      // itself awaits the dedup-row CAS - with the write parked the
       // call must NOT return a refund. The old crash window (returned
       // refund while the row was still unwritten) no longer exists.
       gdb.armed = true;
@@ -480,7 +480,7 @@ void main() {
       // Write-loss variant: the CAS throws → releaseEscrow fails
       // CLOSED (0.0, nothing mutates, the id is unburned for retry).
       // A sibling instance then performs the canonical release exactly
-      // once — the self-heal the old crash-window path needed.
+      // once - the self-heal the old crash-window path needed.
       a.debitEscrow(amount: 15.0, referenceId: 'b11w');
       await a.settled;
       gdb.throwWhenArmed = true;
@@ -488,7 +488,7 @@ void main() {
           reason: 'fail closed: a refund that cannot commit must not '
               'mutate the in-memory view');
       expect(a.balance, 35.0);
-      gdb.armed = false; // writes flow again — models the post-crash db
+      gdb.armed = false; // writes flow again - models the post-crash db
       final c = svc(onDb: gdb);
       await c.ready;
       expect(c.balance, 35.0);
@@ -541,7 +541,7 @@ void main() {
     test(
         'a directly-persisted tx_escrow_release_* row poisons the dedup '
         'set — the matching hold becomes unreleasable', () async {
-      // db-level write only — no public CreditService API can mint this
+      // db-level write only - no public CreditService API can mint this
       // id, so it is NOT wire-reachable; documents the blast radius if
       // any future path lets callers choose a row id.
       await db.insertCreditTransaction(_txRow(
@@ -585,7 +585,7 @@ void main() {
       await s.ready;
       fund(s, 50.0);
       s.debitEscrow(amount: double.nan, referenceId: 'nan2');
-      // If the balance went NaN, `NaN < amount` is false forever —
+      // If the balance went NaN, `NaN < amount` is false forever -
       // every spend succeeds.
       expect(s.spendCredits(amount: 1e6, reason: 'drain'), isFalse,
           reason: 'a NaN balance must fail closed, not open');
@@ -608,19 +608,19 @@ void main() {
         'LIVE?: a pre-feature key retired before ANY read escapes the '
         'history — its verifier-signed receipt still mints', () async {
       final storage = _FakeSecureStorage();
-      // Install A the way the pre-feature build persisted it — no
+      // Install A the way the pre-feature build persisted it - no
       // history append ever ran, and getIdentity is never called.
       await seedStorageWithKey(storage, keyA, pubA);
       final identity = IdentityService(storage);
       addTearDown(identity.dispose);
 
       // Rotate straight to B: _persistIdentityUnlocked records only the
-      // INCOMING key — the outgoing prevPubHex is never appended.
+      // INCOMING key - the outgoing prevPubHex is never appended.
       await identity.importIdentity(
           Uint8List.fromList(await keyB.extractPrivateKeyBytes()));
 
       final known = await identity.knownLocalPubkeyHexes();
-      // Soft-record the history gap (no expect — it must not abort the
+      // Soft-record the history gap (no expect - it must not abort the
       // claim): the gap alone is only a finding if it converts to a
       // mint below.
       final holeObserved = !known.contains(pubA);
@@ -677,7 +677,7 @@ void main() {
     test(
         'canonical + garbage history entries: padded/uppercase '
         'spellings still refuse, garbage does not break claims', () async {
-      // History carries respellings and junk — all must behave.
+      // History carries respellings and junk - all must behave.
       CreditService s() => CreditService(
             db: db,
             initialBalance: 0.0,
@@ -758,7 +758,7 @@ void main() {
       // History survives deletion…
       expect(await identity.knownLocalPubkeyHexes(), contains(pubA));
       // …but with no current key every claim refuses at the prover
-      // binding — the deleted key's receipts cannot become claimable.
+      // binding - the deleted key's receipts cannot become claimable.
       final r = await persist(await signedReceipt());
       final s = CreditService(
         db: db,
@@ -818,7 +818,7 @@ void main() {
           reason: 'no persisted row may be silently dropped by an id '
               'collision');
       // The auto-generated ids carry the monotonic seq suffix; the
-      // deterministic release row carries the referenceId — disjoint.
+      // deterministic release row carries the referenceId - disjoint.
       expect(ids.any((id) => id == 'tx_escrow_release_seq1'), isTrue);
     });
   });

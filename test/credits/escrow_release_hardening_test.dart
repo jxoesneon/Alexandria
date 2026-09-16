@@ -1,4 +1,4 @@
-// REV4a review hardening regression tests — the fixes for the four live
+// REV4a review hardening regression tests - the fixes for the four live
 // exploit classes the adversarial pass proved against the REV4 diff:
 //  F1  payout<->release double-dip (the two dedup sets never met)
 //  F2  'Bounty Escrow Hold' description marker was forgeable via
@@ -58,7 +58,7 @@ Map<String, dynamic> _txRow({
 
 /// Parks the releaseEscrow payout probe behind [probeGate] and (when
 /// [holdPayoutRows]) parks the durable payout-row insert behind
-/// [payoutGate] — lets a synchronous awardBountyEscrow run INSIDE the
+/// [payoutGate] - lets a synchronous awardBountyEscrow run INSIDE the
 /// probe await for the RE-A TOCTOU regression test.
 class _ProbeGateDb extends AppDatabase {
   final Completer<void> probeGate = Completer<void>();
@@ -88,7 +88,7 @@ class _ProbeGateDb extends AppDatabase {
 
 /// Simulates a hydration replay window that truncated every seeded row:
 /// the windowed read returns nothing while targeted prefix/point reads
-/// still see the real table — proves the dedup rebuild is prefix-based
+/// still see the real table - proves the dedup rebuild is prefix-based
 /// (RE-W) without materialising a 100k-row pad.
 class _EmptyReplayDb extends AppDatabase {
   @override
@@ -165,7 +165,7 @@ void main() {
       fund(s, 50.0);
       s.debitEscrow(amount: 20.0, referenceId: 'b4');
       await s.settled;
-      // Simulates a remote claim settling — the payout row lands in the
+      // Simulates a remote claim settling - the payout row lands in the
       // ledger without passing through THIS service instance, so the
       // in-memory _paidBountyIds never learned of it.
       await db.insertCreditTransaction(_txRow(
@@ -326,7 +326,7 @@ void main() {
       s.debitEscrow(amount: 20.0, referenceId: 'b_reuse');
       expect(await s.releaseEscrow(referenceId: 'b_reuse'), 20.0);
       // Cancel = once per referenceId, forever. A recycled id debits
-      // (the caller's error) but can never be released — the durable
+      // (the caller's error) but can never be released - the durable
       // tx_escrow_release_b_reuse row already exists.
       expect(s.debitEscrow(amount: 15.0, referenceId: 'b_reuse'), isTrue);
       expect(await s.releaseEscrow(referenceId: 'b_reuse'), 0.0);
@@ -339,7 +339,7 @@ void main() {
     final algorithm = Ed25519();
 
     /// Writes key [kp] into secure storage the way a PRE-FEATURE install
-    /// did — no pubkey-history append ever ran for it.
+    /// did - no pubkey-history append ever ran for it.
     Future<String> seedPreFeatureKey(
         _FakeSecureStorage storage, SimpleKeyPair kp) async {
       final pubHex = bytesToHex((await kp.extractPublicKey()).bytes);
@@ -366,7 +366,7 @@ void main() {
       final identity = IdentityService(storage);
       addTearDown(identity.dispose);
 
-      // Rotate straight to B without ever calling getIdentity — the
+      // Rotate straight to B without ever calling getIdentity - the
       // serve-time history append never ran for A.
       await identity.importIdentity(
           Uint8List.fromList(await keyB.extractPrivateKeyBytes()));
@@ -405,7 +405,7 @@ void main() {
 
       final identity = IdentityService(storage);
       addTearDown(identity.dispose);
-      // The rotation must still succeed — history is best-effort.
+      // The rotation must still succeed - history is best-effort.
       final id = await identity.importIdentity(
           Uint8List.fromList(await keyB.extractPrivateKeyBytes()));
       expect(bytesToHex(id.publicKey),
@@ -436,7 +436,7 @@ void main() {
       }
 
       // The interleaved claim-settlement mints and records 'v' in
-      // _paidBountyIds while its payout row stays parked — invisible
+      // _paidBountyIds while its payout row stays parked - invisible
       // to the durable probe.
       expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'v', cid: 'c'), 20.0);
       expect(s.balance, 50.0);
@@ -526,7 +526,7 @@ void main() {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
-      // spendCredits appends ' (incl. 5% treasury fee)' — the stored
+      // spendCredits appends ' (incl. 5% treasury fee)' - the stored
       // description is never exactly 'Bounty Escrow Hold (<ref>)'.
       expect(
           s.spendCredits(
@@ -576,7 +576,7 @@ void main() {
 
       final s = svc(onDb: edb);
       await s.ready;
-      // Every replayed row was "beyond the window" — yet the dedup
+      // Every replayed row was "beyond the window" - yet the dedup
       // sets must still know these ids.
       expect(s.isBountyPayoutRecorded('w1'), isTrue);
       expect(s.isEscrowReleased('w2'), isTrue);
@@ -613,11 +613,11 @@ void main() {
 
       final s = svc(onDb: edb);
       await s.ready;
-      // Unpaid but beyond-window: RELEASABLE — getEscrowHoldRows lists
+      // Unpaid but beyond-window: RELEASABLE - getEscrowHoldRows lists
       // amount-bearing hold rows by the deterministic id prefix + exact
       // referenceId match, independent of the replay window.
       expect(await s.releaseEscrow(referenceId: 'w3'), 20.0);
-      // Paid AND beyond-window: refused by the dedup set — never a
+      // Paid AND beyond-window: refused by the dedup set - never a
       // refund-on-top-of-payout double-mint.
       expect(await s.releaseEscrow(referenceId: 'w4'), 0.0);
     });

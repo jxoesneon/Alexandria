@@ -4,7 +4,7 @@
 //   * BiometricService.attestVoteIntent mints only behind a REAL
 //     device-credential prompt (no fail-open escapes),
 //   * ConsensusService.castVote requires the token to verify against
-//     the actual ballot fields — forged, stale, wrong-field and
+//     the actual ballot fields - forged, stale, wrong-field and
 //     replayed tokens refuse the cast,
 //   * a verified token is pinned onto the ballot
 //     (Vote.humanAttestation) and folded into the signed payload,
@@ -59,7 +59,7 @@ class _FakeIdentityService implements IdentityService {
 }
 
 /// Recomputes the token MAC in-test so forged/tampered variants can be
-/// built — mirrors BiometricService's preimage exactly.
+/// built - mirrors BiometricService's preimage exactly.
 String _mac(Uint8List key, Uint8List voterKey, String changeId, bool approve,
     int issuedAt, String nonce) {
   final preimage = 'alexandria:vote-attestation:v1|${base64Encode(voterKey)}|'
@@ -101,7 +101,7 @@ void main() {
 
   setUp(() async {
     storage = _FakeSecureStorage();
-    // Secure mode on — but attestVoteIntent must prompt regardless.
+    // Secure mode on - but attestVoteIntent must prompt regardless.
     storage._data['secure_mode_enabled'] = 'true';
     final container = ProviderContainer(overrides: [
       secureStorageServiceProvider.overrideWithValue(storage),
@@ -155,7 +155,7 @@ void main() {
         approve: true,
       );
       expect(token, isNull);
-      // No attestation — and the human clock must not move either.
+      // No attestation - and the human clock must not move either.
       expect(biometric.lastAuthenticatedAt, isNull);
     });
 

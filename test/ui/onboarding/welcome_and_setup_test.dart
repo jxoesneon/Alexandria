@@ -12,7 +12,7 @@ import 'package:alexandria/ui/onboarding/welcome_screen.dart';
 import 'package:alexandria/ui/onboarding_screen.dart';
 
 class _FakeIdentityService implements IdentityService {
-  /// Simulate an identity already stored on the device — the "Create
+  /// Simulate an identity already stored on the device - the "Create
   /// New Identity" path must warn before replacing it.
   bool identityExists = false;
   int generateCalls = 0;
@@ -357,7 +357,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Regression: the displayed "backup" must be derived from the
-      // stored private key via backupCurrentIdentity() — never from
+      // stored private key via backupCurrentIdentity() - never from
       // fresh random entropy (generateMnemonic), which would recover a
       // DIFFERENT keypair.
       await tester.tap(find.text('Generate Backup Phrase'));
@@ -436,7 +436,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // The stored identity may be funded — creating a new key must
+      // The stored identity may be funded - creating a new key must
       // require explicit confirmation first.
       await tester.tap(find.text('Create New Identity'));
       await tester.pumpAndSettle();
@@ -546,7 +546,7 @@ void main() {
       await tester.tap(find.text('Import'));
       await tester.pumpAndSettle();
 
-      // The recovery would REPLACE the stored identity — confirm first.
+      // The recovery would REPLACE the stored identity - confirm first.
       // The confirm dialog stacks on top of the import dialog, so
       // scope the lookup to the dialog containing 'Replace identity'.
       expect(find.text('Replace existing identity?'), findsOneWidget);

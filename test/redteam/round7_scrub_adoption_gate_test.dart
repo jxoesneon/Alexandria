@@ -1,6 +1,6 @@
-// RED TEAM PoC — Round-7: the scrub-adoption gate silently ships the
+// RED TEAM PoC - Round-7: the scrub-adoption gate silently ships the
 // ORIGINAL bytes whenever the file's metadata lives in a segment the
-// exif-3.3.0 detector cannot see — even though the scrubber itself
+// exif-3.3.0 detector cannot see - even though the scrubber itself
 // produced a clean stream.
 //
 //   lib/ui/add_content_screen.dart:470-475
@@ -12,11 +12,11 @@
 //     }
 //
 // `wasModified` is `removedFields.isNotEmpty`, and removedFields is
-// populated ONLY from `wanted` — the keys `readExifFromBytes` detected
+// populated ONLY from `wanted` - the keys `readExifFromBytes` detected
 // intersected with ScrubbableFields. The JPEG scrubber strips
 // APP1/APP13/COM unconditionally, but the *detector* only reports Exif
 // tags it can parse. So a JPEG whose ONLY metadata is:
-//   * a COM (0xFF 0xFE) free-text comment — never EXIF-parseable,
+//   * a COM (0xFF 0xFE) free-text comment - never EXIF-parseable,
 //   * an XMP-only APP1 (no 'Exif\0\0' header), or
 //   * an APP13/IPTC block with no accompanying Exif APP1,
 // comes back with removedFields == [] → wasModified == false → the UI
@@ -25,11 +25,11 @@
 // clean output away and uploaded the file with the comment intact.
 //
 // This is the same fail-open class the round-6 resync fixed inside the
-// walker — moved one layer up into the caller contract.
+// walker - moved one layer up into the caller contract.
 //
 // Asserts the SECURE expectation: when the scrubber actually rewrote
 // the byte stream, the caller-visible result must not tell the UI to
-// keep the original — the shipped bytes must be the scrubbed ones.
+// keep the original - the shipped bytes must be the scrubbed ones.
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/cid_service.dart';
@@ -79,17 +79,17 @@ void main() {
 
     final result = await svc.scrubMetadata(jpeg);
 
-    // The scrubber DID drop the COM segment — the clean output exists.
+    // The scrubber DID drop the COM segment - the clean output exists.
     expect(result.scrubbedBytes.length, lessThan(jpeg.length));
     expect(
         result.scrubbedBytes
             .join(',')
-            .contains('71,80,83'), // 'GPS' — COM payload bytes
+            .contains('71,80,83'), // 'GPS' - COM payload bytes
         isFalse,
         reason: 'sanity: COM payload is genuinely gone from scrubbedBytes');
 
     // …but the caller contract says "unmodified" because the exif
-    // detector could not see a COM — so the UI keeps the ORIGINAL.
+    // detector could not see a COM - so the UI keeps the ORIGINAL.
     final shipped = _shippedBytes(jpeg, result);
     expect(shipped.join(',').contains('71,80,83'), isFalse,
         reason: 'wasModified==false makes add_content_screen keep the '
@@ -107,7 +107,7 @@ void main() {
     ]);
 
     final result = await svc.scrubMetadata(jpeg);
-    // APP1 is unconditionally stripped — clean output exists.
+    // APP1 is unconditionally stripped - clean output exists.
     expect(result.scrubbedBytes.length, lessThan(jpeg.length));
 
     final shipped = _shippedBytes(jpeg, result);

@@ -30,15 +30,15 @@ class HeadlessSdk {
   int _totalQueriesServed = 0;
 
   /// Per-run RPC bearer token (round-3 red finding): the dispatcher
-  /// previously had no authentication at all — anything able to reach
+  /// previously had no authentication at all - anything able to reach
   /// rpcPort could pin/unpin/import. The token is minted on
   /// [startDaemon] and destroyed on [stopDaemon]; calls must present it
   /// via a top-level `authToken` field or `params.authToken`.
   String? _rpcAuthToken;
 
   /// Per-call cap on an `alexandria.import` payload (round-3 red
-  /// finding): base64-decoding unbounded attacker input into memory —
-  /// then storing AND pinning it — was a one-line memory-exhaustion
+  /// finding): base64-decoding unbounded attacker input into memory -
+  /// then storing AND pinning it - was a one-line memory-exhaustion
   /// primitive. 4 MiB comfortably covers document-scale imports.
   static const int maxImportBytes = 4 * 1024 * 1024;
 
@@ -101,7 +101,7 @@ class HeadlessSdk {
       final id = request['id'];
 
       // (round-3 red finding) Liveness gate: a stopped daemon answers
-      // ONLY the non-mutating status probe — every other method is an
+      // ONLY the non-mutating status probe - every other method is an
       // error, so the RPC surface is never live while the node is "off".
       if (method != 'alexandria.status' && !_isRunning) {
         return {
@@ -116,7 +116,7 @@ class HeadlessSdk {
 
       // (round-3 red finding) Authentication gate: everything except
       // status requires the per-run bearer token minted by startDaemon.
-      // (this round) The comparison is CONSTANT-TIME — Dart `==` on
+      // (this round) The comparison is CONSTANT-TIME - Dart `==` on
       // strings short-circuits at the first differing byte, which on a
       // remote-reachable dispatcher would leak the token prefix through
       // response latency. The XOR-fold over UTF-8 never early-exits on
@@ -183,7 +183,7 @@ class HeadlessSdk {
         if (dataBase64 == null) {
           throw ArgumentError('Missing dataBase64 parameter');
         }
-        // (round-3 red finding) bound the payload BEFORE decode — the
+        // (round-3 red finding) bound the payload BEFORE decode - the
         // encoded size alone must already respect the import cap, and
         // the decoded buffer is checked again before it is stored and
         // auto-pinned (pinned blocks evade GC forever).
@@ -196,7 +196,7 @@ class HeadlessSdk {
           throw ArgumentError(
               'Import payload exceeds the ${maxImportBytes ~/ (1024 * 1024)} MiB cap');
         }
-        // Enforce the daemon's configured storage budget — auto-pinned
+        // Enforce the daemon's configured storage budget - auto-pinned
         // imports must not grow the node past maxStorageMb.
         final budgetBytes = config.maxStorageMb * 1024 * 1024;
         if (ipfs.storedBytes + bytes.length > budgetBytes) {

@@ -1,4 +1,4 @@
-// RED TEAM PoC — cross-ledger double-mint: a poster can REFUND their
+// RED TEAM PoC - cross-ledger double-mint: a poster can REFUND their
 // escrow after a remote claimant has already been PAID on the
 // claimant's own ledger.
 //
@@ -8,18 +8,18 @@
 //   * the poster's hold row tx_escrow_hold_<id> lives on the POSTER's
 //     ledger.
 // MoltbookService.cancelBounty proves "unclaimed" by probing the
-// POSTER's own claimed_bounties table and credit_transactions — a
+// POSTER's own claimed_bounties table and credit_transactions - a
 // remote claim never lands there (the shipped code comments even say
 // so: "claimed_bounties is CLAIMANT-LOCAL"). Nothing ever notifies the
 // poster's ledger that the escrow was paid out. Result: poster cancels,
-// releaseEscrow refunds the hold, and the claimant keeps the mint —
+// releaseEscrow refunds the hold, and the claimant keeps the mint -
 // +X ℭ of unbacked supply across the federation.
 //
 // The escrow attestation is GENUINE here (real Ed25519, honest trusted
-// attestor, escrow really was funded) — no collusion needed. The work-
+// attestor, escrow really was funded) - no collusion needed. The work-
 // evidence check is additionally claimant-side only: the claimant's
 // MoltbookService has ipfsService == null, so the blockstore check is
-// skipped entirely — the funded record pays out with zero replication.
+// skipped entirely - the funded record pays out with zero replication.
 //
 // Asserts the SECURE expectation; failure demonstrates the exploit.
 import 'dart:convert';
@@ -90,7 +90,7 @@ void main() {
     // ── CLAIMANT node: ingests the announcement as FUNDED, claims. ──
     final csC = CreditService(db: dbClaimant, initialBalance: 50.0);
     await csC.ready;
-    // No IpfsService injected — exactly what a forked claimant does to
+    // No IpfsService injected - exactly what a forked claimant does to
     // skip the "you must already store the bytes" check: it is purely
     // claimant-side and therefore unenforceable against a modified
     // client.

@@ -7,7 +7,7 @@ void main() {
 
     setUp(() {
       // Injected handshake probe simulates a completed ALX-MESH/1
-      // HELLO/ACK exchange — registration alone is no longer proof of
+      // HELLO/ACK exchange - registration alone is no longer proof of
       // reachability (round-3 red finding).
       mesh = MeshTransportService(handshakeProbe: (_) async => true);
     });
@@ -24,7 +24,7 @@ void main() {
         address: addr,
         tier: TransportTier.lanMdns,
         latencyMs: 5,
-        isReachable: true, // forged — must be clamped off
+        isReachable: true, // forged - must be clamped off
       ));
       expect(mesh.activePeers, isEmpty);
 

@@ -18,7 +18,7 @@ class PluggableTransportService {
   ObfuscationProfile _currentProfile = ObfuscationProfile.tlsCamouflage;
 
   /// Pre-shared key for the [ObfuscationProfile.shadowsocksAead] profile.
-  /// When the caller supplies none, a random per-session key is generated —
+  /// When the caller supplies none, a random per-session key is generated -
   /// frames can then only be deobfuscated by THIS service instance, which
   /// is the safe default: a keyed profile must never fall back to a
   /// publicly-known "key" (round-2 red finding: the previous profile had
@@ -28,7 +28,7 @@ class PluggableTransportService {
   PluggableTransportService({Uint8List? preSharedKey})
       : _preSharedKey = preSharedKey ?? _randomBytes(32);
 
-  /// Generates a fresh random session key — the correct key to share with
+  /// Generates a fresh random session key - the correct key to share with
   /// a peer when configuring this profile out-of-band.
   static Uint8List generatePreSharedKey() => _randomBytes(32);
 
@@ -104,12 +104,12 @@ class PluggableTransportService {
   //
   // Real AEAD semantics (round-2 red finding): the wire format is
   //   salt(16) ‖ mask
-  //   mask  = armor XOR salt(repeating)          — cosmetic obfuscation
-  //   armor = base64( nonce(16) ‖ ct ‖ tag(32) ) — transport-safe frame
+  //   mask  = armor XOR salt(repeating)          - cosmetic obfuscation
+  //   armor = base64( nonce(16) ‖ ct ‖ tag(32) ) - transport-safe frame
   // where a session subkey is derived from the pre-shared key and the
   // random salt via HKDF-SHA256 (per Shadowsocks AEAD's "ss-subkey"),
-  // the keystream is HMAC-SHA256(subkey, "enc" ‖ nonce ‖ counter) — a
-  // keyed stream a passive observer cannot reconstruct — and `tag` is
+  // the keystream is HMAC-SHA256(subkey, "enc" ‖ nonce ‖ counter) - a
+  // keyed stream a passive observer cannot reconstruct - and `tag` is
   // HMAC-SHA256 over salt‖nonce‖ciphertext, verified before any
   // plaintext is released. The salt-mask+armor layer only randomizes
   // the wire appearance: an observer who unmasks it gets base64 of an
@@ -158,7 +158,7 @@ class PluggableTransportService {
     ]);
   }
 
-  /// XORs [data] with [key] repeated — used for the cosmetic armor mask
+  /// XORs [data] with [key] repeated - used for the cosmetic armor mask
   /// AND as the keyed keystream step (with an HMAC-derived stream).
   static Uint8List _ssXorRepeat(Uint8List data, List<int> key) {
     final out = Uint8List(data.length);
@@ -193,7 +193,7 @@ class PluggableTransportService {
     // Inner frame (binary): nonce ‖ ciphertext ‖ tag. Armored as base64
     // so the frame is transport-safe, then masked by the salt so the
     // wire still looks uniformly random. The mask is reversible by
-    // anyone holding the wire — but unmasking yields only an
+    // anyone holding the wire - but unmasking yields only an
     // AUTHENTICATED CIPHERTEXT, never plaintext.
     final frame = (BytesBuilder()
           ..add(nonce)
@@ -218,7 +218,7 @@ class PluggableTransportService {
         _ssXorRepeat(Uint8List.fromList(data.sublist(_ssSaltLen)), salt);
 
     // The armor must be strict base64 and the frame must be long enough
-    // to hold nonce‖tag — anything else is forged input (both decode
+    // to hold nonce‖tag - anything else is forged input (both decode
     // steps throw FormatException on malformed data).
     final frame = base64Decode(utf8.decode(armor));
     if (frame.length < _ssNonceLen + _ssTagLen) {

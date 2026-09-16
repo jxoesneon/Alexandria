@@ -57,7 +57,7 @@ void main() {
         () {
       final initialBalance = creditService.balance; // 100.0
 
-      // Sufficient balance — still rejected: the service-level gate holds even
+      // Sufficient balance - still rejected: the service-level gate holds even
       // for direct callers that bypass the MCP wrapper.
       final token = bridgeService.exportCreditsAsCashuToken(10.0);
       expect(token, isNull);
@@ -87,7 +87,7 @@ void main() {
     test('redeemCashuToken never credits fabricated proofs (ALX-010)', () {
       final initialBalance = creditService.balance;
 
-      // Fabricate a well-formed cashuA voucher with locally invented proofs —
+      // Fabricate a well-formed cashuA voucher with locally invented proofs -
       // the exact forgery the old code path used to credit.
       final fabricated = const CashuToken(
         mint: 'https://mint.example.com/Bitcoin',
@@ -123,7 +123,7 @@ void main() {
       final initialBalance = creditService.balance; // 100.0
 
       // The simulated sweep was the fake-success fallback that burned real
-      // credits — it is a ℭ→external-value path and must stay closed too.
+      // credits - it is a ℭ→external-value path and must stay closed too.
       final success =
           bridgeService.sweepToLightningAddress(creditsToSweep: 15.0);
       expect(success, isFalse);
@@ -155,7 +155,7 @@ void main() {
 
       final initialBalance = creditService.balance; // 100.0
 
-      // Sufficient balance — still rejected at the service layer.
+      // Sufficient balance - still rejected at the service layer.
       final result = await liveBridge.sweepToLightningAddressLive(
         creditsToSweep: 25.0,
         customAddress: 'bob@getalby.com',
@@ -176,7 +176,7 @@ void main() {
       // `NaN > x` is false, so these inputs used to slip past the
       // attested-balance comparison and crash on
       // `(amount * satsPerCredit).toInt()`. Every egress path must now
-      // short-circuit on 'Invalid egress amount.' — no throw, no debit.
+      // short-circuit on 'Invalid egress amount.' - no throw, no debit.
       final invalidAmounts = <double>[
         double.nan,
         double.infinity,
@@ -209,7 +209,7 @@ void main() {
           reason: 'simulated sweep must reject amount=$amount',
         );
 
-        // Live sweep: failed SweepResult, never a throw — the UnsupportedError
+        // Live sweep: failed SweepResult, never a throw - the UnsupportedError
         // from NaN.toInt() previously escaped OUTSIDE the try/catch.
         final result = await bridgeService.sweepToLightningAddressLive(
           creditsToSweep: amount,
@@ -226,7 +226,7 @@ void main() {
     });
 
     // ------------------------------------------------------------------
-    // ALX-010 contract notes (no test seam — payoutsEnabled is a const and
+    // ALX-010 contract notes (no test seam - payoutsEnabled is a const and
     // these tests exercise a REAL CreditService, not a stub):
     //
     // * attestedBalance must be NET of attested spending: attested debit
@@ -234,16 +234,16 @@ void main() {
     //   credit_service.dart). Once payoutsEnabled flips, the expected
     //   semantics are: attest 100 ℭ → egress 60 ℭ → attestedBalance == 40
     //   and any further egress > 40 ℭ is rejected. A gross sum would let
-    //   already-egressed attested value leave twice — if a future change
+    //   already-egressed attested value leave twice - if a future change
     //   breaks that, add a seam test here asserting
     //   `egressRejectionAmount(attestedNet + ε)` returns the ALX-010 reason.
     //
     // * Debit-failure path in sweepToLightningAddressLive is intentionally
     //   untested while payoutsEnabled == false: the gate rejects before any
     //   network IO, so spendCredits is unreachable from this suite. The
-    //   result IS captured in the service — on false it returns
+    //   result IS captured in the service - on false it returns
     //   SweepResult(status: 'failed', error: 'Payment settled but local
-    //   debit failed — manual reconciliation required') instead of falsely
+    //   debit failed - manual reconciliation required') instead of falsely
     //   reporting 'confirmed'. When a seam exists, cover it by forcing
     //   spendCredits to return false post-melt (e.g. a CreditService
     //   subclass whose balance drops below creditsToSweep between the gate

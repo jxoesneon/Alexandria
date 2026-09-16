@@ -191,7 +191,7 @@ class ErasureCodingService {
     // Validate wire-supplied block metadata BEFORE indexing with it
     // (round-2 red finding): a forged shard index, a truncated shard
     // payload, or an inflated originalSize must surface as a controlled
-    // StateError — never an uncaught RangeError mid-reconstruction.
+    // StateError - never an uncaught RangeError mid-reconstruction.
     if (block.k <= 0 || block.m < 0 || block.k + block.m > 255) {
       throw StateError(
           'Malformed erasure block parameters (k=${block.k}, m=${block.m})');

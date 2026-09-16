@@ -26,7 +26,7 @@ void main() {
       final obfuscated = transport.obfuscate(payload);
 
       // Wire: salt(16) ‖ base64(nonce(16) ‖ ct ‖ tag(32)) masked by the
-      // salt — the old salt‖ct shape asserted here was the round-2 red
+      // salt - the old salt‖ct shape asserted here was the round-2 red
       // finding (no key, no tag).
       final frameLen = 48 + payload.length;
       expect(obfuscated.length, 16 + 4 * ((frameLen + 2) ~/ 3));

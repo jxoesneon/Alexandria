@@ -1,7 +1,7 @@
-// RED TEAM verification — Round-7: adversarial stress of the round-6
+// RED TEAM verification - Round-7: adversarial stress of the round-6
 // JPEG resync. Each case tries to route a COMPLETE, parseable APP1
 // segment past _nextJpegMarker / the resync paths. All asserts are the
-// SECURE expectation — these are expected to PASS; a failure is a live
+// SECURE expectation - these are expected to PASS; a failure is a live
 // resync bypass.
 //
 //   lib/services/metadata_scrubbing_service.dart:296-425
@@ -20,7 +20,7 @@ Uint8List _exifApp1Segment() {
 }
 
 /// Counts byte-level 'FF E1 ?? ?? Exif' APP1 signatures anywhere in the
-/// output — including inside copied segment payloads.
+/// output - including inside copied segment payloads.
 int _countExifSignatures(Uint8List bytes) {
   var count = 0;
   for (var i = 0; i + 7 < bytes.length; i++) {
@@ -59,7 +59,7 @@ int _countParseableApp1(Uint8List bytes) {
       inEntropy = false;
       continue;
     }
-    if (bytes[i] != 0xFF) return count; // malformed — decoder bails
+    if (bytes[i] != 0xFF) return count; // malformed - decoder bails
     while (i + 1 < bytes.length && bytes[i + 1] == 0xFF) {
       i++;
     }
@@ -132,7 +132,7 @@ void main() {
       'still gets stripped at the NEXT boundary', () async {
     final app1 = _exifApp1Segment();
     // 'FF DB' + length bytes 'FF E1' → segLen 0xFFE1 (huge, malformed).
-    // Resync starts at i+4, skipping the consumed E1 — the hidden APP1
+    // Resync starts at i+4, skipping the consumed E1 - the hidden APP1
     // that follows must still be found and dropped.
     final jpeg = Uint8List.fromList([
       0xFF, 0xD8,
@@ -222,7 +222,7 @@ void main() {
       0xFF, 0xD8,
       ..._jfifApp0,
       0x77, 0x66, // non-marker garbage → resync
-      0xFF, 0xD9, // fake EOI — resync lands here, stream ends
+      0xFF, 0xD9, // fake EOI - resync lands here, stream ends
       ...app1, // post-EOI smuggle attempt
       ..._sosAndScan,
     ]);
@@ -253,11 +253,11 @@ void main() {
       0xFF, 0xD8,
       ..._jfifApp0,
       0xFF, 0xDB, (dqtLen >> 8) & 0xFF, dqtLen & 0xFF,
-      ...app1, // inside DQT payload — copied verbatim by design
+      ...app1, // inside DQT payload - copied verbatim by design
       ..._sosAndScan,
     ]);
     final result = await svc.scrubMetadata(jpeg);
-    // The bytes ride through inside a legit segment — this is the
+    // The bytes ride through inside a legit segment - this is the
     // documented payload-carriage bound. What must hold: no PARSEABLE
     // APP1 exists at a segment boundary, and the verification pass
     // therefore cannot see the fields either (honest reporting).

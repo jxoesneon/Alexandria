@@ -52,8 +52,8 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
   /// Dev builds execute from `<project>/build/<platform>/...`, so we walk
   /// ancestors of [Platform.resolvedExecutable] looking for the project
   /// root (a directory containing both `pubspec.yaml` and the simulator
-  /// script). When the root can't be found — e.g. an installed release
-  /// build — a documented `<alexandria>` placeholder is emitted for the
+  /// script). When the root can't be found - e.g. an installed release
+  /// build - a documented `<alexandria>` placeholder is emitted for the
   /// user to fill in.
   String _resolveSimulatorPath() {
     const scriptRel = 'bin/alexandria_mcp_server.js';
@@ -70,7 +70,7 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
         dir = parent;
       }
     } catch (_) {
-      // Platform.resolvedExecutable unsupported — fall through.
+      // Platform.resolvedExecutable unsupported - fall through.
     }
     return '<alexandria>/$scriptRel';
   }
@@ -200,7 +200,7 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
               const SizedBox(height: 12),
 
               // Simulator honesty disclaimer (ALX-010/011 veto):
-              // the exported stdio server is the dev simulator — no live
+              // the exported stdio server is the dev simulator - no live
               // credits, payouts, or archive state. Financial/minting
               // tools were removed from it entirely.
               Container(

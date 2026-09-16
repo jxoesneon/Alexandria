@@ -1,9 +1,9 @@
-// RED TEAM PoC — LnurlService fetches the LNURL `callback` URL with
+// RED TEAM PoC - LnurlService fetches the LNURL `callback` URL with
 // zero validation → server-side request forgery (SSRF).
 //
 // lib/services/credits/lnurl_service.dart: the callback comes from the
 // .well-known/lnurlp JSON of a user-supplied lightning domain. It is
-// passed verbatim to _client.get — no scheme check, no host check, no
+// passed verbatim to _client.get - no scheme check, no host check, no
 // private-range filter. A hostile LNURL endpoint (phished lightning
 // address, compromised resolver, or simply user@evil-domain the victim
 // is induced to "pay") can point the callback at:
@@ -42,7 +42,7 @@ void main() {
           headers: {'content-type': 'application/json'},
         );
       }
-      // Callback "response": anything that fails invoice parsing —
+      // Callback "response": anything that fails invoice parsing -
       // the request was already issued, which is the vulnerability.
       return http.Response(jsonEncode({'pr': 'lnbc1fake'}), 200,
           headers: {'content-type': 'application/json'});
@@ -59,7 +59,7 @@ void main() {
       await svc.resolveAddressToInvoice(
           lightningAddress: 'victim@example.com', amountSats: 1000);
     } catch (e) {
-      thrown = e; // invoice parse failure is fine — we watch the wire
+      thrown = e; // invoice parse failure is fine - we watch the wire
     }
 
     final hitMetadata =

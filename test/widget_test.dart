@@ -16,7 +16,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
-    // Library tab is the default — verify it renders
+    // Library tab is the default - verify it renders
     expect(find.text('Library'), findsWidgets);
     expect(find.text('Statistics Summary'), findsOneWidget);
 

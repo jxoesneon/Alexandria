@@ -1,7 +1,7 @@
 // Tests for the schema-v8 sufficient attested-egress gate:
 // `insertAttestedDebitIfCovered` now sums scoped attested MINTS minus
-// every durable `burned_attested` — the same mints−burns quantity the
-// service's in-memory `_attestedBurned` cache tracks — so the gate is
+// every durable `burned_attested` - the same mints−burns quantity the
+// service's in-memory `_attestedBurned` cache tracks - so the gate is
 // SUFFICIENT, not merely necessary (WORKING_ON residual closure).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/data/database.dart';
@@ -59,7 +59,7 @@ void main() {
           burnedAttested: 70.0));
 
       // The pre-v8 formula saw only the minted sum (100) and would
-      // have permitted 40 — the sufficient gate must refuse.
+      // have permitted 40 - the sufficient gate must refuse.
       expect(
           await db.insertAttestedDebitIfCovered(_debit('eg_over', 40.0),
               heldAttestedPubkeys: const {}, requiredCredits: 40.0),
@@ -139,7 +139,7 @@ void main() {
     });
 
     test('the balance floor still applies (available <= ledger net)', () async {
-      // Attested mint 100 but a huge ordinary debit left net 10 — the
+      // Attested mint 100 but a huge ordinary debit left net 10 - the
       // ledger itself can't cover 20 regardless of burn attribution.
       await db.insertCreditTransaction(
           _tx(id: 'm1', amount: 100.0, isAttested: true));
@@ -165,7 +165,7 @@ void main() {
           await db.insertAttestedDebitIfCovered(_debit('dup', 10.0),
               heldAttestedPubkeys: const {}, requiredCredits: 10.0),
           isTrue);
-      // Same id again — INSERT OR IGNORE drops it, changes() reports 0.
+      // Same id again - INSERT OR IGNORE drops it, changes() reports 0.
       expect(
           await db.insertAttestedDebitIfCovered(_debit('dup', 10.0),
               heldAttestedPubkeys: const {}, requiredCredits: 10.0),

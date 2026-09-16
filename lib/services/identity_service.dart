@@ -20,7 +20,7 @@ final identityServiceProvider = Provider((ref) {
 /// through [IdentityService] (generate / import / delete / reload).
 /// Any provider whose value derives from the identity should
 /// `ref.watch(identityRevisionProvider)` so it rebuilds automatically
-/// when the keypair is replaced — enforced by construction, so no call
+/// when the keypair is replaced - enforced by construction, so no call
 /// site can forget to invalidate (which previously left stale
 /// DID/pubkey reads after a recovery or rotation).
 final identityRevisionProvider = StreamProvider<int>((ref) {
@@ -46,7 +46,7 @@ class _IdentityKeys {
   static const identityCreated = 'alexandria_identity_created';
 
   /// JSON list of every public key (canonical lowercase hex) this node
-  /// has EVER installed — current plus retired rotation predecessors.
+  /// has EVER installed - current plus retired rotation predecessors.
   /// Append-only (Safety item 3): a receipt verifier-signed by a
   /// retired key is still self-issued, so the history is never pruned,
   /// not even by deleteIdentity.
@@ -211,7 +211,7 @@ class IdentityService {
 
   /// Check if an identity exists.
   ///
-  /// Requires ALL identity keys to be present — checking the private
+  /// Requires ALL identity keys to be present - checking the private
   /// key alone reported true on a partially-written store while
   /// [getIdentity] returned null (its read needs the public key and
   /// the creation stamp too), so UI would skip the "replace existing
@@ -235,14 +235,14 @@ class IdentityService {
   }
 
   /// Every public key this node has EVER held, as a canonical lowercase
-  /// hex set — the current identity plus all retired rotation
+  /// hex set - the current identity plus all retired rotation
   /// predecessors (Safety item 3). CreditService's self-dealing guard
   /// consumes this so a receipt verifier-signed by a rotated-away key
   /// is still recognized as self-issued and can never mint attested
   /// value post-rotation.
   ///
   /// The set NEVER shrinks: [deleteIdentity] removes the keypair but
-  /// not its history — a deleted key still signed receipts while held,
+  /// not its history - a deleted key still signed receipts while held,
   /// so they remain self-vouched forever. The currently stored key is
   /// always included even when its history append failed or the install
   /// predates the feature; a corrupt history blob degrades to that
@@ -261,7 +261,7 @@ class IdentityService {
 
   /// Reads the append-only local-key history. Must only be called
   /// inside [_serialized]. A missing or corrupt blob resolves to an
-  /// empty list — the caller's current-key floor covers the gap.
+  /// empty list - the caller's current-key floor covers the gap.
   Future<List<String>> _readPubkeyHistoryUnlocked() async {
     try {
       final raw = await _storage.read(_IdentityKeys.publicKeyHistory);
@@ -286,7 +286,7 @@ class IdentityService {
   /// Appends [publicKeyHex] to the append-only local-key history.
   /// Must only be called inside [_serialized]. Best-effort: a failing
   /// store skips the append rather than breaking the identity mutation
-  /// that triggered it — [knownLocalPubkeyHexes] always re-derives the
+  /// that triggered it - [knownLocalPubkeyHexes] always re-derives the
   /// current-key floor, so the degradation is bounded to the missed
   /// retired key.
   Future<void> _recordPubkeyInHistoryUnlocked(String publicKeyHex) async {
@@ -304,7 +304,7 @@ class IdentityService {
   ///
   /// Read-time verification heals legacy "Franken" pairs persisted by
   /// pre-fix partial writes (or any other out-of-band corruption): the
-  /// stored private key is AUTHORITATIVE — it derives everything — so
+  /// stored private key is AUTHORITATIVE - it derives everything - so
   /// when `derivePublic(storedPriv) != storedPub` the stored public key
   /// is rewritten to the derived value and the healed pair is served.
   /// Serving the pair unverified would make [sign] emit signatures
@@ -340,7 +340,7 @@ class IdentityService {
       if (derivedPublicKeyHex != publicKeyHex.toLowerCase()) {
         await _storage.write(_IdentityKeys.publicKey, derivedPublicKeyHex);
         publicKey = derivedPublicKey;
-        // The public key the app now reports changed — bump the
+        // The public key the app now reports changed - bump the
         // revision so identity-derived providers rebuild. Converges:
         // the next read verifies the healed pair and does not bump.
         _bumpRevision();
@@ -349,7 +349,7 @@ class IdentityService {
       // Record the served key in the append-only history (Safety item
       // 3): this covers installs that predate the feature AND the heal
       // path above, where the stored pubkey just changed to the derived
-      // value. Best-effort — a history write failure must not break
+      // value. Best-effort - a history write failure must not break
       // the read.
       await _recordPubkeyInHistoryUnlocked(_hexEncode(publicKey));
 
@@ -361,7 +361,7 @@ class IdentityService {
 
       return _cachedIdentity;
     } catch (_) {
-      // Unhealable corruption — never cache or serve a suspect pair.
+      // Unhealable corruption - never cache or serve a suspect pair.
       _cachedIdentity = null;
       return null;
     }
@@ -388,7 +388,7 @@ class IdentityService {
 
   /// Import an identity from a raw Ed25519 private-key seed.
   ///
-  /// Writes through [_storage] — the same store [getIdentity] reads —
+  /// Writes through [_storage] - the same store [getIdentity] reads -
   /// and refreshes [_cachedIdentity] atomically. This is the ONLY
   /// supported way to replace the stored identity out-of-band (it is
   /// what `MnemonicService.recoverFromMnemonic` uses): writing the
@@ -400,7 +400,7 @@ class IdentityService {
   /// afterwards cannot corrupt the stored identity. When the imported
   /// seed derives to the SAME public key already stored (i.e. a
   /// recovery of the current identity), the existing `createdAt` is
-  /// preserved — stamping `now` would reset governance account-age
+  /// preserved - stamping `now` would reset governance account-age
   /// checks (`minAccountAgeDays`) on every recovery.
   Future<AlexandriaIdentity> importIdentity(Uint8List privateKeySeed) {
     final seed = Uint8List.fromList(privateKeySeed);
@@ -434,8 +434,8 @@ class IdentityService {
   /// the keys are re-read and `derivePublic(storedPriv) == storedPub`
   /// is verified BEFORE the in-memory cache is touched. On mismatch the
   /// whole write is retried once; if it still mismatches, the previous
-  /// (consistent) key material is restored — or the keys are cleared
-  /// when there was none — and a [StateError] is thrown. A mixed
+  /// (consistent) key material is restored - or the keys are cleared
+  /// when there was none - and a [StateError] is thrown. A mixed
   /// private/public pair therefore can never persist or be cached.
   ///
   /// When the stored public key CHANGES, the mnemonic-backup marker is
@@ -461,14 +461,14 @@ class IdentityService {
     // Record the OUTGOING key in the append-only history BEFORE it is
     // replaced (Safety item 3, REV4a F3): serve-time appends in
     // [_readIdentityUnlocked] only cover keys that were READ while
-    // installed — a key installed pre-feature (or by any out-of-band
+    // installed - a key installed pre-feature (or by any out-of-band
     // write) and rotated away before its first read would otherwise
     // escape the history entirely, and receipts verifier-signed by it
     // would mint attested value as if foreign. Best-effort:
     // [_recordPubkeyInHistoryUnlocked] swallows its own failures, so a
     // faulting store can never block the identity write. Recording the
     // outgoing key is still correct when the write below later rolls
-    // back — the restored previous key genuinely was (and remains)
+    // back - the restored previous key genuinely was (and remains)
     // installed, so it belongs in the history either way.
     if (prevPubHex != null) {
       await _recordPubkeyInHistoryUnlocked(prevPubHex);
@@ -479,7 +479,7 @@ class IdentityService {
     // falsely claim the NEW identity is backed up by the OLD phrase,
     // while a spuriously-cleared marker only re-prompts a backup. An
     // awaited delete inside the success path below could throw AFTER
-    // the verified write and strand the cache — deleting here means
+    // the verified write and strand the cache - deleting here means
     // the marker is gone before storage can diverge.
     if (prevPubHex != publicKeyHex) {
       try {
@@ -494,7 +494,7 @@ class IdentityService {
         await _storage.write(_IdentityKeys.identityCreated, createdStr);
         await _storage.write(_IdentityKeys.privateKey, seedHex);
       } catch (e) {
-        // A throwing write can still leave a partial pair behind —
+        // A throwing write can still leave a partial pair behind -
         // verification below decides what was actually persisted.
         lastWriteError = e;
       }
@@ -506,7 +506,7 @@ class IdentityService {
           createdAt: createdAt,
         );
         // Append the now-verified key to the never-shrinking history
-        // (Safety item 3) — a receipt signed by this key stays
+        // (Safety item 3) - a receipt signed by this key stays
         // self-issued even after a later rotation retires it. Only a
         // SUCCESSFUL install is recorded: the rollback path below never
         // installed the new key, so it must not enter the history.
@@ -518,7 +518,7 @@ class IdentityService {
 
     // Persistent verification failure: restore the prior consistent
     // state if there was one, otherwise remove the partial writes. In
-    // both cases no mixed private/public pair may survive — and the
+    // both cases no mixed private/public pair may survive - and the
     // rollback writes THEMSELVES may throw (the keychain is already
     // faulting), so the cache drop and revision bump live in a
     // `finally`: a stale in-memory identity must never outlive storage
@@ -535,7 +535,7 @@ class IdentityService {
         await _deleteIdentityKeysUnlocked();
       }
     } catch (_) {
-      // The rollback failed too — storage is in an unknown state. The
+      // The rollback failed too - storage is in an unknown state. The
       // StateError below still reports the original write failure;
       // the read path self-heals or rejects whatever survived.
     } finally {
@@ -581,7 +581,7 @@ class IdentityService {
   /// deleting it (Safety item 3, REV4a F3): a key deleted before it was
   /// ever read escapes the serve-time append in [_readIdentityUnlocked],
   /// and without this record its verifier-signed receipts would mint
-  /// attested value after a fresh install. Best-effort — a history
+  /// attested value after a fresh install. Best-effort - a history
   /// failure must never abort the delete.
   Future<void> _deleteIdentityKeysUnlocked() async {
     try {
@@ -616,7 +616,7 @@ class IdentityService {
   /// backed up, writing [SecureStorageKeys.mnemonicBackup] inside the
   /// same [_serialized] chain as every identity mutation.
   ///
-  /// Ownership of this marker lives here — not in `MnemonicService` —
+  /// Ownership of this marker lives here - not in `MnemonicService` -
   /// because only the serialized chain can order the write against a
   /// concurrent [importIdentity]/[generateIdentity]: an unserialized
   /// write could land AFTER the replacement's marker-clear and
@@ -625,7 +625,7 @@ class IdentityService {
   ///
   /// When [expectedPublicKeyHex] is provided (the public key the
   /// phrase actually recovers, derived by the caller), the marker is
-  /// written only while that key is still the stored one — making the
+  /// written only while that key is still the stored one - making the
   /// outcome independent of which serialized op runs first. Callers
   /// that cannot decode the phrase may omit it; ordering with the
   /// clearing writes still applies.
@@ -639,7 +639,7 @@ class IdentityService {
             await _storage.read(_IdentityKeys.publicKey);
         if (currentPublicKeyHex != expectedPublicKeyHex) {
           // The phrase confirms a backup of a keypair that is no
-          // longer stored — writing the marker would claim the NEW
+          // longer stored - writing the marker would claim the NEW
           // identity is backed up by a phrase that cannot recover it.
           return;
         }
@@ -743,7 +743,7 @@ class IdentityService {
   /// X25519 agreement private key derived from the stored Ed25519 seed
   /// (SHA-512(seed)[0..32], libsodium sk_to_curve25519 semantics).
   ///
-  /// This is the private input to EncryptionService.decryptFromPeer —
+  /// This is the private input to EncryptionService.decryptFromPeer -
   /// the node can open peer-addressed ECIES envelopes produced via
   /// `encryptForPeer(data, publicKeyBase58)` without the Ed25519 signing
   /// key ever leaving this service. Returns null when no identity exists.
@@ -756,7 +756,7 @@ class IdentityService {
   }
 
   /// The X25519 agreement public key (Montgomery u-coordinate) matching
-  /// [x25519PrivateKeyBytes] — the value a sender needs inside
+  /// [x25519PrivateKeyBytes] - the value a sender needs inside
   /// EncryptionService.encryptForPeer. Peers normally arrive at it by
   /// converting the Base58 Ed25519 [AlexandriaIdentity.publicKeyBase58].
   Future<Uint8List?> x25519PublicKeyBytes() async {

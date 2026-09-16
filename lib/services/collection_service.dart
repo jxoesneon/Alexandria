@@ -87,7 +87,7 @@ class HybridLogicalClock implements Comparable<HybridLogicalClock> {
 
   /// Total deserialization of a wire HLC (round-2 red finding): every
   /// field is type-checked before use so a hostile sync message fails
-  /// with [FormatException] — never an uncaught _TypeError inside the
+  /// with [FormatException] - never an uncaught _TypeError inside the
   /// merge path. Throws [FormatException] on malformed input.
   factory HybridLogicalClock.fromJson(Map<String, dynamic> json) {
     final wallTime = json['wallTime'];
@@ -568,12 +568,12 @@ class CollectionService {
   ///   * its HLC wallTime is not more than [maxRemoteClockSkew] ahead of
   ///     the local clock (a forged future clock cannot lock the
   ///     register), and
-  ///   * the register parses cleanly — malformed fields are dropped
+  ///   * the register parses cleanly - malformed fields are dropped
   ///     individually, never thrown out of the merge.
   ///
   /// RESIDUAL (documented honestly): sync ops carry no Ed25519 signature
   /// over the register payload, so a peer CAN claim authorship of another
-  /// member's key — but only keys already holding a write role pass the
+  /// member's key - but only keys already holding a write role pass the
   /// gate. Wire-level op signing remains future work.
   Future<void> mergeRemoteState(
     String collectionId,
@@ -615,7 +615,7 @@ class CollectionService {
 
   /// Parses and authorizes one remote LWW register (`{value, timestamp,
   /// author}`) against [local]'s accessControl and the clock-skew bound.
-  /// Returns null for any malformed or unauthorized register — callers
+  /// Returns null for any malformed or unauthorized register - callers
   /// merge nothing in that case.
   LWWRegister<String>? _parseRemoteRegister(
     Object? raw,
@@ -656,7 +656,7 @@ class CollectionService {
       );
     } catch (_) {
       // Fail-safe: ANY malformed wire value (bad base64, wrong map
-      // types, absurd HLC fields) merges nothing — never crashes.
+      // types, absurd HLC fields) merges nothing - never crashes.
       return null;
     }
   }

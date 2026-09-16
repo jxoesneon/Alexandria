@@ -7,7 +7,7 @@ import 'package:alexandria/services/credits/crypto_bridge_service.dart';
 import 'package:alexandria/services/credits/lnurl_service.dart';
 import 'package:alexandria/services/credits/poch_service.dart';
 
-/// LNURL resolver seam — never touches the network.
+/// LNURL resolver seam - never touches the network.
 class _FakeLnurl extends LnurlService {
   _FakeLnurl({this.onResolve});
 
@@ -30,7 +30,7 @@ class _FakeLnurl extends LnurlService {
   }
 }
 
-/// Mint client seam — never touches the network.
+/// Mint client seam - never touches the network.
 class _FakeMint extends CashuMintClient {
   _FakeMint({this.onMelt});
 
@@ -120,7 +120,7 @@ void main() {
     });
 
     test('deserialize returns null when JSON shape is wrong', () {
-      // Valid base64 of a JSON list — not the expected map.
+      // Valid base64 of a JSON list - not the expected map.
       final b64 = base64UrlEncode(utf8.encode(jsonEncode([1, 2, 3])));
       expect(CashuToken.deserialize('cashuA$b64'), isNull);
     });
@@ -204,7 +204,7 @@ void main() {
     });
 
     test('export still refuses when the attested pool cannot cover it', () {
-      // Welcome credits are unattested — the attested debit must refuse.
+      // Welcome credits are unattested - the attested debit must refuse.
       final bridge = openBridge();
       expect(bridge.exportCreditsAsCashuToken(10.0), isNull);
       expect(creditService.balance, 100.0); // nothing debited
@@ -224,7 +224,7 @@ void main() {
             creditsToSweep: 500.0, customAddress: 'user@wallet.io'),
         isFalse,
       );
-      // Valid address + covered balance — but the attested debit refuses.
+      // Valid address + covered balance - but the attested debit refuses.
       expect(
         bridge.sweepToLightningAddress(
             creditsToSweep: 5.0, customAddress: 'user@wallet.io'),
@@ -275,7 +275,7 @@ void main() {
         creditsToSweep: 5.0,
         customAddress: 'user@wallet.io',
       );
-      // Melt succeeded but attestedBalance == 0 — the reconciliation
+      // Melt succeeded but attestedBalance == 0 - the reconciliation
       // branch must report failure rather than a false 'confirmed'.
       expect(result.success, isFalse);
       expect(result.status, 'failed');

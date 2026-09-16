@@ -1,4 +1,4 @@
-// RED TEAM — Round-8 verification suite: regression-checks every
+// RED TEAM - Round-8 verification suite: regression-checks every
 // round-4..7 scrubber fix through the CURRENT code paths, plus the
 // round-7 contract additions (guarded exif reads, bytesChanged-driven
 // adoption, verificationFailed honesty, PNG malformed-tail drop,
@@ -237,7 +237,7 @@ void main() {
       final result = await svc.scrubMetadata(jpeg);
       expect(result.verificationFailed, isFalse);
       // Every claimed-removed field must have been detected first and
-      // must be verifiably gone — no false claims either direction.
+      // must be verifiably gone - no false claims either direction.
       for (final f in result.removedFields) {
         expect(detected, contains(f));
       }

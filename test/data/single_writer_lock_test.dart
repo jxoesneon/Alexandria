@@ -3,7 +3,7 @@
 // before the file-backed executor opens and held for the process
 // lifetime. Contention policy: FAIL LOUD (StateError), never wait.
 //
-// Contention is exercised with a REAL second OS process — dart:io file
+// Contention is exercised with a REAL second OS process - dart:io file
 // locks are per-process (fcntl/flock semantics), so two handles inside
 // this test process can never conflict; the residual was always about
 // cross-PROCESS writers.
@@ -15,9 +15,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alexandria/data/database.dart';
 
 /// The helper process this suite spawns. Modes:
-///  * `hold <lockPath>` — acquire the exclusive lock, print LOCKED,
+///  * `hold <lockPath>` - acquire the exclusive lock, print LOCKED,
 ///    hold until stdin closes, then exit.
-///  * `try <lockPath>` — attempt the exclusive lock, print ACQUIRED or
+///  * `try <lockPath>` - attempt the exclusive lock, print ACQUIRED or
 ///    FAILED, exit immediately.
 const _helperSource = r'''
 import 'dart:io';
@@ -121,7 +121,7 @@ void main() {
           reason: 'the fail-loud contention policy — never wait, never '
               'silently run a second writer');
 
-      // The OS releases the lock on process death — a crashed holder
+      // The OS releases the lock on process death - a crashed holder
       // never strands the database.
       holder.kill();
       await holder.exitCode;
@@ -172,7 +172,7 @@ void main() {
       addTearDown(container.dispose);
       expect(container.read(databaseFileGuardProvider), isA<_CountingGuard>());
       // (FLUTTER_TEST gives the in-memory executor, so no acquire is
-      // exercised here — the seam assertion is that the provider is
+      // exercised here - the seam assertion is that the provider is
       // what the production opener consults.)
       expect(acquireCalls, 0);
     });

@@ -35,7 +35,7 @@ void main() {
 
     test('awards storage credits with dynamic rarity weighting', () {
       // Test critically endangered work (peerCount = 1 -> 5x multiplier).
-      // ALX-010: multipliers above 1.0x require independent attestation —
+      // ALX-010: multipliers above 1.0x require independent attestation -
       // a self-reported peerCount of 1 mints at flat 1.0x.
       final initialBalance = creditService.balance;
       final earnedEndangered = creditService.awardStorageCredits(

@@ -364,14 +364,14 @@ class ProfileScreen extends ConsumerWidget {
   Future<void> _createIdentity(BuildContext context, WidgetRef ref) async {
     final identityService = ref.read(identityServiceProvider);
     try {
-      // Never silently overwrite a stored identity — even when the
+      // Never silently overwrite a stored identity - even when the
       // provider reports none, storage may still hold one (stale
       // cache). If a key exists, require explicit confirmation first.
       var identityExists = false;
       try {
         identityExists = await identityService.hasIdentity();
       } catch (_) {
-        // Cannot determine — proceed; generateIdentity is verified.
+        // Cannot determine - proceed; generateIdentity is verified.
       }
       if (identityExists) {
         if (!context.mounted) return;
@@ -438,13 +438,13 @@ class ProfileScreen extends ConsumerWidget {
     final mnemonicService = ref.read(mnemonicServiceProvider);
     final controller = TextEditingController();
 
-    // Recovering REPLACES the stored identity — warn first when one
+    // Recovering REPLACES the stored identity - warn first when one
     // exists, even if the UI currently shows none (stale cache).
     var identityExists = false;
     try {
       identityExists = await ref.read(identityServiceProvider).hasIdentity();
     } catch (_) {
-      // Cannot determine — proceed; recovery is user-initiated and the
+      // Cannot determine - proceed; recovery is user-initiated and the
       // write itself is verified by IdentityService.
     }
     if (identityExists) {
@@ -677,7 +677,7 @@ class _BackupDialogState extends State<_BackupDialog> {
           ElevatedButton(
             onPressed: () async {
               // Write the backup marker only on this explicit
-              // confirmation — the security dashboard's "back up your
+              // confirmation - the security dashboard's "back up your
               // identity" alert tracks what the user actually did, not
               // that the dialog was opened.
               try {

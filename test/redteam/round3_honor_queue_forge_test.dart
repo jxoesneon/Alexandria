@@ -1,14 +1,14 @@
-// RED TEAM PoC — HonorBandwidthService.enqueueRequest trusts
+// RED TEAM PoC - HonorBandwidthService.enqueueRequest trusts
 // CALLER-SUPPLIED `baseHonorScore` and `verifiedPoRCount` verbatim
 // (lib/services/honor_bandwidth_service.dart:45-76). The priority
 // formula ((honor*0.5)+(PoR*2.0)+(age*0.2)) sorts the queue on those
-// self-declared values — there is no lookup against the ledger, no
+// self-declared values - there is no lookup against the ledger, no
 // signature, no clamp. A peer that declares honor=INT_MAX and
 // PoR=INT_MAX jumps ahead of every honest requester, permanently
 // starving them (the 0.2/s anti-starvation term can never catch up).
 //
 // Asserts the SECURE expectation: a request that claims impossible
-// honor credentials must not outrank honest queued work — the score
+// honor credentials must not outrank honest queued work - the score
 // must be attested (or at least bound-clamped/peer-derived), not
 // caller-supplied.
 import 'dart:async';

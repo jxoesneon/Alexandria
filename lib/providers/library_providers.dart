@@ -29,10 +29,10 @@ final readingProgressProvider =
   if (raw == null || raw.isEmpty) return const {};
   try {
     // A valid-JSON non-map payload (list, string, …) previously escaped
-    // the FormatException catch as a CastError — treat anything that
+    // the FormatException catch as a CastError - treat anything that
     // is not a JSON object as absent state. (campaign-2 hardening) and
     // a map with a non-numeric VALUE ({"cid":"abc"}) escaped the same
-    // way through `(value as num).toDouble()` — keep only entries whose
+    // way through `(value as num).toDouble()` - keep only entries whose
     // value is genuinely a number rather than trusting the shape.
     final decoded = jsonDecode(raw);
     if (decoded is! Map) return const {};
@@ -264,7 +264,7 @@ final currentDocumentProvider =
 
 /// Computed integrity probe for the active edition (Safe Harbor panel, ALX-010).
 /// Re-hashes the stored payload against the CID digest and verifies the
-/// edition signature — reports only checks that actually ran.
+/// edition signature - reports only checks that actually ran.
 final contentIntegrityProvider =
     FutureProvider.family<ContentIntegrityReport, String>(
         (ref, documentCid) async {

@@ -93,7 +93,7 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Create an identity in a SEPARATE container — the widget's own
+      // Create an identity in a SEPARATE container - the widget's own
       // IdentityService never caches it and its revision stream doesn't
       // invalidate the widget's provider, so the screen keeps rendering
       // the stale no-identity state while hasIdentity() reports true.
@@ -168,7 +168,7 @@ void main() {
       addTearDown(
           () => tester.platformDispatcher.clearTextScaleFactorTestValue());
 
-      // Clipboard.setData is a no-op under the test messenger — no mock
+      // Clipboard.setData is a no-op under the test messenger - no mock
       // needed (overriding 'flutter/platform' would break SystemChrome
       // and SystemSound messages that share that channel).
       await pumpScreen(tester);
@@ -225,7 +225,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
 
-      // Standard BIP-39 vector for 256-bit all-zero entropy — passes
+      // Standard BIP-39 vector for 256-bit all-zero entropy - passes
       // checksum validation without calling backupCurrentIdentity (its
       // PBKDF2 seed derivation stalls under the fake-async zone).
       final phrase = '${List.filled(23, 'abandon').join(' ')} art';

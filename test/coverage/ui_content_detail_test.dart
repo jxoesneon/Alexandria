@@ -413,7 +413,7 @@ void main() {
 
     testWidgets('related content shows empty state and entity variants',
         (tester) async {
-      // Empty state — no entity registered.
+      // Empty state - no entity registered.
       await pumpScreen(tester);
       expect(find.text('No related content indexed yet'), findsOneWidget);
     });

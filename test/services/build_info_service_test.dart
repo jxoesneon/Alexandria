@@ -94,7 +94,7 @@ void main() {
       expect(map['claimed_client_version'], info.clientVersion);
       expect(map['claimed_build_channel'], 'release');
       expect(map['claimed_protocol_version'], '1');
-      // High-entropy provenance stays local — broadcast must not
+      // High-entropy provenance stays local - broadcast must not
       // advertise exact builds for targeted-exploitation scanning.
       expect(map.containsKey('claimed_commit_sha'), isFalse);
       expect(map.containsKey('claimed_artifact_digest'), isFalse);
@@ -114,7 +114,7 @@ void main() {
       expect(map.containsKey('claimed_client_version'), isTrue);
       expect(map['claimed_client_version'], 'dev');
       // Advisory only: the field exists alongside, never instead of, the
-      // claimed_ provenance — and carries no trust weight by invariant.
+      // claimed_ provenance - and carries no trust weight by invariant.
       expect(map.keys.where((k) => k.startsWith('claimed_')).length,
           greaterThanOrEqualTo(3));
     });
@@ -148,7 +148,7 @@ void main() {
 
       // A relay or forked client that rewrites the claimed version after
       // signing must invalidate the envelope: claimed metadata is signed
-      // *as content*, so tampering is detectable — yet it still carries
+      // *as content*, so tampering is detectable - yet it still carries
       // zero trust weight (ALX-010 / ALX-011 §8).
       final tampered = BeaconEnvelope(
         v: envelope.v,

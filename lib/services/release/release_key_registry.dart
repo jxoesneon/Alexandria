@@ -5,7 +5,7 @@
 /// quorum Ed25519 keys authorized to sign release manifests (the
 /// TUF "release/targets" role) and timestamp metadata (the TUF
 /// "timestamp"/freshness role), plus the signature threshold each role
-/// requires. It is deliberately an injected abstraction — the same
+/// requires. It is deliberately an injected abstraction - the same
 /// ambient-config rule REV3 review applied to `trustedAttestorPubkeys`:
 /// wire data must NEVER populate the signer quorum, so keys arrive through
 /// node configuration (today: a compile-time [StaticReleaseKeyRegistry];
@@ -14,12 +14,12 @@
 ///
 /// ROLE SEPARATION (TUF mapping): release keys are the offline threshold
 /// quorum (m-of-n, e.g. 3-of-5) that authorizes a floor assertion;
-/// timestamp keys are the online freshness quorum — typically a single
+/// timestamp keys are the online freshness quorum - typically a single
 /// online key (1-of-1) whose countersignature proves the manifest is
 /// current and blocks freeze/replay attacks (an attacker replaying an
 /// old valid manifest cannot mint fresh timestamp signatures). A key
 /// registered under one role confers ZERO signing weight under the
-/// other — a timestamp key cannot sign a release, and a release key
+/// other - a timestamp key cannot sign a release, and a release key
 /// cannot vouch freshness.
 library;
 
@@ -27,7 +27,7 @@ library;
 ///
 /// `keyId` is an opaque identifier chosen by the operator (e.g.
 /// `quorum-release-1`); it maps to a lowercase hex Ed25519 pubkey.
-/// Threshold counting is per-DISTINCT-keyId — two keyIds aliased to the
+/// Threshold counting is per-DISTINCT-keyId - two keyIds aliased to the
 /// same pubkey are an operator misconfiguration, not an attack surface
 /// (the operator chose the quorum), but a well-formed registry SHOULD
 /// map each keyId to distinct key material.
@@ -42,7 +42,7 @@ abstract class ReleaseKeyRegistry {
 
   /// Timestamp-role keys: keyId → hex Ed25519 pubkey. These sign the
   /// freshness record (`alexandria:manifest-timestamp:v1:` preimage).
-  /// TUF maps this role to an online key — a 1-of-1 configuration is
+  /// TUF maps this role to an online key - a 1-of-1 configuration is
   /// the expected production shape.
   Map<String, String> get timestampKeys;
 
@@ -50,13 +50,13 @@ abstract class ReleaseKeyRegistry {
   /// valid freshness signature. Usually 1.
   int get timestampThreshold;
 
-  /// Whether [pubkeyHex] is registered under ANY role — used to gate
+  /// Whether [pubkeyHex] is registered under ANY role - used to gate
   /// manifest envelopes to quorum-signed carriers (a relayer without
   /// quorum credentials cannot inject manifest traffic at all).
   bool isReleaseKey(String pubkeyHex);
 }
 
-/// Compile-time release registry — the production shape until a
+/// Compile-time release registry - the production shape until a
 /// configured/pinned registry transport exists (ALX-012 §5.1 trigger
 /// condition i: "an attestor quorum of ≥3 independent keys is
 /// configured in production").
@@ -72,7 +72,7 @@ class StaticReleaseKeyRegistry implements ReleaseKeyRegistry {
     this.timestampThreshold = 1,
   })  : releaseKeys = Map.unmodifiable(releaseKeys),
         timestampKeys = Map.unmodifiable(timestampKeys) {
-    // A threshold above the quorum size can never be met — fail LOUD at
+    // A threshold above the quorum size can never be met - fail LOUD at
     // construction rather than silently refusing every manifest.
     if (releaseThreshold < 1 || releaseThreshold > releaseKeys.length) {
       throw ArgumentError(
@@ -106,7 +106,7 @@ class StaticReleaseKeyRegistry implements ReleaseKeyRegistry {
   }
 }
 
-/// An empty registry — the fail-closed default. No key is trusted, no
+/// An empty registry - the fail-closed default. No key is trusted, no
 /// manifest can ever verify, and the effective floor stays at the
 /// per-verifier compile-time constant. This is the safe-by-construction
 /// state the RFC describes: "no manifest mechanism means no central

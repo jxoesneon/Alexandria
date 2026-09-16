@@ -186,7 +186,7 @@ void main() {
       // Same flag lib/main.dart sets in production: bundled families
       // only, no runtime fetch. The google_fonts text-style factories
       // still fire an unawaited load attempt whose async failure lands
-      // in the test zone — quarantine the resolves so that background
+      // in the test zone - quarantine the resolves so that background
       // font-loader error cannot fail the test. The resolver lines are
       // still executed (and thus covered) inside the zone.
       GoogleFonts.config.allowRuntimeFetching = false;

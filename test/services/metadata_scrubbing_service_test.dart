@@ -62,7 +62,7 @@ void main() {
     test('isSupportedType returns true for images and false for others', () {
       expect(scrubbingService.isSupportedType('image/jpeg'), isTrue);
       expect(scrubbingService.isSupportedType('image/png'), isTrue);
-      // HEIC/HEIF/TIFF are detectable but NOT safely scrubbed — the
+      // HEIC/HEIF/TIFF are detectable but NOT safely scrubbed - the
       // scrubber claims support only for formats it can verifiably
       // rewrite (round-3 red finding).
       expect(scrubbingService.isSupportedType('image/heic'), isFalse);
@@ -231,7 +231,7 @@ void main() {
       final atCeiling = Uint8List(64);
       atCeiling.setRange(
           0, 8, const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
-      // No throw — 64 <= 64 is inside the bound.
+      // No throw - 64 <= 64 is inside the bound.
       final result = await bounded.scrubMetadata(atCeiling);
       expect(result.originalSize, equals(64));
     });

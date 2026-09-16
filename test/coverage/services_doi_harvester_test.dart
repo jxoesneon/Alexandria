@@ -429,7 +429,7 @@ void main() {
 
     test('harvest_batch caps input at 50 DOIs', () async {
       final plugin = makePlugin();
-      // No context needed — ingest fails closed for every DOI, so the
+      // No context needed - ingest fails closed for every DOI, so the
       // loop records failures; the cap is observable via `total`.
       final dois = List.generate(60, (i) => '10.5555/cap$i');
       final res = await plugin.executeAction('harvest_batch', {

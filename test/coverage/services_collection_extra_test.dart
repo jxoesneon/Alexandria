@@ -47,7 +47,7 @@ void main() {
     test('merge takes fresh wall-clock branch', () {
       final a = HybridLogicalClock(wallTime: 1000, logical: 5, nodeId: node);
       final b = HybridLogicalClock(wallTime: 2000, logical: 7, nodeId: node);
-      // Both timestamps far in the past — 'now' wins outright.
+      // Both timestamps far in the past - 'now' wins outright.
       final merged = a.merge(b);
       expect(
           merged.wallTime, greaterThan(2000)); // fresh wall time, logical reset
@@ -94,7 +94,7 @@ void main() {
           HybridLogicalClock(wallTime: 5, logical: 2, nodeId: node);
       expect(lowLogical.compareTo(highLogical), lessThan(0));
 
-      // Equal wall+logical — node id bytes break the tie.
+      // Equal wall+logical - node id bytes break the tie.
       final nodeA = HybridLogicalClock(
           wallTime: 5, logical: 1, nodeId: Uint8List.fromList([1]));
       final nodeB = HybridLogicalClock(
@@ -102,7 +102,7 @@ void main() {
       expect(nodeA.compareTo(nodeB), lessThan(0));
       expect(nodeB.compareTo(nodeA), greaterThan(0));
 
-      // Prefix-equal node ids — length breaks the tie.
+      // Prefix-equal node ids - length breaks the tie.
       final short = HybridLogicalClock(
           wallTime: 5, logical: 1, nodeId: Uint8List.fromList([7]));
       final long = HybridLogicalClock(

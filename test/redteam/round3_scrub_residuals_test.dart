@@ -1,6 +1,6 @@
-// RED TEAM PoC — MetadataScrubbingService residuals.
+// RED TEAM PoC - MetadataScrubbingService residuals.
 //
-// GAP 1 — isSupportedType overclaims. The scrub switch in
+// GAP 1 - isSupportedType overclaims. The scrub switch in
 // scrubMetadata (lib/services/metadata_scrubbing_service.dart:238-248)
 // handles ONLY image/jpeg and image/png; every other MIME falls into
 // `default:` and returns the input byte-identical. Yet isSupportedType
@@ -8,11 +8,11 @@
 // 'image/tiff' as scrubbable. The add-content flow
 // (lib/ui/add_content_screen.dart:471) gates on isSupportedType, so a
 // user who enables "strip metadata" on a HEIC gets a byte-identical
-// upload — GPS/Make/Model intact — under a "supported" promise.
+// upload - GPS/Make/Model intact - under a "supported" promise.
 //
-// GAP 2 — post-IEND PNG tail. _stripPngMetadataChunks copies any bytes
+// GAP 2 - post-IEND PNG tail. _stripPngMetadataChunks copies any bytes
 // after IEND verbatim (lines 366-369). A tEXt/eXIf chunk appended after
-// the IEND terminator rides straight through the "scrubbed" output —
+// the IEND terminator rides straight through the "scrubbed" output -
 // a metadata smuggling channel the stripper neither removes nor flags.
 //
 // Asserts the SECURE expectation: only formats that are actually
@@ -52,7 +52,7 @@ void main() {
         ])
         ..add(type.codeUnits)
         ..add(data)
-        ..add([0, 0, 0, 0]); // (bogus CRC — irrelevant to the walker)
+        ..add([0, 0, 0, 0]); // (bogus CRC - irrelevant to the walker)
       return out.toBytes();
     }
 

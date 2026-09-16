@@ -299,7 +299,7 @@ void main() {
       expect(messages, contains('Backup your identity with a mnemonic.'));
 
       // The marker lives in the shared SecureStorageService under the
-      // single agreed key — the same store MnemonicService writes.
+      // single agreed key - the same store MnemonicService writes.
       await storage.write('alexandria_mnemonic_backup', 'phrase-hash');
 
       messages =
@@ -342,7 +342,7 @@ void main() {
       identity.setIdentity(_makeIdentity());
       final exported = await service.exportPrivateKey('11111111', 'p@ss');
 
-      // v2 format: base64(JSON{kdf params, salt, blob}) — never the raw
+      // v2 format: base64(JSON{kdf params, salt, blob}) - never the raw
       // ciphertext, and never keyed by bare SHA-256(password).
       final envelope = jsonDecode(utf8.decode(base64Decode(exported))) as Map;
       expect(envelope['v'], SecurityOverviewService.exportFormatVersion);
@@ -366,7 +366,7 @@ void main() {
       identity.setIdentity(_makeIdentity());
       final a = await service.exportPrivateKey('11111111', 'p@ss');
       final b = await service.exportPrivateKey('11111111', 'p@ss');
-      // Same password, same key — but different salts, so the envelopes
+      // Same password, same key - but different salts, so the envelopes
       // (and derived keys) differ. Unsalted derivation would emit
       // identical exports.
       expect(a, isNot(b));
@@ -448,7 +448,7 @@ void main() {
       await storage.write('alexandria_access_policies', '[1,2,3]');
       expect(await service.getAccessPolicies('cid-1'), isEmpty);
 
-      // Well-formed map with one malformed entry — the bad entry is
+      // Well-formed map with one malformed entry - the bad entry is
       // dropped, the good grant still reads.
       await storage.write(
         'alexandria_access_policies',

@@ -1,7 +1,7 @@
 // MeshBountyTransport tests: the production BountyTransport binding
 // over the mesh channel layer. The two mesh services below are wired
 // with synthetic handshake tickets sharing one channel key and
-// frameTransport shims that deliver each other's frames — so the full
+// frameTransport shims that deliver each other's frames - so the full
 // real frame path (seq ‖ payload ‖ HMAC over the handshake-derived
 // channel key, MAC verify + replay guard on receive) carries the
 // envelopes end to end.
@@ -24,13 +24,13 @@ Future<String> _pubHex(SimpleKeyPair kp) async =>
 
 /// A field-identical handshake ticket for both ends of ONE session:
 /// the channel key is `HKDF(salt=sharedSecret, ikm=transcriptBytes)`
-/// and the transcript embeds peerId+multiaddr+nonce+ephemerals — so
+/// and the transcript embeds peerId+multiaddr+nonce+ephemerals - so
 /// both probes must return byte-identical ticket FIELDS for the two
 /// channels to share one key. [responderSide] is the only allowed
 /// difference: it selects which direction tag each side MACs with
 /// (dialer sends tag 0 / receives tag 1; responder the reverse), and
 /// is not part of the transcript. The ticket's inner peerId/multiaddr
-/// are transcript material only — the channel is installed under the
+/// are transcript material only - the channel is installed under the
 /// DIALED multiaddr's /p2p/ component.
 MeshHandshakeTicket _sharedTicket({bool responderSide = false}) =>
     MeshHandshakeTicket(
@@ -46,7 +46,7 @@ MeshHandshakeTicket _sharedTicket({bool responderSide = false}) =>
     );
 
 /// Two mesh services cross-wired into ONE session: A is the dialer
-/// (responderSide: false), B is the responder (responderSide: true) —
+/// (responderSide: false), B is the responder (responderSide: true) -
 /// the direction-bound MACs then pair exactly as they would over a
 /// real handshake socket. Each side's frameTransport delivers its
 /// outbound frames to the other service's receiveFrame under the
@@ -138,7 +138,7 @@ void main() {
     addTearDown(sub.cancel);
 
     // Hand-craft a frame carrying non-envelope bytes IN THE DIALER'S
-    // direction (tag 0 — what A→B traffic MACs under; B's responder-
+    // direction (tag 0 - what A→B traffic MACs under; B's responder-
     // side channel accepts exactly that direction). The frame MAC-
     // verifies but fails envelope parse and must be dropped.
     final key = MeshTransportService.deriveSessionKey(_sharedTicket());
@@ -156,7 +156,7 @@ void main() {
     await pair.connect();
     addTearDown(pair.dispose);
 
-    // Poster node. The poster key is fixed UP FRONT — the funded
+    // Poster node. The poster key is fixed UP FRONT - the funded
     // re-announcement below must carry the SAME originAgentId as the
     // first announcement (the dedup-upgrade gate refuses an origin
     // change, so rotating keys mid-test would strand the upgrade).
@@ -178,7 +178,7 @@ void main() {
     addTearDown(svcB.dispose);
     await svcB.setKeyPair(await _newKey());
 
-    // 1. Announce over the mesh — lands attributed but unfunded.
+    // 1. Announce over the mesh - lands attributed but unfunded.
     final posted = await svcA.postPreservationBounty(
         cid: 'bafk_mesh',
         title: 'mesh bounty',

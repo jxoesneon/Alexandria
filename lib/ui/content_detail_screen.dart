@@ -92,7 +92,7 @@ final integrityVerificationProvider =
   final ipfs = ref.read(ipfsServiceProvider);
 
   final challenge = porService.createChallenge(cid: cid, totalChunks: 4);
-  // getFile yields an empty stream for absent content — collect rather
+  // getFile yields an empty stream for absent content - collect rather
   // than .first so a missing block reads as "not retrievable", not a
   // StateError (round-2 red finding: honest absent-content semantics).
   final chunks = <int>[];
@@ -328,11 +328,11 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
     final appName = _appName(app);
 
     // (round-3 red finding) the launch target is no longer a raw
-    // attacker-controlled manifest field — resolve the content's
+    // attacker-controlled manifest field - resolve the content's
     // version CID and hand the player its public-gateway URL, but only
     // when the CID is structurally valid. buildAppCommand additionally
     // refuses unsafe targets (shell metacharacters, option injection,
-    // non-http(s) schemes) — and there is no shell in the launch path.
+    // non-http(s) schemes) - and there is no shell in the launch path.
     final String targetPath;
     try {
       final versions = await ref.read(versionsProvider(manifest.id).future);
@@ -1017,7 +1017,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
     }
   }
 
-  /// Section A — "Variants of this work".
+  /// Section A - "Variants of this work".
   ///
   /// Shows sibling content (other editions, translations, formats) as a
   /// horizontally scrollable list of glass cards.
@@ -1153,7 +1153,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
     );
   }
 
-  /// Section B — "Related Content".
+  /// Section B - "Related Content".
   ///
   /// Shows knowledge-graph relationships (cited by, commentary on, translation
   /// of, etc.) as a vertical list of cards. Because the in-memory

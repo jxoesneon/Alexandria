@@ -60,7 +60,7 @@ class ExternalPlayerService {
 
   String? getCustomAppPath(SupportedApp app) => _customExecutablePaths[app];
 
-  /// Characters that must never appear in a launch target — shell
+  /// Characters that must never appear in a launch target - shell
   /// metacharacters and control bytes (round-3 red finding). No shell is
   /// invoked anywhere anymore, but these are still rejected so a target
   /// crafted for a hypothetical downstream shell path fails here first.
@@ -70,7 +70,7 @@ class ExternalPlayerService {
   /// Validates that [target] is safe to hand to an external process as
   /// an argv element: either an `http(s)://` URL or a plain filesystem
   /// path with no shell metacharacters, no leading `-` (option/flag
-  /// injection into the player binary — e.g. VLC `--extraintf`), and no
+  /// injection into the player binary - e.g. VLC `--extraintf`), and no
   /// URI scheme other than http(s) (kills `file:`, `javascript:`,
   /// `data:` smuggling).
   static bool isSafeExternalTarget(String target) {
@@ -79,12 +79,12 @@ class ExternalPlayerService {
     if (target.startsWith('-')) return false;
     final uri = Uri.tryParse(target);
     if (uri != null && uri.hasScheme) {
-      // A Windows drive letter ('C:\…') parses as scheme 'c' — that is
+      // A Windows drive letter ('C:\…') parses as scheme 'c' - that is
       // already excluded above by the backslash ban, so any scheme here
       // must be http/https.
       return uri.scheme == 'http' || uri.scheme == 'https';
     }
-    // Bare path — must not smuggle a scheme through whitespace tricks.
+    // Bare path - must not smuggle a scheme through whitespace tricks.
     if (target.contains(':')) return false;
     return true;
   }
@@ -114,7 +114,7 @@ class ExternalPlayerService {
         ...vlcArgs.sublist(1)
       ];
     } else if (Platform.isWindows) {
-      // (round-3 red finding) no cmd.exe /c start — the executable is
+      // (round-3 red finding) no cmd.exe /c start - the executable is
       // launched directly so the target can never be re-parsed as a
       // shell command line.
       final bin = customPath ?? 'vlc.exe';
@@ -126,7 +126,7 @@ class ExternalPlayerService {
   }
 
   /// Windows "open with default handler" without a shell: explorer.exe
-  /// takes the target as a plain argv element — it performs no command
+  /// takes the target as a plain argv element - it performs no command
   /// interpretation (round-3 red finding: replaces cmd.exe /c start).
   static const String _windowsShellOpen = 'explorer.exe';
 

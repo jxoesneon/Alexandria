@@ -1,6 +1,6 @@
-// RED TEAM PoC — Round-6: MeshTransportService.connectToPeer writes a
+// RED TEAM PoC - Round-6: MeshTransportService.connectToPeer writes a
 // STALE peer snapshot back after the async handshake probe, re-creating
-// — as REACHABLE — a peer that was unregistered or disconnected while
+// - as REACHABLE - a peer that was unregistered or disconnected while
 // the probe was in flight.
 //
 //   lib/services/mesh_transport_service.dart:395-444
@@ -9,12 +9,12 @@
 //     ok = await _handshakeProbe(multiaddr);  // ← async gap
 //     if (ok) {
 //       _peers[peerId] = peer.copyWith(…, isReachable: true);
-//       //            ^^^^ stale snapshot, unconditional reinsert —
+//       //            ^^^^ stale snapshot, unconditional reinsert -
 //       //                 no re-check that the peer still exists or
 //       //                 that a concurrent unregister/disconnect ran.
 //
 // Consequence: an endpoint that answers the handshake slowly (or an
-// operator racing a dial) defeats peer revocation — `unregisterPeer`
+// operator racing a dial) defeats peer revocation - `unregisterPeer`
 // and `disconnectPeer` are silently undone and the resurrected record
 // is marked `isReachable`, which is the ONLY gate on sendPayload /
 // selectBestTransport. A removed peer regains a live route.

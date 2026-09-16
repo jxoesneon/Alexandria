@@ -204,7 +204,7 @@ void main() {
           );
 
       test('isHuman claim fails closed with no attestation clock', () async {
-        // No humanAttestationClock wired — a caller-claimed isHuman
+        // No humanAttestationClock wired - a caller-claimed isHuman
         // must mint an unattested (isHuman == false) ballot.
         final req = await propose(consensus);
         final vote = await consensus.castVote(
@@ -295,7 +295,7 @@ void main() {
 
       test('unattested human claims price weight at the AI factor', () async {
         // Same ledger/identity, two services differing only in the
-        // attestation clock — the attested human ballot must weigh
+        // attestation clock - the attested human ballot must weigh
         // exactly twice the unattested one (A = 1.0 vs 0.5).
         final humanSvc = ConsensusService(
           identity,

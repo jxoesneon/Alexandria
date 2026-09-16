@@ -1,13 +1,13 @@
-// RED TEAM PoC — HeadlessSdk.executeRpc (lib/services/headless_sdk.dart)
+// RED TEAM PoC - HeadlessSdk.executeRpc (lib/services/headless_sdk.dart)
 // dispatches mutating RPC methods with:
-//   * NO liveness gate — calls execute even when the daemon was never
+//   * NO liveness gate - calls execute even when the daemon was never
 //     started (`_isRunning == false`); 'alexandria.status' correctly
 //     reports 'stopped' while 'alexandria.import' happily writes.
-//   * NO size cap — 'alexandria.import' base64-decodes attacker input
+//   * NO size cap - 'alexandria.import' base64-decodes attacker input
 //     into memory and ipfs.addFile() stores + PINS it forever
 //     (addFile adds to _pinnedCids, so runGc can never reclaim it):
 //     unbounded memory growth via RPC.
-//   * NO authentication — if/when a transport binds this dispatcher
+//   * NO authentication - if/when a transport binds this dispatcher
 //     (rpcPort 9099 in DaemonConfig), every call above is remote.
 //
 // Asserts the SECURE expectation: a stopped daemon must refuse RPC

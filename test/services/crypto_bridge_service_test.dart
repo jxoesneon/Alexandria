@@ -24,7 +24,7 @@ class _FakeCreditService extends CreditService {
     bool isAttested = false,
   }) {
     // Mirror the real contract: an attested spend must be covered by the
-    // attested pool and consumes it — the cumulative egress budget is
+    // attested pool and consumes it - the cumulative egress budget is
     // enforced inside the debit, atomically, not by the advisory gate.
     if (isAttested && _attested < amount) return false;
     if (_bal >= amount) {
@@ -160,7 +160,7 @@ void main() {
       );
 
       // Exceeds attested balance (attested is 50, request 60): the
-      // advisory gate stays a request-level check — the cumulative
+      // advisory gate stays a request-level check - the cumulative
       // attested budget is enforced atomically inside the debit
       // (isAttested spend), which refuses here.
       expect(bridge.egressRejectionReason(60.0), isNull);

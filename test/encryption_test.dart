@@ -32,7 +32,7 @@ void main() {
       final encrypted = await service.encryptData(data, key1);
 
       // AES-GCM authentication failure now surfaces as a null result
-      // (EncryptionService.decryptData contract) — a wrong key must
+      // (EncryptionService.decryptData contract) - a wrong key must
       // never produce plaintext.
       expect(await service.decryptData(encrypted, key2), isNull);
     });

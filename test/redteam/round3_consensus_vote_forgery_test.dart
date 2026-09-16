@@ -1,4 +1,4 @@
-// RED TEAM PoC — ConsensusService.castVote computes vote weight from
+// RED TEAM PoC - ConsensusService.castVote computes vote weight from
 // CALLER-SUPPLIED parameters (reputation, daysActive, isHuman):
 //
 //   lib/services/consensus_service.dart:353-400
@@ -8,23 +8,23 @@
 //         reputationScore: reputation, ...);   // ← caller's own claim
 //
 // The service NEVER consults _ledgerService (injected but unused for
-// the voter) — a vote can carry arbitrary self-declared weight and the
+// the voter) - a vote can carry arbitrary self-declared weight and the
 // signature binds the FORGED weight, so later verification (if it
 // ever lands) cannot detect the inflation either: the lie is signed.
 // A single forged vote (reputation=1e15 → log2 ≈ 49.8 × T=1 × A=1)
 // clears ConsensusConstants.defaultThreshold (10) and resolves ANY
-// pending change request to `approved` on the spot — metadata
+// pending change request to `approved` on the spot - metadata
 // consensus capture with zero real reputation.
 //
 // Second surface: proposeChange accepts a caller-supplied
-// `uploaderKey` (line ~303) — the "uploader" of the target content is
+// `uploaderKey` (line ~303) - the "uploader" of the target content is
 // whoever the PROPOSER says. A proposer names THEMSELF uploader, casts
 // one vote, and fastTrackChange (line ~446) immediately approves their
 // own change AND banks a `mergeAccepted` ledger action (3.0 rep).
 // Self-dealing: veto/fast-track authority is self-minted.
 //
 // Asserts the SECURE expectation: caller-claimed weight/uploader must
-// never resolve a change request — weight must come from the ledger
+// never resolve a change request - weight must come from the ledger
 // (server-side reputation), uploaderKey from the content record.
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
@@ -68,11 +68,11 @@ void main() {
       proposedValue: 'Attacker Title',
     );
 
-    // The caller declares reputation 1e15 — there is no ledger check.
+    // The caller declares reputation 1e15 - there is no ledger check.
     final vote = await svc.castVote(
       requestId: req.id,
       approve: true,
-      reputation: 1e15, // forged — service takes it verbatim
+      reputation: 1e15, // forged - service takes it verbatim
       daysActive: 365,
     );
 
@@ -88,7 +88,7 @@ void main() {
   test(
       'uploader fast-track must not be self-minted via a claimed '
       'uploaderKey', () async {
-    // The proposer claims THEY are the uploader of the target content —
+    // The proposer claims THEY are the uploader of the target content -
     // uploaderKey is a free caller parameter, never checked against the
     // content's actual uploader record.
     final req = await svc.proposeChange(
@@ -102,7 +102,7 @@ void main() {
     await svc.castVote(
       requestId: req.id,
       approve: true,
-      reputation: 1.0, // tiny honest weight — just needs >0
+      reputation: 1.0, // tiny honest weight - just needs >0
       daysActive: 365,
     );
 

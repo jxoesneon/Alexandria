@@ -1,4 +1,4 @@
-// SCRATCH EVALUATOR FILE — adversarial exploit tests for the
+// SCRATCH EVALUATOR FILE - adversarial exploit tests for the
 // possession-bound receipt claim (REV3 review) and _paidBountyIds dedup.
 // Delete after evaluation. Covers exploit classes 1-7 from the eval brief:
 //  1. copied foreign receipt claimed under a different resolved identity
@@ -33,7 +33,7 @@ void main() {
   /// Production-equivalent oracle (mirrors creditServiceProvider wiring):
   /// strict hexToBytes decode + Ed25519 verify; throws on malformed key.
   /// The claim path wraps every oracle call in the fail-closed try, and
-  /// the production adapter additionally catches to false — either way a
+  /// the production adapter additionally catches to false - either way a
   /// throw can never mint.
   Future<bool> receiptVerifier(
       Uint8List message, Uint8List sig, String publicKeyHex) async {
@@ -193,7 +193,7 @@ void main() {
         'binding refuses before the sig check', () async {
       final r = await persist(await signedReceipt(proverPubkey: otherPubHex));
       // Sign with the key the receipt DOES name (other) and with the
-      // local key — both must refuse because the artifact is not ours.
+      // local key - both must refuse because the artifact is not ours.
       expect(
           await svcWith().claimVerifiedReceipt(r,
               claimSignatureB64: await claimSig(r, keyPair: otherKeyPair)),
@@ -214,7 +214,7 @@ void main() {
         '!!!not_base64!!!',
         base64Encode(Uint8List(63)), // short
         base64Encode(Uint8List(65)), // long
-        base64Encode(Uint8List(64)), // zeros — shape-valid
+        base64Encode(Uint8List(64)), // zeros - shape-valid
         'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
             'AAAAAAAAAAAAAAAAAAAAAA-' // base64url char
       ]) {
@@ -363,7 +363,7 @@ void main() {
         return proverPubHex;
       });
       await svc.ready;
-      calls = 0; // hydration warms the held-key cache once — count only
+      calls = 0; // hydration warms the held-key cache once - count only
       // the claim-time resolutions below.
       final r = await persist(await signedReceipt());
       expect(
@@ -483,7 +483,7 @@ void main() {
       await svc.ready;
       // Attacker/bug calls with a non-positive amount first.
       expect(svc.awardBountyEscrow(amount: 0.0, bountyId: 'b9', cid: 'c'), 0.0);
-      // The real, escrowed payout for b9 still lands — the dedup guard
+      // The real, escrowed payout for b9 still lands - the dedup guard
       // sits after the refusal gates, so a refused call never consumes
       // the id.
       expect(

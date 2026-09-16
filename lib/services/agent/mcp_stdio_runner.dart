@@ -5,7 +5,7 @@ import 'dart:math';
 
 /// Tool dispatch into the app's existing service container. The runner
 /// is deliberately a THIN SHIM (ALX-012 §5.6): it never constructs a
-/// second ProviderContainer — the caller injects the already-wired
+/// second ProviderContainer - the caller injects the already-wired
 /// `AlexandriaMcpServer.listTools`/`callTool` (or any equivalent pair).
 typedef McpToolLister = List<Map<String, dynamic>> Function();
 typedef McpToolInvoker = Future<Map<String, dynamic>> Function(
@@ -37,7 +37,7 @@ class McpSpendRequest {
 
 /// Per-tool sliding-window rate budget (ALX-012 §5.2.2): at most
 /// [maxCalls] invocations of one tool inside [window]. Budgets are
-/// independent per tool — a runaway loop on one tool cannot starve or
+/// independent per tool - a runaway loop on one tool cannot starve or
 /// exceed another's allowance.
 class McpRateBudget {
   final int maxCalls;
@@ -45,30 +45,30 @@ class McpRateBudget {
   const McpRateBudget({required this.maxCalls, required this.window});
 }
 
-/// The gated JSON-RPC front door for `AlexandriaMcpServer` — the "real
+/// The gated JSON-RPC front door for `AlexandriaMcpServer` - the "real
 /// MCP stdio runner" deferred milestone (ALX-012 §5.2/§5.6).
 ///
 /// Preconditions implemented here:
 ///
-///  1. SESSION-SCOPED AUTH — a per-process random token (generated, never
+///  1. SESSION-SCOPED AUTH - a per-process random token (generated, never
 ///     persisted, never written to exported config) gates EVERY request,
 ///     including `initialize` and `tools/list`. `stdio-open` is not a
 ///     session boundary: any local process could open the pipe, so the
-///     token — not process existence — is the credential.
-///  2. PER-TOOL RATE BUDGETS — independent sliding windows per tool
+///     token - not process existence - is the credential.
+///  2. PER-TOOL RATE BUDGETS - independent sliding windows per tool
 ///     ([McpRateBudget]).
-///  3. SPEND/ESCROW CEILINGS + HUMAN CONSENT — economic tools (anything
+///  3. SPEND/ESCROW CEILINGS + HUMAN CONSENT - economic tools (anything
 ///     that can debit or escrow ℭ) require the installed [McpConsentHook]
 ///     to approve each call, AND cumulative session spend is hard-capped
 ///     at [sessionSpendCeilingCredits] (consent cannot exceed it).
-///  4. READ-ONLY ALLOWLIST — the default surface is exactly
+///  4. READ-ONLY ALLOWLIST - the default surface is exactly
 ///     [readOnlyAllowlist]; nothing else is dispatchable. Minting tools
-///     additionally require [permitMintingTools] — the receipt-ingest
+///     additionally require [permitMintingTools] - the receipt-ingest
 ///     gate of §5.2.4 stays shut until signed-claim verification is
 ///     wired end-to-end (WorkReceipt claim path).
 ///
 /// Non-goals (documented bounds): the runner authenticates the session,
-/// not the agent's *intent* — a compromised-but-authenticated agent can
+/// not the agent's *intent* - a compromised-but-authenticated agent can
 /// still spend up to the ceiling. The ceiling and consent hook are the
 /// bound; the allowlist is the blast-radius limiter.
 class AlexandriaMcpRunner {
@@ -94,7 +94,7 @@ class AlexandriaMcpRunner {
 
   /// Tools that mint value or ingest receipt-claims. These stay refused
   /// even when added to the allowlist unless [permitMintingTools] is
-  /// explicitly set — receipt ingest is off the tool surface until
+  /// explicitly set - receipt ingest is off the tool surface until
   /// signed-claim verification is wired (ALX-012 §5.2.4). This is a
   /// deliberate second gate, not a documentation note.
   static const Set<String> mintingTools = {
@@ -110,7 +110,7 @@ class AlexandriaMcpRunner {
   final McpConsentHook? _consentHook;
 
   /// Hard cap on cumulative debited/escrowed credits this session may
-  /// approve. Consent can never exceed it — the ceiling is the bound a
+  /// approve. Consent can never exceed it - the ceiling is the bound a
   /// compromised agent cannot talk its way past. Default 0: no economic
   /// call is ever permitted without an operator-set ceiling.
   final double sessionSpendCeilingCredits;
@@ -134,7 +134,7 @@ class AlexandriaMcpRunner {
   })  : _listTools = listTools,
         _callTool = callTool,
         _sessionToken = sessionToken ?? generateSessionToken(),
-        // Frozen copy — the caller must not widen the surface after
+        // Frozen copy - the caller must not widen the surface after
         // construction by mutating the set it handed in.
         _allowedTools =
             Set.unmodifiable(allowedTools ?? Set.of(readOnlyAllowlist)),
@@ -142,7 +142,7 @@ class AlexandriaMcpRunner {
         _consentHook = consentHook;
 
   /// Generates a session credential: 256 bits of CSPRNG entropy,
-  /// base64url — never stored, never exported to client config; the
+  /// base64url - never stored, never exported to client config; the
   /// operator hands it to the bridge shim out-of-band.
   static String generateSessionToken() {
     final rng = Random.secure();
@@ -159,7 +159,7 @@ class AlexandriaMcpRunner {
   double get sessionSpend => _sessionSpend;
 
   /// Constant-time token comparison: an early-exit `==` would leak
-  /// prefix length through timing — a local attacker could then recover
+  /// prefix length through timing - a local attacker could then recover
   /// the credential byte-by-byte. (Loopback-only threat, but the runner
   /// is the authentication boundary; keep it honest.)
   bool _tokenMatches(String? presented) {
@@ -206,7 +206,7 @@ class AlexandriaMcpRunner {
     final id = request['id'];
     final method = request['method'] as String?;
 
-    // Auth gate: every method — including initialize/tools/list —
+    // Auth gate: every method - including initialize/tools/list -
     // requires the session credential. Unauthenticated requests get
     // nothing that reveals server shape beyond an auth error.
     if (!_tokenMatches(_presentedToken(request))) {
@@ -237,7 +237,7 @@ class AlexandriaMcpRunner {
           'jsonrpc': '2.0',
           'id': id,
           'result': {
-            // Only allowlisted tools are advertised — an agent cannot
+            // Only allowlisted tools are advertised - an agent cannot
             // even discover gated tools through the runner.
             'tools': _listTools()
                 .where((t) => _allowedTools.contains(t['name']))
@@ -303,7 +303,7 @@ class AlexandriaMcpRunner {
       }
       final projected = _sessionSpend + amount;
       if (projected > sessionSpendCeilingCredits) {
-        // Hard ceiling: consent cannot override — the point of the
+        // Hard ceiling: consent cannot override - the point of the
         // ceiling is that a compromised agent cannot exceed it even
         // by spamming the consent surface.
         return _ToolOutcome.error(
@@ -327,7 +327,7 @@ class AlexandriaMcpRunner {
           arguments: args,
         ));
       } catch (_) {
-        approved = false; // consent surface failed — fail closed
+        approved = false; // consent surface failed - fail closed
       }
       if (!approved) {
         return _ToolOutcome.error('Human consent denied for $tool.');
@@ -369,12 +369,12 @@ class _ToolOutcome {
 /// Binds loopback-only ([InternetAddress.loopbackIPv4]) on an ephemeral
 /// port. Wire protocol is newline-delimited JSON:
 ///  * the client MUST send `{"auth": "<sessionToken>"}` as its FIRST
-///    frame, within [authTimeout] of connecting — anything else (or a
+///    frame, within [authTimeout] of connecting - anything else (or a
 ///    timeout) closes the connection;
 ///  * each subsequent frame is a JSON-RPC request passed to the
 ///    runner's `handleJsonRpcRequest`; non-null responses are written
 ///    back one-per-line;
-///  * requests still carry the session token — socket auth is the
+///  * requests still carry the session token - socket auth is the
 ///    transport handshake, not a credential replacement (§5.6: "session
 ///    credential, not process existence").
 class McpControlSocket {
@@ -388,7 +388,7 @@ class McpControlSocket {
   McpControlSocket(
     this.runner, {
     this.authTimeout = const Duration(seconds: 5),
-    this.maxFrameBytes = 1 << 20, // 1 MiB frame cap — a DoS bound
+    this.maxFrameBytes = 1 << 20, // 1 MiB frame cap - a DoS bound
   });
 
   int get port => _server?.port ?? 0;
@@ -419,7 +419,7 @@ class McpControlSocket {
     }
 
     // Serialized outbox: dart:io's flush() BINDS the sink for the
-    // duration of the write — a writeln issued while a flush is pending
+    // duration of the write - a writeln issued while a flush is pending
     // throws "StreamSink is bound to a stream". Two frames arriving in
     // one chunk spawn concurrent processLine calls, so every write +
     // flush is chained through this queue.
@@ -452,7 +452,7 @@ class McpControlSocket {
       try {
         final frame =
             jsonDecode(utf8.decode(lineBytes)) as Map<String, dynamic>;
-        // Reuse the runner's constant-time credential check — the socket
+        // Reuse the runner's constant-time credential check - the socket
         // adds no second secret to manage.
         if (runner._tokenMatches(frame['auth'] as String?)) {
           authed = true;
@@ -472,12 +472,12 @@ class McpControlSocket {
 
     // Pre-auth pipeline: frames are processed strictly in arrival order
     // until the handshake completes. Without this chain, an `auth` frame
-    // and a request frame landing in ONE TCP chunk would race — the
+    // and a request frame landing in ONE TCP chunk would race - the
     // request could be routed to processAuth before the async handshake
     // set `authed`, closing a legitimately-authenticated connection.
     var pipeline = Future<void>.value();
 
-    // Frame accumulation with a hard byte cap — an unbounded line buffer
+    // Frame accumulation with a hard byte cap - an unbounded line buffer
     // would let a local peer exhaust memory with one giant "line".
     sub = socket.listen(
       (chunk) {

@@ -1,9 +1,9 @@
-// RED TEAM PoC — Round-3 follow-up on the round-2 LNURL SSRF gate.
+// RED TEAM PoC - Round-3 follow-up on the round-2 LNURL SSRF gate.
 //
 // lib/services/credits/lnurl_service.dart `_requireSafeCallbackUri`
 // only recognises a host as a literal IPv4 when it is EXACTLY four
 // dot-separated decimal octets (`_parseLiteralIpv4`). Every other
-// numeric spelling sails through as a "hostname" — but the OS resolver
+// numeric spelling sails through as a "hostname" - but the OS resolver
 // (getaddrinfo/inet_aton on POSIX, InetAddress on Windows) still parses
 // them as IPv4 addresses:
 //
@@ -11,14 +11,14 @@
 //   '0177.0.0.1'   -> 127.0.0.1   (leading zero = OCTAL to inet_aton;
 //                                int.tryParse reads it as DECIMAL 177,
 //                                so the gate checks the WRONG address)
-//   '0x7f.0.0.1'   -> 127.0.0.1   (hex octets — int.tryParse fails →
+//   '0x7f.0.0.1'   -> 127.0.0.1   (hex octets - int.tryParse fails →
 //                                classified as hostname → OS parses hex)
 //   '2130706433'   -> 127.0.0.1   (single 32-bit decimal)
 //   'localhost.'   -> 127.0.0.1   (trailing-dot FQDN: `host == 'localhost'`
 //                                and `endsWith('.localhost')` both miss)
 //
 // Second bypass, independent of spelling: the SSRF check runs ONCE on
-// the attacker-supplied callback URL — but package:http over dart:io
+// the attacker-supplied callback URL - but package:http over dart:io
 // follows redirects by default (HttpClientRequest.followRedirects
 // defaults true, maxRedirects 5). A callback on a PUBLIC https host
 // answering 302 -> http://169.254.169.254/… is fetched with no
@@ -41,7 +41,7 @@ class _Sniffer {
   void reset() => captured.clear();
 
   /// .well-known answers an attacker-controlled callback; the callback
-  /// leg answers an (invalid) invoice — we only watch the wire.
+  /// leg answers an (invalid) invoice - we only watch the wire.
   MockClient clientReturning(String callback) {
     return MockClient((request) async {
       captured.add(request.url);
@@ -65,7 +65,7 @@ class _Sniffer {
 
 /// A BaseClient that follows redirects the way dart:io's HttpClient
 /// does by default (HttpClientRequest.followRedirects == true,
-/// maxRedirects 5) — faithfully emulating the production client the
+/// maxRedirects 5) - faithfully emulating the production client the
 /// service builds when none is injected.
 class _RedirectFollowingClient extends http.BaseClient {
   final _Sniffer sniffer;
@@ -83,7 +83,7 @@ class _RedirectFollowingClient extends http.BaseClient {
               'tag': 'payRequest',
               'minSendable': 1000,
               'maxSendable': 100000000,
-              // Public https host — passes the SSRF gate cleanly.
+              // Public https host - passes the SSRF gate cleanly.
               'callback': 'https://callback.example.com/lnurlp/cb',
             }))),
             200);

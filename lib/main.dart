@@ -15,7 +15,7 @@ import 'providers/workspace_providers.dart';
 void main() {
   // (round-6 red finding) Never fetch fonts at runtime: google_fonts'
   // first-render download from fonts.gstatic.com uses a direct
-  // connection — bypassing Tor and leaking the real IP — and fails
+  // connection - bypassing Tor and leaking the real IP - and fails
   // offline. Every family the UI references is bundled under
   // assets/fonts/, so disabling runtime fetching loses nothing; any
   // missing font now fails visibly instead of leaking.

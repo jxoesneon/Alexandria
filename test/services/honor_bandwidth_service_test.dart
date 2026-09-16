@@ -55,7 +55,7 @@ void main() {
         'a SYNCHRONOUSLY throwing task completes with error and '
         'releases the permit (campaign-2)', () async {
       // A task that throws before returning a Future used to leak the
-      // in-flight permit — the queue would deadlock once every permit
+      // in-flight permit - the queue would deadlock once every permit
       // leaked, and the completer never resolved.
       final future = service.enqueueRequest(
         requestId: 'sync-boom',
@@ -66,7 +66,7 @@ void main() {
       );
 
       await expectLater(future, throwsA(isA<StateError>()));
-      // Permit released — a follow-up task must still run.
+      // Permit released - a follow-up task must still run.
       final result = await service.enqueueRequest(
         requestId: 'after',
         peerId: 'peer',

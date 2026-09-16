@@ -265,7 +265,7 @@ class NetworkOverviewService {
     final a = address.trim();
     if (a.isEmpty) return '127.0.0.1';
     if (a.startsWith('[')) {
-      // Bracketed IPv6: [::1] or [::1]:port — anything after ']'
+      // Bracketed IPv6: [::1] or [::1]:port - anything after ']'
       // must be a numeric port or absent.
       final close = a.indexOf(']');
       if (close <= 1) return '127.0.0.1';
@@ -278,13 +278,13 @@ class NetworkOverviewService {
     final firstColon = a.indexOf(':');
     if (firstColon < 0) return a; // bare host
     if (a.indexOf(':', firstColon + 1) < 0) {
-      // host:port — the port must be numeric to be a real port.
+      // host:port - the port must be numeric to be a real port.
       final host = a.substring(0, firstColon);
       final port = a.substring(firstColon + 1);
       if (host.isEmpty || int.tryParse(port) == null) return '127.0.0.1';
       return host;
     }
-    // Multiple colons: an unbracketed IPv6 literal carries no port —
+    // Multiple colons: an unbracketed IPv6 literal carries no port -
     // return it bracketed so setProxy's grammar accepts it.
     if (RegExp(r'^[0-9a-fA-F:]+$').hasMatch(a)) return '[$a]';
     return '127.0.0.1';
@@ -308,7 +308,7 @@ class NetworkOverviewService {
     );
 
     if (tor.isEnabled) {
-      // (round-5 red finding) use the structured accessors — splitting
+      // (round-5 red finding) use the structured accessors - splitting
       // the 'host:port' display string on ':' mangles bracketed IPv6
       // ('[::1]:9050'.split(':')[0] == '[').
       final host = tor.proxyHost;
@@ -355,7 +355,7 @@ class NetworkOverviewService {
     _emitSyncProgress();
 
     // (slot-C sweep) a throwing processQueue must not wedge the
-    // progress state — without the finally, inProgress would stay
+    // progress state - without the finally, inProgress would stay
     // latched true forever after a transport error.
     try {
       await sync.processQueue();

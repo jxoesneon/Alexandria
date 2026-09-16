@@ -1,4 +1,4 @@
-// RED TEAM PoC — the attested-balance egress gate is NON-CUMULATIVE.
+// RED TEAM PoC - the attested-balance egress gate is NON-CUMULATIVE.
 //
 // CryptoBridgeService.egressRejectionReason rejects only when the
 // *requested* chunk exceeds CreditService.attestedBalance. But every
@@ -13,7 +13,7 @@
 //
 // RFC ALX-011 §1/§6 invariant: "only value backed by a *foreign*
 // verifier's signature may ever egress; self-certified value is
-// internal-only." The test asserts the SECURE expectation — cumulative
+// internal-only." The test asserts the SECURE expectation - cumulative
 // egress must not exceed attested balance. A FAILURE is a live exploit:
 // self-certified credits laundered through the egress gate.
 import 'package:flutter_test/flutter_test.dart';
@@ -69,7 +69,7 @@ void main() {
 
     var exported = 0.0;
     // Attacker drains the wallet in attested-sized chunks. Every call
-    // must satisfy credits <= attestedBalance — and does, forever,
+    // must satisfy credits <= attestedBalance - and does, forever,
     // because the egress debit never consumes the attested pool.
     while (cs.balance > 0) {
       expect(bridge.egressRejectionReason(10.0), isNull,
@@ -110,7 +110,7 @@ void main() {
     final bridge =
         CryptoBridgeService(creditService: cs, overridePayoutsAllowed: true);
 
-    // The *simulated* sweep debits real credits for a pretend payment —
+    // The *simulated* sweep debits real credits for a pretend payment -
     // the same spend path, the same gate. Loop 5-ℭ sweeps.
     var swept = 0.0;
     while (cs.balance >= 5.0) {

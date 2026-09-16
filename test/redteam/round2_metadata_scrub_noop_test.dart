@@ -1,4 +1,4 @@
-// RED TEAM PoC — MetadataScrubbingService.scrubMetadata is a no-op
+// RED TEAM PoC - MetadataScrubbingService.scrubMetadata is a no-op
 // that REPORTS successful removal.
 //
 // lib/services/metadata_scrubbing_service.dart:238 returns the input
@@ -6,7 +6,7 @@
 // still populating `removedFields` with every sensitive EXIF tag it
 // detected and computing a "new" CID over the unchanged payload.
 // A caller that trusts the contract (Spec §11.4 anonymity) publishes
-// GPS/device/author metadata it believes was stripped — a silent
+// GPS/device/author metadata it believes was stripped - a silent
 // privacy failure, worse than refusing to scrub at all.
 //
 // Asserts the SECURE expectation: fields reported as removed must be
@@ -18,7 +18,7 @@ import 'package:alexandria/services/cid_service.dart';
 import 'package:alexandria/services/metadata_scrubbing_service.dart';
 
 /// Minimal JPEG carrying a real EXIF APP1 segment with
-/// Make/Model/Artist — enough for package:exif to parse.
+/// Make/Model/Artist - enough for package:exif to parse.
 Uint8List _buildExifJpeg() {
   final tiff = BytesBuilder();
   // TIFF header: little-endian, magic 42, IFD0 at offset 8.

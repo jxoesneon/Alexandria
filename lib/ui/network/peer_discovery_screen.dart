@@ -94,7 +94,7 @@ class _PeerDiscoveryScreenState extends ConsumerState<PeerDiscoveryScreen> {
     var peerId = _peerIdFromMultiaddr(multiaddr);
     peerId ??= const Uuid().v4();
     // (round-3 red finding) the peer is registered as an UNPROVEN
-    // candidate — the service ignores any caller-supplied reachability.
+    // candidate - the service ignores any caller-supplied reachability.
     // The actual dial below must complete the ALX-MESH handshake before
     // the peer can carry traffic.
     mesh.registerPeer(

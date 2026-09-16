@@ -122,7 +122,7 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
   /// (security hardening) Hard cap on a single ingest payload.
   /// PlatformFile.bytes is fully materialized in memory by the picker
   /// (withData: true) and the metadata scrubber walks PNG chunks with
-  /// 32-bit length fields — a file at or above the 2 GiB mark can steer
+  /// 32-bit length fields - a file at or above the 2 GiB mark can steer
   /// chunk-boundary arithmetic on platforms with 32-bit int semantics
   /// (web) and cannot be buffered reliably anywhere. 512 MiB stays far
   /// below the scrubber's structural bound AND bounds peak ingest
@@ -475,7 +475,7 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
           _stripMetadata ? ref.read(metadataScrubbingServiceProvider) : null;
 
       // (security hardening) multi-file ingest: the picker allows
-      // multiple selection, so EVERY selected file is ingested — the
+      // multiple selection, so EVERY selected file is ingested - the
       // previous single-shot path silently dropped all but
       // _selectedFiles.first. Each file is processed independently:
       // one unreadable/oversized/corrupt file records a per-file
@@ -486,7 +486,7 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
       for (final file in _selectedFiles) {
         try {
           // Enforce the ingest size cap BEFORE the byte buffer is
-          // touched — the picker's declared size is checked first so an
+          // touched - the picker's declared size is checked first so an
           // oversized file is rejected even when its bytes were never
           // materialized.
           if (file.size > maxFileBytes ||
@@ -509,7 +509,7 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
                 scrubbingService.isSupportedType(fileType)) {
               final result = await scrubbingService.scrubMetadata(fileBytes);
               // (round-7 red finding) adopt the scrubbed stream whenever
-              // the scrubber actually rewrote bytes — wasModified now
+              // the scrubber actually rewrote bytes - wasModified now
               // keys on bytesChanged, NOT only on removedFields. Gating
               // on detected fields alone shipped the ORIGINAL bytes for
               // JPEGs whose only metadata was a COM comment, an XMP-only
@@ -522,7 +522,7 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
               if (result.verificationFailed) {
                 // The output is still a strict subset of the input with
                 // the known metadata carriers dropped (safe to adopt),
-                // but the exif reader could not re-verify it — log
+                // but the exif reader could not re-verify it - log
                 // honestly instead of presenting the upload as a
                 // verified-clean scrub.
                 debugPrint(
@@ -839,7 +839,7 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
                       child: Chip(
                         label: Text(
                           // (round-8 red finding) detection is
-                          // EXIF-bound — detectSensitiveFields() cannot
+                          // EXIF-bound - detectSensitiveFields() cannot
                           // see COM/XMP/ICC/Ducky carriers the stripper
                           // still removes, so claiming the file is
                           // "already clean" overstated detector

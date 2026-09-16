@@ -28,7 +28,7 @@ void main() {
     });
 
     test('connectToPeer creates a reachable peer from a multiaddr', () async {
-      // Simulated successful handshake — the default probe requires a
+      // Simulated successful handshake - the default probe requires a
       // real endpoint (round-2 fix).
       final probedMesh =
           MeshTransportService(handshakeProbe: (_) async => true);

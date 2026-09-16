@@ -1,4 +1,4 @@
-// REV4b ADVERSARIAL EVALUATION — exploit tests attacking the just-landed
+// REV4b ADVERSARIAL EVALUATION - exploit tests attacking the just-landed
 // REV4 review changes: the CAS-loss claim healer, the startup
 // claimed_bounties sweep, cancelBounty/releaseEscrow, the canonical
 // bounty-id gate, the bounded _bounties registry, the verified
@@ -30,7 +30,7 @@ import 'package:alexandria/services/proof_of_retrievability_service.dart';
 
 /// IpfsService whose blockstore read parks until [gate] completes,
 /// then yields [payload]. Lets a claim freeze inside the evidence
-/// phase — i.e. between winning the durable CAS and the payout.
+/// phase - i.e. between winning the durable CAS and the payout.
 class _GatedIpfs extends IpfsService {
   _GatedIpfs(super.ref);
   final Completer<void> gate = Completer<void>();
@@ -130,7 +130,7 @@ class _GatedClaimCheckDb extends AppDatabase {
   }
 }
 
-/// isBountyClaimed throws — models transient sqlite failure on the
+/// isBountyClaimed throws - models transient sqlite failure on the
 /// cancelBounty fail-closed claim-state read.
 class _ThrowingClaimCheckDb extends AppDatabase {
   @override
@@ -138,7 +138,7 @@ class _ThrowingClaimCheckDb extends AppDatabase {
       throw StateError('simulated claim-state read failure');
 }
 
-/// The sweep's listing query throws — the sweep must swallow it and
+/// The sweep's listing query throws - the sweep must swallow it and
 /// never surface an unhandled async error from the constructor's
 /// fire-and-forget unawaited future.
 class _ThrowingSweepDb extends AppDatabase {
@@ -168,7 +168,7 @@ class _ThrowingProbeDb extends AppDatabase {
 
 /// Healer-path throwing delete for E5. The healer now deletes through
 /// the ownership-conditional DAO (RE-REV4b G), so BOTH delete entry
-/// points throw here — a delete that can't land must leave the stale
+/// points throw here - a delete that can't land must leave the stale
 /// row standing and the CAS retry must lose, returning false.
 class _HealerThrowingDeleteDb extends AppDatabase {
   @override
@@ -266,9 +266,9 @@ void main() {
       svc1.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
       // awardBountyEscrowDurable commits the payout row through the
-      // CAS BEFORE minting — the write throws, so the mutator fails
+      // CAS BEFORE minting - the write throws, so the mutator fails
       // closed (0.0, nothing mutated) and the claim refuses: no mint,
-      // no claim row, no tombstone (there is nothing to tombstone —
+      // no claim row, no tombstone (there is nothing to tombstone -
       // the mint never happened). This replaces the old mint-first /
       // probe-later path whose crash window needed the tombstone fix.
       expect(await svc1.claimBounty(bounty.id), isFalse);
@@ -282,7 +282,7 @@ void main() {
           reason: 'nothing minted → no spent tombstone is owed');
 
       // A retry while the store still loses the write fails closed the
-      // same way — and the record is neither poisoned nor claimed.
+      // same way - and the record is neither poisoned nor claimed.
       expect(await svc1.claimBounty(bounty.id), isFalse);
       expect(cs1.balance, 100.0);
       expect(svc1.activeBounties.any((b) => b.id == bounty.id), isTrue);
@@ -319,7 +319,7 @@ void main() {
       while (!await db.isBountyClaimed(bounty.id)) {
         await Future<void>.delayed(Duration.zero);
       }
-      // Backdate A's live row past the stale TTL — B's healer then
+      // Backdate A's live row past the stale TTL - B's healer then
       // observes the row's REAL claimedAt, so its ownership-conditional
       // delete still matches (RE-REV4b G). A faked age READ could never
       // authorize the delete.
@@ -330,10 +330,10 @@ void main() {
       // B: CAS loses → no payout → genuinely stale → deletes A's row →
       // retry CAS wins → no ipfs → pays out.
       expect(await svcB.claimBounty(bounty.id), isTrue);
-      expect(cs.balance, 125.0); // single pay — dedup belt holds
+      expect(cs.balance, 125.0); // single pay - dedup belt holds
 
       // A's evidence now completes → awardBountyEscrow refused by the
-      // belt → A deletes the row — WHICH IS NOW B's WON ROW.
+      // belt → A deletes the row - WHICH IS NOW B's WON ROW.
       gated.gate.complete();
       expect(await claimA, isFalse);
       expect(
@@ -427,7 +427,7 @@ void main() {
           claimedAt: _ageMillis(const Duration(minutes: 20)));
 
       expect(await svc.claimBounty(bounty.id), isFalse);
-      // A later attempt hits the same path cleanly — no leaked mark.
+      // A later attempt hits the same path cleanly - no leaked mark.
       expect(await svc.claimBounty(bounty.id), isFalse);
       expect(cs.balance, 100.0);
     });
@@ -490,7 +490,7 @@ void main() {
       expect(result, isTrue);
       expect(cs.balance, 125.0);
       // EXPLOIT ASSERTION: the durable claim row must exist for a won
-      // claim — the sweep deleted it out from under the in-flight claim.
+      // claim - the sweep deleted it out from under the in-flight claim.
       expect(await db.isBountyClaimed(bounty.id), isTrue,
           reason: 'sweep deleted a live claim\'s freshly re-inserted '
               'row — the stale snapshot was never re-validated');
@@ -542,7 +542,7 @@ void main() {
       final posted = await svc.postPreservationBounty(
           cid: 'bafk_own', title: 't', offeredCredits: 25.0, force: true);
       expect(cs.balance, 75.0);
-      // Registry: [posted, seed1, seed2] — posted at index 0.
+      // Registry: [posted, seed1, seed2] - posted at index 0.
 
       final cancel = svc.cancelBounty(posted.id);
       while (db.calls == 0) {
@@ -559,7 +559,7 @@ void main() {
 
       // Rotate the local key: the cancelled bounty is still listed
       // (the stale index removed a DIFFERENT record) but its
-      // _locallyPostedBountyIds tombstone is stripped — the
+      // _locallyPostedBountyIds tombstone is stripped - the
       // current-identity self-claim guard is the only bar left, and
       // rotation defeats it.
       await svc.setKeyPair(await _newKey());
@@ -676,7 +676,7 @@ void main() {
           cid: 'bafk_evict', title: 't', offeredCredits: 25.0, force: true);
       expect(cs.balance, 75.0);
 
-      // Flood with attested funded announcements — the local record is
+      // Flood with attested funded announcements - the local record is
       // eviction-protected because its id is in _locallyPostedBountyIds.
       for (var i = 0; i < 520; i++) {
         final b = _foreignBounty(id: 'fl_$i', cid: 'bafk_fl_$i');
@@ -753,7 +753,7 @@ void main() {
         svc.ingestBountyAnnouncement(
             _foreignBounty(id: 'uf_$i', cid: 'bafk_uf_$i', funded: false));
       }
-      // Unfunded spam only evicts unfunded records — the funded local
+      // Unfunded spam only evicts unfunded records - the funded local
       // bounty survives and stays reachable by the cancel path (which
       // delists it while the cross-ledger guard refuses the refund).
       expect(svc.activeBounties.any((b) => b.id == posted.id), isTrue);

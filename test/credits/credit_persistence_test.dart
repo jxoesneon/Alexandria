@@ -44,7 +44,7 @@ void main() {
       await instanceA.settled;
 
       // Simulated restart: a fresh service on the same database must see
-      // the exhausted cap — the farming vector is closed.
+      // the exhausted cap - the farming vector is closed.
       final instanceB = CreditService(db: db, initialBalance: 0.0);
       await instanceB.ready;
       expect(
@@ -113,7 +113,7 @@ void main() {
       final instanceB = CreditService(db: db);
       await instanceB.ready;
 
-      // Prior history is warmed; genesis was granted exactly once —
+      // Prior history is warmed; genesis was granted exactly once -
       // a restart can neither reset nor double the welcome allocation.
       expect(instanceB.transactions.length, instanceA.transactions.length);
       expect(
@@ -155,7 +155,7 @@ void main() {
       await instanceA.settled;
 
       // Simulated restart: an award fired BEFORE hydration must mint
-      // nothing — the persisted 150/200 counter is not yet loaded, and
+      // nothing - the persisted 150/200 counter is not yet loaded, and
       // acting on the empty in-memory counter was the proven bypass.
       final instanceB = CreditService(db: db, initialBalance: 0.0);
       expect(
@@ -170,7 +170,7 @@ void main() {
       );
       await instanceB.ready;
 
-      // Only the honest remainder is mintable — the day ends at the cap.
+      // Only the honest remainder is mintable - the day ends at the cap.
       expect(
         instanceB.awardStorageCredits(
           sizeBytes: 500 * 1024 * 1024,
@@ -201,8 +201,8 @@ void main() {
       instanceA.awardComputeCredits(cauchyMb: 5.0); // +10.0
       await instanceA.settled;
 
-      // Simulated restart: before hydration the balance is 0.0 — never
-      // the phantom initialBalance — and every mutator is gated.
+      // Simulated restart: before hydration the balance is 0.0 - never
+      // the phantom initialBalance - and every mutator is gated.
       final instanceB = CreditService(db: db, initialBalance: 0.0);
       expect(
         instanceB.spendCredits(amount: 90.0, reason: 'pre-hydration drain'),
@@ -226,7 +226,7 @@ void main() {
     test('concurrent instances on one database persist a single genesis row',
         () async {
       // Both services hydrate the same fresh database before either's
-      // genesis write can land — the proven double-grant race (E-T2 #3).
+      // genesis write can land - the proven double-grant race (E-T2 #3).
       final instanceA = CreditService(db: db);
       final instanceB = CreditService(db: db);
       await Future.wait([instanceA.ready, instanceB.ready]);
@@ -262,8 +262,8 @@ void main() {
       await instanceA.ready; // hydration throws → degraded path
       await instanceA.settled;
 
-      // Genesis was still granted — the catch path checks for a genesis
-      // row, not merely an empty list — and persisted (only reads fail).
+      // Genesis was still granted - the catch path checks for a genesis
+      // row, not merely an empty list - and persisted (only reads fail).
       expect(instanceA.balance, 100.0);
       expect(
         instanceA.transactions
@@ -312,7 +312,7 @@ String _testDayKey() {
 }
 
 /// Database whose ledger read fails [failures] times before delegating to
-/// the real implementation — simulates a transient hydration failure so
+/// the real implementation - simulates a transient hydration failure so
 /// the degraded catch path can be exercised (E-T2 #7).
 class _FlakyReadDatabase extends AppDatabase {
   _FlakyReadDatabase({required this.failures});

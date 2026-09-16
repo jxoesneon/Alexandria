@@ -28,19 +28,19 @@ class CreditTransaction {
   /// self-dealing guard). Locally self-certified mints are always FALSE.
   final bool isAttested;
 
-  /// Canonical prover pubkey this attested mint belongs to (schema v7 —
+  /// Canonical prover pubkey this attested mint belongs to (schema v7 -
   /// multi-identity sharding). Non-null only on attested CREDIT rows
   /// written by a v7+ build: the egress gate sums attested value per
   /// currently-held key, so value minted under a rotated-out identity
   /// stops backing egress once the key leaves the held set. Null =
   /// the unscoped legacy bucket (pre-v7 rows and egress debit rows
   /// themselves), which counts toward any held-key set. Deliberately
-  /// NOT part of [computeHash] — the hash predates the column and is
+  /// NOT part of [computeHash] - the hash predates the column and is
   /// display-only.
   final String? attestedPubkey;
 
   /// How much of this row's debit consumed the ATTESTED pool (schema v8
-  /// `burned_attested`) — the durable mirror of the service's
+  /// `burned_attested`) - the durable mirror of the service's
   /// unattested-first burn attribution. Non-zero only on debit rows: the
   /// attested share an ordinary debit burned once the unattested pool
   /// ran dry, or the full |amount| on attested-flagged egress rows.
@@ -74,7 +74,7 @@ class CreditTransaction {
     final raw =
         '$id|${timestamp.toIso8601String()}|${type.name}|$amount|$description|${referenceId ?? ''}|$isAttested';
     // Full-width sha256 (64 hex chars). Earlier builds truncated the
-    // digest to 16 chars; persisted short hashes are tolerated — the
+    // digest to 16 chars; persisted short hashes are tolerated - the
     // hash is display-only and never gates a ledger invariant.
     return sha256.convert(utf8.encode(raw)).toString();
   }

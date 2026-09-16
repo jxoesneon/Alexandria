@@ -308,7 +308,7 @@ void main() {
     List<int> sos(List<int> payload) => [0xFF, 0xDA, 0x00, 0x08, ...payload];
 
     test('reserved markers 0x30-0x3F are consumed at width 2', () async {
-      // FF D8 SOI, FF 35 reserved (dropped), FF D9 EOI — padded past
+      // FF D8 SOI, FF 35 reserved (dropped), FF D9 EOI - padded past
       // the 12-byte sniff floor so detectFileType sees a JPEG.
       final input =
           jpeg([0xFF, 0x35, 0xFF, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
@@ -369,7 +369,7 @@ void main() {
     });
 
     test('assembled FF E1 + Exif landing pad refuses image content', () async {
-      // SOS payload ends with `FF E1 00 00` — an intra-segment pad
+      // SOS payload ends with `FF E1 00 00` - an intra-segment pad
       // prefix that only completes when the next emitted bytes (the
       // verbatim entropy run) start with 'Exif'. The assembled-stream
       // rescan must catch the straddling pad.
@@ -410,7 +410,7 @@ void main() {
 
     test('detectSensitiveFields fails closed on unreadable input', () async {
       // Whatever the exif reader does with this garbage, the API must
-      // return a list — a throw inside becomes [].
+      // return a list - a throw inside becomes [].
       final res = await scrubber.detectSensitiveFields(
           Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x02]));
       expect(res, isA<List<String>>());

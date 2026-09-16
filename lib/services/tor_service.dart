@@ -28,8 +28,8 @@ class TorService {
 
   /// Host grammar shared by [setProxy] and [init]: dotted IPv4,
   /// bracketed IPv6, or DNS hostname. Anything else (spaces, `;`,
-  /// directives) could smuggle `findProxy` grammar — e.g. ` PROXY x
-  /// DIRECT` — into the proxy string.
+  /// directives) could smuggle `findProxy` grammar - e.g. ` PROXY x
+  /// DIRECT` - into the proxy string.
   static bool _isValidProxyHost(String h) {
     return RegExp(
       r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[[0-9a-fA-F:]+\]|[A-Za-z0-9]([A-Za-z0-9\-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]*[A-Za-z0-9])?)*)$',
@@ -41,7 +41,7 @@ class TorService {
   Future<void> setProxy(String host, int port) async {
     // Validate host/port shape (red minor-observation hardening): a
     // malformed host reaches Socket.connect and the proxy string
-    // verbatim — restrict to dotted IPv4, [IPv6], or DNS hostname shape,
+    // verbatim - restrict to dotted IPv4, [IPv6], or DNS hostname shape,
     // and a real port range.
     final h = host.trim();
     if (h.isEmpty || !_isValidProxyHost(h)) {
@@ -62,7 +62,7 @@ class TorService {
     final port = await _storage.read('tor_port');
 
     _isEnabled = enabled == 'true';
-    // (slot-C sweep) Stored values bypass setProxy()'s grammar — a
+    // (slot-C sweep) Stored values bypass setProxy()'s grammar - a
     // corrupt or tampered store could smuggle `findProxy` directives
     // (spaces, ';', 'DIRECT') into the proxy string or feed garbage to
     // Socket.connect. Re-validate on load and fail closed to the

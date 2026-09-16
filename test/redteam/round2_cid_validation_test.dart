@@ -1,19 +1,19 @@
-// RED TEAM probe — CidService.isValidCid is a shape check that
+// RED TEAM probe - CidService.isValidCid is a shape check that
 // rubber-stamps arbitrary strings, while IpfsService treats "pinned"
 // as proof of availability.
 //
 // lib/services/cid_service.dart:178-184 accepts ANY string ≥40 chars
-// starting with 'b' or 'z' (and any 46-char 'Qm…' string) — no
+// starting with 'b' or 'z' (and any 46-char 'Qm…' string) - no
 // multibase decode, no multihash structure, no digest length check.
 // Callers using isValidCid as a trust gate admit nonexistent/garbage
 // identifiers. The robust decodeDigest/verifyContent path exists, so
 // the weak check is a footgun in the same class.
 //
 // lib/services/ipfs_service.dart:51-54 pinCid() records ANY string as
-// pinned and returns true — callers cannot distinguish "content held"
+// pinned and returns true - callers cannot distinguish "content held"
 // from "label registered"; getFile() yields EMPTY bytes for unknown
 // CIDs instead of signalling absence (line 47), and findProviders
-// reports a DHT provider for content nobody holds (line 65) —
+// reports a DHT provider for content nobody holds (line 65) -
 // PreservationService.checkContentHealth then reports 'endangered'
 // rather than 'lost' for content that does not exist.
 //
@@ -30,7 +30,7 @@ void main() {
   test('isValidCid must reject structurally invalid identifiers', () {
     final svc = CidService();
     // 40+ chars starting 'b' but NOT valid base32 (0,1,8,9 excluded)
-    // and not a multihash — accepted anyway by the shape check.
+    // and not a multihash - accepted anyway by the shape check.
     expect(svc.isValidCid('b${'0' * 39}'), isFalse,
         reason: 'invalid multibase chars accepted as a CID');
     expect(svc.isValidCid('z${'!' * 40}'), isFalse,

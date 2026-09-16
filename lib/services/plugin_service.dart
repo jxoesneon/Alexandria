@@ -228,7 +228,7 @@ class PluginService {
   /// Register an executable plugin
   void registerPlugin(AlexandriaPlugin plugin) {
     // (round-3 red finding) refuse to even initialize a plugin whose
-    // declared permission set is malformed — the manifest is the trust
+    // declared permission set is malformed - the manifest is the trust
     // contract the context enforces.
     if (!_validatePermissions(plugin.manifest.permissions)) {
       debugPrint(
@@ -237,7 +237,7 @@ class PluginService {
     }
     _executablePlugins[plugin.manifest.id] = plugin;
 
-    // Initialize with a permission-SCOPED context — the raw Ref is
+    // Initialize with a permission-SCOPED context - the raw Ref is
     // private inside PluginContext and read() resolves only allowlisted
     // capabilities matching the manifest's declared permissions.
     final context = PluginContext(
@@ -385,10 +385,10 @@ class PluginService {
     return true;
   }
 
-  /// Validate that permissions are allowed (round-3 red finding — was a
+  /// Validate that permissions are allowed (round-3 red finding - was a
   /// `return true` stub). Only known enum values are accepted and
   /// duplicates are rejected. Enforcement happens at
-  /// [PluginContext.read] — this check guarantees the manifest declares
+  /// [PluginContext.read] - this check guarantees the manifest declares
   /// a well-formed contract.
   bool _validatePermissions(List<PluginPermission> permissions) {
     return permissions.every(PluginPermission.values.contains) &&

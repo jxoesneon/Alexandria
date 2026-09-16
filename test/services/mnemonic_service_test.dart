@@ -11,7 +11,7 @@ import 'package:alexandria/services/secure_storage_service.dart';
 class _MockIdentityService implements IdentityService {
   AlexandriaIdentity? identity;
 
-  /// The store the delegated backup-marker write lands in — mirrors
+  /// The store the delegated backup-marker write lands in - mirrors
   /// [IdentityService.markMnemonicBackupConfirmed] writing into the
   /// shared SecureStorageService.
   SecureStorageService? markerStore;
@@ -47,7 +47,7 @@ class _MockIdentityService implements IdentityService {
     return identity!;
   }
 
-  /// Wired to `onIdentityRecovered` by mnemonicServiceProvider — must
+  /// Wired to `onIdentityRecovered` by mnemonicServiceProvider - must
   /// exist as a real member or the provider's tear-off hits
   /// noSuchMethod and throws.
   @override
@@ -204,7 +204,7 @@ void main() {
       expect(backup!.words.length, equals(24));
 
       // Deriving/displaying the phrase does NOT mark the backup as
-      // done — the marker is written on explicit user confirmation.
+      // done - the marker is written on explicit user confirmation.
       expect(await mnemonicService.hasBackup(), isFalse);
       expect(
         storage.data.containsKey('alexandria_mnemonic_backup'),
@@ -248,7 +248,7 @@ void main() {
       // shown by _generateMnemonic() comes from backupCurrentIdentity()
       // (derived from the stored key), and recoverFromMnemonic() must
       // restore the SAME keypair. The old bug called generateMnemonic()
-      // — fresh random entropy — so the "backup" recovered a different
+      // - fresh random entropy - so the "backup" recovered a different
       // identity (decoy phrase).
       final storage = _InMemorySecureStorage();
       final identityService = IdentityService(storage);
@@ -315,7 +315,7 @@ void main() {
         equals(Uint8List.fromList(publicKeyB.bytes)),
       );
 
-      // getIdentity() must now return B — never the stale A.
+      // getIdentity() must now return B - never the stale A.
       final current = await identityService.getIdentity();
       expect(current, isNotNull);
       expect(current!.publicKey, equals(recovered.publicKey));
@@ -325,7 +325,7 @@ void main() {
 
     test('recoverFromMnemonic still succeeds when onIdentityRecovered throws',
         () async {
-      // The hook is cache coherency belt-and-suspenders — a failure in
+      // The hook is cache coherency belt-and-suspenders - a failure in
       // it must not turn a persisted recovery into a reported failure.
       final service = MnemonicService(
         fakeIdentity,
@@ -352,14 +352,14 @@ void main() {
       await service.markBackupConfirmed(backup!.phrase);
       expect(await service.hasBackup(), isTrue);
 
-      // Re-importing the SAME key keeps the marker — the old phrase
+      // Re-importing the SAME key keeps the marker - the old phrase
       // still recovers this identity.
       await identityService.importIdentity(
         Uint8List.fromList(created.privateKey),
       );
       expect(await service.hasBackup(), isTrue);
 
-      // Replacing the keypair clears it — the old phrase can no longer
+      // Replacing the keypair clears it - the old phrase can no longer
       // recover the current identity.
       final otherKeyPair = await Ed25519().newKeyPair();
       await identityService.importIdentity(
@@ -403,7 +403,7 @@ void main() {
           Uint8List.fromList((await keyPairB.extractPublicKey()).bytes);
       expect(publicKeyB, isNot(equals(identityA.publicKey)));
 
-      // Order A: confirmation is ISSUED before the import — if its
+      // Order A: confirmation is ISSUED before the import - if its
       // serialized op runs first it writes, then the import's
       // pubkey-change clears it; if it runs second, the staleness
       // check drops it.
@@ -419,7 +419,7 @@ void main() {
       );
 
       // Order B: the import is already in flight when the confirmation
-      // is issued — same invariant.
+      // is issued - same invariant.
       final keyPairA2 = await Ed25519().newKeyPair();
       final seedA2 =
           Uint8List.fromList(await keyPairA2.extractPrivateKeyBytes());
@@ -448,7 +448,7 @@ void main() {
 
     test('recover B while A cached -> all read paths return B', () async {
       // End-to-end through the REAL providers: identityStateProvider and
-      // activeIdentitiesProvider must both serve the recovered key —
+      // activeIdentitiesProvider must both serve the recovered key -
       // enforced by identityRevisionProvider, not by call-site
       // invalidation.
       final storage = _InMemorySecureStorage();
@@ -481,7 +481,7 @@ void main() {
       expect(recovered!.publicKey, isNot(equals(identityA.publicKey)));
 
       // The revision bump inside importIdentity invalidated both
-      // providers synchronously — no explicit invalidate needed here.
+      // providers synchronously - no explicit invalidate needed here.
       final state = await container.read(identityStateProvider.future);
       expect(state!.publicKey, equals(recovered.publicKey));
       final idsB = await container.read(activeIdentitiesProvider.future);

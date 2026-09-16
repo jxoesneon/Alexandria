@@ -19,7 +19,7 @@ void main() {
 
       expect(service.baseUrl, 'https://example.test');
       expect(service.apiKey, isNotNull);
-      // Key init is asynchronous — give it a moment to populate the
+      // Key init is asynchronous - give it a moment to populate the
       // identity getters before disposing.
       await Future<void>.delayed(const Duration(milliseconds: 300));
       expect(service.agentId, isA<String>());

@@ -41,7 +41,7 @@ void main() {
       final plaintext = Uint8List.fromList('secret'.codeUnits);
       final cipher = await service.encryptData(plaintext, key1);
       // decryptData now returns null on AEAD authentication failure
-      // (wrong key / tampered box) instead of throwing — the security
+      // (wrong key / tampered box) instead of throwing - the security
       // contract is unchanged: a wrong key NEVER yields plaintext.
       expect(await service.decryptData(cipher, key2), isNull);
     });

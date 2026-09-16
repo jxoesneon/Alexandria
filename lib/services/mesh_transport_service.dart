@@ -12,7 +12,7 @@ final meshTransportServiceProvider = Provider((ref) {
   // Mutual-auth wiring (dialer-auth residual closure): the service
   // presents the node's own Alexandria identity when dialing, so a
   // responder can verify the dialer owns the claimed self-certifying
-  // peerId — a MITM that cannot produce that signature is refused.
+  // peerId - a MITM that cannot produce that signature is refused.
   final identityService = ref.read(identityServiceProvider);
   return MeshTransportService(
     bootstrap: true,
@@ -36,23 +36,23 @@ final meshTransportServiceProvider = Provider((ref) {
 typedef MeshHandshakeProbe = Future<bool> Function(String multiaddr);
 
 /// The material a completed ALX-MESH/1 handshake leaves behind:
-///   * the exact wire transcript both ends recompute — the dialer's
+///   * the exact wire transcript both ends recompute - the dialer's
 ///     `HELLO` line (nonce + multiaddr + dialer ephemeral X25519 key)
 ///     and the responder's `ACK` line (peerId + signature + responder
 ///     ephemeral X25519 key), and
 ///   * the X25519 shared secret the two ephemeral keys produced.
 ///
 /// Both halves matter (round-5 residual closure): the transcript alone
-/// is PUBLIC wire material — a relay that forwarded the handshake could
+/// is PUBLIC wire material - a relay that forwarded the handshake could
 /// recompute a transcript-only key and still splice frames. The
 /// ephemeral DH secret is what a forward-only relay cannot learn, and
 /// the responder's Ed25519 signature covers BOTH ephemeral keys, so a
 /// MITM cannot substitute its own keypair without forging the claimed
 /// identity's signature. Key derivation is HKDF-SHA256(salt =
-/// sharedSecret, ikm = transcript) — bound to the handshake AND
+/// sharedSecret, ikm = transcript) - bound to the handshake AND
 /// uncomputable by observers.
 ///
-/// [transcriptBound] is false only for SYNTHETIC tickets — produced
+/// [transcriptBound] is false only for SYNTHETIC tickets - produced
 /// when a legacy bool [MeshHandshakeProbe] (or a test double) reports
 /// success without running the wire exchange. A synthetic ticket still
 /// yields a per-dial session key, but one no remote peer can recompute;
@@ -68,13 +68,13 @@ class MeshHandshakeTicket {
 
   /// (dialer-auth residual closure) The dialer's self-certifying
   /// peerId and its Ed25519 signature over
-  /// `nonce‖dialerPeerId‖multiaddr‖dialerEphemeral` — present only on
+  /// `nonce‖dialerPeerId‖multiaddr‖dialerEphemeral` - present only on
   /// the MUTUAL (7-field) HELLO form. Empty for anonymous dials and
   /// synthetic tickets.
   final String dialerPeerId;
   final Uint8List dialerSignature;
 
-  /// The X25519 shared secret from the ephemeral exchange — the part a
+  /// The X25519 shared secret from the ephemeral exchange - the part a
   /// handshake-observing relay cannot recompute. Random for synthetic
   /// tickets (local-only binding).
   final Uint8List sharedSecret;
@@ -90,7 +90,7 @@ class MeshHandshakeTicket {
   /// ticket came from a real wire exchange. The channel pump
   /// ([MeshTransportService._attachSocket]) consumes [socketStream]
   /// for inbound length-prefixed frames and writes outbound frames to
-  /// [socket]. Null for injected/synthetic tickets — those channels
+  /// [socket]. Null for injected/synthetic tickets - those channels
   /// keep routing-stub dispatch semantics.
   ///
   /// Do NOT listen on [socket] directly: it is single-subscription and
@@ -129,7 +129,7 @@ class MeshHandshakeTicket {
         transcriptBound: false,
       );
 
-  /// The canonical transcript both sides recompute — the two wire lines
+  /// The canonical transcript both sides recompute - the two wire lines
   /// exactly as exchanged (`HELLO` sent by the dialer, `ACK` answered
   /// by the responder). The mutual (7-field) HELLO is reproduced
   /// verbatim when the dialer authenticated, so BOTH signatures feed
@@ -175,7 +175,7 @@ class MeshPeer {
   final bool isReachable;
   final bool isPending;
 
-  /// (round-3 red finding) `isReachable` defaults to FALSE — a peer is
+  /// (round-3 red finding) `isReachable` defaults to FALSE - a peer is
   /// proven by a completed handshake, never by construction.
   MeshPeer({
     required this.peerId,
@@ -227,11 +227,11 @@ class MeshTransportService {
   /// multiaddrs (see [_defaultSessionProbe]); injectable so tests can
   /// simulate a peer that answers or one that never will.
   ///
-  /// The probe returns a [MeshHandshakeTicket] — not a bare bool — so a
+  /// The probe returns a [MeshHandshakeTicket] - not a bare bool - so a
   /// successful handshake leaves the transcript needed to derive the
   /// post-handshake channel key (round-5 residual closure). A legacy
   /// bool [MeshHandshakeProbe] is adapted into a SYNTHETIC ticket (the
-  /// channel key then binds this dial's material only — enough to keep
+  /// channel key then binds this dial's material only - enough to keep
   /// the injected-probe test seam working, not a shared secret).
   /// Assigned in the constructor body (the default tears off an
   /// instance method).
@@ -239,7 +239,7 @@ class MeshTransportService {
 
   /// Frame dispatcher used by [sendPayload]. The default
   /// ([_dispatchFrame]) writes length-prefixed frames to the peer's
-  /// handshake socket — or, for socket-less injected-probe channels,
+  /// handshake socket - or, for socket-less injected-probe channels,
   /// reports whether a tier route exists (routing-stub semantics).
   /// Injectable so tests can observe the exact MAC'd frames that
   /// leave the channel.
@@ -251,12 +251,12 @@ class MeshTransportService {
   /// later frames. Now every sendPayload frame is
   /// `seq(8 BE) ‖ payload ‖ HMAC-SHA256(channelKey, domain ‖ seq ‖
   /// payload)` where the channel key is HKDF-SHA256 over the handshake
-  /// transcript ([MeshHandshakeTicket.transcriptBytes]) — a relay that
+  /// transcript ([MeshHandshakeTicket.transcriptBytes]) - a relay that
   /// merely forwarded the HELLO/ACK cannot forge the MAC, and the
   /// per-direction sequence counter rejects replays.
   final Map<String, _MeshChannel> _channels = {};
 
-  /// Upper bound on a handshake attempt — a peer that cannot answer
+  /// Upper bound on a handshake attempt - a peer that cannot answer
   /// inside this window is unreachable for routing purposes.
   static const Duration handshakeTimeout = Duration(seconds: 4);
 
@@ -265,7 +265,7 @@ class MeshTransportService {
   /// [localPeerId] (static or via [localPeerIdResolver]) are both
   /// present, the default dialer sends the 7-field HELLO carrying an
   /// Ed25519 signature over
-  /// `nonce‖dialerPeerId‖multiaddr‖dialerEphemeral` — the responder
+  /// `nonce‖dialerPeerId‖multiaddr‖dialerEphemeral` - the responder
   /// verifies it against the public key the peerId itself encodes, so a
   /// MITM cannot complete a handshake toward the responder while
   /// claiming an identity it does not own. With no identity plumbed in
@@ -323,7 +323,7 @@ class MeshTransportService {
 
   /// Adapts the legacy bool seam: a `true` answer produces a synthetic
   /// ticket (fresh local nonce, no responder signature). The derived
-  /// channel key is per-dial and unshareable — documented by
+  /// channel key is per-dial and unshareable - documented by
   /// [MeshHandshakeTicket.transcriptBound].
   static MeshSessionProbe _legacyProbeAdapter(MeshHandshakeProbe probe) =>
       (String multiaddr) async {
@@ -337,9 +337,9 @@ class MeshTransportService {
   /// Wire protocol identifier for the peer handshake.
   static const String handshakeProtocol = 'ALX-MESH/1';
 
-  /// The exact byte string the answering peer signs to prove identity —
+  /// The exact byte string the answering peer signs to prove identity -
   /// `ALX-MESH/1|nonce|peerId|multiaddr-as-dialed|dialerEph|
-  /// responderEph` — binding the claimed identity to THIS dial
+  /// responderEph` - binding the claimed identity to THIS dial
   /// (round-4 red finding) AND to both ephemeral X25519 keys, so a MITM
   /// cannot substitute its own keypair to learn the channel secret
   /// (round-5 residual closure). When both ephemeral fields are empty
@@ -348,7 +348,7 @@ class MeshTransportService {
   ///
   /// (dialer-auth residual closure) When [dialerPeerId] is non-empty it
   /// is appended as a sixth field, so the responder's signature also
-  /// attests WHO it completed the mutual handshake with — the ACK
+  /// attests WHO it completed the mutual handshake with - the ACK
   /// cannot be re-contextualized as an answer to a different claimed
   /// dialer identity.
   static Uint8List handshakeSignBytes(
@@ -366,7 +366,7 @@ class MeshTransportService {
       ));
 
   /// The exact byte string the DIALER signs to prove it owns the
-  /// claimed [dialerPeerId] — `ALX-MESH/1|DIALER|nonce|dialerPeerId|
+  /// claimed [dialerPeerId] - `ALX-MESH/1|DIALER|nonce|dialerPeerId|
   /// multiaddr|dialerEphemeral`. The distinct `DIALER` domain tag keeps
   /// the two signature roles non-interchangeable: a dialer signature
   /// can never be replayed as a responder ACK (or vice versa), and the
@@ -383,7 +383,7 @@ class MeshTransportService {
 
   /// Decodes a self-certifying peerId into its Ed25519 public key.
   /// A mesh peerId IS the Base58 spelling of the peer's 32-byte
-  /// identity key — anything else is unverifiable and unproven.
+  /// identity key - anything else is unverifiable and unproven.
   static Uint8List? _peerIdPublicKey(String peerId) {
     try {
       final decoded = AlexandriaIdentity.decodePublicKeyBase58(peerId);
@@ -405,16 +405,16 @@ class MeshTransportService {
   /// and requires
   ///   `ALX-MESH/1 ACK <nonce> <peerId> <sigB64> <responderEphB64>`
   /// where `<peerId>` must equal the `/p2p/` component of the dialed
-  /// multiaddr AND `<sigB64>` must be a valid Ed25519 signature — under
-  /// the public key the peerId itself encodes — over
+  /// multiaddr AND `<sigB64>` must be a valid Ed25519 signature - under
+  /// the public key the peerId itself encodes - over
   /// `nonce‖peerId‖multiaddr‖dialerEph‖responderEph[‖dialerPeerId]`.
   /// The ephemeral X25519 keys produce a shared secret that seeds the
-  /// channel key — a forward-only relay can read the transcript but
+  /// channel key - a forward-only relay can read the transcript but
   /// cannot recompute the secret, and cannot swap in its own keys
   /// without breaking the responder's signature (round-5 residual
   /// closure). In the mutual form the dialer additionally signs
   /// `nonce‖dialerPeerId‖multiaddr‖dialerEphemeral`, so the responder
-  /// authenticates the dialer by the same self-certifying peerId rule —
+  /// authenticates the dialer by the same self-certifying peerId rule -
   /// a MITM that cannot produce that signature is refused before the
   /// ephemeral exchange (dialer-auth residual closure).
   ///
@@ -425,7 +425,7 @@ class MeshTransportService {
   /// channel pump or destroys it.
   ///
   /// (round-3 red finding) A bare TCP accept is NOT proof of a peer.
-  /// (round-4 red finding) An echoed peerId is NOT proof either — the
+  /// (round-4 red finding) An echoed peerId is NOT proof either - the
   /// round-3 ACK let any listener claim ANY peerId (the caller had just
   /// told it which one to echo). The signature binds the handshake to
   /// the claimed identity's private key, so an endpoint without those
@@ -433,7 +433,7 @@ class MeshTransportService {
   ///
   /// Key-distribution residual: peerIds are self-certifying (the id IS
   /// the public key), so no out-of-band key channel is needed for the
-  /// handshake itself — but whatever produces the multiaddr (discovery,
+  /// handshake itself - but whatever produces the multiaddr (discovery,
   /// rendezvous) still chooses WHICH peerId you dial; that binding is
   /// only as trustworthy as its source.
   static Future<MeshHandshakeTicket?> _defaultSessionProbe(
@@ -453,7 +453,7 @@ class MeshTransportService {
     final peerKey = _peerIdPublicKey(peerId);
     if (peerKey == null) return null; // peerId carries no public key
     // Mutual auth is possible only when the local peerId is itself
-    // self-certifying — a signature over a peerId that carries no
+    // self-certifying - a signature over a peerId that carries no
     // public key could never be verified and would poison the dial.
     final mutual = localPeerId != null &&
         identitySigner != null &&
@@ -464,7 +464,7 @@ class MeshTransportService {
       socket = await Socket.connect(host, port, timeout: handshakeTimeout);
       socket.setOption(SocketOption.tcpNoDelay, true);
       // One broadcast view for the handshake read AND the later frame
-      // pump — the socket is single-subscription; when the line read
+      // pump - the socket is single-subscription; when the line read
       // cancels, the underlying subscription pauses (no bytes lost)
       // until the pump attaches.
       final stream = socket.asBroadcastStream();
@@ -481,7 +481,7 @@ class MeshTransportService {
         dialerSignature = await identitySigner(
             dialerHelloSignBytes(nonce, localPeerId, multiaddr, dialerEph));
         // A signer that cannot produce an Ed25519 signature is broken
-        // identity plumbing — fail the dial closed rather than
+        // identity plumbing - fail the dial closed rather than
         // silently downgrade to the anonymous form the operator did
         // not ask for.
         if (dialerSignature.length != 64) return null;
@@ -509,9 +509,9 @@ class MeshTransportService {
       final responderEph = parts[5];
       final responderEphBytes = base64Decode(responderEph);
       if (responderEphBytes.length != 32) return null;
-      // The signature must cover BOTH ephemeral keys — otherwise a MITM
+      // The signature must cover BOTH ephemeral keys - otherwise a MITM
       // could strip the eph fields or substitute its own pair and learn
-      // the channel secret — and, in the mutual form, the claimed
+      // the channel secret - and, in the mutual form, the claimed
       // dialer identity, so the ACK cannot be re-attributed.
       final verified = await Ed25519().verify(
         handshakeSignBytes(nonce, peerId, multiaddr, dialerEph, responderEph,
@@ -530,7 +530,7 @@ class MeshTransportService {
       final sharedBytes = Uint8List.fromList(await shared.extractBytes());
       // Low-order-point guard: an all-zero shared secret means the peer
       // sent a degenerate public key (contributed-keylog/forgery edge)
-      // — refuse rather than derive a public-known channel key.
+      // - refuse rather than derive a public-known channel key.
       if (sharedBytes.every((b) => b == 0)) return null;
       completed = true;
       return MeshHandshakeTicket(
@@ -549,7 +549,7 @@ class MeshTransportService {
     } catch (_) {
       return null;
     } finally {
-      // The socket stays open ONLY on a completed handshake — it is the
+      // The socket stays open ONLY on a completed handshake - it is the
       // frame transport. Every failure path still destroys it.
       if (!completed) socket?.destroy();
     }
@@ -561,26 +561,26 @@ class MeshTransportService {
   /// carrying an Ed25519 signature over
   /// `nonce‖localPeerId‖multiaddr‖dialerEph‖responderEph[‖dialerPeerId]`
   /// produced by [identitySigner] (e.g. `IdentityService.sign`).
-  /// Without a signer the endpoint can only prove liveness — it emits
+  /// Without a signer the endpoint can only prove liveness - it emits
   /// an unsigned ACK that identity-binding dialers always reject, and
   /// this method reports false.
   ///
   /// (dialer-auth residual closure) The 7-field HELLO is the mutual
   /// form: the responder verifies the dialer's Ed25519 signature over
   /// `nonce‖dialerPeerId‖multiaddr‖dialerEphemeral` against the public
-  /// key `dialerPeerId` encodes BEFORE doing any ephemeral work — a
+  /// key `dialerPeerId` encodes BEFORE doing any ephemeral work - a
   /// forged or unverifiable dialer identity is refused with NO answer
   /// (the dialer is presumably hostile; a silent close is the cheapest
-  /// refusal). A 6-field HELLO — a claimed identity with no proof —
+  /// refusal). A 6-field HELLO - a claimed identity with no proof -
   /// is malformed and refused the same way.
   ///
   /// [onSessionBound] (round-5 residual closure) receives the
-  /// responder-side [MeshHandshakeTicket] — transcript plus the X25519
-  /// shared secret — when a SIGNED ack over an ephemeral exchange was
+  /// responder-side [MeshHandshakeTicket] - transcript plus the X25519
+  /// shared secret - when a SIGNED ack over an ephemeral exchange was
   /// produced; feed it to [deriveSessionKey] to reconstruct the same
   /// channel key the dialer derives. The ticket also carries the live
   /// [MeshHandshakeTicket.socket]/[MeshHandshakeTicket.socketStream]
-  /// so the listener can attach a frame pump — do not re-listen on the
+  /// so the listener can attach a frame pump - do not re-listen on the
   /// socket itself. It is never invoked for the unsigned path, for a
   /// legacy HELLO carrying no ephemeral key (the exchange can bind
   /// identity but not a channel), or for a degenerate low-order peer
@@ -603,8 +603,8 @@ class MeshTransportService {
           .timeout(handshakeTimeout);
       final parts = line.trim().split(' ');
       // Valid HELLO arities: 3 (nonce only), 4 (+multiaddr),
-      // 5 (+dialerEph), 7 (+dialerPeerId+dialerSig — mutual). Six
-      // fields is a claimed identity without proof — refuse it.
+      // 5 (+dialerEph), 7 (+dialerPeerId+dialerSig - mutual). Six
+      // fields is a claimed identity without proof - refuse it.
       if (parts.length < 3 ||
           parts.length == 6 ||
           parts.length > 7 ||
@@ -619,7 +619,7 @@ class MeshTransportService {
       final dialerPeerId = parts.length == 7 ? parts[5] : '';
       final signer = identitySigner;
       if (signer == null) {
-        // No credentials for the claimed peerId — answer (so the dialer
+        // No credentials for the claimed peerId - answer (so the dialer
         // fails fast) but never produce a proof we cannot make.
         socket.add(utf8.encode('$handshakeProtocol ACK $nonce $localPeerId\n'));
         await socket.flush();
@@ -629,7 +629,7 @@ class MeshTransportService {
       if (dialerPeerId.isNotEmpty) {
         // Mutual form: authenticate the DIALER first. The signature
         // must verify under the public key the claimed peerId itself
-        // encodes — an endpoint asserting an identity it does not own
+        // encodes - an endpoint asserting an identity it does not own
         // is refused before any key exchange work.
         final dialerKey = _peerIdPublicKey(dialerPeerId);
         if (dialerKey == null) return false;
@@ -650,7 +650,7 @@ class MeshTransportService {
       }
       if (dialerEph.isEmpty) {
         // Legacy HELLO with no ephemeral key: identity can still be
-        // proven, but no channel secret exists — sign the identity-only
+        // proven, but no channel secret exists - sign the identity-only
         // form and bind no channel.
         final signature = await signer(
             handshakeSignBytes(nonce, localPeerId, dialedMultiaddr));
@@ -679,7 +679,7 @@ class MeshTransportService {
             SimplePublicKey(dialerEphBytes, type: KeyPairType.x25519),
       );
       final sharedBytes = Uint8List.fromList(await shared.extractBytes());
-      // Low-order-point guard — mirrors the dialer-side check: never
+      // Low-order-point guard - mirrors the dialer-side check: never
       // bind a channel on a degenerate all-zero shared secret.
       if (sharedBytes.every((b) => b == 0)) return true;
       onSessionBound?.call(MeshHandshakeTicket(
@@ -722,17 +722,17 @@ class MeshTransportService {
   //     info = "alexandria:mesh-channel:v1")
   //
   // The transcript is `HELLO nonce multiaddr dialerEph [dialerPeerId
-  // dialerSig]` ‖ `ACK nonce peerId sigB64 responderEph` — both wire
+  // dialerSig]` ‖ `ACK nonce peerId sigB64 responderEph` - both wire
   // lines verbatim, so BOTH signatures feed the key (dialer-auth
   // residual closure). The DH secret keeps the key out of a
   // forward-only relay's reach; the transcript keeps it bound to THIS
   // handshake on THIS multiaddr.
   //
-  // The direction byte (implicit — never serialized) makes the two
+  // The direction byte (implicit - never serialized) makes the two
   // halves of the conversation non-interchangeable: a relay that
   // reflects a dialer's own frame back at it gets a MAC mismatch, not
-  // a looped payload. (Reflection needs no key knowledge — it is a
-  // pure copy — so an unkeyed direction would not help; the direction
+  // a looped payload. (Reflection needs no key knowledge - it is a
+  // pure copy - so an unkeyed direction would not help; the direction
   // lives inside the MAC domain so the tag itself differs per
   // direction.)
 
@@ -741,12 +741,12 @@ class MeshTransportService {
   static const int _framePrefixLen = 4;
 
   /// Frame direction tags mixed into the MAC domain (not sent on the
-  /// wire — both sides derive them from the ticket's responderSide).
+  /// wire - both sides derive them from the ticket's responderSide).
   static const int _dirDialerToResponder = 0;
   static const int _dirResponderToDialer = 1;
 
   /// Upper bound on a single channel frame. A peer declaring more is a
-  /// memory-exhaustion attempt — the link is torn down.
+  /// memory-exhaustion attempt - the link is torn down.
   static const int maxFrameBytes = 1 << 20;
 
   static final List<int> _frameMacDomain = utf8.encode('alx-mesh-frame:v1');
@@ -798,7 +798,7 @@ class MeshTransportService {
   /// Encodes a channel frame under [key] at sequence [seq]. Static so
   /// the peer side (and tests) can interop with [_attemptSend]'s wire
   /// format. [direction] is the MAC-domain direction tag: it defaults
-  /// to responder→dialer — the direction any *inbound* frame takes on
+  /// to responder→dialer - the direction any *inbound* frame takes on
   /// a dialer-side channel, which is what test-constructed frames
   /// simulate.
   static Uint8List encodeFrame(Uint8List key, int seq, Uint8List payload,
@@ -815,7 +815,7 @@ class MeshTransportService {
   ///
   /// HONESTY: these are *candidate* endpoints, not proven peers. They
   /// start `isReachable: false` with `isPending: true` and
-  /// `latencyMs: 0` — no reachability or latency is claimed until a
+  /// `latencyMs: 0` - no reachability or latency is claimed until a
   /// real handshake (e.g. [connectToPeer]) completes. Callers should
   /// treat them as dial targets, not as active peers.
   void bootstrapDefaultPeers() {
@@ -877,7 +877,7 @@ class MeshTransportService {
   /// A wire/UI-supplied `isReachable` flag is dropped: a registered peer
   /// enters unproven and only a successful [connectToPeer] handshake
   /// marks it reachable. An existing record keeps its proven status
-  /// only when the re-registered address is identical — a changed
+  /// only when the re-registered address is identical - a changed
   /// address invalidates the handshake binding (a swapped address could
   /// otherwise smuggle an unproven endpoint in under a proven peerId).
   void registerPeer(MeshPeer peer) {
@@ -940,7 +940,7 @@ class MeshTransportService {
   /// channel.
   ///
   /// Returns `false` when the peer is unknown, not currently reachable
-  /// (i.e. no handshake has proven it — including unproven bootstrap
+  /// (i.e. no handshake has proven it - including unproven bootstrap
   /// candidates and peers whose probe just failed), has no channel
   /// binding, or when no transport tier is available.
   ///
@@ -951,7 +951,7 @@ class MeshTransportService {
   /// handshake. The default transport writes the frame
   /// length-prefixed to the peer's handshake socket (frame dispatch
   /// residual closure); `true` still means "the MAC'd frame was
-  /// handed to the wire", not "delivery acknowledged" — transport
+  /// handed to the wire", not "delivery acknowledged" - transport
   /// ACKs remain a separate milestone.
   Future<bool> sendPayload(String peerId, Uint8List data) =>
       _attemptSend(peerId, data);
@@ -964,7 +964,7 @@ class MeshTransportService {
 
   /// Dispatch gate for [sendPayload]: only proven `isReachable` peers
   /// WITH a live channel may carry payload traffic. Reachability itself
-  /// is established exclusively by the [connectToPeer] handshake probe —
+  /// is established exclusively by the [connectToPeer] handshake probe -
   /// payload sends can never bootstrap a peer into the reachable set.
   Future<bool> _attemptSend(String peerId, Uint8List data) async {
     final peer = _peers[peerId];
@@ -972,13 +972,13 @@ class MeshTransportService {
     final channel = _channels[peerId];
     // A reachable peer without a channel cannot happen through the
     // public API (channels are installed by the same write-back that
-    // marks reachability) — this is defense in depth, not bookkeeping.
+    // marks reachability) - this is defense in depth, not bookkeeping.
     if (channel == null) return false;
     final direction =
         channel.responderSide ? _dirResponderToDialer : _dirDialerToResponder;
     final frame = encodeFrame(channel.key, channel.sendSeq, data, direction);
     // The sequence is consumed whether or not dispatch reports
-    // success — a "failed" send may still have hit the wire, and
+    // success - a "failed" send may still have hit the wire, and
     // re-using a seq for different bytes reads as a replay attack to
     // the receiver.
     channel.sendSeq++;
@@ -986,12 +986,12 @@ class MeshTransportService {
   }
 
   /// The default frame dispatcher: writes the frame to the peer's
-  /// handshake socket as `len(4, big-endian) ‖ frame` — the same
+  /// handshake socket as `len(4, big-endian) ‖ frame` - the same
   /// TCP connection that carried HELLO/ACK carries channel traffic,
   /// so frames inherit the socket's liveness (close → demotion, see
   /// [_handleSocketGone]).
   ///
-  /// Channels built from injected/synthetic tickets carry no socket —
+  /// Channels built from injected/synthetic tickets carry no socket -
   /// for them this keeps the documented routing-stub semantics:
   /// `true` means "a tier route exists", never "delivered".
   Future<bool> _dispatchFrame(String peerId, Uint8List frame) async {
@@ -1014,7 +1014,7 @@ class MeshTransportService {
       await socket.flush();
       return true;
     } catch (_) {
-      // The write side of the handshake socket is dead — demote the
+      // The write side of the handshake socket is dead - demote the
       // failed address under the round-6 TOCTOU rules.
       _handleSocketGone(peerId, channel, peer.address);
       return false;
@@ -1024,7 +1024,7 @@ class MeshTransportService {
   /// Attaches the frame pump: the handshake socket becomes the
   /// channel's transport, parsing `len ‖ frame` chunks into
   /// [receiveFrame]. Byte loss between the handshake line read and
-  /// this attach is impossible — the ticket's broadcast stream pauses
+  /// this attach is impossible - the ticket's broadcast stream pauses
   /// the underlying socket while it has no listeners.
   void _attachSocket(
       String peerId, _MeshChannel channel, MeshHandshakeTicket ticket) {
@@ -1042,7 +1042,7 @@ class MeshTransportService {
 
   /// Accumulates socket bytes into the channel's reassembly buffer and
   /// drains every complete `len(4 BE) ‖ frame` unit through
-  /// [receiveFrame] (MAC + sequence verification happen there — this
+  /// [receiveFrame] (MAC + sequence verification happen there - this
   /// pump never releases plaintext itself).
   void _onSocketChunk(
       String peerId, _MeshChannel channel, String multiaddr, List<int> chunk) {
@@ -1051,13 +1051,13 @@ class MeshTransportService {
     while (buf.length >= _framePrefixLen) {
       final declared = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
       if (declared > maxFrameBytes) {
-        // Protocol violation / memory-exhaustion attempt — tear the
+        // Protocol violation / memory-exhaustion attempt - tear the
         // link down rather than buffer toward an unbounded frame.
         _handleSocketGone(peerId, channel, multiaddr);
         return;
       }
       if (buf.length < _framePrefixLen + declared) {
-        return; // partial frame — wait for more bytes
+        return; // partial frame - wait for more bytes
       }
       final frame = Uint8List.fromList(
           buf.sublist(_framePrefixLen, _framePrefixLen + declared));
@@ -1070,7 +1070,7 @@ class MeshTransportService {
   /// Round-6 TOCTOU rules apply verbatim: re-read the peer row after
   /// the async gap and demote ONLY when the dead socket's channel is
   /// still the installed one AND the record still points at the
-  /// address this socket was dialed to — a re-registered or re-dialed
+  /// address this socket was dialed to - a re-registered or re-dialed
   /// record (different address, or a fresher channel) is left alone.
   void _handleSocketGone(
       String peerId, _MeshChannel channel, String multiaddr) {
@@ -1078,7 +1078,7 @@ class MeshTransportService {
     if (wasCurrent) {
       _dropChannel(peerId);
     } else {
-      // Stale socket (a newer channel replaced it) — just clean up.
+      // Stale socket (a newer channel replaced it) - just clean up.
       channel.socketSub?.cancel();
       channel.socket?.destroy();
     }
@@ -1107,7 +1107,7 @@ class MeshTransportService {
   /// against the handshake-bound key, then emits the payload on
   /// [onPayloadReceived].
   ///
-  /// Returns false — releasing nothing — when the peer is unknown or
+  /// Returns false - releasing nothing - when the peer is unknown or
   /// unproven, has no channel, the frame is truncated, the MAC fails
   /// (forged or wrong-key input), or the sequence is not ahead of the
   /// last accepted one (replay/drop).
@@ -1121,12 +1121,12 @@ class MeshTransportService {
     final seq = ByteData.sublistView(frame, 0, _frameSeqLen).getUint64(0);
     final payload = frame.sublist(_frameSeqLen, frame.length - _frameMacLen);
     final mac = frame.sublist(frame.length - _frameMacLen);
-    // Inbound frames travel the OPPOSITE direction to our sends — a
+    // Inbound frames travel the OPPOSITE direction to our sends - a
     // reflected copy of our own outbound frame fails this MAC.
     final direction =
         channel.responderSide ? _dirDialerToResponder : _dirResponderToDialer;
     final expected = _frameMac(channel.key, seq, payload, direction);
-    // Constant-time tag compare — a mismatch is forged/tampered input
+    // Constant-time tag compare - a mismatch is forged/tampered input
     // and is rejected BEFORE any plaintext is released.
     var diff = 0;
     for (var i = 0; i < _frameMacLen; i++) {
@@ -1161,7 +1161,7 @@ class MeshTransportService {
       _peers[peerId] = peer;
     }
 
-    // Mark dial-in-progress — but (round-4 red finding) do NOT strip a
+    // Mark dial-in-progress - but (round-4 red finding) do NOT strip a
     // proven record's reachability up front, and on failure only demote
     // when the probed address IS the proven one. A failed handshake to
     // a DIFFERENT address says nothing about the proven endpoint, so a
@@ -1173,7 +1173,7 @@ class MeshTransportService {
 
     final stopwatch = Stopwatch()..start();
     // Real handshake attempt: the probe must observe the remote endpoint
-    // answer. No tier/bookkeeping shortcut — a peer enters `isReachable`
+    // answer. No tier/bookkeeping shortcut - a peer enters `isReachable`
     // only on proof, so phantom/Sybil addresses cannot inflate
     // activePeers or unlock selectBestTransport/sendPayload (round-2
     // red finding).
@@ -1189,20 +1189,20 @@ class MeshTransportService {
 
     // (round-6 red finding) TOCTOU: the peer map may have changed while
     // the async probe was in flight. Writing back the T0 snapshot
-    // unconditionally RESURRECTED a peer revoked by unregisterPeer —
-    // marked isReachable, the only gate on sendPayload — and clobbered
+    // unconditionally RESURRECTED a peer revoked by unregisterPeer -
+    // marked isReachable, the only gate on sendPayload - and clobbered
     // fresher records from disconnectPeer/registerPeer. Re-read the map
     // and write back ONLY if the record is still the pending snapshot
     // we installed; otherwise the newer owner manages the state.
     final current = _peers[peerId];
     if (current == null) {
-      // Removed mid-probe — a completed handshake must not resurrect
+      // Removed mid-probe - a completed handshake must not resurrect
       // it, and its socket must not leak as a live transport.
       ticket?.socket?.destroy();
       return ok;
     }
     if (!identical(current, pendingSnapshot)) {
-      // disconnectPeer/registerPeer/unregisterPeer touched the record —
+      // disconnectPeer/registerPeer/unregisterPeer touched the record -
       // keep the newer state, drop our stale write-back entirely.
       ticket?.socket?.destroy();
       return ok;
@@ -1220,7 +1220,7 @@ class MeshTransportService {
       // The install happens only on the identical-snapshot write-back,
       // so a revoked/re-registered peer can never inherit the channel
       // (same TOCTOU bound as the reachability write). A previous
-      // channel (re-dial of the same peerId) is dropped first — its
+      // channel (re-dial of the same peerId) is dropped first - its
       // socket is torn down via _dropChannel, and its demotion path
       // is disarmed because it is no longer the installed channel.
       _dropChannel(peerId);
@@ -1233,7 +1233,7 @@ class MeshTransportService {
       // The handshake socket becomes the frame transport.
       _attachSocket(peerId, channel, ticket);
     } else if (peer.isReachable && peer.address != multiaddr) {
-      // Failed probe of a NEW address — the proven record stands, and
+      // Failed probe of a NEW address - the proven record stands, and
       // so does its channel (bound to the still-valid handshake).
       _peers[peerId] = current.copyWith(isPending: false);
     } else {
@@ -1280,7 +1280,7 @@ class MeshTransportService {
 
 /// Per-peer post-handshake channel state (round-5 residual closure):
 /// the HKDF-derived key plus per-direction sequence cursors. [sendSeq]
-/// is consumed monotonically (even on dispatch failure — a "failed"
+/// is consumed monotonically (even on dispatch failure - a "failed"
 /// send may have reached the wire); [recvSeq] records the highest
 /// accepted inbound sequence so replays and stale frames are dropped.
 /// In-memory only: a process restart re-handshakes anyway, so there is
@@ -1297,7 +1297,7 @@ class _MeshChannel {
 
   final Uint8List key;
 
-  /// Which side of the handshake this service holds — fixes the
+  /// Which side of the handshake this service holds - fixes the
   /// direction tag this channel SENDS under and the one it accepts.
   final bool responderSide;
 
@@ -1305,7 +1305,7 @@ class _MeshChannel {
   /// the key binds this dial's material but no peer can recompute it.
   final bool transcriptBound;
 
-  /// The live handshake socket (null for injected-probe channels —
+  /// The live handshake socket (null for injected-probe channels -
   /// those dispatch through the routing-stub fallback instead).
   Socket? socket;
 

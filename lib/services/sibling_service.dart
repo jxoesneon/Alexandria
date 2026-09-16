@@ -31,7 +31,7 @@ class ContentSibling {
 }
 
 class SiblingService {
-  /// Maps a wire variant name to [VariantType] without throwing —
+  /// Maps a wire variant name to [VariantType] without throwing -
   /// `Enum.values.byName` would crash on a remote-supplied unknown name.
   static VariantType? _variantTypeFromWire(Object? raw) {
     if (raw is! String) return null;
@@ -81,7 +81,7 @@ class SiblingService {
     return d[m][n];
   }
 
-  /// Upper bound on title length fed into the O(m·n) Levenshtein matrix —
+  /// Upper bound on title length fed into the O(m·n) Levenshtein matrix -
   /// attacker-sized titles would otherwise allocate quadratic memory/CPU
   /// (red minor-observation hardening).
   static const int maxTitleLength = 512;
@@ -145,7 +145,7 @@ class SiblingService {
           title: candidateTitle,
           similarity: similarity,
           // Non-throwing lookup: remote candidates can carry variant
-          // names this build doesn't know — an unknown name degrades to
+          // names this build doesn't know - an unknown name degrades to
           // null instead of throwing out of the scan (red hardening).
           variantType: _variantTypeFromWire(candidate['variantType']),
           variantValue: candidate['variantValue'] as String?,

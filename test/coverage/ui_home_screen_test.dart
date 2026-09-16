@@ -129,7 +129,7 @@ void main() {
     await tester.tap(find.text('Add to Library'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    // The pushed wizard may throw in the hermetic test env — the
+    // The pushed wizard may throw in the hermetic test env - the
     // navigation itself is what this test covers.
     tester.takeException();
     await tester.pumpAndSettle();

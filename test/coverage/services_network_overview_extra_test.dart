@@ -148,7 +148,7 @@ void main() {
       expect(tor.proxyPort, 9150);
       expect(tor.isEnabled, isTrue);
 
-      // Same port again — setProxy is skipped, disable still runs.
+      // Same port again - setProxy is skipped, disable still runs.
       await service.updateTransport(const TransportConfig(
         protocol: TransportProtocol.tor,
         enabled: false,

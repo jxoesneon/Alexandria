@@ -7,11 +7,11 @@ import 'release_manifest_authority.dart';
 /// The signer quorum-key trust root for release-manifest verification
 /// (ALX-012 §5.1).
 ///
-/// DEFAULT: [EmptyReleaseKeyRegistry] — fail closed by construction.
+/// DEFAULT: [EmptyReleaseKeyRegistry] - fail closed by construction.
 /// No key is trusted, so no manifest can ever verify and the effective
 /// floor stays at the per-verifier compile-time constant. This is the
 /// RFC's safe state: "no manifest mechanism means no central lever
-/// exists to abuse" — an EMPTY registry cannot mint a quorum, and wire
+/// exists to abuse" - an EMPTY registry cannot mint a quorum, and wire
 /// data must never populate it.
 ///
 /// PRODUCTION GRADUATION (RFC §5.1 trigger condition i): when an
@@ -20,7 +20,7 @@ import 'release_manifest_authority.dart';
 /// [StaticReleaseKeyRegistry] carrying the pinned release/timestamp
 /// keyIds and thresholds (e.g. 3-of-5 release, 1-of-1 timestamp). The
 /// override must come from node configuration, NEVER from transported
-/// data — the registry is the trust root, so letting the network name
+/// data - the registry is the trust root, so letting the network name
 /// its own quorum would be the Sybil bootstrapping attack in its
 /// purest form.
 final releaseKeyRegistryProvider = Provider<ReleaseKeyRegistry>(
@@ -32,7 +32,7 @@ final releaseKeyRegistryProvider = Provider<ReleaseKeyRegistry>(
 /// claimable wire floor.
 ///
 /// `baselineFloor` is the per-verifier compile-time constant
-/// ([CreditService.minClaimableWireVersion]) — a valid manifest can
+/// ([CreditService.minClaimableWireVersion]) - a valid manifest can
 /// RAISE the effective floor above it but NEVER lower it (raise-only
 /// ratchet, no central kill switch and no reverse-direction lever).
 ///

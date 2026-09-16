@@ -69,7 +69,7 @@ class _FakeContentRepository implements ContentRepository {
   }
 
   // The screen now unwraps DEKs through the repository layer
-  // (round-2 fix — manifest rows no longer carry key material), so the
+  // (round-2 fix - manifest rows no longer carry key material), so the
   // download path calls retrieveManifestContent rather than
   // downloadContent.
   @override

@@ -217,7 +217,7 @@ void main() {
       store['master_key_v1'] = base64Encode(List.filled(32, 9));
       await service.log('e1');
       await service.log('e2');
-      // Truncate the file — the persisted head says two entries existed.
+      // Truncate the file - the persisted head says two entries existed.
       await logFile().writeAsString('');
       final logs = await service.getRecentLogs(50);
       expect(logs.where((l) => l.event == 'audit_log_tail_gap'), isNotEmpty);

@@ -12,7 +12,7 @@ import 'package:alexandria/services/credits/poch_service.dart';
 import 'package:alexandria/services/ipfs_service.dart';
 
 /// Builds a REAL, construction-verified [EscrowAttestation] from a
-/// foreign attestor for [bounty] — the successor to the old
+/// foreign attestor for [bounty] - the successor to the old
 /// caller-asserted `escrowAttested: true` bool.
 Future<EscrowAttestation?> _attestBounty(
   SimpleKeyPair attestor,
@@ -96,7 +96,7 @@ void main() {
       expect(stewardService.activityLog.any((l) => l.contains('Cauchy RS')),
           isTrue);
 
-      // ALX-010: self-reported steward compute must NOT mint credits —
+      // ALX-010: self-reported steward compute must NOT mint credits -
       // no transaction may carry the steward compute description.
       expect(
         creditService.transactions
@@ -118,7 +118,7 @@ void main() {
 
       await stewardService.runStewardIteration();
 
-      // Seeded demo bounties are unfunded — nothing may be claimed or paid.
+      // Seeded demo bounties are unfunded - nothing may be claimed or paid.
       expect(stewardService.totalBountiesClaimed, 0);
       expect(moltbookService.activeBounties.length, initialBountiesCount);
       expect(creditService.balance, initialBalance);
@@ -138,7 +138,7 @@ void main() {
       // directly observable (poster -25, claimant +25, treasury +0).
       final poster = MoltbookService(creditService: creditService);
       // The attestor must be minted before the claiming service so its
-      // key can sit in the ambient trust root at construction (REV3) —
+      // key can sit in the ambient trust root at construction (REV3) -
       // there is no per-call trustedAttestors override anymore.
       final attestor = await Ed25519().newKeyPair();
       final ipfsMoltbook = MoltbookService(
@@ -171,10 +171,10 @@ void main() {
       expect(creditService.balance, 75.0); // 25.0 escrowed at post time
 
       // The announcement propagates over the transport to this node.
-      // (Key rotation on the posting node must NOT be required — and must
-      // never suffice — to claim; locally posted ids are barred for life.)
+      // (Key rotation on the posting node must NOT be required - and must
+      // never suffice - to claim; locally posted ids are barred for life.)
       // A real foreign attestor's EscrowAttestation stands in for the
-      // transport's out-of-band verification — remote `funded` flags
+      // transport's out-of-band verification - remote `funded` flags
       // alone are stripped on ingest (E-T5r #1 / ALX-011 A3), and the
       // attestor must sit inside the node's ambient trust root
       // (`trustedAttestorPubkeys`, configured above at construction)
@@ -187,7 +187,7 @@ void main() {
       await ipfsSteward.runStewardIteration();
 
       expect(ipfsSteward.totalBountiesClaimed, 1);
-      // Ingest stores a copy of the announcement — the claim flag lives
+      // Ingest stores a copy of the announcement - the claim flag lives
       // on the stored record, so a claimed bounty drops out of
       // activeBounties rather than mutating the caller's object (H3).
       expect(bounty.isClaimed, isFalse);
@@ -230,7 +230,7 @@ void main() {
       );
       expect(creditService.balance, 75.0);
 
-      // Rotate identity — this was the exploit vector.
+      // Rotate identity - this was the exploit vector.
       await ipfsMoltbook.setKeyPair(await Ed25519().newKeyPair());
 
       await ipfsSteward.runStewardIteration();

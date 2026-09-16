@@ -1,19 +1,19 @@
-// RED TEAM PoC — Round-10: the round-9 allowlist narrowed the JPEG
+// RED TEAM PoC - Round-10: the round-9 allowlist narrowed the JPEG
 // keep-set to decode-relevant markers and canonical APP0/APP14, but
 // every kept segment is still emitted as
-// `sublist(segStart, i + 2 + segLen)` — its declared-length payload is
+// `sublist(segStart, i + 2 + segLen)` - its declared-length payload is
 // copied verbatim and never inspected
 // (lib/services/metadata_scrubbing_service.dart:613-614). The
 // assumption behind keeping opaque decode payloads is that no EXIF
 // reader can surface what lives inside them. That assumption is
 // false: package:exif's JPEG walker (_jpegReadParams,
 // exif-3.3.0/lib/src/read_exif.dart:271-333) is NOT entropy-aware.
-// Its dispatch recognises only FF E1/E0/E2/EE/DB/D8/EC — every other
+// Its dispatch recognises only FF E1/E0/E2/EE/DB/D8/EC - every other
 // position (including SOS, 0xDA) falls to the `else` branch, which
 // hops forward by an attacker-controlled 16-bit word
 // (_incrementBase = data[base+2]*256 + data[base+3] + 2). After an
 // SOS the walk therefore marches THROUGH the entropy-coded data using
-// fake "lengths" the attacker plants there — it can be aimed at an
+// fake "lengths" the attacker plants there - it can be aimed at an
 // arbitrary absolute offset, including the middle of a subsequent
 // kept segment's payload.
 //
@@ -22,33 +22,33 @@
 //
 //   SOI  FF D8
 //   APP0 canonical JFIF (kept, re-emitted byte-identical)
-//   SOS  FF DA 00 08 … — kept; the reader's else-branch hops its real
+//   SOS  FF DA 00 08 … - kept; the reader's else-branch hops its real
 //        declared length and lands on the first entropy byte
-//   "entropy"  11 22 00 0C — emitted verbatim by the scrubber (no
+//   "entropy"  11 22 00 0C - emitted verbatim by the scrubber (no
 //        0xFF byte → the entropy walk copies it whole). The reader
 //        sees [11 22] (no marker match) then hops by 0x000C + 2 = 14
 //        bytes, landing exactly on the planted `FF E1` inside…
-//   DQT  FF DB 00 43 — kept VERBATIM (decode-relevant). Its 65-byte
+//   DQT  FF DB 00 43 - kept VERBATIM (decode-relevant). Its 65-byte
 //        payload is a spec byte + 64 arbitrary quant-table values, in
 //        which we embed `FF E1 <len> 'Exif\0\0' <TIFF>` at offset 6.
 //   EOI  FF D9
 //
 // The reader lands on the plant, finds 'Exif' at +4, and parses a
 // complete TIFF (Image Make = 'RED') out of the DQT payload. The
-// segment is a fully legal DQT — one 8-bit quant table; table values
-// are unconstrained — so the output remains a decodable JPEG.
+// segment is a fully legal DQT - one 8-bit quant table; table values
+// are unconstrained - so the output remains a decodable JPEG.
 //
 // Consequence: after scrubbing, `extractMetadata`/`detectSensitiveFields`
 // on the OUTPUT still return sensitive fields. removedFields stays
 // technically honest (it only claims what verifiably disappeared),
-// but the privacy guarantee the scrub exists to provide — "the
+// but the privacy guarantee the scrub exists to provide - "the
 // shipped bytes no longer yield the stripped metadata to a standard
-// read" — is violated: the field survives in a form the app's own
+// read" - is violated: the field survives in a form the app's own
 // extractor returns. This is distinct from pixel steganography: no
 // LSB/decode work is needed, `readExifFromBytes` hands the value back
 // on the normal API path. And because the plant rides inside a
-// kept-payload, the round-9 survival criterion — no `FF E1 'Exif'`
-// pattern anywhere in the output — is still broken.
+// kept-payload, the round-9 survival criterion - no `FF E1 'Exif'`
+// pattern anywhere in the output - is still broken.
 import 'dart:typed_data';
 import 'package:exif/exif.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,7 +62,7 @@ const _jfifApp0 = <int>[
   0x01, 0x02, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
 ];
 
-/// Canonical SOS header (1 component, full spectral range) — kept
+/// Canonical SOS header (1 component, full spectral range) - kept
 /// verbatim by the allowlist; the exif reader hops its declared
 /// length (0x0008) and lands on the byte right after it.
 const _sos = <int>[
@@ -86,7 +86,7 @@ List<int> _dqtWithPlantedExif() {
   final payload = List<int>.filled(65, 0x01); // legal quant values
   payload[0] = 0x00; // DQT spec byte: Pq=0 (8-bit), Tq=0
   const p = 6; // plant offset inside the payload
-  // Planted APP1 header — the exif reader is steered onto this `FF E1`.
+  // Planted APP1 header - the exif reader is steered onto this `FF E1`.
   payload[p + 0] = 0xFF;
   payload[p + 1] = 0xE1;
   payload[p + 2] = 0x01; // fake APP1 length (ignored by the reader)
@@ -97,7 +97,7 @@ List<int> _dqtWithPlantedExif() {
   payload[p + 7] = 0x66; // 'f'
   payload[p + 8] = 0x00;
   payload[p + 9] = 0x00;
-  // TIFF header at p+10 — big-endian, magic 42, IFD0 at +8.
+  // TIFF header at p+10 - big-endian, magic 42, IFD0 at +8.
   payload[p + 10] = 0x4D; // 'M'
   payload[p + 11] = 0x4D; // 'M'
   payload[p + 12] = 0x00;
@@ -144,7 +144,7 @@ List<int> _dqtWithPlantedExif() {
 /// hop is 44-30=14 → word = 12.
 const _steeringEntropy = <int>[0x11, 0x22, 0x00, 0x0C];
 
-/// Counts `FF E1 ?? ?? 'Exif'` patterns — the round-9 survival rule.
+/// Counts `FF E1 ?? ?? 'Exif'` patterns - the round-9 survival rule.
 int _countExifMarkers(Uint8List bytes) {
   var count = 0;
   for (var i = 0; i + 7 < bytes.length; i++) {
@@ -178,10 +178,10 @@ void main() {
     final jpeg = Uint8List.fromList([
       0xFF, 0xD8, // SOI
       ..._jfifApp0,
-      ..._exifApp1Segment(), // real APP1 (Make=Sony, GPS) — stripped
+      ..._exifApp1Segment(), // real APP1 (Make=Sony, GPS) - stripped
       ..._sos,
       ..._steeringEntropy,
-      ..._dqtWithPlantedExif(), // kept verbatim — plant rides inside
+      ..._dqtWithPlantedExif(), // kept verbatim - plant rides inside
       0xFF, 0xD9, // EOI
     ]);
 
@@ -196,7 +196,7 @@ void main() {
             'survive anywhere in the output — yet one rides inside the '
             'kept DQT payload, emitted verbatim.');
 
-    // The stronger claim: the plant is not a dead byte channel — the
+    // The stronger claim: the plant is not a dead byte channel - the
     // app's own extractor still returns the field from the scrubbed
     // bytes, because the exif reader hops through entropy data on
     // attacker-chosen lengths and lands on the planted FF E1.
@@ -215,7 +215,7 @@ void main() {
       'covert-only carrier: a JPEG whose ONLY metadata lives inside a '
       'kept payload scrubs to byte-identical output (wasModified '
       'false) yet still yields the field to extractMetadata', () async {
-    // No real APP1 at all — the only metadata is the DQT-payload
+    // No real APP1 at all - the only metadata is the DQT-payload
     // plant. Detection DOES see it (same steered walk applies to the
     // input), but nothing is stripped: every segment is decode-
     // relevant, so the output is byte-identical and the caller ships

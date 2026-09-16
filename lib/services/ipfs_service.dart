@@ -50,14 +50,14 @@ class IpfsService {
     if (data != null) {
       yield data;
     }
-    // Absent block: yield nothing — distinguishable from stored content.
+    // Absent block: yield nothing - distinguishable from stored content.
   }
 
   /// Pins [cid] ONLY when the identifier is structurally valid and the
   /// block is actually retrievable from this node's store (round-2 red
   /// finding): claiming a pin for an arbitrary string let preservation
   /// accounting count phantom content. A real remote pin/fetch path is
-  /// not yet wired — until it is, pinning absent content reports false.
+  /// not yet wired - until it is, pinning absent content reports false.
   Future<bool> pinCid(String cid) async {
     if (!_ref.read(cidServiceProvider).isValidCid(cid)) return false;
     if (!_localStore.containsKey(cid)) return false;
@@ -70,7 +70,7 @@ class IpfsService {
     return true;
   }
 
-  /// Reports providers for [cid] — honestly: only this node, and only
+  /// Reports providers for [cid] - honestly: only this node, and only
   /// when it actually holds the block (round-2 red finding): the old
   /// stub fabricated a `peer_dht_node_1` provider for ANY cid, which
   /// made PreservationService report nonexistent content as

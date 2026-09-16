@@ -19,7 +19,7 @@ void main() {
           creditServiceProvider.overrideWith(
               (ref) => CreditService(db: null, initialBalance: initialBalance)),
         ],
-        // The dialog calls ScaffoldMessenger.of(context) — it needs a
+        // The dialog calls ScaffoldMessenger.of(context) - it needs a
         // Scaffold ancestor even when not shown via showDialog.
         child: const MaterialApp(home: Scaffold(body: CreditWalletDialog())),
       ),
@@ -99,7 +99,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.textContaining('Cauchy RS compute'), findsOneWidget);
-    // SnackBars queue one-at-a-time — drain the first before the next.
+    // SnackBars queue one-at-a-time - drain the first before the next.
     await tester.pump(const Duration(seconds: 5));
 
     await scrollTo(tester, find.text('Pass PoR Challenge'));
@@ -171,7 +171,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    // Enter a Lightning address, then sweep — the live path fails fast
+    // Enter a Lightning address, then sweep - the live path fails fast
     // (payouts disabled / no network) and surfaces its error verbatim.
     final lnField = find.byType(TextField).last;
     await scrollTo(tester, lnField);

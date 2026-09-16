@@ -19,7 +19,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    // SponsorshipCard starts a 5s dwell Timer in initState — advancing
+    // SponsorshipCard starts a 5s dwell Timer in initState - advancing
     // past it keeps the tree free of pending timers at dispose time.
     await tester.pump(const Duration(seconds: 6));
   }
@@ -29,7 +29,7 @@ void main() {
   /// during ProviderScope disposal.
   Future<void> finish(WidgetTester tester) async {
     await tester.pumpWidget(const SizedBox());
-    // pump() without a duration does not advance FakeAsync's clock —
+    // pump() without a duration does not advance FakeAsync's clock -
     // pumpAndSettle elapses it so the pending timer fires.
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 10));
@@ -69,7 +69,7 @@ void main() {
   });
 
   // The drift database is created inside FakeAsync, so its stream-query
-  // timers never fire — real writes can't feed the UI. Override the
+  // timers never fire - real writes can't feed the UI. Override the
   // stream providers instead to exercise the list/filter/item widgets.
   List<Override> seededOverrides() => [
         activeWorkspacesProvider.overrideWith((ref) => Stream.value(const [
@@ -185,7 +185,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The onPressed awaits ingestSeedPack, whose DB futures never resolve
-    // inside FakeAsync — the tap still covers the callback's entry lines.
+    // inside FakeAsync - the tap still covers the callback's entry lines.
     await tester.tap(find.text('1-Click Landmark Science Pack'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));

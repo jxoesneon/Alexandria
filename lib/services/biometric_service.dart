@@ -12,13 +12,13 @@ class BiometricService {
   final Ref? _ref;
   final LocalAuthentication _auth = LocalAuthentication();
 
-  /// Timestamp of the last REAL device-credential authentication —
+  /// Timestamp of the last REAL device-credential authentication -
   /// recorded only when [LocalAuthentication.authenticate] actually
   /// prompted the user and returned true. The fail-open bypasses in
   /// [authenticate] (biometrics unavailable, secure mode off) return
   /// true WITHOUT setting this: they are usability escapes, not human
   /// attestation. Consumers that need a proven-human signal (e.g.
-  /// ConsensusService's human ballot quorum) must read this clock —
+  /// ConsensusService's human ballot quorum) must read this clock -
   /// never the boolean return of [authenticate], which deliberately
   /// answers "may the user proceed", not "was a human verified".
   DateTime? _lastAuthenticatedAt;
@@ -28,7 +28,7 @@ class BiometricService {
   // ─── Per-vote human attestation tokens ─────────────────────────────
   //
   // (campaign-2 hardening) The [lastAuthenticatedAt] clock binds a
-  // human ballot to a RECENT authentication — temporal recency only:
+  // human ballot to a RECENT authentication - temporal recency only:
   // one unlock authorizes every vote cast inside the window, for any
   // change and either choice. The strong path below binds the
   // biometric event to ONE ballot: [attestVoteIntent] prompts for a
@@ -36,7 +36,7 @@ class BiometricService {
   // mints a short-lived HMAC token committing to the exact ballot
   // fields (voterKey ‖ changeId ‖ choice ‖ issuedAt ‖ nonce).
   // ConsensusService.castVote verifies the token against the actual
-  // ballot — a token minted for a different change, a different
+  // ballot - a token minted for a different change, a different
   // choice, a different voter, or outside its TTL attests nothing.
   //
   // KEY MODEL: the HMAC key is a random 256-bit secret held in secure
@@ -44,12 +44,12 @@ class BiometricService {
   // The token is LOCAL evidence consumed at cast time by this node; it
   // is not a wire credential. When no secure-storage ref is wired
   // (headless embedder, tests) a process-lifetime ephemeral key is
-  // used — tokens then die with the process, which is safe because the
+  // used - tokens then die with the process, which is safe because the
   // TTL is minutes anyway.
   //
   // FAIL-CLOSED: unlike [authenticate], [attestVoteIntent] has NO
   // usability escapes. Biometrics unavailable, a thrown plugin error,
-  // or a dismissed prompt all yield null — an attestation that was
+  // or a dismissed prompt all yield null - an attestation that was
   // never prompted is never minted.
 
   /// Secure-storage key holding the vote-attestation HMAC secret.
@@ -59,7 +59,7 @@ class BiometricService {
   /// in the codebase.
   static const String _tokenPrefix = 'va1';
 
-  /// How long a minted attestation stays valid. Deliberately narrow —
+  /// How long a minted attestation stays valid. Deliberately narrow -
   /// the token is minted on the vote screen moments before the cast.
   final Duration attestationTtl;
 
@@ -113,7 +113,7 @@ class BiometricService {
         persistAcrossBackgrounding: true,
       );
       if (authenticated) {
-        // Only a genuine prompt success attests a human — the early
+        // Only a genuine prompt success attests a human - the early
         // `return true` escapes above never reach this line.
         _lastAuthenticatedAt = DateTime.now();
       }
@@ -126,10 +126,10 @@ class BiometricService {
   /// Mint a per-vote human attestation token.
   ///
   /// Prompts for a REAL device-credential authentication (no fail-open
-  /// escapes — this is evidence minting, not an app-lock gate), and on
+  /// escapes - this is evidence minting, not an app-lock gate), and on
   /// success returns an opaque token string binding that biometric
   /// event to exactly this ballot: [voterKey], [changeId], [approve].
-  /// Returns null on any failure — the caller must then cast a
+  /// Returns null on any failure - the caller must then cast a
   /// non-human ballot or refuse, never claim `isHuman` on faith.
   Future<String?> attestVoteIntent({
     required Uint8List voterKey,
@@ -162,7 +162,7 @@ class BiometricService {
   ///
   /// Returns true only when the token carries a valid HMAC over
   /// exactly ([voterKey], [changeId], [approve]) plus a timestamp
-  /// inside [attestationTtl] — and has never been consumed before.
+  /// inside [attestationTtl] - and has never been consumed before.
   /// Every failure mode (malformed, forged MAC, wrong field binding,
   /// stale, future-dated, replayed, no key) returns false. The token
   /// is burned on the FIRST call regardless of outcome-neighbouring
@@ -185,7 +185,7 @@ class BiometricService {
         return false;
       }
 
-      // Freshness: stale tokens and future-dated tokens both refuse —
+      // Freshness: stale tokens and future-dated tokens both refuse -
       // same anti-pre-minting rule as the attestation clock.
       final now = DateTime.now().millisecondsSinceEpoch;
       if (issuedAt > now) return false;
@@ -205,7 +205,7 @@ class BiometricService {
       _consumedTokens[presentedMac] = issuedAt;
       return true;
     } catch (_) {
-      return false; // fail closed — an attestation that errors attests nothing
+      return false; // fail closed - an attestation that errors attests nothing
     }
   }
 
@@ -251,7 +251,7 @@ class BiometricService {
   static String _randomHex(int n) =>
       _randomBytes(n).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
-  /// Drop consumed-token records whose TTL has lapsed — they could
+  /// Drop consumed-token records whose TTL has lapsed - they could
   /// never verify again, so retaining them only grows the set.
   void _pruneConsumed(int nowMillis) {
     _consumedTokens.removeWhere(

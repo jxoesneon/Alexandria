@@ -19,7 +19,7 @@ import 'package:alexandria/ui/scriptorium/creation_wizard.dart';
 import 'package:alexandria/ui/theme/app_theme.dart';
 
 /// Mock for SystemChannels.platform so Clipboard.setData/getData
-/// complete — the test binding never replies to platform messages, so
+/// complete - the test binding never replies to platform messages, so
 /// any lib path that awaits Clipboard.setData before showing feedback
 /// would otherwise hang forever.
 void installClipboardMock() {
@@ -660,7 +660,7 @@ void main() {
       ]);
       await tester.tap(find.byTooltip('Backup Identity'));
       await tester.pumpAndSettle();
-      // _mnemonic loaded from the fake — copy button visible.
+      // _mnemonic loaded from the fake - copy button visible.
       await tester.tap(find.widgetWithText(TextButton, 'Copy'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));

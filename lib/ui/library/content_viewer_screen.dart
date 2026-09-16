@@ -41,7 +41,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   final CidService _cidService = CidService();
 
   /// (round-3 red finding) local-file rendering is restricted to
-  /// app-owned directories — resolved paths under the app documents /
+  /// app-owned directories - resolved paths under the app documents /
   /// temp roots only. Previously ANY filesystem path appearing in
   /// document markup was opened by the reader. Populated async; until
   /// loaded, NO local file renders.
@@ -76,7 +76,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   }
 
   /// (round-3 red finding) a public-gateway URL is minted ONLY for a
-  /// structurally valid CID — previously any 'bafy…'/'Qm…'-looking
+  /// structurally valid CID - previously any 'bafy…'/'Qm…'-looking
   /// string (including path/query smuggling) was concatenated into an
   /// https URL the reader then fetched.
   String? _gatewayForCid(String cid) =>
@@ -878,7 +878,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         return SvgPicture.asset(url, fit: BoxFit.contain);
       } else if (_isAllowedLocalFile(url)) {
         // (round-3 red finding) local SVG files render only from
-        // app-owned directories — an arbitrary path is refused.
+        // app-owned directories - an arbitrary path is refused.
         return SvgPicture.file(File(url), fit: BoxFit.contain);
       } else {
         return _buildImageErrorWidget(context, url, alt);
@@ -898,7 +898,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
       }
     }
 
-    // 3. IPFS URI / CID — gateway rewrite requires a VALID CID.
+    // 3. IPFS URI / CID - gateway rewrite requires a VALID CID.
     String effectiveUrl = url;
     if (url.startsWith('ipfs://')) {
       final cid = url.substring('ipfs://'.length);
@@ -957,7 +957,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
       );
     }
 
-    // 5. Local File — restricted to app-owned directories (round-3 red
+    // 5. Local File - restricted to app-owned directories (round-3 red
     // finding): resolved path must live under the app documents/temp
     // roots; arbitrary filesystem paths are never opened.
     if (_isAllowedLocalFile(url) && File(url).existsSync()) {

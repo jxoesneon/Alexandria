@@ -1,4 +1,4 @@
-// RED TEAM PoC — Round-6: _resolvePeerAgreementKey's "explicit" key-type
+// RED TEAM PoC - Round-6: _resolvePeerAgreementKey's "explicit" key-type
 // disambiguation is probabilistically wrong for HALF of all real X25519
 // public keys.
 //
@@ -12,15 +12,15 @@
 //
 // The comment admits the ambiguity ("~50% of Montgomery u-coordinates
 // also parse as a valid Edwards encoding") and claims the canonical
-// path "is validated to round-trip" — but it is only validated for ONE
+// path "is validated to round-trip" - but it is only validated for ONE
 // fixture. For every identity whose Montgomery u happens to satisfy
 // `_isCanonicalEd25519Key` (little-endian y < p with x² a quadratic
-// residue — ~1/2 of all keys), `encryptForPeer(hex(u))` re-maps u to a
+// residue - ~1/2 of all keys), `encryptForPeer(hex(u))` re-maps u to a
 // DIFFERENT curve point u' = (1+y)/(1−y). The envelope then agrees
-// with u' — a point whose private key nobody holds — and the intended
+// with u' - a point whose private key nobody holds - and the intended
 // recipient's `decryptFromPeer(env, xPriv)` fails AEAD. Confidentiality
 // survives (the ciphertext is sealed to a dead key) but availability
-// and the documented contract are broken for ~50% of advertised keys —
+// and the documented contract are broken for ~50% of advertised keys -
 // silently, per-key, with no way for the sender to detect it.
 //
 // Asserts the SECURE expectation: every real X25519 public key a peer
@@ -45,7 +45,7 @@ void main() {
 
     final ambiguous = <int>[];
     for (var i = 1; i <= 32; i++) {
-      // Deterministic Ed25519 identity seeds — the same derivation
+      // Deterministic Ed25519 identity seeds - the same derivation
       // IdentityService performs for x25519PrivateKeyBytes /
       // x25519PublicKeyBytes.
       final seed = Uint8List(32)..[0] = i;

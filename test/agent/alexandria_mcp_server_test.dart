@@ -18,7 +18,7 @@ import 'package:alexandria/services/ipfs_service.dart';
 import 'package:alexandria/services/plugins/doi_harvester_plugin.dart';
 import 'package:alexandria/services/proof_of_retrievability_service.dart';
 
-/// Identity stub whose Ed25519 keypair the test controls — the PoR
+/// Identity stub whose Ed25519 keypair the test controls - the PoR
 /// verifier-of-record the MCP server stamps challenges with and the
 /// service signs receipts under.
 class _FakeIdentityService implements IdentityService {
@@ -47,7 +47,7 @@ class _FakeIdentityService implements IdentityService {
 }
 
 /// Deterministic resolver stub: DOI ingest now requires a VERIFIED
-/// scholarly record before minting (round-2 fix — fabricated DOIs mint
+/// scholarly record before minting (round-2 fix - fabricated DOIs mint
 /// nothing), so tests inject a resolver instead of hitting Crossref.
 class _StubDoiResolver extends DoiResolver {
   @override
@@ -88,7 +88,7 @@ void main() {
         pochService: pochService,
         initialBalance: 100.0,
       );
-      // verifyProof mints through the container's creditServiceProvider —
+      // verifyProof mints through the container's creditServiceProvider -
       // override it so the award lands on the instance under test. The PoR
       // service reads identityServiceProvider for its verifier key.
       container = ProviderContainer(overrides: [
@@ -166,7 +166,7 @@ void main() {
       expect(data['status'], 'success');
       // The assigned CID is now REAL content-addressed material (the
       // resolved dossier bytes), not a fabricated label containing the
-      // DOI string — verify it parses as a structurally valid CID.
+      // DOI string - verify it parses as a structurally valid CID.
       expect(data['assigned_cid'], isNotEmpty);
       expect(CidService().isValidCid(data['assigned_cid'] as String), isTrue);
       expect(data['verified_via'], 'stub');
@@ -274,7 +274,7 @@ void main() {
               as Map<String, dynamic>;
       final challengeId = challengeData['challenge_id'] as String;
       final nonceHex = challengeData['nonce_hex'] as String;
-      // The verifier-of-record is the node identity key — the same key the
+      // The verifier-of-record is the node identity key - the same key the
       // PoR service signs receipts under (no more ephemeral moltbook key).
       expect(challengeData['challenger_pubkey'], identity.pubkeyHex);
 
@@ -283,7 +283,7 @@ void main() {
           (i) => int.parse(nonceHex.substring(i * 2, i * 2 + 2), radix: 16)));
       final tag = Hmac(sha256, nonceBytes).convert(payload).toString();
 
-      // 3. Submit — verifies, issues a verifier-signed work receipt
+      // 3. Submit - verifies, issues a verifier-signed work receipt
       final res = await mcpServer.callTool('alexandria_submit_por_challenge', {
         'challenge_id': challengeId,
         'tag': tag,
@@ -298,12 +298,12 @@ void main() {
       final receipt = submitData['receipt'] as Map<String, dynamic>?;
       expect(receipt, isNotNull);
       expect(receipt!['receipt_id'], isNotEmpty);
-      // Signed under the IdentityService key — the request→submit
+      // Signed under the IdentityService key - the request→submit
       // round-trip produces a real verifier-signed receipt.
       expect(receipt['verifier_pubkey'], identity.pubkeyHex);
       expect(receipt['verifier_sig'], isNotEmpty);
       expect(receipt['prover_pubkey'], identity.pubkeyHex);
-      // The MCP harness is challenger AND prover on one node — the receipt
+      // The MCP harness is challenger AND prover on one node - the receipt
       // is self-issued, so it must never claim attested (egress) value.
       expect(submitData['receipt_attested'], isFalse);
       expect(receipt['self_issued'], isTrue);
@@ -313,7 +313,7 @@ void main() {
       final row = await db.getWorkReceipt(receipt['receipt_id'] as String);
       expect(row!['spent'], isTrue);
 
-      // 4. A wrong tag is rejected — no payout
+      // 4. A wrong tag is rejected - no payout
       final challenge2 = await mcpServer
           .callTool('alexandria_request_por_challenge', {'cid': cid});
       final id2 =
@@ -370,7 +370,7 @@ void main() {
       expect(receipt['verifier_sig'], isNotEmpty);
       expect(receipt['prover_pubkey'], foreignProver);
       expect(receipt['self_issued'], isFalse);
-      // The artifact IS an attested claim — for the prover. This node
+      // The artifact IS an attested claim - for the prover. This node
       // neither mints it nor burns it: persisted unspent, balance flat.
       expect(data['receipt_attested'], isTrue);
       expect(receipt['spent'], isFalse);
@@ -419,7 +419,7 @@ void main() {
       final receipt = data['receipt'] as Map<String, dynamic>;
       expect(receipt['prover_pubkey'], caseVariant);
       // The reported verdict is the canonical one: self-issued, NOT
-      // attested — matching what claimVerifiedReceipt would evaluate.
+      // attested - matching what claimVerifiedReceipt would evaluate.
       expect(data['receipt_attested'], isFalse);
       expect(receipt['self_issued'], isTrue);
       expect(receipt['attested_claim'], isFalse);

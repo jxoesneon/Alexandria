@@ -1,4 +1,4 @@
-// RED TEAM PoC — Round-6: PluginContentRepository's key-projection is
+// RED TEAM PoC - Round-6: PluginContentRepository's key-projection is
 // write-back unsafe. The facade blanks `encryptionKey` on every READ
 // (`_withoutKeyMaterial`), but the mutation methods it inherits run
 // read-modify-write cycles THROUGH that same projected view:
@@ -6,16 +6,16 @@
 //   ContentRepository.saveNote   (content_repository.dart:396-428)
 //     existing = getManifestByUuid(note.id)   // virtual → PROJECTED row
 //     db.update.replace(existing.copyWith(…)) // encryptionKey: Value(null)
-//   ContentRepository.addAnnotation (:459-481) — identical shape
-//   ContentRepository.saveManifest  (:377-380) — replace(manifest)
+//   ContentRepository.addAnnotation (:459-481) - identical shape
+//   ContentRepository.saveManifest  (:377-380) - replace(manifest)
 //     writes whatever projected row the caller hands back.
 //
 // The schema-v6 design contract (database.dart:238-241) is "a row whose
 // DEK could not be rehomed KEEPS its key until the secure-storage write
-// succeeds — data preservation beats scrub-once." A contentWrite-capable
+// succeeds - data preservation beats scrub-once." A contentWrite-capable
 // plugin violates it: saveNote/addAnnotation/saveManifest against a
-// manifest whose legacy DEK is still pending rehome NULLs the column —
-// the ONLY copy of that content's key — without ever seeing it.
+// manifest whose legacy DEK is still pending rehome NULLs the column -
+// the ONLY copy of that content's key - without ever seeing it.
 // On platforms where flutter_secure_storage is permanently unavailable
 // (headless, some Linux desktops without a keyring) EVERY legacy row
 // lives in this state, so a routine plugin note edit destroys the DEKs

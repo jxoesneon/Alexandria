@@ -1,10 +1,10 @@
-// claimVerifiedReceipt — the only path that mints attested (egress-grade)
+// claimVerifiedReceipt - the only path that mints attested (egress-grade)
 // value (ALX-010). Locks down the guard chain, the atomic-claim dedup,
-// workType mapping, the daily-cap safety floor — and the ALX-012 Safety
+// workType mapping, the daily-cap safety floor - and the ALX-012 Safety
 // mandate: wire-version floor, receipt-id tamper check, IN-PATH Ed25519
 // verification over the domain-separated signing payload, and the
 // quorum-REV3 possession binding: the prover identity is resolved through
-// the injected localProverPubkeyHex resolver (ambient authority — never
+// the injected localProverPubkeyHex resolver (ambient authority - never
 // caller-supplied) and proven by claimSignatureB64, an Ed25519 signature
 // by the prover key over 'alexandria:receipt-claim:v{v}:{receiptId}'.
 import 'dart:convert';
@@ -23,19 +23,19 @@ import 'package:alexandria/services/credits/work_receipt.dart';
 void main() {
   final algorithm = Ed25519();
 
-  // A real Ed25519 verifier identity — the claim path now verifies the
+  // A real Ed25519 verifier identity - the claim path now verifies the
   // signature in-path, so 'c2ln' placeholder sigs no longer suffice.
   late SimpleKeyPair verifierKeyPair;
   late String verifierPubHex;
 
-  // A real Ed25519 LOCAL identity — the possession-bound claim path
+  // A real Ed25519 LOCAL identity - the possession-bound claim path
   // (REV3) verifies claimSignatureB64 under receipt.proverPubkey, so the
   // prover must be a real key the test controls, and the service's
   // localProverPubkeyHex resolver returns its hex spelling.
   late SimpleKeyPair localKeyPair;
   late String localPubHex;
 
-  /// The ReceiptSignatureVerifier oracle injected into the service —
+  /// The ReceiptSignatureVerifier oracle injected into the service -
   /// equivalent to the production wiring of
   /// `IdentityService.verifySignature`.
   Future<bool> receiptVerifier(
@@ -45,8 +45,8 @@ void main() {
     return algorithm.verify(message, signature: Signature(sig, publicKey: pk));
   }
 
-  /// Signs the REV3 claim preimage — the ASCII bytes of
-  /// 'alexandria:receipt-claim:v{r.v}:{r.receiptId}' — under [keyPair]
+  /// Signs the REV3 claim preimage - the ASCII bytes of
+  /// 'alexandria:receipt-claim:v{r.v}:{r.receiptId}' - under [keyPair]
   /// (default: the local prover key). This is the possession proof
   /// claimVerifiedReceipt now requires in place of a caller-supplied
   /// localPubkeyHex.
@@ -59,13 +59,13 @@ void main() {
   }
 
   /// Issues a receipt and signs its domain-separated [signingPayload]
-  /// with [keyPair] (default: the verifier key) — exactly as a verifier
+  /// with [keyPair] (default: the verifier key) - exactly as a verifier
   /// node would. The receipt's own `v` selects the preimage, so a v1
   /// artifact is signed over the bare canonical body and a v2+ artifact
   /// over the 'alexandria:receipt:vN:'-prefixed bytes. Wire v3+ also
   /// attaches the issuance-acknowledgment counter-signature
   /// ([WorkReceipt.ackPayload]) under [proverKeyPair] (default: the
-  /// local prover key) — pass an explicit [proverSig] to override (''
+  /// local prover key) - pass an explicit [proverSig] to override (''
   /// builds an un-acked artifact).
   Future<WorkReceipt> signedReceipt({
     int? v,
@@ -76,7 +76,7 @@ void main() {
     int? expiresAt,
     SimpleKeyPair? keyPair,
     // null (default) = sign with [keyPair]; an explicit string attaches
-    // it verbatim — '' builds an unsigned artifact, garbage builds a
+    // it verbatim - '' builds an unsigned artifact, garbage builds a
     // forgery.
     String? verifierSig,
     SimpleKeyPair? proverKeyPair,
@@ -107,7 +107,7 @@ void main() {
       signed = unsigned.withVerifierSig(base64Encode(sig.bytes));
     }
     // v3+ issuance acknowledgment (ALX-012 §5.8): the prover
-    // counter-signs the ack domain — a claim without it is refused.
+    // counter-signs the ack domain - a claim without it is refused.
     if (version >= WorkReceipt.minAckWireVersion) {
       if (proverSig != null) {
         if (proverSig.isNotEmpty) {
@@ -137,7 +137,7 @@ void main() {
         db: db,
         initialBalance: 0.0,
         receiptVerifier: receiptVerifier,
-        // Ambient identity resolver — the production provider wires this
+        // Ambient identity resolver - the production provider wires this
         // to IdentityService.getIdentity(); here it serves the test key.
         localProverPubkeyHex: () => localPubHex,
       );
@@ -180,7 +180,7 @@ void main() {
           await signedReceipt(proverPubkey: localPubHex, amount: 25.0));
       final sig = await claimSig(r);
       expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: sig), 25.0);
-      // Second claim — even replaying the SAME valid claim signature:
+      // Second claim - even replaying the SAME valid claim signature:
       // CAS loses (row already spent) -> 0, nothing mints.
       expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: sig), 0.0);
       expect(
@@ -201,7 +201,7 @@ void main() {
         0.0,
       );
       expect(svc.attestedBalance, 0.0);
-      // And the receipt is NOT consumed — it was never claimed.
+      // And the receipt is NOT consumed - it was never claimed.
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
@@ -233,14 +233,14 @@ void main() {
               claimSignatureB64: await claimSig(r)),
           0.0);
       expect(svc.attestedBalance, 0.0);
-      // Not consumed — it still belongs to the named prover.
+      // Not consumed - it still belongs to the named prover.
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
     test('unsigned receipt is refused', () async {
       final r = await persist(
           await signedReceipt(proverPubkey: localPubHex, verifierSig: ''));
-      // verifierSig '' means "don't sign" — the artifact stays unsigned.
+      // verifierSig '' means "don't sign" - the artifact stays unsigned.
       expect(r.isVerifierSigned, isFalse);
       expect(
           await svc.claimVerifiedReceipt(r,
@@ -264,7 +264,7 @@ void main() {
     });
 
     test('receipt missing from the ledger is refused', () async {
-      // Fully valid and properly signed — but never persisted: the
+      // Fully valid and properly signed - but never persisted: the
       // unspent-row requirement refuses it.
       final r = await signedReceipt(proverPubkey: localPubHex);
       expect(
@@ -319,14 +319,14 @@ void main() {
     });
 
     test('attested mints still respect the daily cap (safety floor)', () async {
-      // storageReward daily cap is 200 — a 250-credit receipt clamps.
+      // storageReward daily cap is 200 - a 250-credit receipt clamps.
       final r = await persist(
           await signedReceipt(proverPubkey: localPubHex, amount: 250.0));
       final minted = await svc.claimVerifiedReceipt(r,
           claimSignatureB64: await claimSig(r));
       expect(minted, 200.0);
       expect(svc.attestedBalance, 200.0);
-      // The receipt is consumed even though the full amount didn't mint —
+      // The receipt is consumed even though the full amount didn't mint -
       // anti-replay: the residual is burned, never re-claimable.
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isTrue);
 
@@ -357,7 +357,7 @@ void main() {
         db: db,
         initialBalance: 0.0,
         receiptVerifier: receiptVerifier,
-        // Ambient identity resolver — the production provider wires this
+        // Ambient identity resolver - the production provider wires this
         // to IdentityService.getIdentity(); here it serves the test key.
         localProverPubkeyHex: () => localPubHex,
       );
@@ -372,7 +372,7 @@ void main() {
         'forged verifierSig (valid base64, wrong key) mints nothing and '
         'leaves the row UNSPENT', () async {
       // The artifact claims the honest verifier's pubkey but was signed
-      // by an attacker's key — valid base64, valid 64-byte shape, wrong
+      // by an attacker's key - valid base64, valid 64-byte shape, wrong
       // signature.
       final attacker = await algorithm.newKeyPair();
       final forged = await signedReceipt(
@@ -386,14 +386,14 @@ void main() {
           0.0);
       expect(svc.balance, 0.0);
       expect(svc.attestedBalance, 0.0);
-      // Failed verification runs BEFORE the CAS — the unspent row is
+      // Failed verification runs BEFORE the CAS - the unspent row is
       // never consumed by a forged claim.
       expect((await db.getWorkReceipt(forged.receiptId))!['spent'], isFalse);
     });
 
     test('garbage verifierSig (64 bytes of noise) is refused unspent',
         () async {
-      final noise = base64Encode(Uint8List(64)); // zeros — shape-valid
+      final noise = base64Encode(Uint8List(64)); // zeros - shape-valid
       final garbage = await signedReceipt(
           proverPubkey: localPubHex, amount: 25.0, verifierSig: noise);
       await db.insertWorkReceipt(garbage.toDbMap());
@@ -409,7 +409,7 @@ void main() {
         'a signature over the WRONG domain is refused — v2 forgery from '
         'a bare-canonical signature', () async {
       // Attacker signs the bare canonical JSON (the v1 preimage) but
-      // stamps v2 — the domain-separated payload does not match.
+      // stamps v2 - the domain-separated payload does not match.
       final unsigned = WorkReceipt.issue(
         workType: 'storage',
         proverPubkey: localPubHex,
@@ -462,7 +462,7 @@ void main() {
         'below-floor receipt (v=0) is refused even with a valid '
         'signature — representable but unclaimable', () async {
       final legacy = await signedReceipt(v: 0, proverPubkey: localPubHex);
-      // The signature IS valid under the artifact's own (bare) domain —
+      // The signature IS valid under the artifact's own (bare) domain -
       // refusal must come from the claim-time floor, not verification.
       expect(legacy.v, 0);
       expect(legacy.v < CreditService.minClaimableWireVersion, isTrue);
@@ -483,7 +483,7 @@ void main() {
         'claims (grace window)', () async {
       final legacy = await signedReceipt(v: 1, proverPubkey: localPubHex);
       expect(legacy.v, 1);
-      // Sanity: the v1 preimage really is the bare canonical JSON — a
+      // Sanity: the v1 preimage really is the bare canonical JSON - a
       // pre-domain build's signature verifies.
       expect(
           legacy.signingPayload, equals(utf8.encode(legacy.canonicalJson())));

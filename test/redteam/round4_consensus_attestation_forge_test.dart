@@ -1,4 +1,4 @@
-// RED TEAM PoC — Round-4: the round-3 fix made tally getters count only
+// RED TEAM PoC - Round-4: the round-3 fix made tally getters count only
 // votes with `weightAttested = true`. But the attestation marker is a
 // PUBLIC constructor parameter and the votes list itself is publicly
 // mutable:
@@ -8,18 +8,18 @@
 //     class ChangeRequest { final List<Vote> votes; }  // mutable field
 //
 // so `req.votes.add(Vote(weight: 999, weightAttested: true))` mints a
-// "ledger-attested" vote with no ledger — approvalWeight jumps over the
+// "ledger-attested" vote with no ledger - approvalWeight jumps over the
 // 10.0 threshold and isApproved flips with zero reputation.
 //
 // Second hole in the same fix: `humanApprovalCount` (the human-review
-// quorum for AI proposals) counts `v.isHuman` on ANY vote — including
+// quorum for AI proposals) counts `v.isHuman` on ANY vote - including
 // weightAttested=false wire votes. Two forged isHuman votes satisfy the
 // humanThreshold=2 gate; they need not even carry distinct keys because
 // the getter does not dedup. The entire purpose of the AI-proposal human
 // quorum is defeated by inert wire ballots.
 //
 // Third: ChangeRequest.fromJson restores `status` verbatim from wire
-// data — a serialized 'approved'/'vetoed' request deserializes with a
+// data - a serialized 'approved'/'vetoed' request deserializes with a
 // terminal status and `isApproved` honours it without a single vote.
 //
 // Asserts the SECURE expectations: attestation must be unforgeable by
@@ -55,7 +55,7 @@ Vote _wireVote({int keyByte = 1, bool isHuman = true}) => Vote(
       signature: Uint8List(64),
       timestamp: DateTime.now(),
       isHuman: isHuman,
-      // weightAttested defaults false — as every deserialized vote does.
+      // weightAttested defaults false - as every deserialized vote does.
     );
 
 void main() {
@@ -73,8 +73,8 @@ void main() {
 
     // Attacker holds the request object (proposeChange returns it, and
     // any future sync/ingest path materializes the same mutable list).
-    // A single fabricated vote — weightAttested set by the PUBLIC
-    // constructor — clears the 10.0 approval threshold with no ledger.
+    // A single fabricated vote - weightAttested set by the PUBLIC
+    // constructor - clears the 10.0 approval threshold with no ledger.
     req.votes.add(Vote(
       voterKey: Uint8List.fromList(List.filled(32, 0xEE)),
       weight: 1000.0,
@@ -105,11 +105,11 @@ void main() {
       isAiProposal: true,
     );
 
-    // Two forged ballots — same voterKey, isHuman self-asserted — as a
+    // Two forged ballots - same voterKey, isHuman self-asserted - as a
     // wire-deserialized payload would produce. Zero attested weight,
     // but they count toward the human-review quorum.
     req.votes.add(_wireVote(keyByte: 0x11));
-    req.votes.add(_wireVote(keyByte: 0x11)); // same key — no dedup
+    req.votes.add(_wireVote(keyByte: 0x11)); // same key - no dedup
 
     expect(req.humanApprovalCount, 0,
         reason: 'two self-asserted isHuman wire ballots (same key!) counted '

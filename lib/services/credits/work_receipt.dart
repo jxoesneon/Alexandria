@@ -5,7 +5,7 @@ import 'package:crypto/crypto.dart';
 /// Ed25519 verification callback, injected so [WorkReceipt] stays
 /// crypto-agnostic. Receives the canonical message bytes, the raw 64-byte
 /// signature, and the verifier's public key (encoding is the verifier's
-/// concern — hex or base58), and resolves to whether the signature is valid.
+/// concern - hex or base58), and resolves to whether the signature is valid.
 typedef ReceiptSignatureVerifier = Future<bool> Function(
   Uint8List message,
   Uint8List signature,
@@ -14,7 +14,7 @@ typedef ReceiptSignatureVerifier = Future<bool> Function(
 
 /// A verifier-signed record of work performed by a prover (ALX-010 / P1).
 ///
-/// The receipt — not a self-declaration — is what entitles a prover to mint
+/// The receipt - not a self-declaration - is what entitles a prover to mint
 /// Archival Credits. [receiptId] is the sha256 of the canonical (sorted-key)
 /// JSON body; [verifierSig] is a base64 Ed25519 signature over the
 /// domain-separated [signingPayload] derived from that body. A forked
@@ -22,11 +22,11 @@ typedef ReceiptSignatureVerifier = Future<bool> Function(
 /// a *foreign* verifier's valid signature count as attested value;
 /// self-signed receipts (prover == verifier) carry zero egress weight.
 class WorkReceipt {
-  /// sha256 of [canonicalJson] — the receipt's unique, content-derived id.
+  /// sha256 of [canonicalJson] - the receipt's unique, content-derived id.
   final String receiptId;
 
   /// Wire-format version this artifact was issued under (ALX-012). It is a
-  /// REAL per-receipt field, part of the canonical body — a foreign
+  /// REAL per-receipt field, part of the canonical body - a foreign
   /// receipt's declared `v` travels with the artifact and selects the
   /// signature domain ([signingPayload]): v<=1 verifies over the bare
   /// canonical JSON (legacy, pre-domain receipts), v>=2 over the
@@ -62,7 +62,7 @@ class WorkReceipt {
   /// Credit value this receipt entitles the prover to claim.
   final double amount;
 
-  /// Issuance epoch — UTC day 'YYYY-MM-DD'.
+  /// Issuance epoch - UTC day 'YYYY-MM-DD'.
   final String epoch;
 
   /// Expiry, epoch milliseconds. Stale receipts cannot be claimed.
@@ -73,11 +73,11 @@ class WorkReceipt {
   final String? evidenceHash;
 
   /// Base64 Ed25519 signature over [canonicalJson] by the verifier.
-  /// Empty when the verifier had no signing identity — the receipt still
+  /// Empty when the verifier had no signing identity - the receipt still
   /// records the work but can only be claimed as unattested value.
   final String verifierSig;
 
-  /// Optional prover counter-signature (base64) — the issuance-time
+  /// Optional prover counter-signature (base64) - the issuance-time
   /// acknowledgment (ALX-012 §5.8). For [v] >= [minAckWireVersion] it is
   /// REQUIRED for a claim: the signature must verify under
   /// [proverPubkey] over the domain-separated [ackPayload]
@@ -172,9 +172,9 @@ class WorkReceipt {
   /// Canonical wire-format version issued by THIS build. Bumped when the
   /// signed body changes shape so foreign verifiers can pin the scheme
   /// they recompute. v2 (ALX-012) introduced the domain-separated
-  /// [signingPayload] — a domain change IS a wire change. v3 (residual
+  /// [signingPayload] - a domain change IS a wire change. v3 (residual
   /// closure, ALX-012 §5.8) makes the issuance-ack counter-signature
-  /// ([proverSig] over [ackPayload]) a claim precondition — the signed
+  /// ([proverSig] over [ackPayload]) a claim precondition - the signed
   /// BODY is unchanged, so v3 receipts recompute under the same
   /// `'alexandria:receipt:v3:'` domain.
   static const int wireVersion = 3;
@@ -182,7 +182,7 @@ class WorkReceipt {
   /// First wire epoch requiring the artifact-carried issuance ack:
   /// claims of receipts with `v >= minAckWireVersion` must present a
   /// [proverSig] that verifies over [ackPayload]. v1/v2 artifacts stay
-  /// claimable without one inside the {previous, current} grace window —
+  /// claimable without one inside the {previous, current} grace window -
   /// their 24 h TTL drains the un-acked stock after the bump (ALX-012
   /// §3.3–3.4); outstanding unsigned v2 receipts simply ride out their
   /// TTL.
@@ -195,17 +195,17 @@ class WorkReceipt {
   /// [amount] accessor remains for display.
   ///
   /// Throws [ArgumentError] when [amount] is non-finite (NaN/±∞) or
-  /// overflows the milli range — claim paths MUST guard
+  /// overflows the milli range - claim paths MUST guard
   /// `receipt.amount.isFinite` BEFORE reaching the canonicalizer (a
   /// hostile row hydrated via [WorkReceipt.fromDbMap] would otherwise
   /// crash mid-guard-chain).
   int get amountMilli => _milliOf(amount, 'amount');
 
-  /// [workUnits] expressed as integer milli-units — see [amountMilli].
+  /// [workUnits] expressed as integer milli-units - see [amountMilli].
   /// Same fail-fast contract: guard `receipt.workUnits.isFinite` first.
   int get workUnitsMilli => _milliOf(workUnits, 'workUnits');
 
-  /// Largest |milli| value safely representable on every platform —
+  /// Largest |milli| value safely representable on every platform -
   /// 2^53 - 1, the web's exact-integer budget, comfortably inside the
   /// VM's 64-bit int range.
   static const double _maxSafeMilli = 9007199254740991.0;
@@ -229,7 +229,7 @@ class WorkReceipt {
   ///
   /// Wire format: [v] pins the scheme version PER RECEIPT, and the
   /// monetary fields travel as integers (`amountMilli`/`workUnitsMilli`)
-  /// so canonical JSON is bit-identical across platforms — see
+  /// so canonical JSON is bit-identical across platforms - see
   /// [amountMilli].
   Map<String, dynamic> unsignedBody() => {
         'amountMilli': amountMilli,
@@ -247,7 +247,7 @@ class WorkReceipt {
         if (evidenceHash != null) 'evidenceHash': evidenceHash,
       };
 
-  /// Deterministic, sorted-key JSON of [unsignedBody] — the exact byte
+  /// Deterministic, sorted-key JSON of [unsignedBody] - the exact byte
   /// preimage for both [receiptId] and [verifierSig].
   String canonicalJson() => jsonEncode(_canonicalize(unsignedBody()));
 
@@ -258,10 +258,10 @@ class WorkReceipt {
   /// The canonical bytes a verifier signs / a checker verifies
   /// (ALX-012 epoch-domain separation). The preimage is selected by THIS
   /// receipt's own [v]:
-  ///  * `v >= 2`: `'alexandria:receipt:v$v:'` prefix + canonical JSON —
+  ///  * `v >= 2`: `'alexandria:receipt:v$v:'` prefix + canonical JSON -
   ///    signatures are bound to the scheme epoch, so an artifact signed
   ///    under one domain can never be replayed under another;
-  ///  * `v <= 1` (legacy): the bare canonical JSON — pre-domain receipts
+  ///  * `v <= 1` (legacy): the bare canonical JSON - pre-domain receipts
   ///    keep verifying under their original preimage during the grace
   ///    window, so existing signed artifacts stay claimable.
   Uint8List get signingPayload {
@@ -275,7 +275,7 @@ class WorkReceipt {
   /// `'alexandria:receipt-ack:v$v:$receiptId'`. Because [receiptId] is
   /// the sha256 of the canonical body, the ack binds every signed field
   /// while staying a distinct domain from both the verifier's
-  /// [signingPayload] and the claim-time possession proof — an ack
+  /// [signingPayload] and the claim-time possession proof - an ack
   /// signature can never be transplanted into either role.
   Uint8List get ackPayload =>
       Uint8List.fromList(utf8.encode('alexandria:receipt-ack:v$v:$receiptId'));
@@ -284,8 +284,8 @@ class WorkReceipt {
   /// (REV3 possession proof + ALX-012 §5.8 DPoP-style freshness).
   ///
   /// Base form (local claims): `'alexandria:receipt-claim:v$v:
-  /// $receiptId'`. When [verifierNonce] is supplied — a claim PRESENTED
-  /// TO A REMOTE NODE — the preimage extends to
+  /// $receiptId'`. When [verifierNonce] is supplied - a claim PRESENTED
+  /// TO A REMOTE NODE - the preimage extends to
   /// `'alexandria:receipt-claim:v$v:$receiptId:$verifierNonce:
   /// $expiryMillis'` (RFC 9449 `jti`/`iat`/`nonce` template): the
   /// verifier's server-chosen nonce plus an expiry make the signature
@@ -299,11 +299,11 @@ class WorkReceipt {
     return Uint8List.fromList(utf8.encode(preimage));
   }
 
-  /// True when prover and verifier are the same key — a self-issued receipt
+  /// True when prover and verifier are the same key - a self-issued receipt
   /// that proves integrity of storage but carries no attestation weight
   /// (the self-PoR loop is closed: it can never be claimed as attested).
   ///
-  /// NOTE: this is the SYNTACTIC check — literal string equality. The
+  /// NOTE: this is the SYNTACTIC check - literal string equality. The
   /// same key material can be spelled as uppercase or space-padded hex
   /// (the strict hex decoder still accepts both spellings), so identity
   /// guards in claim paths must use the canonical [samePubkey]
@@ -315,18 +315,18 @@ class WorkReceipt {
   /// Canonical public-key identity comparison (ALX-012 fix-up).
   ///
   /// Raw string equality is NOT an identity check: the same Ed25519 key
-  /// can be written uppercase or padded with ASCII spaces — spellings
-  /// the strict wire decoder still accepts as identical key bytes — so
+  /// can be written uppercase or padded with ASCII spaces - spellings
+  /// the strict wire decoder still accepts as identical key bytes - so
   /// `a == b` misses equivalent keys and lets a self-signed receipt pose
   /// as foreign-verified (self-dealing bypass). Two tiers:
-  ///  1. EXACT string equality after trimming — deliberately NOT
+  ///  1. EXACT string equality after trimming - deliberately NOT
   ///     case-folded: folding would equate distinct non-hex identities
   ///     ('AbC' == 'abc' is not a key binding, it is a false positive),
   ///     and real hex case-variants are already covered by tier 2;
   ///  2. byte equality of decoded hex when BOTH strings decode under the
   ///     strict class (ASCII spaces stripped, even-length
-  ///     `[0-9a-fA-F]+` only — exactly what the signature oracle's
-  ///     `hexToBytes` accepts) — catches case and interior-padding
+  ///     `[0-9a-fA-F]+` only - exactly what the signature oracle's
+  ///     `hexToBytes` accepts) - catches case and interior-padding
   ///     variants of real hex keys.
   ///
   /// A non-hex respelling ('+5', tab/NBSP/newline paddings that the old
@@ -335,7 +335,7 @@ class WorkReceipt {
   /// decoder's acceptance set must never exceed the guard's, and the
   /// guard's must never exceed the decoder's.
   ///
-  /// Returns false when either side is empty/blank — an absent key can
+  /// Returns false when either side is empty/blank - an absent key can
   /// never satisfy an identity binding (a vacuous `'' == ''` match must
   /// not pass a prover/verifier guard).
   static bool samePubkey(String a, String b) {
@@ -354,7 +354,7 @@ class WorkReceipt {
 
   static final RegExp _hexChars = RegExp(r'^[0-9a-fA-F]+$');
 
-  /// Strict hex decode — ASCII spaces stripped, then even-length
+  /// Strict hex decode - ASCII spaces stripped, then even-length
   /// `[0-9a-fA-F]+` only, mirroring the oracle decoder
   /// (`beacon_models.hexToBytes`) so the guard's acceptance set is
   /// IDENTICAL to the verifier's. Returns null when the input is not
@@ -382,7 +382,7 @@ class WorkReceipt {
   /// This is an intrinsic property of the artifact only. A CLAIMING node
   /// must additionally require `verifierPubkey != <own pubkey>`: a receipt
   /// the local node signed itself can never carry attestation weight for a
-  /// local mint — attestation means a *foreign* verifier vouched.
+  /// local mint - attestation means a *foreign* verifier vouched.
   bool get isAttestedClaim => isVerifierSigned && !isSelfIssued;
 
   /// True when [expiresAt] has passed relative to [now] (default: now).
@@ -390,10 +390,10 @@ class WorkReceipt {
       (now ?? DateTime.now()).millisecondsSinceEpoch > expiresAt;
 
   /// Returns a copy carrying [sig] as [verifierSig]. The receipt id is
-  /// unchanged — the signature is outside the canonical body.
+  /// unchanged - the signature is outside the canonical body.
   WorkReceipt withVerifierSig(String sig) => _with(verifierSig: sig);
 
-  /// Returns a copy carrying [sig] as [proverSig] — the issuance-ack
+  /// Returns a copy carrying [sig] as [proverSig] - the issuance-ack
   /// counter-signature ([ackPayload] domain). The receipt id is
   /// unchanged: signatures live outside the canonical body.
   WorkReceipt withProverSig(String sig) => _with(proverSig: sig);
@@ -423,7 +423,7 @@ class WorkReceipt {
     }
   }
 
-  /// Verifies [proverSig] — the issuance-ack counter-signature — over
+  /// Verifies [proverSig] - the issuance-ack counter-signature - over
   /// the domain-separated [ackPayload] under [proverPubkey] using the
   /// injected Ed25519 [verifyFn]. Returns false for absent/malformed
   /// signatures. Required in-path for claims of
@@ -446,7 +446,7 @@ class WorkReceipt {
   }
 
   /// Canonical spelling of a public key for equality / SQL `IN`
-  /// comparison — the column form of `attested_pubkey` and the
+  /// comparison - the column form of `attested_pubkey` and the
   /// normalization applied to held-key sets. Equivalent-by-[samePubkey]
   /// keys canonicalize identically (exact-trim equality, or strict-hex
   /// decoding to the same bytes → lowercase compacted hex); keys that
@@ -491,7 +491,7 @@ class WorkReceipt {
     );
   }
 
-  /// Map shaped for `AppDatabase.insertWorkReceipt` — `chunkIndices` is the
+  /// Map shaped for `AppDatabase.insertWorkReceipt` - `chunkIndices` is the
   /// JSON-array TEXT column form.
   Map<String, dynamic> toDbMap() => {
         'receiptId': receiptId,
@@ -519,7 +519,7 @@ class WorkReceipt {
     return WorkReceipt._(
       receiptId: map['receiptId'] as String,
       // Rows predating the v column (or callers omitting it) hydrate as
-      // the legacy scheme — v1 verifies over the bare canonical body.
+      // the legacy scheme - v1 verifies over the bare canonical body.
       v: (map['v'] as num?)?.toInt() ?? 1,
       workType: map['workType'] as String,
       proverPubkey: map['proverPubkey'] as String,
@@ -542,7 +542,7 @@ class WorkReceipt {
     );
   }
 
-  /// JSON view returned to MCP agents — the inspectable artifact. Amounts
+  /// JSON view returned to MCP agents - the inspectable artifact. Amounts
   /// stay doubles for display; `v` (the receipt's own wire version),
   /// `amount_milli` and `work_units_milli` carry the integer fields a
   /// foreign verifier needs to recompute [receiptId] bit-exactly.

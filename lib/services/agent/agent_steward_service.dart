@@ -76,7 +76,7 @@ class AgentStewardService extends ChangeNotifier {
     if (metrics.score < 1.0) {
       _logActivity(
           'PoCH score (${(metrics.score * 100).toStringAsFixed(0)}%) below threshold. Triggering Cauchy RS parity compute.');
-      // ALX-010: steward compute contribution is self-reported and unverified —
+      // ALX-010: steward compute contribution is self-reported and unverified -
       // it maintains local PoCH hygiene but mints NO credits until an external
       // challenger attests the work (prevents self-award of ~65ℭ/cycle).
       _pochService.recordSeedingActivity(100 * 1024 * 1024); // 100 MB
@@ -88,7 +88,7 @@ class AgentStewardService extends ChangeNotifier {
     }
 
     // 2. Scan Moltbook active bounties and claim endangered tasks.
-    // Only funded bounties are claimable — unfunded entries are seeded
+    // Only funded bounties are claimable - unfunded entries are seeded
     // demos or unattested remote announcements: ingestBountyAnnouncement
     // strips announcer-claimed `funded` flags until a verified escrow
     // attestation exists (E-T5r #1), so remote bounties simply never

@@ -66,7 +66,7 @@ void main() {
       );
       expect(honorSystem.computeTrustScore('cid_300'), equals(2));
 
-      // A validator may change its mind — newest ballot stands.
+      // A validator may change its mind - newest ballot stands.
       honorSystem.recordVote(
         validatorId: 'val_alice',
         targetCid: 'cid_300',

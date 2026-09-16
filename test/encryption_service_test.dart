@@ -39,7 +39,7 @@ void main() {
       final plaintext = Uint8List.fromList('Secret Data'.codeUnits);
 
       final ciphertext = await encryption.encryptData(plaintext, key1);
-      // Wrong-key decryption returns null (AEAD failure) — never
+      // Wrong-key decryption returns null (AEAD failure) - never
       // plaintext. See EncryptionService.decryptData.
       expect(await encryption.decryptData(ciphertext, key2), isNull);
     });
