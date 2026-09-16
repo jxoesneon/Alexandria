@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **RFC** | ALX-012 |
 | **Title** | Version Enforcement at the Proof Layer: Receipt Wire Versions, Epoch Domain Separation, and the Claim-Time Floor |
-| **Author** | Alexandria Core Team & Governance Review |
+| **Author** | Alexandria Core Team |
 | **Status** | Standard / Active |
 | **Version** | 1.0.0 |
 | **Date** | 2026-11-22 |
@@ -14,7 +14,7 @@
 
 ## 1. Abstract
 
-This specification canonizes the Review-of-Five decision on protocol version enforcement. Its single organizing result:
+This specification canonizes the five-signer quorum decision on protocol version enforcement. Its single organizing result:
 
 > **Version enforcement binds only at the proof layer** — at the point where a party the attacker does not control applies the check.
 
@@ -25,15 +25,15 @@ Every mechanism that tries to enforce a version against a *self-declared* value 
 3. **The claim-time floor** `minClaimableWireVersion`: a per-verifier policy constant — explicitly *not* a central kill switch (Safety B4) — with a grace window of `{current−1, current}` bounded by the receipt 24 h TTL.
 4. **Emergency retirement** of a wire epoch = bumping the floor constant.
 5. **Parse tolerance**: receipts with unknown `v` are representable but unclaimable below the floor — the anti-ossification lesson of RFC 9170.
-6. **`claimed_client_version`** (Review B3-lite): an advisory, self-declared semver injected via `--dart-define=ALX_CLIENT_VERSION`, riding the existing `claimed_*` provenance channel with zero trust weight.
+6. **`claimed_client_version`** (B3-lite review): an advisory, self-declared semver injected via `--dart-define=ALX_CLIENT_VERSION`, riding the existing `claimed_*` provenance channel with zero trust weight.
 
-Deferred with spec: the TUF-style review-signed release manifest that graduates the floor's authority (§5.1, now with a trigger condition), the real MCP stdio runner's mandatory safety conditions (§5.2, refined §5.6), and the vetoed `measuredLatencyMs` field (§5.3). Resolved in Review REV3: possession-proof claim binding (§5.4), durable bounty-claim dedup, ambient `trustedAttestorPubkeys`, narrowed `client_info` broadcast, and the `claimed_protocol_version` rename (§5.5). Resolved in Review REV4: crash-window claim reconciliation, CAS-loser lazy sync, identity-rotation self-vouch guard, bounded `_bounties`/`_pendingChallenges`, escrow release, envelope-aware ingest, and the wire-bump checklist (§5.7).
+Deferred with spec: the TUF-style quorum-signed release manifest that graduates the floor's authority (§5.1, now with a trigger condition), the real MCP stdio runner's mandatory safety conditions (§5.2, refined §5.6), and the vetoed `measuredLatencyMs` field (§5.3). Resolved in REV3 review: possession-proof claim binding (§5.4), durable bounty-claim dedup, ambient `trustedAttestorPubkeys`, narrowed `client_info` broadcast, and the `claimed_protocol_version` rename (§5.5). Resolved in REV4 review: crash-window claim reconciliation, CAS-loser lazy sync, identity-rotation self-vouch guard, bounded `_bounties`/`_pendingChallenges`, escrow release, envelope-aware ingest, and the wire-bump checklist (§5.7).
 
 ---
 
 ## 2. Core Theorem: Enforcement Binds Only at the Proof Layer
 
-**Theorem (Review research synthesis).** A version gate is effective iff it is evaluated by a party whose behavior the attacker cannot dictate, over evidence the attacker cannot fabricate. Equivalently: enforcement binds only where the check is applied *to* the attacker's artifact *by* someone else's rules engine — the proof layer.
+**Theorem (review synthesis).** A version gate is effective iff it is evaluated by a party whose behavior the attacker cannot dictate, over evidence the attacker cannot fabricate. Equivalently: enforcement binds only where the check is applied *to* the attacker's artifact *by* someone else's rules engine — the proof layer.
 
 Three corollaries:
 
@@ -106,7 +106,7 @@ Parsers MUST represent receipts with `v` greater than any epoch they implement: 
 
 ---
 
-## 4. `claimed_client_version` — Advisory Only (Review B3-lite)
+## 4. `claimed_client_version` — Advisory Only (B3-lite review)
 
 `BuildInfo` gains a self-declared client semver, injected at compile time:
 
@@ -122,24 +122,24 @@ surfacing as `claimed_client_version` inside `claimedBuildInfo` (the `client_inf
 
 ## 5. Deferred Work (with Spec)
 
-### 5.1 TUF-Style Review-Signed Release Manifest
+### 5.1 TUF-Style Threshold-Signed Release Manifest
 
 The floor's authority graduates in three stages:
 
 $$\texttt{constant} \;\rightarrow\; \texttt{verifier policy} \;\rightarrow\; \texttt{threshold-signed manifest}$$
 
-The terminal stage is a release manifest signed by a review threshold:
+The terminal stage is a release manifest signed by a quorum threshold:
 
 | Field | Type | Notes |
 | :--- | :--- | :--- |
 | `min_wire_version` | int | The floor this manifest asserts |
 | `sequence` | int | Monotonic; a manifest only supersedes strictly-lower sequences (rollback resistance) |
 | `expiry` | int | Epoch milliseconds after which the manifest is stale and ignored (prevents indefinite pinning by an abandoned manifest) |
-| `signatures` | sig[] | Threshold *t-of-n* over review verifier keys, TUF-style |
+| `signatures` | sig[] | Threshold *t-of-n* over quorum verifier keys, TUF-style |
 
 Until the manifest transport lands, the floor remains a per-verifier compile-time/policy constant — which is safe by construction because no manifest mechanism means no central lever exists to abuse.
 
-**Trigger condition (Review REV4):** the manifest ships when (i) an attestor quorum of ≥3 independent keys is configured in production, (ii) a signed-manifest transport exists (the same Beacon-envelope channel that carries bounty announcements; TUF's timestamp/freshness role maps to an online review key), and (iii) the first wire-floor bump has been socially required. Earlier construction adds a central lever before anything needs governing.
+**Trigger condition (REV4 review):** the manifest ships when (i) an attestor quorum of ≥3 independent keys is configured in production, (ii) a signed-manifest transport exists (the same Beacon-envelope channel that carries bounty announcements; TUF's timestamp/freshness role maps to an online release key), and (iii) the first wire-floor bump has been socially required. Earlier construction adds a central lever before anything needs governing.
 
 ### 5.2 Real MCP stdio Runner — Mandatory Preconditions
 
@@ -154,22 +154,22 @@ A production stdio runner for `AlexandriaMcpServer` is gated on ALL of:
 
 A4's `measuredLatencyMs` is **vetoed as caller-supplied**: a self-declared latency is a `claimed_*` value wearing a numeric costume and carries zero trust weight (same failure as Signal 499). A *verifier-measured* RTT — stamped by the verifier inside the signed body at issuance — MAY ride the receipt at the next wire bump (`v = 2`), where it becomes evidence the verifier attests, not a claim the prover makes.
 
-### 5.4 Possession-Proof Binding for `claimVerifiedReceipt` — RESOLVED (Review REV3)
+### 5.4 Possession-Proof Binding for `claimVerifiedReceipt` — RESOLVED (REV3 review)
 
 ~~`CreditService.claimVerifiedReceipt` takes `localPubkeyHex` as a **caller-supplied string**.~~ **Implemented.** Two changes landed per the REV3 verdict:
 
 1. **Injected identity resolver** — `CreditService` takes a `localProverPubkeyHex` resolver callback wired to `IdentityService` in the provider (ambient authority, matching the `ReceiptSignatureVerifier` idiom). The call site can no longer assert a prover key.
 2. **Claim-time possession signature** — `claimVerifiedReceipt` requires `claimSignatureB64`: an Ed25519 signature, verified in-path under `receipt.proverPubkey`, over the domain-separated preimage `alexandria:receipt-claim:v{v}:{receiptId}`. `receiptId` is the SHA-256 of the canonical body, so the signature binds every field; the CAS (`UPDATE … WHERE spent=0`) already enforces single-consumption, so replaying a claim signature is harmless (no nonce needed until *remote* claims exist — see below).
 
-**Review correction to the earlier draft:** artifact-carried `proverSig` is **not** the anti-theft mechanism — a stored signature travels with a copied artifact, so verifying it preserves bearer-ness. Its real value is *issuance-time provenance* (a verifier cannot mint a claimable receipt naming prover P without P's counter-signature). `proverSig` therefore stays optional and unverified until a wire bump defines its domain (`alexandria:receipt-ack:v{v}:`) and an issue→ack flow; the claim-time signature is the possession proof.
+**Correction to the earlier draft:** artifact-carried `proverSig` is **not** the anti-theft mechanism — a stored signature travels with a copied artifact, so verifying it preserves bearer-ness. Its real value is *issuance-time provenance* (a verifier cannot mint a claimable receipt naming prover P without P's counter-signature). `proverSig` therefore stays optional and unverified until a wire bump defines its domain (`alexandria:receipt-ack:v{v}:`) and an issue→ack flow; the claim-time signature is the possession proof.
 
 **Residuals:** `attestedBalance` is wallet-scoped, not `proverPubkey`-scoped — correct under the single-identity model; if multi-identity lands, `credit_transactions` gains `attested_pubkey` and the egress gate sums only over currently-held keys (`LocalProverPubkeyResolver`'s single-`String` signature is the forcing point). Identity **rotation** is now guarded: `IdentityService` keeps a persistent `knownLocalPubkeys` history, and `claimVerifiedReceipt` refuses any verifier key the node has ever held — a receipt signed by a retired local key can no longer self-vouch as "foreign". Rotation also orphans unclaimed receipts naming the retired prover key — expected consequence of possession binding, not a bug. When claims become *remote* (presented to another node), freshness needs a DPoP-style nonce/expiry in the claim preimage — the current static claim signature relies on the CAS for replay safety.
 
 Related cosmetic note — **the MCP `receipt_attested` report is a syntactic read.** `AlexandriaMcpServer` surfaces `receipt.isAttestedClaim`, which composes the *syntactic* `isSelfIssued` (literal `==`). A case-variant self-issued receipt can therefore *report* `attested_claim: true` — misreporting only: the claim path re-evaluates all identity compares through the canonical `WorkReceipt.samePubkey` and refuses regardless. (The analogous Moltbook self-claim guards were canonicalized to `_sameAgentId` in REV3 — this class is closed there.)
 
-### 5.5 Review REV3 Resolutions — Bounty Integrity, Trust Roots, Broadcast Metadata
+### 5.5 REV3 review Resolutions — Bounty Integrity, Trust Roots, Broadcast Metadata
 
-Third-round caveats adjudicated by the review board; implementation landed alongside this RFC:
+Third-round caveats adjudicated by the Protocol Governance; implementation landed alongside this RFC:
 
 - **Bounty claim durability (Safety veto, resolved):** `PreservationBounty.isClaimed` was a public mutable field and `activeBounties` returned the live stored records — a retained reference could flip `isClaimed=false` post-claim and `awardBountyEscrow` (which deduplicated nothing) paid again: unbounded re-mint from one funded announcement. Fix: a persisted `claimed_bounties` registry (insert-or-ignore CAS, mirroring `awarded_dois`) is the authoritative claim gate — restart + re-announcement cannot double-pay; evidence-failure deletes the row to preserve retry semantics. `activeBounties`/`postPreservationBounty` return defensive copies, and `awardBountyEscrow` additionally dedups on `bountyId` so the payout primitive is safe even if the claim layer is bypassed.
 - **`trustedAttestors` is ambient config, not a call parameter.** The per-call trust root was a footgun — every future transport call site would be one mistake away from passing announcement-derived data (the full Sybil surface). `MoltbookService` now takes `trustedAttestorPubkeys` at construction (default empty → fail-closed). When the transport lands it supplies *attestations*; the trust root graduates operator pin → threshold-signed manifest (§5.1 machinery, same TUF shape as the version floor). Wire data must never populate it.
@@ -179,14 +179,14 @@ Third-round caveats adjudicated by the review board; implementation landed along
 
 ### 5.6 Real MCP stdio Runner — Refined Spec (still gated)
 
-§5.2's four preconditions stand; Review REV3 refined the shape for when it ships:
+§5.2's four preconditions stand; REV3 review refined the shape for when it ships:
 
 - **Start read-only.** An allowlist of non-economic tools (`search_archive`, `get_wallet_balance`, `request_por_challenge`) makes conditions 3–4 near-vacuous; minting/spending tools stay off until budgets and ceilings exist.
 - **Session credential, not process existence.** A per-process generated token (never stored in exported config) gates every request; `initialize`/stdio-open is not a session boundary.
 - **Known residual surface if tools widen later:** regex-only DOI validation farms to the daily cap; `post_moltbook_bounty(force:true)` escrows real balance (REV4 added `releaseEscrow`/`cancelBounty` for locally-posted unclaimed bounties — the *agent-driven* post path still needs consent ceilings); `replicate_cid` spends; `_pendingChallenges` is now bounded (REV4).
 - Prefer a thin stdio shim to an authenticated local control socket of the running node over a second ProviderContainer instance.
 
-### 5.7 Review REV4 Resolutions — Reconciliation, Rotation Guard, Bounded Surfaces
+### 5.7 REV4 review Resolutions — Reconciliation, Rotation Guard, Bounded Surfaces
 
 - **Crash-window reconciliation.** The durable `claimed_bounties` CAS row could outlive a crashed process with no payout (claim locked forever, escrow stranded). Three layers closed it: (a) `claimBounty` bounds the settle wait (16 event-loop turns / 30 s) then probes `hasCreditTransaction('tx_bounty_payout_<id>')` — a returned-`true` claim provably has its payout row or a durable zero-amount `tx_escrow_release_<id>` tombstone making the id permanently un-payable/un-refundable; (b) pending tombstones retry at init and each claim entry (a `static Expando` keyed on the shared `AppDatabase` lets a fresh service finish a crashed predecessor's tombstone); (c) a startup sweep plus lazy reclaim in the CAS-loss branch delete claim rows lacking a payout row **via direct `credit_transactions` queries** — never the hydration-windowed `_paidBountyIds`. Dedup sets themselves hydrate from targeted prefix listings (`getCreditTransactionIdsWithPrefix`), so rows beyond the 100k replay window can no longer re-mint or strand.
 - **CAS-loser lazy sync + ownership-safe deletes.** On CAS loss, an existing payout row means the claim durably settled → mark claimed; a stale (>15 min) row with no payout row is deleted via `deleteClaimedBountyIfClaimedAt` (the observed `claimedAt` is the ownership guard — a racing claim's fresh row survives) and the CAS retried once; a fresh row means a claim is in flight. NO bare `deleteClaimedBounty` remains on any self-cleanup, sweep, or healer path.

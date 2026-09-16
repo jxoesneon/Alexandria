@@ -183,5 +183,57 @@ void main() {
       final service = container.read(biometricServiceProvider);
       expect(service, isA<BiometricService>());
     });
+
+    group('lastAuthenticatedAt (human-attestation clock)', () {
+      test('a real prompt success records the timestamp', () async {
+        final service = getService();
+        await service.setSecureMode(true);
+        final before = DateTime.now();
+        expect(await service.authenticate(), isTrue);
+        final at = service.lastAuthenticatedAt;
+        expect(at, isNotNull);
+        expect(at!.isAfter(before.subtract(const Duration(seconds: 1))),
+            isTrue);
+      });
+
+      test('fail-open bypasses do NOT record attestation', () async {
+        final service = getService();
+
+        // Biometrics unavailable → authenticate() returns true without
+        // prompting; that usability escape must not attest a human.
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'canCheckBiometrics') return false;
+          if (call.method == 'isDeviceSupported') return false;
+          return null;
+        });
+        expect(await service.authenticate(), isTrue);
+        expect(service.lastAuthenticatedAt, isNull);
+      });
+
+      test('secure-mode-off bypass does NOT record attestation',
+          () async {
+        final service = getService();
+        await service.setSecureMode(false);
+        // Device supports biometrics but secure mode is off — the
+        // early allow is not a human-verification event.
+        expect(await service.authenticate(), isTrue);
+        expect(service.lastAuthenticatedAt, isNull);
+      });
+
+      test('a failed prompt records nothing', () async {
+        final service = getService();
+        await service.setSecureMode(true);
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'isDeviceSupported') return true;
+          if (call.method == 'canCheckBiometrics') return true;
+          if (call.method == 'authenticate') return false;
+          return null;
+        });
+        expect(await service.authenticate(), isFalse);
+        expect(service.lastAuthenticatedAt, isNull);
+      });
+    });
   });
 }

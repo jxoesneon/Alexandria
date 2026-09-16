@@ -330,7 +330,7 @@ class PreservationBounty {
   /// `MoltbookService.activeBounties` hands out copies built this way so
   /// no caller can reach the stored record's mutable claim flag —
   /// flipping `isClaimed` on a returned object used to reopen a claimed
-  /// bounty for a second escrow payout (Review REV3 Safety veto fix).
+  /// bounty for a second escrow payout (REV3 review Safety veto fix).
   PreservationBounty copyWith({bool? isClaimed}) {
     return PreservationBounty(
       id: id,

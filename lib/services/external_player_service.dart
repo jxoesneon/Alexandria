@@ -60,10 +60,49 @@ class ExternalPlayerService {
 
   String? getCustomAppPath(SupportedApp app) => _customExecutablePaths[app];
 
+  /// Characters that must never appear in a launch target — shell
+  /// metacharacters and control bytes (round-3 red finding). No shell is
+  /// invoked anywhere anymore, but these are still rejected so a target
+  /// crafted for a hypothetical downstream shell path fails here first.
+  static final RegExp _unsafeTargetChars =
+      RegExp(r'[&|;<>()$`"\\\n\r\x00-\x1f]');
+
+  /// Validates that [target] is safe to hand to an external process as
+  /// an argv element: either an `http(s)://` URL or a plain filesystem
+  /// path with no shell metacharacters, no leading `-` (option/flag
+  /// injection into the player binary — e.g. VLC `--extraintf`), and no
+  /// URI scheme other than http(s) (kills `file:`, `javascript:`,
+  /// `data:` smuggling).
+  static bool isSafeExternalTarget(String target) {
+    if (target.isEmpty || target.length > 4096) return false;
+    if (_unsafeTargetChars.hasMatch(target)) return false;
+    if (target.startsWith('-')) return false;
+    final uri = Uri.tryParse(target);
+    if (uri != null && uri.hasScheme) {
+      // A Windows drive letter ('C:\…') parses as scheme 'c' — that is
+      // already excluded above by the backslash ban, so any scheme here
+      // must be http/https.
+      return uri.scheme == 'http' || uri.scheme == 'https';
+    }
+    // Bare path — must not smuggle a scheme through whitespace tricks.
+    if (target.contains(':')) return false;
+    return true;
+  }
+
+  /// Throws [ArgumentError] when [target] fails [isSafeExternalTarget].
+  static String _checkedTarget(String target) {
+    if (!isSafeExternalTarget(target)) {
+      throw ArgumentError(
+          'Refusing unsafe external-player target: $target');
+    }
+    return target;
+  }
+
   List<String> buildVlcCommand(String targetPathOrUrl,
       {VlcPlaybackOptions options = const VlcPlaybackOptions()}) {
+    final target = _checkedTarget(targetPathOrUrl);
     final customPath = _customExecutablePaths[SupportedApp.vlc];
-    final vlcArgs = options.toCommandLineArgs(targetPathOrUrl);
+    final vlcArgs = options.toCommandLineArgs(target);
 
     if (Platform.isMacOS) {
       final bin = customPath ?? 'VLC';
@@ -71,74 +110,62 @@ class ExternalPlayerService {
         'open',
         '-a',
         bin,
-        targetPathOrUrl,
+        target,
         if (vlcArgs.length > 1) '--args',
         ...vlcArgs.sublist(1)
       ];
     } else if (Platform.isWindows) {
+      // (round-3 red finding) no cmd.exe /c start — the executable is
+      // launched directly so the target can never be re-parsed as a
+      // shell command line.
       final bin = customPath ?? 'vlc.exe';
-      return ['cmd.exe', '/c', 'start', '""', bin, ...vlcArgs];
+      return [bin, ...vlcArgs];
     } else {
       final bin = customPath ?? 'vlc';
       return [bin, ...vlcArgs];
     }
   }
 
+  /// Windows "open with default handler" without a shell: explorer.exe
+  /// takes the target as a plain argv element — it performs no command
+  /// interpretation (round-3 red finding: replaces cmd.exe /c start).
+  static const String _windowsShellOpen = 'explorer.exe';
+
   List<String> buildAppCommand(SupportedApp app, String targetPathOrUrl,
       {List<String> extraArgs = const []}) {
+    final target = _checkedTarget(targetPathOrUrl);
     final customPath = _customExecutablePaths[app];
 
     switch (app) {
       case SupportedApp.vlc:
-        return buildVlcCommand(targetPathOrUrl);
+        return buildVlcCommand(target);
 
       case SupportedApp.calibre:
         if (Platform.isMacOS) {
-          return ['open', '-a', customPath ?? 'Calibre', targetPathOrUrl];
+          return ['open', '-a', customPath ?? 'Calibre', target];
         }
         if (Platform.isWindows) {
-          return [
-            'cmd.exe',
-            '/c',
-            'start',
-            '""',
-            customPath ?? 'calibre.exe',
-            targetPathOrUrl
-          ];
+          return [customPath ?? 'calibre.exe', target];
         }
-        return [customPath ?? 'foliate', targetPathOrUrl, ...extraArgs];
+        return [customPath ?? 'foliate', target, ...extraArgs];
 
       case SupportedApp.blender:
         if (Platform.isMacOS) {
-          return ['open', '-a', customPath ?? 'Blender', targetPathOrUrl];
+          return ['open', '-a', customPath ?? 'Blender', target];
         }
         if (Platform.isWindows) {
-          return [
-            'cmd.exe',
-            '/c',
-            'start',
-            '""',
-            customPath ?? 'blender.exe',
-            targetPathOrUrl
-          ];
+          return [customPath ?? 'blender.exe', target];
         }
-        return [customPath ?? 'blender', targetPathOrUrl, ...extraArgs];
+        return [customPath ?? 'blender', target, ...extraArgs];
 
       case SupportedApp.kicad:
         if (Platform.isMacOS) {
-          return ['open', '-a', customPath ?? 'KiCad', targetPathOrUrl];
+          return ['open', '-a', customPath ?? 'KiCad', target];
         }
         if (Platform.isWindows) {
-          return [
-            'cmd.exe',
-            '/c',
-            'start',
-            '""',
-            customPath ?? 'kicad.exe',
-            targetPathOrUrl
-          ];
+          return [customPath ?? 'kicad.exe', target];
         }
-        return [customPath ?? 'kicad', targetPathOrUrl, ...extraArgs];
+        return [customPath ?? 'kicad', target, ...extraArgs];
 
       case SupportedApp.codeEditor:
         if (Platform.isMacOS) {
@@ -146,28 +173,21 @@ class ExternalPlayerService {
             'open',
             '-a',
             customPath ?? 'Visual Studio Code',
-            targetPathOrUrl
+            target
           ];
         }
         if (Platform.isWindows) {
-          return [
-            'cmd.exe',
-            '/c',
-            'start',
-            '""',
-            customPath ?? 'code.cmd',
-            targetPathOrUrl
-          ];
+          return [customPath ?? 'code.cmd', target];
         }
-        return [customPath ?? 'code', targetPathOrUrl, ...extraArgs];
+        return [customPath ?? 'code', target, ...extraArgs];
 
       case SupportedApp.replayWeb:
       case SupportedApp.systemDefault:
-        if (Platform.isMacOS) return ['open', targetPathOrUrl];
+        if (Platform.isMacOS) return ['open', target];
         if (Platform.isWindows) {
-          return ['cmd.exe', '/c', 'start', '""', targetPathOrUrl];
+          return [_windowsShellOpen, target];
         }
-        return ['xdg-open', targetPathOrUrl];
+        return ['xdg-open', target];
     }
   }
 }

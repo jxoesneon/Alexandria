@@ -51,6 +51,32 @@ void main() {
       expect(service.inFlightCount, equals(0));
     });
 
+    test('a SYNCHRONOUSLY throwing task completes with error and '
+        'releases the permit (campaign-2)', () async {
+      // A task that throws before returning a Future used to leak the
+      // in-flight permit — the queue would deadlock once every permit
+      // leaked, and the completer never resolved.
+      final future = service.enqueueRequest(
+        requestId: 'sync-boom',
+        peerId: 'peer',
+        baseHonorScore: 10,
+        verifiedPoRCount: 0,
+        task: () => throw StateError('sync boom'),
+      );
+
+      await expectLater(future, throwsA(isA<StateError>()));
+      // Permit released — a follow-up task must still run.
+      final result = await service.enqueueRequest(
+        requestId: 'after',
+        peerId: 'peer',
+        baseHonorScore: 10,
+        verifiedPoRCount: 0,
+        task: () async => 'recovered',
+      );
+      expect(result, equals('recovered'));
+      expect(service.inFlightCount, equals(0));
+    });
+
     test('concurrency limit keeps excess requests in queue', () async {
       final completer1 = Completer<void>();
       final completer2 = Completer<void>();

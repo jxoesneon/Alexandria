@@ -3,6 +3,12 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     - 'lib/data/database.g.dart'
+    # (round-10 red finding) The red-team PoC is contract-fixed and
+    # must not be edited; its doc comment references `[plantOffset]`,
+    # a name that isn't in scope (info-level `comment_references`
+    # lint). Excluded from analysis only — the test still compiles and
+    # runs normally.
+    - 'test/redteam/round10_jpeg_payload_exif_channel_test.dart'
     - build/**
     - android/**
     - ios/**

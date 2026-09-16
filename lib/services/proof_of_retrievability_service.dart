@@ -100,7 +100,7 @@ class ProofOfRetrievabilityService {
 
   static const Duration challengeTtl = Duration(minutes: 5);
 
-  /// Hard cap on retained pending challenges (Review REV4 / Safety 5):
+  /// Hard cap on retained pending challenges (REV4 review / Safety 5):
   /// an unbounded map is a memory-DoS via challenge spam. The map is
   /// insertion-ordered, so eviction removes the oldest entry.
   static const int _maxPendingChallenges = 256;
@@ -144,7 +144,7 @@ class ProofOfRetrievabilityService {
       challengerPubkey: challengerPubkey,
     );
 
-    // Bound the map before inserting (Review REV4 / Safety 5): purge
+    // Bound the map before inserting (REV4 review / Safety 5): purge
     // expired entries first — they are dead weight and cheaper to drop
     // than a live challenge — then, if still at capacity, evict the
     // OLDEST entry (the map is insertion-ordered, so the first key is

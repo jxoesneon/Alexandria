@@ -1,4 +1,4 @@
-// Review REV4a hardening regression tests — the fixes for the four live
+// REV4a review hardening regression tests — the fixes for the four live
 // exploit classes the adversarial pass proved against the REV4 diff:
 //  F1  payout<->release double-dip (the two dedup sets never met)
 //  F2  'Bounty Escrow Hold' description marker was forgeable via
@@ -591,9 +591,9 @@ void main() {
       expect(await s.releaseEscrow(referenceId: 'w2'), 0.0);
     });
 
-    test('RE-W documented bound: a hold beyond the replay window '
-        'cannot be released (ids are listable, amounts are not) — '
-        'but a PAID beyond-window escrow still refuses via dedup',
+    test('RE-W bound CLOSED: a hold beyond the replay window IS '
+        'released via the durable hold listing — and a PAID '
+        'beyond-window escrow still refuses via dedup',
         () async {
       final edb = _EmptyReplayDb();
       addTearDown(edb.close);
@@ -620,9 +620,10 @@ void main() {
 
       final s = svc(onDb: edb);
       await s.ready;
-      // Unpaid but beyond-window: unreleasable (documented bound —
-      // the amount is unreadable through the DAO surface).
-      expect(await s.releaseEscrow(referenceId: 'w3'), 0.0);
+      // Unpaid but beyond-window: RELEASABLE — getEscrowHoldRows lists
+      // amount-bearing hold rows by the deterministic id prefix + exact
+      // referenceId match, independent of the replay window.
+      expect(await s.releaseEscrow(referenceId: 'w3'), 20.0);
       // Paid AND beyond-window: refused by the dedup set — never a
       // refund-on-top-of-payout double-mint.
       expect(await s.releaseEscrow(referenceId: 'w4'), 0.0);

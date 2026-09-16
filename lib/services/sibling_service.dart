@@ -31,6 +31,16 @@ class ContentSibling {
 }
 
 class SiblingService {
+  /// Maps a wire variant name to [VariantType] without throwing —
+  /// `Enum.values.byName` would crash on a remote-supplied unknown name.
+  static VariantType? _variantTypeFromWire(Object? raw) {
+    if (raw is! String) return null;
+    for (final t in VariantType.values) {
+      if (t.name == raw) return t;
+    }
+    return null;
+  }
+
   String normalizeTitle(String title) {
     return title
         .toLowerCase()
@@ -71,9 +81,16 @@ class SiblingService {
     return d[m][n];
   }
 
+  /// Upper bound on title length fed into the O(m·n) Levenshtein matrix —
+  /// attacker-sized titles would otherwise allocate quadratic memory/CPU
+  /// (red minor-observation hardening).
+  static const int maxTitleLength = 512;
+
   double calculateSimilarity(String s1, String s2) {
-    final n1 = normalizeTitle(_stripVariantSuffix(s1));
-    final n2 = normalizeTitle(_stripVariantSuffix(s2));
+    var n1 = normalizeTitle(_stripVariantSuffix(s1));
+    var n2 = normalizeTitle(_stripVariantSuffix(s2));
+    if (n1.length > maxTitleLength) n1 = n1.substring(0, maxTitleLength);
+    if (n2.length > maxTitleLength) n2 = n2.substring(0, maxTitleLength);
     if (n1.isEmpty || n2.isEmpty) return 0.0;
     if (n1 == n2) return 1.0;
     final maxLen = max(n1.length, n2.length);
@@ -127,9 +144,10 @@ class SiblingService {
           cid: candidateCid,
           title: candidateTitle,
           similarity: similarity,
-          variantType: candidate['variantType'] != null
-              ? VariantType.values.byName(candidate['variantType'])
-              : null,
+          // Non-throwing lookup: remote candidates can carry variant
+          // names this build doesn't know — an unknown name degrades to
+          // null instead of throwing out of the scan (red hardening).
+          variantType: _variantTypeFromWire(candidate['variantType']),
           variantValue: candidate['variantValue'] as String?,
         ));
       }

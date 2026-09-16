@@ -17,5 +17,5 @@ void main() async {
   final decrypted = await encryption.decryptData(encrypted, key);
   sw.stop();
   dev.log(
-      'AES-256-GCM Decryption (1MB): ${sw.elapsedMilliseconds} ms, bytes: ${decrypted.length}');
+      'AES-256-GCM Decryption (1MB): ${sw.elapsedMilliseconds} ms, bytes: ${decrypted?.length ?? 'FAILED'}');
 }

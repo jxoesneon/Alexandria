@@ -82,8 +82,9 @@ void main() {
     final svc = CreditService(db: db, initialBalance: 0.0);
     await svc.ready;
 
-    // Flavor A: PoR slash penalty debits _balance WITHOUT _burnForDebit.
-    // The attestedBalance getter must still clamp to balance (never exceed).
+    // Flavor A: PoR slash penalty — debits _balance only (slashing may
+    // never eat attested value; _attestedBalance is left alone). The
+    // attestedBalance getter must still clamp to balance (never exceed).
     svc.awardStorageCredits(
       sizeBytes: 1024,
       peerCount: 3,

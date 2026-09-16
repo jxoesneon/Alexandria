@@ -15,6 +15,12 @@ class _FakeContentRepository implements ContentRepository {
   String? lastAuthor;
   bool? lastEncrypted;
   Uint8List? lastFileData;
+  final List<String> createdTitles = [];
+  final List<Uint8List> createdPayloads = [];
+
+  /// Test hook: titles in this set throw from createContent so a single
+  /// bad file can be exercised against batch error isolation.
+  final Set<String> failTitles = {};
 
   @override
   Future<String> createContent({
@@ -28,11 +34,16 @@ class _FakeContentRepository implements ContentRepository {
     String? format,
     Map<String, dynamic>? extraMetadata,
   }) async {
+    if (failTitles.contains(title)) {
+      throw StateError('injected failure for $title');
+    }
     createContentCalled = true;
     lastTitle = title;
     lastAuthor = author;
     lastEncrypted = isEncrypted;
     lastFileData = fileData;
+    createdTitles.add(title);
+    createdPayloads.add(fileData);
     return 'new-uuid-123';
   }
 
@@ -237,6 +248,142 @@ void main() {
       expect(fakeRepo.lastTitle, 'Principia');
       expect(fakeRepo.lastAuthor, 'Isaac Newton');
       expect(fakeRepo.lastFileData, isNotNull);
+    });
+
+    Widget buildScreen(
+      _FakeContentRepository repo,
+      _MockScrubbingService scrub,
+      List<PlatformFile> files,
+    ) {
+      return ProviderScope(
+        overrides: [
+          contentRepositoryProvider.overrideWithValue(repo),
+          metadataScrubbingServiceProvider.overrideWithValue(scrub),
+          metadataServiceProvider
+              .overrideWithValue(_MockMetadataService()),
+        ],
+        child: MaterialApp(
+          home: AddContentScreen(initialFiles: files),
+        ),
+      );
+    }
+
+    Future<void> pumpForm(WidgetTester tester, Widget screen) async {
+      tester.view.physicalSize = const Size(1920, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(screen);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).at(0), 'Batch Upload');
+      await tester.enterText(find.byType(TextFormField).at(2), 'Anon');
+      await tester.ensureVisible(find.text('Create Manifest'));
+      await tester.tap(find.text('Create Manifest'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('ingests EVERY selected file, not just the first',
+        (tester) async {
+      final repo = _FakeContentRepository();
+      final files = [
+        PlatformFile(
+          name: 'alpha.txt',
+          size: 3,
+          bytes: Uint8List.fromList([1, 2, 3]),
+        ),
+        PlatformFile(
+          name: 'beta.txt',
+          size: 3,
+          bytes: Uint8List.fromList([4, 5, 6]),
+        ),
+        PlatformFile(
+          name: 'gamma.txt',
+          size: 3,
+          bytes: Uint8List.fromList([7, 8, 9]),
+        ),
+      ];
+      await pumpForm(tester, buildScreen(repo, _MockScrubbingService(), files));
+
+      expect(repo.createdTitles.length, 3);
+      // First file gets the form title; the rest are filename-derived.
+      expect(repo.createdTitles, ['Batch Upload', 'beta', 'gamma']);
+      expect(repo.createdPayloads.length, 3);
+    });
+
+    testWidgets('one bad file does not abort the batch (error isolation)',
+        (tester) async {
+      final repo = _FakeContentRepository()..failTitles.add('beta');
+      final files = [
+        PlatformFile(
+          name: 'alpha.txt',
+          size: 3,
+          bytes: Uint8List.fromList([1, 2, 3]),
+        ),
+        PlatformFile(
+          name: 'beta.txt',
+          size: 3,
+          bytes: Uint8List.fromList([4, 5, 6]),
+        ),
+        PlatformFile(
+          name: 'gamma.txt',
+          size: 3,
+          bytes: Uint8List.fromList([7, 8, 9]),
+        ),
+      ];
+      await pumpForm(tester, buildScreen(repo, _MockScrubbingService(), files));
+
+      // beta.txt failed mid-batch; alpha and gamma still ingested, and
+      // the partial success closed the screen.
+      expect(repo.createdTitles, ['Batch Upload', 'gamma']);
+      expect(find.byType(AddContentScreen), findsNothing);
+    });
+
+    testWidgets('rejects an oversized file before scrub/ingest',
+        (tester) async {
+      final repo = _FakeContentRepository();
+      // Declared size over the cap; tiny byte payload — the declared
+      // size alone must trigger rejection before bytes are touched.
+      final files = [
+        PlatformFile(
+          name: 'huge.png',
+          size: 600 * 1024 * 1024,
+          bytes: Uint8List.fromList([1, 2, 3]),
+        ),
+        PlatformFile(
+          name: 'ok.txt',
+          size: 3,
+          bytes: Uint8List.fromList([9, 9]),
+        ),
+      ];
+      await pumpForm(tester, buildScreen(repo, _MockScrubbingService(), files));
+
+      expect(repo.createdTitles, ['ok']);
+      expect(find.byType(AddContentScreen), findsNothing);
+    });
+
+    testWidgets('a total failure keeps the screen and reports per-file '
+        'errors', (tester) async {
+      final repo = _FakeContentRepository();
+      // Only oversized files — nothing ingests, so the form must stay
+      // open with the failure summary visible.
+      final files = [
+        PlatformFile(
+          name: 'huge.png',
+          size: 600 * 1024 * 1024,
+          bytes: Uint8List.fromList([1, 2, 3]),
+        ),
+        PlatformFile(name: 'nodata.bin', size: 10), // bytes == null
+      ];
+      await pumpForm(tester, buildScreen(repo, _MockScrubbingService(), files));
+
+      expect(repo.createdTitles, isEmpty);
+      expect(find.byType(AddContentScreen), findsOneWidget);
+      expect(find.textContaining('Ingested 0 of 2 file(s)'), findsOneWidget);
+      expect(find.textContaining('512 MiB'), findsOneWidget);
+      expect(
+        find.textContaining('No file data available'),
+        findsOneWidget,
+      );
     });
   });
 }

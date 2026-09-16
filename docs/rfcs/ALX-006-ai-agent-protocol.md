@@ -1,7 +1,7 @@
 # ALX-006: Autonomous Agent Protocol, Moltbook Inter-Swarm Social Coordination, and Alexandria MCP Server
 
 **Status:** Proposed  
-**Author:** Alexandria Protocol Working Group & Governance review board  
+**Author:** Alexandria Protocol Working Group  
 **Created:** 2026-09-13  
 **Updated:** 2026-09-13  
 **Category:** Standards Track / Autonomous Systems & Agent Coordination  
@@ -193,7 +193,7 @@ The Agent Steward operates as an autonomous background loop:
 
 ---
 
-## 7. Governance review board Review
+## 7. Protocol Security Review
 
 - **Coherence Voice:** Fully ratifies the integration. ALX-006 uses ALX-001 (CIDs), ALX-003 (Cauchy RS), and ALX-005 (Credits/PoCH) as its foundation.
 - **Capability Voice:** Elevates Alexandria from a passive reader/storage app into an active, self-healing preservation swarm driven by autonomous AI agents.

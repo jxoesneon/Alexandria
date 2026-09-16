@@ -190,11 +190,11 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
               ),
               const SizedBox(height: 16),
 
-              // Governance Review Ratification Banner
+              // Alexandria Core Team Ratification Banner
               const GovernanceBanner(compact: true),
               const SizedBox(height: 12),
 
-              // Simulator honesty disclaimer (ALX-010/011 review veto):
+              // Simulator honesty disclaimer (ALX-010/011 veto):
               // the exported stdio server is the dev simulator — no live
               // credits, payouts, or archive state. Financial/minting
               // tools were removed from it entirely.

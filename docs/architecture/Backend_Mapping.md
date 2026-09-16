@@ -50,14 +50,14 @@ Overview of active projects, AI contexts, and recent notes.
     *   `WorkspaceService.watchActiveWorkspaces()`: `Stream<List<Workspace>>`
     *   `WorkspaceService.createWorkspace(String name)`: `Future<Workspace>`
 
-### 2.2 Governance Agent Interface
-The conversational interface for interacting with the Governance AI.
-*   **Target Services:** `governance_ai_service.dart`
-*   **Providers:** `governanceChatProvider(sessionId)`
+### 2.2 Alexandria Agent Interface
+The conversational interface for interacting with the Alexandria AI.
+*   **Target Services:** `alexandria_ai_service.dart`
+*   **Providers:** `alexandriaChatProvider(sessionId)`
 *   **Methods/Streams:**
-    *   `GovernanceAiService.sendMessage(String sessionId, String message)`: `Future<void>`
-    *   `GovernanceAiService.watchChatStream(String sessionId)`: `Stream<ChatMessage>`
-    *   `GovernanceAiService.invokeTool(ToolInvocation invocation)`: `Future<ToolResult>`
+    *   `AlexandriaAiService.sendMessage(String sessionId, String message)`: `Future<void>`
+    *   `AlexandriaAiService.watchChatStream(String sessionId)`: `Stream<ChatMessage>`
+    *   `AlexandriaAiService.invokeTool(ToolInvocation invocation)`: `Future<ToolResult>`
 
 ### 2.3 Document & Note Editor
 Markdown-based editor for local notes and project documentation.

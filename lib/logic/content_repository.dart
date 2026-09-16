@@ -47,13 +47,17 @@ class ContentRepository {
         details: 'UUID: $uuid, Encrypted: $isEncrypted');
 
     Uint8List uploadPayload = fileData;
-    String? wrappedKey;
 
     if (isEncrypted) {
       final dek = await _encryption.generateKey();
       uploadPayload = await _encryption.encryptData(fileData, dek);
-      final rawKeyBytes = await _encryption.keyToBytes(dek);
-      wrappedKey = base64Encode(rawKeyBytes);
+      final wrappedKey = base64Encode(await _encryption.keyToBytes(dek));
+      // (round-2 red finding) The DEK lives ONLY in flutter_secure_storage
+      // under 'dek_$uuid'. It must NEVER be written into the plaintext
+      // content_manifests.encryptionKey column — that row ships through
+      // collection-sync metadata paths and sits in unencrypted SQLite, so
+      // a copy there voids encryption-at-rest for anyone who can read the
+      // database file or a backup export.
       await _storage.write('dek_$uuid', wrappedKey);
     }
 
@@ -77,7 +81,9 @@ class ContentRepository {
       'tags': tags?.join(','),
       'metadata': metadataJson,
       'isEncrypted': isEncrypted,
-      'encryptionKey': wrappedKey,
+      // encryptionKey deliberately omitted: the manifest row carries no
+      // key material. Callers needing the DEK use [contentDekBase64],
+      // which reads it back from secure storage.
     });
 
     final manifest = await getManifestByUuid(uuid);
@@ -98,6 +104,41 @@ class ContentRepository {
     return uuid;
   }
 
+  /// Returns the base64 data-encryption key for [manifestUuid] from
+  /// secure storage ('dek_$uuid'), or null for unencrypted/absent
+  /// content. This is the ONLY supported way to recover a content DEK —
+  /// the manifest row intentionally carries no key material (round-2 red
+  /// finding). NEVER exposed to plugins — see [asPluginCapability]
+  /// (round-4 red finding).
+  Future<String?> contentDekBase64(String manifestUuid) async {
+    return _storage.read('dek_$manifestUuid');
+  }
+
+  /// (round-4 red finding) The plugin-facing view of this repository.
+  ///
+  /// The round-3 facade gated which PROVIDER a plugin could read — but
+  /// handed over the full [ContentRepository], whose public surface
+  /// reaches the keychain transitively (`contentDekBase64` → every
+  /// stored DEK; `retrieveManifestContent` → decrypt-anything). A
+  /// `contentRead`-scoped plugin could therefore exfiltrate the very
+  /// key material the capability list claims is "NEVER" reachable.
+  ///
+  /// [asPluginCapability] returns a [PluginContentRepository] — a real
+  /// [ContentRepository] sharing this instance's [Ref], but with every
+  /// key-material/decrypt path closed and mutation methods gated on the
+  /// declared `contentWrite` permission. Manifest/metadata reads pass
+  /// through unchanged.
+  ContentRepository asPluginCapability({required bool canWrite}) =>
+      PluginContentRepository(_ref, canWrite: canWrite);
+
+  /// Convenience wrapper: retrieves and decrypts [cid] using the DEK
+  /// stored for [manifestUuid]. Keeps UI call sites working now that
+  /// `manifest.encryptionKey` no longer carries usable key material.
+  Future<Uint8List> retrieveManifestContent(String manifestUuid, String cid) {
+    return contentDekBase64(manifestUuid)
+        .then((dek) => retrieveContent(cid, dekBase64: dek));
+  }
+
   Future<Uint8List> retrieveContent(String cid, {String? dekBase64}) async {
     final chunks = <int>[];
     await for (final chunk in _ipfs.getFile(cid)) {
@@ -115,7 +156,12 @@ class ContentRepository {
 
     if (dekBase64 != null) {
       final key = await _encryption.keyFromBytes(base64Decode(dekBase64));
-      return await _encryption.decryptData(rawBytes, key);
+      final plain = await _encryption.decryptData(rawBytes, key);
+      if (plain == null) {
+        throw StateError(
+            'DEK failed the AEAD integrity check for $cid — wrong key or tampered ciphertext');
+      }
+      return plain;
     }
     return rawBytes;
   }
@@ -329,8 +375,32 @@ class ContentRepository {
   }
 
   Future<void> saveManifest(ContentManifest manifest) async {
+    await _writeManifestPreservingKey(manifest);
+  }
+
+  /// Writes [m]'s content columns back to its row WITHOUT touching
+  /// `encryptionKey`. (round-6 red finding) `update().replace()` copies
+  /// every column — so a manifest fetched through
+  /// [PluginContentRepository]'s projected view (`encryptionKey: null`)
+  /// wrote the hidden column back as NULL, destroying legacy plaintext
+  /// DEKs the schema-v6 migration deliberately keeps until they are
+  /// rehomed into secure storage. The column is managed ONLY by
+  /// `_rehomeLegacyManifestKeys`; no content mutation may write it.
+  Future<void> _writeManifestPreservingKey(ContentManifest m) async {
     final db = _ref.read(databaseProvider);
-    await db.update(db.contentManifests).replace(manifest);
+    await (db.update(db.contentManifests)..where((t) => t.id.equals(m.id)))
+        .write(ContentManifestsCompanion(
+      uuid: Value(m.uuid),
+      title: Value(m.title),
+      author: Value(m.author),
+      description: Value(m.description),
+      category: Value(m.category),
+      tags: Value(m.tags),
+      metadata: Value(m.metadata),
+      isEncrypted: Value(m.isEncrypted),
+      lastUpdated: Value(m.lastUpdated),
+      // encryptionKey: absent — never a writable column on this path.
+    ));
   }
 
   Future<List<Note>> getAllNotes() async {
@@ -378,7 +448,7 @@ class ContentRepository {
         metadata: Value<String?>(jsonEncode(meta)),
         lastUpdated: DateTime.now(),
       );
-      await db.update(db.contentManifests).replace(updated);
+      await _writeManifestPreservingKey(updated);
     }
   }
 
@@ -411,7 +481,6 @@ class ContentRepository {
   }
 
   Future<void> addAnnotation(String docId, Annotation annotation) async {
-    final db = _ref.read(databaseProvider);
     final manifest = await getManifestByUuid(docId);
     if (manifest == null) throw Exception('Document not found');
     final meta = _decodeMetadata(manifest.metadata);
@@ -431,7 +500,7 @@ class ContentRepository {
       metadata: Value<String?>(jsonEncode(meta)),
       lastUpdated: DateTime.now(),
     );
-    await db.update(db.contentManifests).replace(updated);
+    await _writeManifestPreservingKey(updated);
   }
 
   static Map<String, dynamic> _decodeMetadata(String? raw) {
@@ -514,4 +583,163 @@ class ContentIntegrityReport {
     this.flaggedReason,
     this.publisherPubkey,
   });
+}
+
+/// (round-4 red finding) Narrowed plugin-facing view of
+/// [ContentRepository].
+///
+/// Manifest/metadata reads and integrity probes pass through
+/// unchanged; every path that reaches key material is closed by
+/// construction:
+///   * [contentDekBase64] reads `dek_<uuid>` straight out of secure
+///     storage — a plugin holding only `contentRead` used it to pull
+///     arbitrary content DEKs through the allowlisted repository. It
+///     now reads as absent (`null`), matching the facade's "denied
+///     reads as absent" convention.
+///   * [retrieveManifestContent] auto-decrypts with the stored DEK —
+///     refused outright.
+///   * Mutation methods ([createContent], [saveManifest], [saveNote],
+///     [commitNote], [addAnnotation], [addVersion],
+///     [addContentVersion]) require the plugin's declared
+///     `contentWrite` permission ([_canWrite]).
+///
+/// [retrieveContent]/[downloadContent] remain available: they reach no
+/// stored key material — decryption there uses only a caller-supplied
+/// DEK the plugin already possesses — and the returned bytes are
+/// CID-verified ciphertext for encrypted content.
+///
+/// (round-5 red finding) The round-4 facade narrowed the METHODS but
+/// returned the raw Drift rows — whose `encryptionKey` column still
+/// holds plaintext DEKs on databases upgraded from pre-round-2 builds
+/// (the schema-v6 migration rehomes then NULLs the column, but a row
+/// survives until its rehome succeeds). Every manifest read below is
+/// therefore projected through [_withoutKeyMaterial]: a plugin-visible
+/// manifest NEVER carries the field.
+class PluginContentRepository extends ContentRepository {
+  final bool _canWrite;
+
+  PluginContentRepository(super._ref, {required bool canWrite})
+      : _canWrite = canWrite;
+
+  /// Returns [m] with the legacy key column blanked. cheap identity
+  /// fast-path keeps already-clean rows allocation-free.
+  static ContentManifest _withoutKeyMaterial(ContentManifest m) =>
+      m.encryptionKey == null
+          ? m
+          : m.copyWith(encryptionKey: const Value<String?>(null));
+
+  @override
+  Future<List<ContentManifest>> getAllManifests() async =>
+      (await super.getAllManifests()).map(_withoutKeyMaterial).toList();
+
+  @override
+  Stream<List<ContentManifest>> watchAllManifests() => super
+      .watchAllManifests()
+      .map((rows) => rows.map(_withoutKeyMaterial).toList());
+
+  @override
+  Future<ContentManifest?> getManifestByUuid(String uuid) async {
+    final manifest = await super.getManifestByUuid(uuid);
+    return manifest == null ? null : _withoutKeyMaterial(manifest);
+  }
+
+  @override
+  Future<List<ContentManifest>> getContentPage(
+          {required int page, required int pageSize}) async =>
+      (await super.getContentPage(page: page, pageSize: pageSize))
+          .map(_withoutKeyMaterial)
+          .toList();
+
+  void _requireWrite(String op) {
+    if (!_canWrite) {
+      throw StateError(
+          'Plugin capability "$op" requires the contentWrite permission');
+    }
+  }
+
+  /// Key material is never a plugin capability — reads as absent.
+  @override
+  Future<String?> contentDekBase64(String manifestUuid) async => null;
+
+  /// The stored-DEK decrypt path is never a plugin capability.
+  @override
+  Future<Uint8List> retrieveManifestContent(String manifestUuid, String cid) {
+    return Future.error(StateError(
+        'retrieveManifestContent is not a plugin capability (decrypts '
+        'with stored key material)'));
+  }
+
+  @override
+  Future<String> createContent({
+    required String title,
+    String? author,
+    String? description,
+    required Uint8List fileData,
+    bool isEncrypted = false,
+    List<String>? tags,
+    String? category,
+    String? format,
+    Map<String, dynamic>? extraMetadata,
+  }) {
+    _requireWrite('createContent');
+    return super.createContent(
+      title: title,
+      author: author,
+      description: description,
+      fileData: fileData,
+      isEncrypted: isEncrypted,
+      tags: tags,
+      category: category,
+      format: format,
+      extraMetadata: extraMetadata,
+    );
+  }
+
+  @override
+  Future<void> addVersion(
+      String uuid, String path, String language, String format,
+      {int sizeBytes = 0}) {
+    _requireWrite('addVersion');
+    return super.addVersion(uuid, path, language, format, sizeBytes: sizeBytes);
+  }
+
+  @override
+  Future<String> addContentVersion({
+    required String manifestUuid,
+    required Uint8List fileData,
+    String language = 'en',
+    String format = 'bin',
+  }) {
+    _requireWrite('addContentVersion');
+    return super.addContentVersion(
+      manifestUuid: manifestUuid,
+      fileData: fileData,
+      language: language,
+      format: format,
+    );
+  }
+
+  @override
+  Future<void> saveManifest(ContentManifest manifest) {
+    _requireWrite('saveManifest');
+    return super.saveManifest(manifest);
+  }
+
+  @override
+  Future<void> saveNote(Note note) {
+    _requireWrite('saveNote');
+    return super.saveNote(note);
+  }
+
+  @override
+  Future<String> commitNote(Note note) {
+    _requireWrite('commitNote');
+    return super.commitNote(note);
+  }
+
+  @override
+  Future<void> addAnnotation(String docId, Annotation annotation) {
+    _requireWrite('addAnnotation');
+    return super.addAnnotation(docId, annotation);
+  }
 }

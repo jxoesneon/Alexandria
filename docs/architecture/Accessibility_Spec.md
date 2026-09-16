@@ -1,7 +1,7 @@
 # Alexandria Accessibility Specification
 
 ## 1. Overview
-This document outlines the comprehensive accessibility standards and architectural specifications for the Alexandria UI. Guided by the Inclusion Review's mandates, our approach ensures that Alexandria remains universally usable, dignified, and demure in its presentation and operation.
+This document outlines the comprehensive accessibility standards and architectural specifications for the Alexandria UI. Guided by the Inclusion Working Group's mandates, our approach ensures that Alexandria remains universally usable, dignified, and demure in its presentation and operation.
 
 ## 2. Universal Media Reader
 The Universal Media Reader is designed to provide an inclusive reading experience for all media types within Alexandria.

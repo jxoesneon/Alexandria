@@ -85,11 +85,34 @@ class HybridLogicalClock implements Comparable<HybridLogicalClock> {
         'nodeId': base64Encode(nodeId),
       };
 
+  /// Total deserialization of a wire HLC (round-2 red finding): every
+  /// field is type-checked before use so a hostile sync message fails
+  /// with [FormatException] — never an uncaught _TypeError inside the
+  /// merge path. Throws [FormatException] on malformed input.
   factory HybridLogicalClock.fromJson(Map<String, dynamic> json) {
+    final wallTime = json['wallTime'];
+    final logical = json['logical'];
+    final nodeIdRaw = json['nodeId'];
+    if (wallTime is! int || logical is! int || nodeIdRaw is! String) {
+      throw const FormatException(
+          'Malformed HybridLogicalClock: wallTime/logical must be int, '
+          'nodeId must be a base64 string');
+    }
+    final Uint8List nodeId;
+    try {
+      nodeId = base64Decode(nodeIdRaw);
+    } on FormatException {
+      throw const FormatException(
+          'Malformed HybridLogicalClock: nodeId is not valid base64');
+    }
+    if (nodeId.isEmpty) {
+      throw const FormatException(
+          'Malformed HybridLogicalClock: empty nodeId');
+    }
     return HybridLogicalClock(
-      wallTime: json['wallTime'] as int,
-      logical: json['logical'] as int,
-      nodeId: base64Decode(json['nodeId'] as String),
+      wallTime: wallTime,
+      logical: logical,
+      nodeId: nodeId,
     );
   }
 }
@@ -526,10 +549,33 @@ class CollectionService {
     return true;
   }
 
+  /// Maximum wall-clock distance into the future a remote HLC timestamp
+  /// may claim before the write is dropped (round-2 red finding): a
+  /// forged far-future wallTime otherwise captures the LWW register and
+  /// locks out every legitimate edit until that wall time arrives.
+  /// Five minutes tolerates ordinary clock skew between honest peers.
+  static const Duration maxRemoteClockSkew = Duration(minutes: 5);
+
   /// Merge remote state from a sync message (Spec §17)
   ///
   /// This method handles incoming CRDT state from peers and merges
   /// it with the local collection using LWW and OR-Set semantics.
+  ///
+  /// Authentication floor (round-2 red finding): each remote LWW register
+  /// is admitted only when
+  ///   * its claimed `author` holds [CollectionRole.editor] or higher in
+  ///     the collection's accessControl (a peer with no role cannot write
+  ///     metadata), and
+  ///   * its HLC wallTime is not more than [maxRemoteClockSkew] ahead of
+  ///     the local clock (a forged future clock cannot lock the
+  ///     register), and
+  ///   * the register parses cleanly — malformed fields are dropped
+  ///     individually, never thrown out of the merge.
+  ///
+  /// RESIDUAL (documented honestly): sync ops carry no Ed25519 signature
+  /// over the register payload, so a peer CAN claim authorship of another
+  /// member's key — but only keys already holding a write role pass the
+  /// gate. Wire-level op signing remains future work.
   Future<void> mergeRemoteState(
     String collectionId,
     Map<String, dynamic> remoteState,
@@ -546,33 +592,18 @@ class CollectionService {
     }
 
     // Merge name (LWW)
-    if (remoteState['name'] != null) {
-      final remoteName = remoteState['name'] as Map<String, dynamic>;
-      final remoteTimestamp = HybridLogicalClock.fromJson(
-        remoteName['timestamp'] as Map<String, dynamic>,
-      );
-      if (remoteTimestamp.compareTo(local.name.timestamp) > 0) {
-        local.name = LWWRegister(
-          value: remoteName['value'] as String,
-          timestamp: remoteTimestamp,
-          author: base64Decode(remoteName['author'] as String),
-        );
-      }
+    final remoteName = _parseRemoteRegister(remoteState['name'], local);
+    if (remoteName != null &&
+        remoteName.timestamp.compareTo(local.name.timestamp) > 0) {
+      local.name = remoteName;
     }
 
     // Merge description (LWW)
-    if (remoteState['description'] != null) {
-      final remoteDesc = remoteState['description'] as Map<String, dynamic>;
-      final remoteTimestamp = HybridLogicalClock.fromJson(
-        remoteDesc['timestamp'] as Map<String, dynamic>,
-      );
-      if (remoteTimestamp.compareTo(local.description.timestamp) > 0) {
-        local.description = LWWRegister(
-          value: remoteDesc['value'] as String,
-          timestamp: remoteTimestamp,
-          author: base64Decode(remoteDesc['author'] as String),
-        );
-      }
+    final remoteDesc =
+        _parseRemoteRegister(remoteState['description'], local);
+    if (remoteDesc != null &&
+        remoteDesc.timestamp.compareTo(local.description.timestamp) > 0) {
+      local.description = remoteDesc;
     }
 
     // Update last modified
@@ -582,5 +613,55 @@ class CollectionService {
     }
 
     debugPrint('Merged remote state for collection: $collectionId');
+  }
+
+  /// Parses and authorizes one remote LWW register (`{value, timestamp,
+  /// author}`) against [local]'s accessControl and the clock-skew bound.
+  /// Returns null for any malformed or unauthorized register — callers
+  /// merge nothing in that case.
+  LWWRegister<String>? _parseRemoteRegister(
+    Object? raw,
+    Collection local,
+  ) {
+    if (raw is! Map) return null;
+    try {
+      final map = Map<String, dynamic>.from(raw);
+      final value = map['value'];
+      final authorRaw = map['author'];
+      final timestampRaw = map['timestamp'];
+      if (value is! String ||
+          authorRaw is! String ||
+          timestampRaw is! Map) {
+        return null;
+      }
+      final Uint8List author = base64Decode(authorRaw);
+      final timestamp = HybridLogicalClock.fromJson(
+        Map<String, dynamic>.from(timestampRaw),
+      );
+
+      // Authorization gate: the claimed author must hold a write role on
+      // THIS collection. Without it, any sync-topic peer could rewrite
+      // collections it has no role in (round-2 red finding).
+      if (!local.hasRole(author, CollectionRole.editor)) {
+        return null;
+      }
+
+      // Clock bound: a remote wallTime beyond now+skew is treated as
+      // forged and dropped, so it can never win the LWW comparison.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (timestamp.wallTime > now + maxRemoteClockSkew.inMilliseconds) {
+        return null;
+      }
+
+      return LWWRegister(
+        value: value,
+        timestamp: timestamp,
+        author: author,
+      );
+    } catch (_) {
+      // Fail-safe: ANY malformed wire value (bad base64, wrong map
+      // types, absurd HLC fields) merges nothing — never crashes.
+      return null;
+    }
   }
 }

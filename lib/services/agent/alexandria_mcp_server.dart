@@ -5,8 +5,10 @@ import '../../data/database.dart' show AppDatabase, databaseProvider;
 import '../credits/credit_service.dart';
 import '../credits/crypto_bridge_service.dart';
 import '../credits/poch_service.dart';
+import '../credits/work_receipt.dart';
 import '../identity_service.dart';
 import '../ipfs_service.dart';
+import '../plugins/doi_harvester_plugin.dart';
 import '../proof_of_retrievability_service.dart';
 import 'beacon_models.dart';
 import 'moltbook_service.dart';
@@ -44,13 +46,19 @@ class AlexandriaMcpServer {
   /// tests can run the server in-memory.
   final AppDatabase? _db;
 
+  /// DOI resolution used by the ingest tool to VERIFY a DOI names a real
+  /// scholarly work before any verification bounty is minted (round-2 red
+  /// finding: the tool previously minted on regex shape alone). Injectable
+  /// so tests can stub the scholarly APIs.
+  final DoiResolver _doiResolver;
+
   /// DOIs already rewarded through the ingest tool — one payout per work,
   /// ever. In-memory fallback used only when no [_db] is injected.
   final Set<String> _awardedDois = {};
 
   /// Agent-facing payout rails (Cashu export, Lightning sweep) stay closed
   /// until the attestation layer exists — 𝒞→BTC egress is the profit motive
-  /// for every mint exploit (Review ALX-010).
+  /// for every mint exploit (ALX-010).
   static const bool agentPayoutsEnabled = false;
 
   AlexandriaMcpServer({
@@ -62,7 +70,9 @@ class AlexandriaMcpServer {
     required IpfsService ipfsService,
     IdentityService? identityService,
     AppDatabase? db,
-  })  : _creditService = creditService,
+    DoiResolver? doiResolver,
+  })  : _doiResolver = doiResolver ?? DoiResolver(),
+        _creditService = creditService,
         _pochService = pochService,
         _cryptoBridgeService = cryptoBridgeService,
         _moltbookService = moltbookService,
@@ -256,7 +266,7 @@ class AlexandriaMcpServer {
           return _getWalletBalance();
 
         case 'alexandria_replicate_cid':
-          return _replicateCid(
+          return await _replicateCid(
             arguments['cid'] as String? ?? '',
             (arguments['credits'] as num? ?? 0.0).toDouble(),
           );
@@ -276,7 +286,7 @@ class AlexandriaMcpServer {
           return await _postMoltbookBounty(arguments);
 
         case 'alexandria_export_cashu_voucher':
-          return _exportCashuVoucher(
+          return await _exportCashuVoucher(
               (arguments['credits'] as num? ?? 0.0).toDouble());
 
         case 'alexandria_sweep_lightning_live':
@@ -370,7 +380,35 @@ class AlexandriaMcpServer {
       return _errorResponse(
           'Invalid DOI format: $doi. Expected 10.<registrant>/<suffix>.');
     }
-    final simulatedCid = 'bafk_${doi.replaceAll('/', '_')}';
+
+    // REAL verification gate (round-2 red finding): a "verification
+    // bounty" requires verified input. The DOI must resolve to a real
+    // scholarly record via Crossref/OpenAlex/doi.org — regex-valid
+    // fabrications mint nothing and are NOT recorded in the dedup set,
+    // so a transient resolver outage never permanently burns a real DOI.
+    DoiRecord? record;
+    try {
+      record = await _doiResolver
+          .resolve(doi)
+          .timeout(const Duration(seconds: 15));
+    } catch (_) {
+      record = null;
+    }
+    if (record == null || record.doi.isEmpty) {
+      return _textResponse(jsonEncode({
+        'status': 'unverified',
+        'doi': doi,
+        'credits_earned': 0.0,
+        'note':
+            'DOI could not be resolved against scholarly metadata APIs — no verification performed, no credits minted.',
+      }));
+    }
+
+    // Ingest the verified work: store its dossier so the assigned CID is
+    // real content-addressed material, not a fabricated label.
+    final dossier =
+        Uint8List.fromList(utf8.encode(record.toMarkdownDossier()));
+    final assignedCid = await _ipfsService.addFile(dossier);
 
     // One payout per unique work — looping the same DOI mints nothing.
     // Dedupe is persisted (AwardedDois) so it survives restarts and new
@@ -381,7 +419,7 @@ class AlexandriaMcpServer {
       // insertAwardedDoi returns false on PK conflict (insertOrIgnore) —
       // the return value is the authoritative dedup signal; a raced
       // insert can never double-mint.
-      duplicate = !(await db.insertAwardedDoi(doi, cid: simulatedCid));
+      duplicate = !(await db.insertAwardedDoi(doi, cid: assignedCid));
     } else {
       duplicate = !_awardedDois.add(doi);
     }
@@ -393,19 +431,23 @@ class AlexandriaMcpServer {
         'note': 'DOI already ingested and rewarded; no duplicate payout.',
       }));
     }
-    _creditService.awardVerificationCredits(
+
+    // Report the ACTUAL minted amount — awardVerificationCredits returns
+    // the post-daily-cap figure, so the response can never overstate
+    // earnings when the 100 ℭ/day verificationReward clamp bites.
+    final minted = _creditService.awardVerificationCredits(
       action: 'Verified and ingested scientific paper: $doi',
-      targetId: simulatedCid,
+      targetId: assignedCid,
       amount: 15.0,
     );
 
     return _textResponse(jsonEncode({
       'status': 'success',
-      'doi': doi,
-      'title': title ?? 'Ingested Scientific Work',
-      'assigned_cid': simulatedCid,
-      'credits_earned': 15.0,
-      'merkle_root': '0x8fbc92384a...',
+      'doi': record.doi,
+      'title': title ?? record.title,
+      'assigned_cid': assignedCid,
+      'credits_earned': minted,
+      'verified_via': record.sourceApi,
     }));
   }
 
@@ -426,9 +468,15 @@ class AlexandriaMcpServer {
     }));
   }
 
-  Map<String, dynamic> _replicateCid(String cid, double credits) {
+  Future<Map<String, dynamic>> _replicateCid(
+      String cid, double credits) async {
     if (credits <= 0) return _errorResponse('Credits must be > 0.');
-    final success = _creditService.spendCredits(
+    // DURABLE-FIRST (optimistic-return residual — adopted): the debit
+    // commits through the insert-if-absent CAS BEFORE the balance
+    // mutates, so a reported success provably corresponds to a
+    // durably-committed row — an agent tool response never precedes
+    // its own collateral.
+    final success = await _creditService.spendCreditsDurable(
       amount: credits,
       reason: 'Commissioned Swarm Parity Replication for $cid',
       referenceId: cid,
@@ -539,16 +587,35 @@ class AlexandriaMcpServer {
     }
 
     final receipt = result.receipt;
+    // Canonical identity reporting (receipt_attested robustness fix):
+    // WorkReceipt.isSelfIssued / isAttestedClaim are SYNTACTIC reads —
+    // literal `==` on the key strings. A `prover_pubkey` spelled as a
+    // case-variant or space-padded form of the verifier key slips past
+    // `==` while the claim path (WorkReceipt.samePubkey, byte-level
+    // canonical comparison) still evaluates the receipt as self-issued
+    // and refuses it. Report the CANONICAL verdict so this surface
+    // matches the claim path's evaluation instead of misreporting
+    // `attested_claim: true`.
+    final canonSelfIssued = receipt != null &&
+        WorkReceipt.samePubkey(
+            receipt.proverPubkey, receipt.verifierPubkey);
+    final canonAttested =
+        receipt != null && receipt.isVerifierSigned && !canonSelfIssued;
+    final receiptJson = receipt == null
+        ? null
+        : (<String, dynamic>{...receipt.toJson()}
+          ..['self_issued'] = canonSelfIssued
+          ..['attested_claim'] = canonAttested);
     return _textResponse(jsonEncode({
       'status': 'verified',
       'cid': challenge.cid,
       'proof_valid': true,
       'new_balance': _creditService.balance,
-      'receipt': receipt?.toJson(),
-      'receipt_attested': receipt?.isAttestedClaim ?? false,
+      'receipt': receiptJson,
+      'receipt_attested': canonAttested,
       'note': receipt == null
           ? null
-          : receipt.isSelfIssued
+          : canonSelfIssued
               ? 'Self-issued receipt: verifies integrity but claims only unattested (non-egress) value.'
               : receipt.spent
                   ? null
@@ -582,12 +649,17 @@ class AlexandriaMcpServer {
     }));
   }
 
-  Map<String, dynamic> _exportCashuVoucher(double credits) {
+  Future<Map<String, dynamic>> _exportCashuVoucher(double credits) async {
     if (!agentPayoutsEnabled) {
       return _errorResponse(
           'Agent payout rails are disabled until the cross-verified attestation layer ships (ALX-010). Credits remain spendable inside Alexandria.');
     }
-    final token = _cryptoBridgeService.exportCreditsAsCashuToken(credits);
+    // DURABLE-FIRST (payout-rail precondition): the attested debit
+    // commits through spendCreditsDurable BEFORE the bearer token is
+    // assembled — an emitted Cashu token can never outrun its own
+    // collateral, which the optimistic form could not promise.
+    final token =
+        await _cryptoBridgeService.exportCreditsAsCashuTokenDurable(credits);
     if (token == null) {
       return _errorResponse(
           'Failed to export Cashu token. Check that balance >= $credits.');

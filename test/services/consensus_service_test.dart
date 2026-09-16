@@ -110,12 +110,18 @@ void main() {
     });
 
     test('vetoChange allows uploader to immediately veto pending request', () async {
+      // Uploader authority is no longer caller-claimed (round-3 fix):
+      // it is attested by a local `createContent` ledger entry for the
+      // target CID under this node's identity.
+      await ledger.recordAction(
+        action: LedgerActionType.createContent,
+        contentCid: 'bafy_veto_cid',
+      );
       final req = await consensus.proposeChange(
         targetCid: 'bafy_veto_cid',
         field: 'description',
         currentValue: 'Old Desc',
         proposedValue: 'New Desc',
-        uploaderKey: identity.publicKeyBytes,
       );
 
       final vetoed = await consensus.vetoChange(req.id);
@@ -133,12 +139,16 @@ void main() {
     });
 
     test('fastTrackChange allows uploader to immediately approve if has support', () async {
+      // Attest local uploader authority via the ledger (round-3 fix).
+      await ledger.recordAction(
+        action: LedgerActionType.createContent,
+        contentCid: 'bafy_fast_cid',
+      );
       final req = await consensus.proposeChange(
         targetCid: 'bafy_fast_cid',
         field: 'year',
         currentValue: 1900,
         proposedValue: 1905,
-        uploaderKey: identity.publicKeyBytes,
       );
 
       // Fast-track with no approvals fails
@@ -178,6 +188,151 @@ void main() {
         isHuman: true,
       );
       expect(wZeroRep, equals(0.0));
+    });
+
+    group('human attestation (biometric-bound isHuman)', () {
+      Future<ChangeRequest> propose(ConsensusService svc) => svc.proposeChange(
+            targetCid: 'bafy_human_cid_${DateTime.now().microsecondsSinceEpoch}',
+            field: 'title',
+            currentValue: 'A',
+            proposedValue: 'B',
+            isAiProposal: true,
+          );
+
+      test('isHuman claim fails closed with no attestation clock', () async {
+        // No humanAttestationClock wired — a caller-claimed isHuman
+        // must mint an unattested (isHuman == false) ballot.
+        final req = await propose(consensus);
+        final vote = await consensus.castVote(
+          requestId: req.id,
+          approve: true,
+          reputation: 0,
+          daysActive: 0,
+          isHuman: true,
+        );
+        expect(vote, isNotNull);
+        expect(vote!.isHuman, isFalse);
+        expect(req.humanApprovalCount, 0);
+      });
+
+      test('recent biometric attestation mints a human ballot', () async {
+        final svc = ConsensusService(
+          identity,
+          ledger,
+          humanAttestationClock: () =>
+              DateTime.now().subtract(const Duration(seconds: 30)),
+        );
+        final req = await propose(svc);
+        final vote = await svc.castVote(
+          requestId: req.id,
+          approve: true,
+          reputation: 0,
+          daysActive: 0,
+          isHuman: true,
+        );
+        expect(vote!.isHuman, isTrue);
+        expect(req.humanApprovalCount, 1);
+      });
+
+      test('stale attestation (outside window) is not counted', () async {
+        final svc = ConsensusService(
+          identity,
+          ledger,
+          humanAttestationClock: () =>
+              DateTime.now().subtract(const Duration(hours: 1)),
+        );
+        final req = await propose(svc);
+        final vote = await svc.castVote(
+          requestId: req.id,
+          approve: true,
+          reputation: 0,
+          daysActive: 0,
+          isHuman: true,
+        );
+        expect(vote!.isHuman, isFalse);
+        expect(req.humanApprovalCount, 0);
+      });
+
+      test('a clock reading in the future attests nothing', () async {
+        final svc = ConsensusService(
+          identity,
+          ledger,
+          humanAttestationClock: () =>
+              DateTime.now().add(const Duration(minutes: 1)),
+        );
+        final req = await propose(svc);
+        final vote = await svc.castVote(
+          requestId: req.id,
+          approve: true,
+          reputation: 0,
+          daysActive: 0,
+          isHuman: true,
+        );
+        expect(vote!.isHuman, isFalse);
+      });
+
+      test('a throwing clock fails closed', () async {
+        final svc = ConsensusService(
+          identity,
+          ledger,
+          humanAttestationClock: () =>
+              throw StateError('biometric backend exploded'),
+        );
+        final req = await propose(svc);
+        final vote = await svc.castVote(
+          requestId: req.id,
+          approve: true,
+          reputation: 0,
+          daysActive: 0,
+          isHuman: true,
+        );
+        expect(vote!.isHuman, isFalse);
+      });
+
+      test('unattested human claims price weight at the AI factor',
+          () async {
+        // Same ledger/identity, two services differing only in the
+        // attestation clock — the attested human ballot must weigh
+        // exactly twice the unattested one (A = 1.0 vs 0.5).
+        final humanSvc = ConsensusService(
+          identity,
+          ledger,
+          humanAttestationClock: () => DateTime.now(),
+        );
+        final anonSvc = ConsensusService(identity, ledger);
+
+        final reqHuman = await humanSvc.proposeChange(
+          targetCid: 'bafy_hw',
+          field: 'title',
+          currentValue: 'A',
+          proposedValue: 'B',
+        );
+        final reqAnon = await anonSvc.proposeChange(
+          targetCid: 'bafy_aw',
+          field: 'title',
+          currentValue: 'A',
+          proposedValue: 'B',
+        );
+
+        final humanVote = await humanSvc.castVote(
+          requestId: reqHuman.id,
+          approve: true,
+          reputation: 0,
+          daysActive: 0,
+          isHuman: true,
+        );
+        final anonVote = await anonSvc.castVote(
+          requestId: reqAnon.id,
+          approve: true,
+          reputation: 0,
+          daysActive: 0,
+          isHuman: true, // claimed, not attested
+        );
+
+        expect(humanVote!.isHuman, isTrue);
+        expect(anonVote!.isHuman, isFalse);
+        expect(humanVote.weight, closeTo(anonVote.weight * 2, 1e-9));
+      });
     });
 
     test('Vote, ChangeRequest, AuditEntry JSON serialization', () {

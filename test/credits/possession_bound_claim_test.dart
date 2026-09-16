@@ -1,5 +1,5 @@
 // SCRATCH EVALUATOR FILE — adversarial exploit tests for the
-// possession-bound receipt claim (Review REV3) and _paidBountyIds dedup.
+// possession-bound receipt claim (REV3 review) and _paidBountyIds dedup.
 // Delete after evaluation. Covers exploit classes 1-7 from the eval brief:
 //  1. copied foreign receipt claimed under a different resolved identity
 //  2. claimSignatureB64 swaps (wrong key / wrong preimage / malformed)
@@ -8,6 +8,7 @@
 //  5. _paidBountyIds dedup incl. ACROSS-RESTART hole and id-burn ordering
 //  6. attested mint reachable without the claim sig (regression)
 //  7. version ceiling vs. signature-verification ordering (oracle behavior)
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -64,9 +65,16 @@ void main() {
     int? expiresAt,
     SimpleKeyPair? keyPair,
     String? verifierSig,
+    // v3+ issuance acknowledgment (ALX-012 §5.8): signed over the
+    // ack domain under [proverKeyPair] (default: the prover key of
+    // record). An explicit string attaches verbatim; '' leaves the
+    // artifact un-acked.
+    SimpleKeyPair? proverKeyPair_,
+    String? proverSig,
   }) async {
+    final version = v ?? WorkReceipt.wireVersion;
     final unsigned = WorkReceipt.issue(
-      v: v ?? WorkReceipt.wireVersion,
+      v: version,
       workType: workType,
       proverPubkey: proverPubkey ?? proverPubHex,
       verifierPubkey: verifierPubkey ?? verifierPubHex,
@@ -80,16 +88,32 @@ void main() {
       expiresAt: expiresAt ??
           DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
     );
-    if (verifierSig != null) return unsigned.withVerifierSig(verifierSig);
-    final sig = await algorithm.sign(unsigned.signingPayload,
-        keyPair: keyPair ?? verifierKeyPair);
-    return unsigned.withVerifierSig(base64Encode(sig.bytes));
+    WorkReceipt signed;
+    if (verifierSig != null) {
+      signed = unsigned.withVerifierSig(verifierSig);
+    } else {
+      final sig = await algorithm.sign(unsigned.signingPayload,
+          keyPair: keyPair ?? verifierKeyPair);
+      signed = unsigned.withVerifierSig(base64Encode(sig.bytes));
+    }
+    if (version >= WorkReceipt.minAckWireVersion) {
+      if (proverSig != null) {
+        if (proverSig.isNotEmpty) {
+          signed = signed.withProverSig(proverSig);
+        }
+      } else {
+        final ack = await algorithm.sign(signed.ackPayload,
+            keyPair: proverKeyPair_ ?? proverKeyPair);
+        signed = signed.withProverSig(base64Encode(ack.bytes));
+      }
+    }
+    return signed;
   }
 
   late AppDatabase db;
 
   CreditService svcWith(
-      {LocalProverPubkeyResolver? resolver,
+      {FutureOr<String?> Function()? resolver,
       ReceiptSignatureVerifier? verifier,
       String? fixedLocal}) {
     return CreditService(
@@ -339,6 +363,8 @@ void main() {
         return proverPubHex;
       });
       await svc.ready;
+      calls = 0; // hydration warms the held-key cache once — count only
+      // the claim-time resolutions below.
       final r = await persist(await signedReceipt());
       expect(
           await svc.claimVerifiedReceipt(r,

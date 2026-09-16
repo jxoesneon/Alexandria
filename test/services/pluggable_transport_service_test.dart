@@ -49,7 +49,14 @@ void main() {
       final raw = Uint8List.fromList('Shadowsocks payload'.codeUnits);
       final obfuscated = service.obfuscate(raw);
 
-      expect(obfuscated.length, equals(16 + raw.length));
+      // Wire: salt(16) ‖ mask, where mask = base64(nonce(16) ‖ ct ‖
+      // tag(32)) XOR salt — i.e. 16 + base64Len(48 + len). The base64
+      // armor + salt mask is cosmetic; security lives in the keyed
+      // keystream + HMAC tag (round-2 fix — the old profile was
+      // salt ‖ plaintext⊕salt with no key material at all).
+      final frameLen = 48 + raw.length;
+      final base64Len = 4 * ((frameLen + 2) ~/ 3);
+      expect(obfuscated.length, equals(16 + base64Len));
       expect(service.deobfuscate(obfuscated), equals(raw));
     });
 

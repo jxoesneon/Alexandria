@@ -179,6 +179,48 @@ void main() {
       expect(canVoteExpired, isFalse);
     });
 
+    test('Proposal.status is read-only — transitions only through '
+        'activate()/resolve() (campaign-2)', () {
+      final proposal = Proposal(
+        id: 'lifecycle_prop',
+        type: ProposalType.gatewayAddition,
+        title: 'Lifecycle',
+        description: 'status transitions',
+        payload: {},
+        proposerId: 'proposer',
+        created: DateTime.now(),
+        deadline: DateTime.now().add(const Duration(days: 7)),
+        signature: 'sig',
+      );
+
+      expect(proposal.status, equals(ProposalStatus.draft));
+
+      // Illegal transitions are no-ops, not rewrites.
+      proposal.resolve(ProposalStatus.approved);
+      expect(proposal.status, equals(ProposalStatus.draft));
+      proposal.resolve(ProposalStatus.executed);
+      expect(proposal.status, equals(ProposalStatus.draft));
+
+      proposal.activate();
+      expect(proposal.status, equals(ProposalStatus.active));
+      // activate is idempotent beyond draft.
+      proposal.activate();
+      expect(proposal.status, equals(ProposalStatus.active));
+
+      proposal.resolve(ProposalStatus.approved);
+      expect(proposal.status, equals(ProposalStatus.approved));
+      // approved → rejected is a backward/illegal move: no-op.
+      proposal.resolve(ProposalStatus.rejected);
+      expect(proposal.status, equals(ProposalStatus.approved));
+      // approved → executed is the only terminal path.
+      proposal.resolve(ProposalStatus.executed);
+      expect(proposal.status, equals(ProposalStatus.executed));
+      // Terminal → anything: no-op.
+      proposal.resolve(ProposalStatus.active);
+      proposal.activate();
+      expect(proposal.status, equals(ProposalStatus.executed));
+    });
+
     test('addProposal dedupes by id and strips unverifiable votes/status',
         () {
       final forged = Proposal(

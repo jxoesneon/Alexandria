@@ -8,11 +8,13 @@ import 'package:alexandria/data/database.dart' show AppDatabase, databaseProvide
 import 'package:alexandria/services/agent/alexandria_mcp_server.dart';
 import 'package:alexandria/services/agent/beacon_models.dart';
 import 'package:alexandria/services/agent/moltbook_service.dart';
+import 'package:alexandria/services/cid_service.dart';
 import 'package:alexandria/services/credits/credit_service.dart';
 import 'package:alexandria/services/credits/crypto_bridge_service.dart';
 import 'package:alexandria/services/credits/poch_service.dart';
 import 'package:alexandria/services/identity_service.dart';
 import 'package:alexandria/services/ipfs_service.dart';
+import 'package:alexandria/services/plugins/doi_harvester_plugin.dart';
 import 'package:alexandria/services/proof_of_retrievability_service.dart';
 
 /// Identity stub whose Ed25519 keypair the test controls — the PoR
@@ -41,6 +43,24 @@ class _FakeIdentityService implements IdentityService {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Deterministic resolver stub: DOI ingest now requires a VERIFIED
+/// scholarly record before minting (round-2 fix — fabricated DOIs mint
+/// nothing), so tests inject a resolver instead of hitting Crossref.
+class _StubDoiResolver extends DoiResolver {
+  @override
+  Future<DoiRecord?> resolve(String rawDoi) async {
+    final doi = DoiResolver.normalizeDoi(rawDoi);
+    if (doi.isEmpty) return null;
+    return DoiRecord(
+      doi: doi,
+      title: 'Stubbed scholarly record for $doi',
+      authors: const ['Test Author'],
+      journal: 'Journal of Test Doubles',
+      sourceApi: 'stub',
+    );
+  }
 }
 
 void main() {
@@ -90,6 +110,7 @@ void main() {
         ipfsService: ipfsService,
         identityService: identity,
         db: db,
+        doiResolver: _StubDoiResolver(),
       );
     });
 
@@ -141,7 +162,13 @@ void main() {
       final text = (res['content'] as List).first['text'] as String;
       final data = jsonDecode(text) as Map<String, dynamic>;
       expect(data['status'], 'success');
-      expect(data['assigned_cid'], contains('10.1038'));
+      // The assigned CID is now REAL content-addressed material (the
+      // resolved dossier bytes), not a fabricated label containing the
+      // DOI string — verify it parses as a structurally valid CID.
+      expect(data['assigned_cid'], isNotEmpty);
+      expect(CidService().isValidCid(data['assigned_cid'] as String),
+          isTrue);
+      expect(data['verified_via'], 'stub');
       expect(creditService.balance, initialBalance + 15.0);
 
       // Re-ingesting the same DOI pays nothing (ALX-010 dedupe)
@@ -172,6 +199,7 @@ void main() {
         porService: porService,
         ipfsService: ipfsService,
         db: db,
+        doiResolver: _StubDoiResolver(),
       );
 
       final first = await mcpServer.callTool('alexandria_ingest_doi', {
@@ -341,6 +369,55 @@ void main() {
       final row =
           await db.getWorkReceipt(receipt['receipt_id'] as String);
       expect(row!['spent'], isFalse);
+    });
+
+    test('case-variant prover_pubkey reports the CANONICAL self-issued '
+        'verdict — receipt_attested never misreports', () async {
+      // Regression for the WORKING_ON residual: `isSelfIssued` composed a
+      // literal `==`, so a prover_pubkey spelled as the case-variant of
+      // the verifier key reported attested_claim:true while the claim
+      // path (WorkReceipt.samePubkey) evaluated it as self-issued and
+      // minted at local 1.0x. The report must now match the claim path.
+      final payload = Uint8List.fromList(
+          utf8.encode('payload proven under a case-variant key spelling'));
+      final cid = await ipfsService.addFile(payload);
+      final initialBalance = creditService.balance;
+
+      final challengeRes = await mcpServer
+          .callTool('alexandria_request_por_challenge', {'cid': cid});
+      final challengeData = jsonDecode((challengeRes['content'] as List)
+          .first['text'] as String) as Map<String, dynamic>;
+      final challengeId = challengeData['challenge_id'] as String;
+      final nonceHex = challengeData['nonce_hex'] as String;
+      final nonceBytes = Uint8List.fromList(List.generate(
+          nonceHex.length ~/ 2,
+          (i) => int.parse(nonceHex.substring(i * 2, i * 2 + 2), radix: 16)));
+      final tag = Hmac(sha256, nonceBytes).convert(payload).toString();
+
+      // UPPERCASE spelling of the identity key: byte-identical key
+      // material, literal `==` differs.
+      final caseVariant = identity.pubkeyHex.toUpperCase();
+      expect(caseVariant == identity.pubkeyHex, isFalse);
+      final res = await mcpServer.callTool('alexandria_submit_por_challenge', {
+        'challenge_id': challengeId,
+        'tag': tag,
+        'prover_pubkey': caseVariant,
+      });
+      expect(res['isError'], isFalse);
+      final data = jsonDecode((res['content'] as List).first['text']
+          as String) as Map<String, dynamic>;
+      final receipt = data['receipt'] as Map<String, dynamic>;
+      expect(receipt['prover_pubkey'], caseVariant);
+      // The reported verdict is the canonical one: self-issued, NOT
+      // attested — matching what claimVerifiedReceipt would evaluate.
+      expect(data['receipt_attested'], isFalse);
+      expect(receipt['self_issued'], isTrue);
+      expect(receipt['attested_claim'], isFalse);
+      expect(data['note'], contains('Self-issued'));
+      // And it really was treated as a local (self) claim: minted at
+      // 1.0x and spent, exactly as the claim path evaluates it.
+      expect(receipt['spent'], isTrue);
+      expect(creditService.balance, greaterThan(initialBalance));
     });
 
     test('agent payout rails are disabled until attestation (ALX-010)', () async {

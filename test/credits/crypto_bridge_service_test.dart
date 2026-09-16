@@ -36,11 +36,11 @@ void main() {
       expect(CryptoBridgeService.isValidLightningAddress('@nodomain.com'), isFalse);
     });
 
-    test('updates Lightning Address and Mint configurations', () {
+    test('updates Lightning Address and Mint configurations', () async {
       bridgeService.setLightningAddress('curator@fountain.fm');
       expect(bridgeService.lightningAddress, 'curator@fountain.fm');
 
-      bridgeService.setCashuMint('https://legend.lnbits.com/cashu/api/v1/4gr9Xcm93Q9kzUkNuqtHzQ');
+      await bridgeService.setCashuMint('https://legend.lnbits.com/cashu/api/v1/4gr9Xcm93Q9kzUkNuqtHzQ');
       expect(bridgeService.preferredCashuMint, contains('legend.lnbits.com'));
     });
 

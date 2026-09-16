@@ -30,8 +30,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // 1. Verify Banner Title & 5 Voices
-    expect(find.text('Governance — Lord of Wisdom Orchestration'), findsOneWidget);
-    expect(find.text('review board Unanimously Ratified Protocol'), findsOneWidget);
+    expect(find.text('Alexandria Protocol Governance'), findsOneWidget);
+    expect(find.text('Unanimously Ratified Protocol'), findsOneWidget);
     expect(find.text('Active'), findsOneWidget);
 
     expect(find.text('Coherence'), findsOneWidget);

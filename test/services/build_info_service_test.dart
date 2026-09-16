@@ -80,7 +80,7 @@ void main() {
     });
 
     test('claimedBroadcastInfo is the narrowed wire-safe subset '
-        '(Review REV3-D)', () {
+        '(REV3-D review)', () {
       final info = BuildInfo(
         commitSha: 'a1b2c3d4e5f6',
         buildChannel: 'release',

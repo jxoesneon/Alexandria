@@ -56,9 +56,12 @@ void main() {
     test('isSupportedType returns true for images and false for others', () {
       expect(scrubbingService.isSupportedType('image/jpeg'), isTrue);
       expect(scrubbingService.isSupportedType('image/png'), isTrue);
-      expect(scrubbingService.isSupportedType('image/heic'), isTrue);
-      expect(scrubbingService.isSupportedType('image/heif'), isTrue);
-      expect(scrubbingService.isSupportedType('image/tiff'), isTrue);
+      // HEIC/HEIF/TIFF are detectable but NOT safely scrubbed — the
+      // scrubber claims support only for formats it can verifiably
+      // rewrite (round-3 red finding).
+      expect(scrubbingService.isSupportedType('image/heic'), isFalse);
+      expect(scrubbingService.isSupportedType('image/heif'), isFalse);
+      expect(scrubbingService.isSupportedType('image/tiff'), isFalse);
 
       expect(scrubbingService.isSupportedType('application/pdf'), isFalse);
       expect(scrubbingService.isSupportedType('video/mp4'), isFalse);
@@ -189,6 +192,38 @@ void main() {
         ),
       });
       expect(meta3.dateTime, isNull);
+    });
+  });
+
+  group('scrubMetadata input ceiling (campaign-2 service-side bound)', () {
+    test('refuses input over the ceiling explicitly', () async {
+      final bounded =
+          MetadataScrubbingService(CidService(), maxInputBytes: 64);
+      final oversized = Uint8List(65); // valid PNG-signature head below
+      oversized.setRange(
+          0, 8, const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      expect(
+        () => bounded.scrubMetadata(oversized),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('accepts input at exactly the ceiling', () async {
+      final bounded =
+          MetadataScrubbingService(CidService(), maxInputBytes: 64);
+      final atCeiling = Uint8List(64);
+      atCeiling.setRange(
+          0, 8, const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      // No throw — 64 <= 64 is inside the bound.
+      final result = await bounded.scrubMetadata(atCeiling);
+      expect(result.originalSize, equals(64));
+    });
+
+    test('default ceiling is the 512 MiB ingest bound', () {
+      expect(MetadataScrubbingService.defaultMaxInputBytes,
+          equals(512 * 1024 * 1024));
+      expect(MetadataScrubbingService(CidService()).maxInputBytes,
+          equals(MetadataScrubbingService.defaultMaxInputBytes));
     });
   });
 }

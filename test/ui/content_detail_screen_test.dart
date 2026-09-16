@@ -67,6 +67,17 @@ class _FakeContentRepository implements ContentRepository {
     return Uint8List.fromList([65, 66, 67, 68]);
   }
 
+  // The screen now unwraps DEKs through the repository layer
+  // (round-2 fix — manifest rows no longer carry key material), so the
+  // download path calls retrieveManifestContent rather than
+  // downloadContent.
+  @override
+  Future<Uint8List> retrieveManifestContent(
+      String manifestUuid, String cid) async {
+    downloadCalled = true;
+    return Uint8List.fromList([65, 66, 67, 68]);
+  }
+
   @override
   Future<void> addVersion(
     String uuid,

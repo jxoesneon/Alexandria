@@ -119,6 +119,16 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
     'other': [],
   };
 
+  /// (security hardening) Hard cap on a single ingest payload.
+  /// PlatformFile.bytes is fully materialized in memory by the picker
+  /// (withData: true) and the metadata scrubber walks PNG chunks with
+  /// 32-bit length fields — a file at or above the 2 GiB mark can steer
+  /// chunk-boundary arithmetic on platforms with 32-bit int semantics
+  /// (web) and cannot be buffered reliably anywhere. 512 MiB stays far
+  /// below the scrubber's structural bound AND bounds peak ingest
+  /// memory; anything larger must be split before ingest.
+  static const int maxFileBytes = 512 * 1024 * 1024;
+
   bool _isLoading = false;
   bool _isAnalyzing = false;
   bool _enableEncryption = false;
@@ -461,29 +471,102 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
     setState(() => _isLoading = true);
     try {
       final repo = ref.read(contentRepositoryProvider);
+      final scrubbingService =
+          _stripMetadata ? ref.read(metadataScrubbingServiceProvider) : null;
 
-      Uint8List fileBytes = Uint8List.fromList(_selectedFiles.first.bytes!);
-
-      // Scrub metadata if enabled and file is a supported image type
-      if (_stripMetadata) {
-        final scrubbingService = ref.read(metadataScrubbingServiceProvider);
-        final fileType = scrubbingService.detectFileType(fileBytes);
-        if (fileType != null && scrubbingService.isSupportedType(fileType)) {
-          final result = await scrubbingService.scrubMetadata(fileBytes);
-          if (result.wasModified) {
-            fileBytes = result.scrubbedBytes;
+      // (security hardening) multi-file ingest: the picker allows
+      // multiple selection, so EVERY selected file is ingested — the
+      // previous single-shot path silently dropped all but
+      // _selectedFiles.first. Each file is processed independently:
+      // one unreadable/oversized/corrupt file records a per-file
+      // failure and the batch continues (error isolation), so a single
+      // bad apple can neither abort the batch nor be silently skipped.
+      var succeeded = 0;
+      final failures = <String>[];
+      for (final file in _selectedFiles) {
+        try {
+          // Enforce the ingest size cap BEFORE the byte buffer is
+          // touched — the picker's declared size is checked first so an
+          // oversized file is rejected even when its bytes were never
+          // materialized.
+          if (file.size > maxFileBytes ||
+              (file.bytes?.length ?? 0) > maxFileBytes) {
+            throw StateError(
+              'File exceeds the ${maxFileBytes ~/ (1024 * 1024)} MiB '
+              'ingest limit',
+            );
           }
+          final rawBytes = file.bytes;
+          if (rawBytes == null) {
+            throw StateError('No file data available (bytes not read)');
+          }
+          var fileBytes = Uint8List.fromList(rawBytes);
+
+          // Scrub metadata if enabled and file is a supported image type
+          if (scrubbingService != null) {
+            final fileType = scrubbingService.detectFileType(fileBytes);
+            if (fileType != null &&
+                scrubbingService.isSupportedType(fileType)) {
+              final result = await scrubbingService.scrubMetadata(fileBytes);
+              // (round-7 red finding) adopt the scrubbed stream whenever
+              // the scrubber actually rewrote bytes — wasModified now
+              // keys on bytesChanged, NOT only on removedFields. Gating
+              // on detected fields alone shipped the ORIGINAL bytes for
+              // JPEGs whose only metadata was a COM comment, an XMP-only
+              // APP1, an ICC profile in APP2, or an IPTC/Ducky block the
+              // exif reader cannot parse (round-8 red finding widened
+              // the JPEG strip set to every APPn except APP0/APP14).
+              if (result.wasModified) {
+                fileBytes = result.scrubbedBytes;
+              }
+              if (result.verificationFailed) {
+                // The output is still a strict subset of the input with
+                // the known metadata carriers dropped (safe to adopt),
+                // but the exif reader could not re-verify it — log
+                // honestly instead of presenting the upload as a
+                // verified-clean scrub.
+                debugPrint(
+                  'Metadata scrub completed but the output could not be '
+                  're-verified; no removed-field claims were made.',
+                );
+              }
+            }
+          }
+
+          await repo.createContent(
+            // A single file gets the form's title verbatim; in a batch
+            // the title labels the FIRST file and each additional file
+            // is titled from its own filename so every manifest stays
+            // distinguishable (reusing the same title for all of them
+            // would produce N identically-named entries).
+            title: file == _selectedFiles.first
+                ? _titleController.text
+                : _titleForFile(file.name),
+            description: _descController.text,
+            author: _authorController.text,
+            fileData: fileBytes,
+            isEncrypted: _enableEncryption,
+          );
+          succeeded++;
+        } catch (e) {
+          failures.add('${file.name}: $e');
         }
       }
 
-      await repo.createContent(
-        title: _titleController.text,
-        description: _descController.text,
-        author: _authorController.text,
-        fileData: fileBytes,
-        isEncrypted: _enableEncryption,
-      );
-      if (mounted) {
+      if (!mounted) return;
+      if (failures.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ingested $succeeded of ${_selectedFiles.length} file(s). '
+              'Failed: ${failures.join('; ')}',
+            ),
+          ),
+        );
+      }
+      // Close the screen only when at least one file ingested; a total
+      // failure keeps the form so the user can correct and retry.
+      if (succeeded > 0) {
         Navigator.pop(context);
       }
     } catch (e) {
@@ -497,6 +580,14 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// Derives a manifest title from a filename for batch entries beyond
+  /// the first (extension stripped; falls back to the raw name).
+  static String _titleForFile(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    if (dot <= 0) return fileName;
+    return fileName.substring(0, dot);
   }
 
   @override
@@ -747,8 +838,16 @@ class _AddContentScreenState extends ConsumerState<AddContentScreen> {
                       padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
                       child: Chip(
                         label: Text(
+                          // (round-8 red finding) detection is
+                          // EXIF-bound — detectSensitiveFields() cannot
+                          // see COM/XMP/ICC/Ducky carriers the stripper
+                          // still removes, so claiming the file is
+                          // "already clean" overstated detector
+                          // coverage. Report exactly what was checked;
+                          // the scrub pass still strips non-EXIF
+                          // carriers on upload.
                           _detectedSensitiveFields.isEmpty
-                              ? 'No sensitive fields detected — already clean'
+                              ? 'No EXIF fields detected'
                               : '${_detectedSensitiveFields.length} sensitive fields detected — will be stripped',
                           style: const TextStyle(fontSize: 11),
                         ),

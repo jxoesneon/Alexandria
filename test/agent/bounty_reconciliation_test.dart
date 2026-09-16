@@ -1,4 +1,4 @@
-// Review REV4 regression tests: crash-window claim reconciliation
+// REV4 review regression tests: crash-window claim reconciliation
 // (CAS-loss healer), startup claimed_bounties sweep, awaited payout
 // durability, escrow cancel path, canonical bounty-id rejection, the
 // bounded _bounties registry, and the verified ingestBountyEnvelope seam.
@@ -272,8 +272,8 @@ void main() {
   });
 
   group('cancelBounty escrow release (REV4 item 4)', () {
-    test('local unclaimed bounty → refund lands, balance restored',
-        () async {
+    test('local unclaimed bounty → cancel delists + tombstones but the '
+        'refund is REFUSED (cross-ledger guard)', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
       await svc.setKeyPair(await _newKey());
@@ -282,8 +282,12 @@ void main() {
           force: true);
       expect(cs.balance, 75.0); // escrowed
 
-      expect(await svc.cancelBounty(posted.id), isTrue);
-      expect(cs.balance, 100.0); // refunded in full
+      // R1: the announcement already left the node — a remote claim is
+      // ledger-invisible, so the poster can never prove the escrow
+      // unclaimed. The refund is refused; the hold stays locked (still
+      // releasable via releaseEscrow for operator reconciliation).
+      expect(await svc.cancelBounty(posted.id), isFalse);
+      expect(cs.balance, 75.0); // hold locked — never refunded
       expect(svc.activeBounties.any((b) => b.id == posted.id), isFalse);
     });
 
@@ -324,9 +328,11 @@ void main() {
       final posted = await svc.postPreservationBounty(
           cid: 'bafk_dbl_cancel', title: 't', offeredCredits: 25.0,
           force: true);
-      expect(await svc.cancelBounty(posted.id), isTrue);
+      expect(await svc.cancelBounty(posted.id), isFalse,
+          reason: 'refund refused — the announced escrow cannot be '
+              'proven unclaimed on this ledger (R1)');
       expect(await svc.cancelBounty(posted.id), isFalse);
-      expect(cs.balance, 100.0); // exactly one refund
+      expect(cs.balance, 75.0); // escrow stays locked, never refunded
     });
   });
 
@@ -525,9 +531,9 @@ void main() {
 
   // ═══════════════════ E-REV4b regression fixes ═══════════════════
   group('E-REV4b hardening fixes', () {
-    test('F2: a lost payout write cannot re-pay after restart — the '
-        'durable escrow tombstone makes the id permanently un-payable',
-        () async {
+    test('F2: a lost payout write refuses the claim CLOSED — the '
+        'durable-first CAS mints nothing, so there is nothing to '
+        're-pay after restart', () async {
       final db = _PayoutWriteLostDb();
       addTearDown(db.close);
       final cs1 = CreditService(db: db, initialBalance: 100.0);
@@ -540,24 +546,25 @@ void main() {
       svc1.ingestBountyAnnouncement(bounty,
           escrowAttestation: await _attestBounty(attestor, bounty));
 
-      // The mint happened in-memory; the durable payout row did NOT.
-      expect(await svc1.claimBounty(bounty.id), isTrue);
-      expect(cs1.balance, 125.0);
-      expect(await db.isBountyClaimed(bounty.id), isTrue);
+      // awardBountyEscrowDurable commits the payout row through the
+      // CAS BEFORE minting: the throwing write fails closed (0.0,
+      // nothing mutated) and the claim refuses — no mint, no claim
+      // row, no tombstone owed. The E1 mint-first / probe-later
+      // double-pay window is closed at the source.
+      expect(await svc1.claimBounty(bounty.id), isFalse);
+      expect(cs1.balance, 100.0);
+      expect(await db.isBountyClaimed(bounty.id), isFalse,
+          reason: 'our claim row was released — the claim is retryable');
       expect(await db.hasCreditTransaction('tx_bounty_payout_${bounty.id}'),
           isFalse);
-      // The do-not-pay tombstone landed in its place.
       expect(
           await db
               .hasCreditTransaction('tx_escrow_release_${bounty.id}'),
-          isTrue);
+          isFalse);
 
-      // Restart + row aging: the healer re-wins the CAS, but the fresh
-      // CreditService rebuilt _releasedEscrowIds from the tombstone —
-      // awardBountyEscrow refuses, so no second mint.
-      await db.deleteClaimedBounty(bounty.id);
-      await _insertClaimRow(db, bounty.id,
-          claimedAt: _ageMillis(const Duration(minutes: 20)));
+      // Restart on the same still-broken store: the claim CAS re-wins
+      // (the first attempt's row was released) and the payout write
+      // refuses again — never a mint, never a re-pay.
       final cs2 = CreditService(db: db, initialBalance: 0.0);
       await cs2.ready;
       expect(cs2.balance, 100.0);
@@ -567,16 +574,11 @@ void main() {
           escrowAttestation: await _attestBounty(attestor, bounty));
       expect(await svc2.claimBounty(bounty.id), isFalse);
       expect(cs2.balance, 100.0);
-      // The id is dead at the credit layer too — a direct re-pay is
-      // refused by the hydrated release-dedup set.
-      expect(
-          cs2.awardBountyEscrow(
-              amount: 25.0, bountyId: bounty.id, cid: bounty.cid),
-          0.0);
     });
 
     test('F6: a hung payout write cannot park claimBounty forever — '
-        'the settle wait is bounded', () async {
+        'the durable write is bounded and expiry takes the '
+        'indeterminate-write tombstone path', () async {
       final db = _PayoutWriteHangsDb();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
@@ -584,18 +586,27 @@ void main() {
       final bounty = _foreignBounty(id: 'bounty_hang', cid: 'bafk_hang');
       final attestor = await _newKey();
       final svc = MoltbookService(
-          creditService: cs, db: db, trustedAttestorPubkeys: {await _pubHex(attestor)});
+          creditService: cs,
+          db: db,
+          payoutWriteTimeout: const Duration(milliseconds: 50),
+          trustedAttestorPubkeys: {await _pubHex(attestor)});
       svc.ingestBountyAnnouncement(bounty,
           escrowAttestation: await _attestBounty(attestor, bounty));
 
       var done = false;
       unawaited(svc.claimBounty(bounty.id).then((_) => done = true));
-      for (var i = 0; i < 40 && !done; i++) {
-        await Future<void>.delayed(Duration.zero);
+      for (var i = 0; i < 100 && !done; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       }
       expect(done, isTrue,
           reason: 'a wedged ledger write must not park a won claim');
       expect(await db.isBountyClaimed(bounty.id), isTrue);
+      // The indeterminate write dead-marks the id — the spent
+      // tombstone lands whether or not the queued CAS ever resolves.
+      expect(
+          await db
+              .hasCreditTransaction('tx_escrow_release_${bounty.id}'),
+          isTrue);
     });
 
     test('F4: the startup sweep deletes by SNAPSHOT claimedAt — a claim '
@@ -713,8 +724,10 @@ void main() {
       final posted = await svc.postPreservationBounty(
           cid: 'bafk_dead', title: 't', offeredCredits: 25.0,
           force: true);
-      expect(await svc.cancelBounty(posted.id), isTrue);
-      expect(cs.balance, 100.0);
+      expect(await svc.cancelBounty(posted.id), isFalse,
+          reason: 'cancel tombstones + delists but refuses the refund — '
+              'the announced escrow stays locked (R1)');
+      expect(cs.balance, 75.0);
 
       // A relayer re-announces the id with a foreign origin and a
       // valid trusted attestation — the record is stored but dead.
@@ -728,7 +741,7 @@ void main() {
       expect(stored.funded, isFalse,
           reason: 'a cancelled id must never be re-funded');
       expect(await svc.claimBounty(posted.id), isFalse);
-      expect(cs.balance, 100.0);
+      expect(cs.balance, 75.0);
 
       // A second attested re-announcement cannot upgrade the dead
       // record either.
@@ -763,16 +776,18 @@ void main() {
       svc.ingestBountyAnnouncement(
           _foreignBounty(id: 'bounty_bystander', cid: 'bafk_by'));
       db.gate.complete();
-      expect(await cancel, isTrue);
-      expect(cs.balance, 100.0);
+      expect(await cancel, isFalse,
+          reason: 'the cancel completes (delist + tombstone) but the '
+              'refund is refused by the cross-ledger guard');
+      expect(cs.balance, 75.0); // escrow stays locked
       expect(svc.activeBounties.any((b) => b.id == posted.id), isFalse);
       expect(svc.activeBounties.any((b) => b.id == 'bounty_bystander'),
           isTrue,
           reason: 'a stale positional index must not evict a bystander');
     });
 
-    test('F3: two overlapping cancels serialize — exactly one reports '
-        'success and the refund lands once', () async {
+    test('F3: two overlapping cancels serialize — the second observes '
+        'the tombstone, and no refund ever lands', () async {
       final db = _GatedClaimCheckDb();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
@@ -790,8 +805,10 @@ void main() {
       }
       db.gate.complete();
       final results = {await c1, await c2};
-      expect(results, {true, false});
-      expect(cs.balance, 100.0); // exactly one refund
+      expect(results, {false},
+          reason: 'the winner refuses the refund (cross-ledger guard); '
+              'the loser observes the tombstone');
+      expect(cs.balance, 75.0); // escrow stays locked, never refunded
       // The tombstone survives key rotation — no self-claim laundering.
       await svc.setKeyPair(await _newKey());
       expect(await svc.claimBounty(posted.id), isFalse);
@@ -818,9 +835,10 @@ void main() {
       expect(svc.activeBounties.length, lessThanOrEqualTo(512));
       expect(svc.activeBounties.any((b) => b.id == posted.id), isTrue,
           reason: 'a locally escrowed record is never evictable');
-      // The escrow stays reachable — cancel refunds it normally.
-      expect(await svc.cancelBounty(posted.id), isTrue);
-      expect(cs.balance, 100.0);
+      // The escrow stays reachable — the cancel path delists it, and
+      // the cross-ledger guard refuses the refund.
+      expect(await svc.cancelBounty(posted.id), isFalse);
+      expect(cs.balance, 75.0); // escrow stays locked
     });
 
     test('F8: interior whitespace, invisible format chars and C1 '
@@ -856,9 +874,9 @@ void main() {
 
   group('RE-REV4b restart/durability regressions', () {
     test('RE-E1a: a cancelled bounty re-ingests DEAD after restart — '
-        'durable release-row state rebuilds the tombstone, so a '
-        'trusted re-announcement is stored unfunded and unclaimable',
-        () async {
+        'the hold-row rebuild keeps the id locally-posted, the '
+        're-cancel tombstones it, and a trusted re-announcement is '
+        'stored unfunded and unclaimable', () async {
       final db = AppDatabase();
       addTearDown(db.close);
       final cs1 = CreditService(db: db, initialBalance: 0.0);
@@ -870,7 +888,10 @@ void main() {
       final posted = await svc1.postPreservationBounty(
           cid: 'bafk_z1', title: 't', offeredCredits: 25.0,
           force: true);
-      expect(await svc1.cancelBounty(posted.id), isTrue);
+      expect(await svc1.cancelBounty(posted.id), isFalse,
+          reason: 'cancel tombstones + delists but refuses the refund — '
+              'the announced escrow stays locked (R1 cross-ledger '
+              'guard)');
       await cs1.settled;
 
       // Restart: new CreditService + new MoltbookService on the same db.
@@ -881,8 +902,14 @@ void main() {
           creditService: cs2,
           db: db,
           trustedAttestorPubkeys: {await _pubHex(attestor)});
-      // The dead-id ingest check is synchronous via isEscrowReleased —
-      // no rebuild await needed for this assertion.
+      // The durable hold row rebuilds the locally-posted set, so the
+      // record-less cancel still tombstones the id — and reports
+      // success because no release was owed by this path (the
+      // cross-ledger guard never refunds; the hold stays locked and
+      // remains releasable through releaseEscrow on demand).
+      expect(await svc2.cancelBounty(posted.id), isTrue);
+      // The id is dead-marked again: a trusted re-announcement is
+      // stored as a dead unfunded record — never claimable.
       final re = _foreignBounty(id: posted.id, cid: posted.cid);
       svc2.ingestBountyAnnouncement(re,
           escrowAttestation: await _attestBounty(attestor, re));
@@ -890,11 +917,9 @@ void main() {
       final stored =
           svc2.activeBounties.firstWhere((b) => b.id == posted.id);
       expect(stored.funded, isFalse,
-          reason: 'the durable release row must force-strip funded — '
-              'a zombie must never re-ingest as claimable');
+          reason: 'a cancelled id must never re-ingest as claimable');
       expect(await svc2.claimBounty(posted.id), isFalse);
-      expect(await svc2.cancelBounty(posted.id), isFalse);
-      expect(cs2.balance, 100.0);
+      expect(cs2.balance, 75.0); // escrow still locked — never refunded
     });
 
     test('RE-E1b: a live locally-posted bounty stays cancellable after '
@@ -942,20 +967,24 @@ void main() {
       final ids = <String>{};
       for (var i = 0; i < 12; i++) {
         final posted = await svc.postPreservationBounty(
-            cid: 'bafk_cyc_$i', title: 't', offeredCredits: 10.0,
+            cid: 'bafk_cyc_$i', title: 't', offeredCredits: 5.0,
             force: true);
         expect(ids.add(posted.id), isTrue,
             reason: 'every generated id must be unique');
         expect(cs.isEscrowReleased(posted.id), isFalse,
             reason: 'a fresh escrow must never land on a dead id');
-        expect(await svc.cancelBounty(posted.id), isTrue);
+        expect(await svc.cancelBounty(posted.id), isFalse,
+            reason: 'cancel tombstones + delists but refuses the refund — '
+                'the announced escrow stays locked (R1 cross-ledger '
+                'guard)');
       }
-      expect(cs.balance, 100.0);
+      // 12 × 5 ℭ held — none refunded.
+      expect(cs.balance, 40.0);
     });
 
-    test('RE-F: a lost payout row AND a lost tombstone stay pending — '
-        'the next service sharing the db retries the tombstone and '
-        'the claim refuses dead', () async {
+    test('RE-F: a correlated payout+tombstone write loss fails the '
+        'claim CLOSED — nothing mints, the row releases, and the '
+        'post-heal retry pays exactly once', () async {
       final db = _CorrelatedWriteLossDb();
       addTearDown(db.close);
       final cs1 = CreditService(db: db, initialBalance: 100.0);
@@ -968,20 +997,63 @@ void main() {
       svc1.ingestBountyAnnouncement(bounty,
           escrowAttestation: await _attestBounty(attestor, bounty));
 
+      // Durable-first: the throwing CAS fails the mutator closed
+      // (0.0, nothing mutated) — there is no in-memory mint to
+      // orphan, so no tombstone is owed and the claim row releases.
       db.armed = true;
-      expect(await svc1.claimBounty(bounty.id), isTrue,
-          reason: 'the mint did happen — the claim reports won even '
-              'though BOTH durable writes died');
+      expect(await svc1.claimBounty(bounty.id), isFalse,
+          reason: 'the write died → the claim refuses instead of '
+              'reporting a phantom win');
       db.armed = false;
+      expect(cs1.balance, 100.0);
+      expect(await db.isBountyClaimed(bounty.id), isFalse);
+      expect(
+          await db.hasCreditTransaction('tx_escrow_release_${bounty.id}'),
+          isFalse);
+
+      // Healed store: the retry pays exactly once and the dedup sets
+      // keep any later attempt at zero.
+      expect(await svc1.claimBounty(bounty.id), isTrue);
+      expect(cs1.balance, 125.0);
+      expect(await db.hasCreditTransaction('tx_bounty_payout_${bounty.id}'),
+          isTrue);
+      expect(await svc1.claimBounty(bounty.id), isFalse);
+      expect(cs1.balance, 125.0);
+    });
+
+    test('RE-F2: a wedged payout write whose tombstone ALSO fails '
+        'stays pending — the next claim entry flushes the tombstone '
+        'and the id stays dead', () async {
+      final db = _HangPayoutDropReleaseDb();
+      addTearDown(db.close);
+      final cs1 = CreditService(db: db, initialBalance: 100.0);
+      await cs1.ready;
+      final attestor = await _newKey();
+      final hex = await _pubHex(attestor);
+      final bounty = _foreignBounty(id: 'bounty_rf2', cid: 'bafk_rf2');
+      final svc1 = MoltbookService(
+          creditService: cs1,
+          db: db,
+          payoutWriteTimeout: const Duration(milliseconds: 50),
+          trustedAttestorPubkeys: {hex});
+      svc1.ingestBountyAnnouncement(bounty,
+          escrowAttestation: await _attestBounty(attestor, bounty));
+
+      // The CAS wedges → the indeterminate-write path registers the
+      // spent tombstone, but the tombstone write dies too (armed) —
+      // the id must stay pending for the next flush.
+      expect(await svc1.claimBounty(bounty.id), isTrue);
+      expect(await db.isBountyClaimed(bounty.id), isTrue);
       expect(
           await db.hasCreditTransaction('tx_escrow_release_${bounty.id}'),
           isFalse,
-          reason: 'the tombstone write also died — it must stay '
-              'pending, not silently re-open the double-pay');
+          reason: 'the tombstone write died — it must stay pending, '
+              'not silently re-open the double-pay');
 
-      // "Restart": new services on the same db handle — the pending
-      // tombstone is keyed by the shared database, so the next
-      // claimBounty entry flushes it.
+      db.armed = false;
+      // A new service on the same db handle: the pending tombstone is
+      // keyed by the shared database, so its claimBounty entry flush
+      // lands it before the dead-id probe.
       final cs2 = CreditService(db: db, initialBalance: 0.0);
       await cs2.ready;
       final svc2 = MoltbookService(
@@ -994,7 +1066,7 @@ void main() {
           isTrue,
           reason: 'the pending tombstone must land on the next claim');
       expect(cs2.balance, 100.0,
-          reason: 'no second payout may ever mint for this escrow');
+          reason: 'no payout may ever mint for this escrow');
     });
 
     test('RE-G: the stale-row healer deletes by OBSERVED claimedAt — '
@@ -1145,16 +1217,29 @@ class _FirstCondDeleteGateDb extends AppDatabase {
 class _CorrelatedWriteLossDb extends AppDatabase {
   bool armed = false;
 
-  @override
-  Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
+  bool _drops(Map<String, dynamic> data) {
     final id = data['id'] as String?;
-    if (armed &&
+    return armed &&
         id != null &&
         (id.startsWith('tx_bounty_payout_') ||
-            id.startsWith('tx_escrow_release_'))) {
+            id.startsWith('tx_escrow_release_'));
+  }
+
+  @override
+  Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
+    if (_drops(data)) {
       throw StateError('simulated correlated write loss');
     }
     return super.insertCreditTransaction(data);
+  }
+
+  @override
+  Future<bool> insertCreditTransactionIfAbsent(
+      Map<String, dynamic> data) async {
+    if (_drops(data)) {
+      throw StateError('simulated correlated write loss');
+    }
+    return super.insertCreditTransactionIfAbsent(data);
   }
 }
 
@@ -1174,7 +1259,9 @@ class _DeleteBeforeReadDb extends AppDatabase {
 
 /// The durable payout-row write is LOST (throws → swallowed by
 /// CreditService's best-effort persist). Every other write lands —
-/// including the `tx_escrow_release_` tombstone.
+/// including the `tx_escrow_release_` tombstone. The payout row is a
+/// deterministic-id write: it persists through the
+/// insertCreditTransactionIfAbsent gate, so BOTH paths are intercepted.
 class _PayoutWriteLostDb extends AppDatabase {
   @override
   Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
@@ -1183,6 +1270,16 @@ class _PayoutWriteLostDb extends AppDatabase {
       throw StateError('simulated payout-row write loss');
     }
     return super.insertCreditTransaction(data);
+  }
+
+  @override
+  Future<bool> insertCreditTransactionIfAbsent(
+      Map<String, dynamic> data) async {
+    final id = data['id'] as String?;
+    if (id != null && id.startsWith('tx_bounty_payout_')) {
+      throw StateError('simulated payout-row write loss');
+    }
+    return super.insertCreditTransactionIfAbsent(data);
   }
 }
 
@@ -1194,6 +1291,44 @@ class _PayoutWriteHangsDb extends AppDatabase {
     final id = data['id'] as String?;
     if (id != null && id.startsWith('tx_bounty_payout_')) {
       return Completer<void>().future; // never completes
+    }
+    return super.insertCreditTransaction(data);
+  }
+
+  @override
+  Future<bool> insertCreditTransactionIfAbsent(
+      Map<String, dynamic> data) {
+    final id = data['id'] as String?;
+    if (id != null && id.startsWith('tx_bounty_payout_')) {
+      return Completer<bool>().future; // never completes
+    }
+    return super.insertCreditTransactionIfAbsent(data);
+  }
+}
+
+/// Wedges the payout CAS (the insert-if-absent never completes — the
+/// durable write hangs) AND, while [armed], drops release-tombstone
+/// rows. Models the indeterminate-write path's worst corner: the
+/// bounded wait expires AND the tombstone write dies, so the id must
+/// stay pending until the store heals.
+class _HangPayoutDropReleaseDb extends AppDatabase {
+  bool armed = true;
+
+  @override
+  Future<bool> insertCreditTransactionIfAbsent(
+      Map<String, dynamic> data) {
+    final id = data['id'] as String?;
+    if (id != null && id.startsWith('tx_bounty_payout_')) {
+      return Completer<bool>().future; // never completes
+    }
+    return super.insertCreditTransactionIfAbsent(data);
+  }
+
+  @override
+  Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
+    final id = data['id'] as String?;
+    if (armed && id != null && id.startsWith('tx_escrow_release_')) {
+      throw StateError('simulated tombstone-write loss');
     }
     return super.insertCreditTransaction(data);
   }

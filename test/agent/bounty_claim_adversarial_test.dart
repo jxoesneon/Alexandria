@@ -1,5 +1,5 @@
 // Adversarial regression tests for the bounty-claim dedup + trust-root
-// hoist + client_info landing (Review REV3, E-REV4-B). Covers: mutated
+// hoist + client_info landing (REV3 review, E-REV4-B). Covers: mutated
 // defensive copies, restart replay, evidence-failure release races,
 // thrown-CAS mark leaks, unhydrated payout refusal, trust-root freeze,
 // and narrowed client_info broadcast.
@@ -655,9 +655,9 @@ void main() {
           0.0);
     });
 
-    test('C8c: mixed-mode claim inside the hydration window returns '
-        'FALSE and stays retryable — a refused payout releases the '
-        'claim instead of deadlocking the bounty', () async {
+    test('C8c: a claim inside the hydration window WAITS on the '
+        'durable mutator — the payout lands after hydration completes '
+        'instead of minting against a phantom ledger', () async {
       final db = _GatedHydrateDb();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
@@ -665,20 +665,42 @@ void main() {
           id: 'bounty_unhydrated', cid: 'bafk_unhydrated');
       final (att, hex) = await _freshTrustedAttestation(bounty);
       // db:null on the moltbook side → no CAS await → the whole claim
-      // runs inside the (gated, deterministic) hydration window; the
-      // payout is refused and the claim must NOT be marked won.
+      // runs inside the (gated, deterministic) hydration window.
       final svc = MoltbookService(
           creditService: cs, trustedAttestorPubkeys: {hex});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
-      expect(await svc.claimBounty(bounty.id), isFalse);
+
+      // awardBountyEscrowDurable awaits _hydrated BEFORE paying — the
+      // claim parks inside the window rather than minting against a
+      // phantom (unhydrated) ledger or refusing a legitimate escrow.
+      var done = false;
+      bool? result;
+      unawaited(svc.claimBounty(bounty.id).then((r) {
+        result = r;
+        done = true;
+      }));
+      for (var i = 0; i < 20 && !done; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(done, isFalse,
+          reason: 'the claim must still be parked on hydration — '
+              'nothing may mint before the ledger is real');
       // Balance is still 0.0 — even the genesis grant lives inside the
       // parked hydration.
       expect(cs.balance, 0.0);
+
       db.hydrateGate.complete();
       await cs.ready;
-      // Retry is NOT blocked: the refused payout released the claim, so
-      // the hydrated credit service now pays the legit escrow.
-      expect(await svc.claimBounty(bounty.id), isTrue);
+      for (var i = 0; i < 50 && !done; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(done, isTrue);
+      expect(result, isTrue,
+          reason: 'hydration complete → the durable payout commits '
+              'and the claim reports won');
+      expect(cs.balance, 125.0);
+      // And the now-durable claim refuses a replay.
+      expect(await svc.claimBounty(bounty.id), isFalse);
       expect(cs.balance, 125.0);
     });
   });

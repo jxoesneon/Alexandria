@@ -29,11 +29,25 @@ class FastCdcConfig {
   final int avgSize;
   final int maxSize;
 
+  /// (red minor-observation hardening) zero/negative or misordered
+  /// sizes make [FastCdcService.chunk] spin forever or slice garbage —
+  /// reject them at construction (assert) AND at use (ArgumentError),
+  /// since release builds strip asserts.
   const FastCdcConfig({
     this.minSize = 2048, // 2 KB
     this.avgSize = 8192, // 8 KB
     this.maxSize = 32768, // 32 KB
-  });
+  })  : assert(minSize > 0, 'minSize must be positive'),
+        assert(avgSize > 0, 'avgSize must be positive'),
+        assert(maxSize > 0, 'maxSize must be positive'),
+        assert(minSize <= avgSize, 'minSize must not exceed avgSize'),
+        assert(avgSize <= maxSize, 'avgSize must not exceed maxSize');
+
+  /// True when the configuration can drive [FastCdcService.chunk]
+  /// forward — used as a release-mode guard since asserts are stripped.
+  bool get isValid =>
+      minSize > 0 && avgSize > 0 && maxSize > 0 &&
+      minSize <= avgSize && avgSize <= maxSize;
 }
 
 class FastCdcService {
@@ -301,6 +315,13 @@ class FastCdcService {
   ];
 
   List<Chunk> chunk(Uint8List data) {
+    if (!config.isValid) {
+      // Release-mode guard (asserts are stripped): an invalid config —
+      // e.g. zero/negative sizes — would make `offset += len` never
+      // advance, an infinite loop (red minor-observation hardening).
+      throw ArgumentError(
+          'Invalid FastCdcConfig: min=${config.minSize} avg=${config.avgSize} max=${config.maxSize}');
+    }
     if (data.isEmpty) return [];
 
     final chunks = <Chunk>[];

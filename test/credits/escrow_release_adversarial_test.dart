@@ -42,18 +42,38 @@ class _FakeSecureStorage implements SecureStorageService {
 
 /// Db that parks escrow-release row inserts while [armed] — models the
 /// crash window between releaseEscrow's in-memory refund and the durable
-/// dedup row landing.
+/// dedup row landing. With [throwWhenArmed] the write errors instead of
+/// parking — models a store that loses the release row outright.
 class _GatedReleaseInsertDb extends AppDatabase {
   final Completer<void> gate = Completer<void>();
   bool armed = false;
+  bool throwWhenArmed = false;
 
   @override
   Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
     if (armed &&
         (data['id'] as String).startsWith('tx_escrow_release_')) {
+      if (throwWhenArmed) {
+        throw StateError('simulated release-row write loss');
+      }
       await gate.future;
     }
     return super.insertCreditTransaction(data);
+  }
+
+  @override
+  Future<bool> insertCreditTransactionIfAbsent(
+      Map<String, dynamic> data) async {
+    // The release row is now persisted through the ifAbsent CAS —
+    // gate the same crash window there.
+    if (armed &&
+        (data['id'] as String).startsWith('tx_escrow_release_')) {
+      if (throwWhenArmed) {
+        throw StateError('simulated release-row write loss');
+      }
+      await gate.future;
+    }
+    return super.insertCreditTransactionIfAbsent(data);
   }
 }
 
@@ -131,11 +151,14 @@ void main() {
   }
 
   /// Receipt: prover = B (current local key), verifier = [vKey]/[vPub]
-  /// (default A — the retired local key).
+  /// (default A — the retired local key). v3 attaches the issuance
+  /// acknowledgment ([WorkReceipt.ackPayload]) under [proverKeyPair]
+  /// (default B — the prover of record).
   Future<WorkReceipt> signedReceipt({
     String? verifierPubkey,
     SimpleKeyPair? verifierKeyPair,
     String? proverPubkey,
+    SimpleKeyPair? proverKeyPair,
     double amount = 25.0,
   }) async {
     final unsigned = WorkReceipt.issue(
@@ -154,7 +177,13 @@ void main() {
     );
     final sig = await algorithm.sign(unsigned.signingPayload,
         keyPair: verifierKeyPair ?? keyA);
-    return unsigned.withVerifierSig(base64Encode(sig.bytes));
+    var signed = unsigned.withVerifierSig(base64Encode(sig.bytes));
+    if (signed.v >= WorkReceipt.minAckWireVersion) {
+      final ack = await algorithm.sign(signed.ackPayload,
+          keyPair: proverKeyPair ?? keyB);
+      signed = signed.withProverSig(base64Encode(ack.bytes));
+    }
+    return signed;
   }
 
   Future<WorkReceipt> persist(WorkReceipt r) async {
@@ -229,7 +258,7 @@ void main() {
       expect(second.balance, 50.0);
     });
 
-    test('service-level: cancelBounty refunds a locally-posted bounty '
+    test('service-level: cancelBounty refuses a locally-posted bounty '
         'whose payout row is ALREADY durable in this db', () async {
       final cs = svc();
       await cs.ready;
@@ -361,9 +390,14 @@ void main() {
       expect(b.balance, 30.0);
 
       expect(await a.releaseEscrow(referenceId: 'b9'), 20.0);
-      expect(await b.releaseEscrow(referenceId: 'b9'), 20.0,
-          reason: 'B never saw the release — its own view refunds too; '
-              'harmless IFF the durable row dedups');
+      await a.settled; // the release tombstone is durable now
+      // Stale-view B never saw the release in memory — but the durable
+      // release-tombstone probe revalidates at write time, so the
+      // second refund now refuses instead of minting an unbacked
+      // in-memory artifact (multi-instance stale-view closure).
+      expect(await b.releaseEscrow(referenceId: 'b9'), 0.0,
+          reason: 'the durable tx_escrow_release_b9 row is the '
+              'authority — B\'s stale in-memory view cannot re-refund');
       await Future.wait([a.settled, b.settled]);
 
       final rows = await db.getCreditTransactions();
@@ -391,42 +425,31 @@ void main() {
       await a.settled; // release row durable now
 
       // B re-posts under the same referenceId (its view never learned
-      // of the release) and releases — matching BOTH hold rows: it
-      // re-refunds the hold A already refunded.
+      // of the release) and releases — matching BOTH hold rows in its
+      // own view. The durable release-tombstone probe now catches A's
+      // release at write time, so the stale-view double-refund refuses.
       b.debitEscrow(amount: 10.0, referenceId: 'b10');
       final refund = await b.releaseEscrow(referenceId: 'b10');
-      // Stale-view artifact: B hydrated before A's release row landed,
-      // so its in-memory released-set is empty and it refunds both
-      // holds in its own view. This requires violating the documented
-      // single-process db-ownership assumption — the DURABLE invariant
-      // below is what matters.
-      expect(refund, 30.0,
-          reason: 'stale-view in-memory artifact (single-process '
-              'ownership violated); the canonical ledger still keeps '
-              'exactly one release row — asserted below');
+      expect(refund, 0.0,
+          reason: 'multi-instance stale-view closure: the durable '
+              'tx_escrow_release_b10 row is the authority — B\'s '
+              'in-memory released-set being stale can no longer '
+              're-refund the old hold');
 
-      // Both instances wrote 'tx_escrow_release_b10' with DIFFERENT
-      // amounts (A: +20, B: +30) — insertOrIgnore silently keeps
-      // whichever landed first, so the canonical balance is
-      // nondeterministic: A's row wins → 40 (B's view inflated +10);
-      // B's row wins → 50 (all holds covered — accidentally correct).
       await Future.wait([a.settled, b.settled]);
       final rows = await db.getCreditTransactions();
       final releaseRows =
           rows.where((r) => r['id'] == 'tx_escrow_release_b10').toList();
       expect(releaseRows.length, 1);
-      // Two distinct refund amounts raced for one primary key — the
-      // ledger keeps a nondeterministic winner. Both are "a single
-      // release row" yet they disagree about what was refunded.
       expect(releaseRows.single['amount'], 20.0,
-          reason: 'documented nondeterminism: the surviving row should '
-              'be A\'s single-hold refund; if B\'s +30 wins, the '
-              'double-refund is canonically absorbed');
+          reason: 'exactly one canonical refund — A\'s single-hold '
+              'release; the re-posted hold stays stranded by '
+              'once-per-referenceId-forever semantics');
     });
 
-    test('crash window is self-healing: a release whose dedup row never '
-        'landed is safely re-releasable (exactly one canonical refund)',
-        () async {
+    test('crash window CLOSED: a parked release write cannot return '
+        'success early; a lost write fails closed and stays '
+        're-releasable (exactly one canonical refund)', () async {
       final gdb = _GatedReleaseInsertDb();
       addTearDown(gdb.close);
       final a = svc(onDb: gdb);
@@ -435,23 +458,46 @@ void main() {
       a.debitEscrow(amount: 20.0, referenceId: 'b11');
       await a.settled;
 
-      gdb.armed = true; // hold the release-row write in flight
-      expect(await a.releaseEscrow(referenceId: 'b11'), 20.0);
-      // "Crash": fresh instance reads the db mid-flight — no release row.
+      // DURABLE-FIRST (optimistic-return residual): the release call
+      // itself awaits the dedup-row CAS — with the write parked the
+      // call must NOT return a refund. The old crash window (returned
+      // refund while the row was still unwritten) no longer exists.
+      gdb.armed = true;
+      final inFlight = a.releaseEscrow(referenceId: 'b11');
+      var returned = false;
+      unawaited(inFlight.then((_) => returned = true));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(returned, isFalse,
+          reason: 'a returned refund must correspond to a committed '
+              'dedup row — the call waits on the write');
+      gdb.gate.complete();
+      expect(await inFlight, 20.0);
+
+      // Write-loss variant: the CAS throws → releaseEscrow fails
+      // CLOSED (0.0, nothing mutates, the id is unburned for retry).
+      // A sibling instance then performs the canonical release exactly
+      // once — the self-heal the old crash-window path needed.
+      a.debitEscrow(amount: 15.0, referenceId: 'b11w');
+      await a.settled;
+      gdb.throwWhenArmed = true;
+      expect(await a.releaseEscrow(referenceId: 'b11w'), 0.0,
+          reason: 'fail closed: a refund that cannot commit must not '
+              'mutate the in-memory view');
+      expect(a.balance, 35.0);
+      gdb.armed = false; // writes flow again — models the post-crash db
       final c = svc(onDb: gdb);
       await c.ready;
-      expect(c.balance, 30.0);
-      expect(await c.releaseEscrow(referenceId: 'b11'), 20.0,
+      expect(c.balance, 35.0);
+      expect(await c.releaseEscrow(referenceId: 'b11w'), 15.0,
           reason: 'the missing dedup row means the refund never '
               'canonically happened — re-release is the correct heal, '
               'not a double-pay');
-      gdb.gate.complete();
       await Future.wait([a.settled, c.settled]);
       final rows = await gdb.getCreditTransactions();
+      expect(rows.where((r) => r['id'] == 'tx_escrow_release_b11').length,
+          1);
       expect(
-          rows
-              .where((r) => r['id'] == 'tx_escrow_release_b11')
-              .length,
+          rows.where((r) => r['id'] == 'tx_escrow_release_b11w').length,
           1);
       final d = svc(onDb: gdb);
       await d.ready;
@@ -675,7 +721,8 @@ void main() {
       final r = await persist(await signedReceipt(
           verifierPubkey: pubB,
           verifierKeyPair: keyB,
-          proverPubkey: pubA));
+          proverPubkey: pubA,
+          proverKeyPair: keyA));
       final s = CreditService(
         db: db,
         initialBalance: 0.0,

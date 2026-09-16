@@ -31,7 +31,12 @@ void main() {
         latencyMs: 5,
       );
 
-      final discovered = expectLater(mesh.onPeerDiscovered, emits(peer));
+      // The emitted object is the clamped copy (round-3 fix: caller's
+      // isReachable is never trusted), so match on peerId + state.
+      final discovered = expectLater(
+          mesh.onPeerDiscovered,
+          emits(predicate<MeshPeer>((p) =>
+              p.peerId == 'p1' && !p.isReachable && p.isPending)));
       final listed = expectLater(mesh.peerListStream, emits(hasLength(1)));
 
       mesh.registerPeer(peer);
@@ -62,28 +67,42 @@ void main() {
       expect(mesh.isTierEnabled(TransportTier.webrtcDirect), isTrue);
     });
 
-    test('selectBestTransport returns peer tier when active', () {
-      mesh.registerPeer(MeshPeer(
+    test('selectBestTransport returns peer tier when active', () async {
+      // Probe simulates a completed handshake — registration alone is
+      // no longer proof of reachability (round-3 fix).
+      final probedMesh =
+          MeshTransportService(handshakeProbe: (_) async => true);
+      addTearDown(probedMesh.dispose);
+      const addr3 = '/ip4/1.2.3.4/tcp/4001/p2p/p3';
+      probedMesh.registerPeer(MeshPeer(
         peerId: 'p3',
-        address: '/ip4/1.2.3.4/p2p/p3',
+        address: addr3,
         tier: TransportTier.bleProximity,
         latencyMs: 15,
       ));
 
-      expect(
-          mesh.selectBestTransport('p3'), equals(TransportTier.bleProximity));
+      expect(probedMesh.selectBestTransport('p3'), isNull);
+      await probedMesh.connectToPeer(addr3);
+      expect(probedMesh.selectBestTransport('p3'),
+          equals(TransportTier.bleProximity));
     });
 
-    test('selectBestTransport falls back to highest priority active tier', () {
-      mesh.setTierEnabled(TransportTier.bleProximity, false);
-      mesh.registerPeer(MeshPeer(
+    test('selectBestTransport falls back to highest priority active tier',
+        () async {
+      final probedMesh =
+          MeshTransportService(handshakeProbe: (_) async => true);
+      addTearDown(probedMesh.dispose);
+      probedMesh.setTierEnabled(TransportTier.bleProximity, false);
+      const addr4 = '/ip4/1.2.3.4/tcp/4001/p2p/p4';
+      probedMesh.registerPeer(MeshPeer(
         peerId: 'p4',
-        address: '/ip4/1.2.3.4/p2p/p4',
+        address: addr4,
         tier: TransportTier.bleProximity,
         latencyMs: 15,
       ));
 
-      final best = mesh.selectBestTransport('p4');
+      await probedMesh.connectToPeer(addr4);
+      final best = probedMesh.selectBestTransport('p4');
       expect(best, equals(TransportTier.lanMdns));
     });
 
@@ -115,20 +134,31 @@ void main() {
       expect(ok, isFalse);
     });
 
-    test('sendPayload returns true for a valid peer and tier', () async {
-      mesh.registerPeer(MeshPeer(
+    test('sendPayload returns true for a handshake-proven peer', () async {
+      final probedMesh =
+          MeshTransportService(handshakeProbe: (_) async => true);
+      addTearDown(probedMesh.dispose);
+      const addr7 = '/ip4/1.2.3.4/tcp/4001/p2p/p7';
+      probedMesh.registerPeer(MeshPeer(
         peerId: 'p7',
-        address: '/ip4/1.2.3.4/p2p/p7',
+        address: addr7,
         tier: TransportTier.lanMdns,
         latencyMs: 5,
       ));
-      final ok = await mesh.sendPayload('p7', Uint8List.fromList([1, 2, 3]));
+      await probedMesh.connectToPeer(addr7);
+      final ok =
+          await probedMesh.sendPayload('p7', Uint8List.fromList([1, 2, 3]));
       expect(ok, isTrue);
     });
 
     test('connectToPeer updates an existing peer', () async {
+      // Inject a probe that simulates a completed handshake — the
+      // default probe performs a real TCP connect (round-2 fix).
+      final probedMesh =
+          MeshTransportService(handshakeProbe: (_) async => true);
+      addTearDown(probedMesh.dispose);
       const multiaddr = '/ip4/1.2.3.4/tcp/4001/p2p/existing';
-      mesh.registerPeer(MeshPeer(
+      probedMesh.registerPeer(MeshPeer(
         peerId: 'existing',
         address: multiaddr,
         tier: TransportTier.webrtcDirect,
@@ -136,10 +166,11 @@ void main() {
         isReachable: false,
       ));
 
-      final ok = await mesh.connectToPeer(multiaddr);
+      final ok = await probedMesh.connectToPeer(multiaddr);
       expect(ok, isTrue);
 
-      final peer = mesh.peers.firstWhere((p) => p.peerId == 'existing');
+      final peer =
+          probedMesh.peers.firstWhere((p) => p.peerId == 'existing');
       expect(peer.isReachable, isTrue);
       expect(peer.isPending, isFalse);
     });
@@ -155,7 +186,10 @@ void main() {
     });
 
     test('bootstrap peers start unproven until a real handshake', () async {
-      final bootstrapped = MeshTransportService(bootstrap: true);
+      final bootstrapped = MeshTransportService(
+        bootstrap: true,
+        handshakeProbe: (_) async => true,
+      );
       addTearDown(bootstrapped.dispose);
 
       // Seeded candidates are pending/unproven — never claimed reachable
@@ -177,7 +211,7 @@ void main() {
 
       // A real handshake proves the peer
       const addr =
-          '/dns4/node1.alexandria.alexandria.network/tcp/4001/p2p/QmBootstrapNode1AlexandriaAlpha';
+          '/dns4/node1.alexandria.network/tcp/4001/p2p/QmBootstrapNode1AlexandriaAlpha';
       final connected = await bootstrapped.connectToPeer(addr);
       expect(connected, isTrue);
 

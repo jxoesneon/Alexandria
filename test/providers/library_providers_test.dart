@@ -377,4 +377,73 @@ void main() {
       addTearDown(errorDb.close);
     });
   });
+
+  group('readingProgressProvider hardening', () {
+    test('a valid-JSON non-map payload degrades to empty progress',
+        () async {
+      // Previously `jsonDecode(raw) as Map` let a stored JSON *list*
+      // escape the FormatException catch as a CastError.
+      final c = ProviderContainer(overrides: [
+        secureStorageServiceProvider
+            .overrideWithValue(_FakeStorage({'reading_progress': '[1,2]'})),
+      ]);
+      addTearDown(c.dispose);
+      expect(await c.read(readingProgressProvider.future), isEmpty);
+    });
+
+    test('malformed JSON degrades to empty progress', () async {
+      final c = ProviderContainer(overrides: [
+        secureStorageServiceProvider
+            .overrideWithValue(_FakeStorage({'reading_progress': '{oops'})),
+      ]);
+      addTearDown(c.dispose);
+      expect(await c.read(readingProgressProvider.future), isEmpty);
+    });
+
+    test('non-numeric values are dropped, not a CastError '
+        '(campaign-2)', () async {
+      // A stored map with a string value escaped the FormatException
+      // catch as a CastError via `(value as num).toDouble()`.
+      final c = ProviderContainer(overrides: [
+        secureStorageServiceProvider.overrideWithValue(_FakeStorage(
+            {'reading_progress': '{"bad": "oops", "cid-1": 0.5}'})),
+      ]);
+      addTearDown(c.dispose);
+      expect(await c.read(readingProgressProvider.future),
+          {'cid-1': 0.5});
+    });
+
+    test('a well-formed map still reads', () async {
+      final c = ProviderContainer(overrides: [
+        secureStorageServiceProvider.overrideWithValue(
+            _FakeStorage({'reading_progress': '{"cid-1": 0.5}'})),
+      ]);
+      addTearDown(c.dispose);
+      expect(
+          await c.read(readingProgressProvider.future), {'cid-1': 0.5});
+    });
+  });
+}
+
+class _FakeStorage implements SecureStorageService {
+  _FakeStorage(this._data);
+  final Map<String, String> _data;
+
+  @override
+  Future<String?> read(String key) async => _data[key];
+
+  @override
+  Future<void> write(String key, String value) async => _data[key] = value;
+
+  @override
+  Future<void> delete(String key) async => _data.remove(key);
+
+  @override
+  Future<void> deleteAll() async => _data.clear();
+
+  @override
+  Future<bool> containsKey(String key) async => _data.containsKey(key);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

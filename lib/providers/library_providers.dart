@@ -27,8 +27,20 @@ final readingProgressProvider = FutureProvider<Map<String, double>>((ref) async 
   final raw = await storage.read('reading_progress');
   if (raw == null || raw.isEmpty) return const {};
   try {
-    final map = jsonDecode(raw) as Map<String, dynamic>;
-    return map.map((key, value) => MapEntry(key, (value as num).toDouble()));
+    // A valid-JSON non-map payload (list, string, …) previously escaped
+    // the FormatException catch as a CastError — treat anything that
+    // is not a JSON object as absent state. (campaign-2 hardening) and
+    // a map with a non-numeric VALUE ({"cid":"abc"}) escaped the same
+    // way through `(value as num).toDouble()` — keep only entries whose
+    // value is genuinely a number rather than trusting the shape.
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) return const {};
+    final progress = <String, double>{};
+    for (final e in Map<String, dynamic>.from(decoded).entries) {
+      final v = e.value;
+      if (v is num) progress[e.key] = v.toDouble();
+    }
+    return progress;
   } on FormatException {
     return const {};
   }

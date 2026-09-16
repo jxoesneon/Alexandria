@@ -42,5 +42,24 @@ void main() {
       await Future.wait([f1, f2]);
       expect(executionOrder.length, equals(2));
     });
+
+    test('maxConcurrent <= 0 is clamped — queued work can never hang',
+        () async {
+      // A zero concurrency budget would leave every enqueued future
+      // pending forever; the constructor must clamp it to >= 1.
+      final stuck = HonorBandwidthService(maxConcurrent: 0);
+      expect(stuck.maxConcurrent, 1);
+      final result = await stuck.enqueueRequest(
+        requestId: 'req_x',
+        peerId: 'peer',
+        baseHonorScore: 0,
+        verifiedPoRCount: 0,
+        task: () async => 'ran',
+      );
+      expect(result, 'ran');
+
+      final negative = HonorBandwidthService(maxConcurrent: -5);
+      expect(negative.maxConcurrent, 1);
+    });
   });
 }

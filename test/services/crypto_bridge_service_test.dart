@@ -7,7 +7,7 @@ class _FakeCreditService extends CreditService {
   _FakeCreditService() : super();
 
   double _bal = 100.0;
-  final double _attested = 50.0;
+  double _attested = 50.0;
 
   @override
   double get balance => _bal;
@@ -23,8 +23,13 @@ class _FakeCreditService extends CreditService {
     CreditType debitType = CreditType.priorityAccessDebit,
     bool isAttested = false,
   }) {
+    // Mirror the real contract: an attested spend must be covered by the
+    // attested pool and consumes it — the cumulative egress budget is
+    // enforced inside the debit, atomically, not by the advisory gate.
+    if (isAttested && _attested < amount) return false;
     if (_bal >= amount) {
       _bal -= amount;
+      if (isAttested) _attested -= amount;
       return true;
     }
     return false;
@@ -105,7 +110,7 @@ void main() {
       expect(bridge.redeemCashuToken('bad_token'), 0.0);
     });
 
-    test('configuration getters and setters notify listeners', () {
+    test('configuration getters and setters notify listeners', () async {
       final creditService = _FakeCreditService();
       final bridge = CryptoBridgeService(creditService: creditService);
 
@@ -116,7 +121,7 @@ void main() {
       expect(bridge.lightningAddress, 'user@getalby.com');
       expect(notified, 1);
 
-      bridge.setCashuMint('https://mint.custom.org');
+      await bridge.setCashuMint('https://mint.custom.org');
       expect(bridge.preferredCashuMint, 'https://mint.custom.org');
       expect(notified, 2);
     });
@@ -142,8 +147,11 @@ void main() {
         overridePayoutsAllowed: true,
       );
 
-      // Exceeds attested balance (attested is 50, request 60)
-      expect(bridge.egressRejectionReason(60.0), contains('exceeds attested balance'));
+      // Exceeds attested balance (attested is 50, request 60): the
+      // advisory gate stays a request-level check — the cumulative
+      // attested budget is enforced atomically inside the debit
+      // (isAttested spend), which refuses here.
+      expect(bridge.egressRejectionReason(60.0), isNull);
       expect(bridge.exportCreditsAsCashuToken(60.0), isNull);
       expect(bridge.sweepToLightningAddress(creditsToSweep: 60.0, customAddress: 'alice@domain.com'), isFalse);
 

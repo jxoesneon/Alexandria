@@ -42,15 +42,25 @@ void main() {
       expect(tor.proxyAddress, equals('127.0.0.1:9050'));
     });
 
-    test('setProxy stores host and port, defaulting empty host', () async {
+    test('setProxy stores host and port, rejecting invalid input',
+        () async {
       await tor.setProxy('192.168.1.1', 9051);
       expect(tor.proxyHost, equals('192.168.1.1'));
       expect(tor.proxyPort, equals(9051));
       expect(await storage.read('tor_host'), equals('192.168.1.1'));
       expect(await storage.read('tor_port'), equals('9051'));
 
-      await tor.setProxy('', 9090);
-      expect(tor.proxyHost, equals('127.0.0.1'));
+      // Proxy host/port are validated now (round-2 hardening): empty or
+      // malformed hosts and out-of-range ports are rejected outright
+      // instead of silently flowing into Socket.connect / proxy strings.
+      await expectLater(tor.setProxy('', 9090), throwsArgumentError);
+      await expectLater(
+          tor.setProxy('bad host;', 9050), throwsArgumentError);
+      await expectLater(tor.setProxy('127.0.0.1', 0), throwsArgumentError);
+      await expectLater(
+          tor.setProxy('127.0.0.1', 70000), throwsArgumentError);
+      // Rejected input must not clobber the previously stored proxy.
+      expect(tor.proxyHost, equals('192.168.1.1'));
     });
 
     test('disable saves false preference and resets status', () async {

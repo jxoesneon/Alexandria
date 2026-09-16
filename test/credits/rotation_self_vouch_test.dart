@@ -95,7 +95,14 @@ void main() {
     );
     final sig = await algorithm.sign(unsigned.signingPayload,
         keyPair: verifierKeyPair ?? keyA);
-    return unsigned.withVerifierSig(base64Encode(sig.bytes));
+    var signed = unsigned.withVerifierSig(base64Encode(sig.bytes));
+    // v3 issuance acknowledgment (ALX-012 §5.8) — counter-signed by
+    // the prover of record (B, the current identity).
+    if (signed.v >= WorkReceipt.minAckWireVersion) {
+      final ack = await algorithm.sign(signed.ackPayload, keyPair: keyB);
+      signed = signed.withProverSig(base64Encode(ack.bytes));
+    }
+    return signed;
   }
 
   CreditService svcWith({KnownLocalPubkeysResolver? knownLocal}) {

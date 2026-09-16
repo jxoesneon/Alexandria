@@ -188,7 +188,8 @@ class NetworkOverviewService {
     final torPort =
         int.tryParse(await storage.read('transport_tor_port') ?? '') ??
             tor.proxyPort;
-    final torRelay = await storage.read('transport_tor_relay') ?? tor.proxyAddress;
+    final torRelay =
+        await storage.read('transport_tor_relay') ?? tor.proxyAddress;
 
     return [
       TransportConfig(
@@ -253,11 +254,39 @@ class NetworkOverviewService {
     }
   }
 
+  /// (round-6 red finding) Parses a relay address into the host half.
+  /// Handles `host`, `host:port`, bracketed IPv6 `[::1]` / `[::1]:9050`,
+  /// and bare IPv6 literals (`::1`, returned bracketed to match
+  /// [TorService.setProxy]'s host grammar). The previous `split(':')`
+  /// returned `'['` for `'[::1]:9050'`. Malformed input fails closed to
+  /// the loopback default rather than feeding a garbage host to
+  /// setProxy/Socket.connect.
   String _parseHost(String address) {
-    final parts = address.split(':');
-    if (parts.isNotEmpty && parts.first.isNotEmpty) {
-      return parts.first;
+    final a = address.trim();
+    if (a.isEmpty) return '127.0.0.1';
+    if (a.startsWith('[')) {
+      // Bracketed IPv6: [::1] or [::1]:port — anything after ']'
+      // must be a numeric port or absent.
+      final close = a.indexOf(']');
+      if (close <= 1) return '127.0.0.1';
+      final rest = a.substring(close + 1);
+      if (rest.isNotEmpty && !RegExp(r'^:\d{1,5}$').hasMatch(rest)) {
+        return '127.0.0.1';
+      }
+      return a.substring(0, close + 1);
     }
+    final firstColon = a.indexOf(':');
+    if (firstColon < 0) return a; // bare host
+    if (a.indexOf(':', firstColon + 1) < 0) {
+      // host:port — the port must be numeric to be a real port.
+      final host = a.substring(0, firstColon);
+      final port = a.substring(firstColon + 1);
+      if (host.isEmpty || int.tryParse(port) == null) return '127.0.0.1';
+      return host;
+    }
+    // Multiple colons: an unbracketed IPv6 literal carries no port —
+    // return it bracketed so setProxy's grammar accepts it.
+    if (RegExp(r'^[0-9a-fA-F:]+$').hasMatch(a)) return '[$a]';
     return '127.0.0.1';
   }
 
@@ -279,9 +308,11 @@ class NetworkOverviewService {
     );
 
     if (tor.isEnabled) {
-      final parts = tor.proxyAddress.split(':');
-      final host = parts.isNotEmpty ? parts[0] : '127.0.0.1';
-      final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 9050 : 9050;
+      // (round-5 red finding) use the structured accessors — splitting
+      // the 'host:port' display string on ':' mangles bracketed IPv6
+      // ('[::1]:9050'.split(':')[0] == '[').
+      final host = tor.proxyHost;
+      final port = tor.proxyPort;
       try {
         final socket = await Socket.connect(
           host,
@@ -323,10 +354,15 @@ class NetworkOverviewService {
     _manualSyncTotal = initial.length;
     _emitSyncProgress();
 
-    await sync.processQueue();
-
-    _manualSyncInProgress = false;
-    _emitSyncProgress();
+    // (slot-C sweep) a throwing processQueue must not wedge the
+    // progress state — without the finally, inProgress would stay
+    // latched true forever after a transport error.
+    try {
+      await sync.processQueue();
+    } finally {
+      _manualSyncInProgress = false;
+      _emitSyncProgress();
+    }
   }
 
   Future<bool> resolveConflict(Conflict conflict) async {

@@ -40,10 +40,10 @@ void main() {
       final key2 = await service.generateKey();
       final plaintext = Uint8List.fromList('secret'.codeUnits);
       final cipher = await service.encryptData(plaintext, key1);
-      expect(
-        () async => await service.decryptData(cipher, key2),
-        throwsA(anything),
-      );
+      // decryptData now returns null on AEAD authentication failure
+      // (wrong key / tampered box) instead of throwing — the security
+      // contract is unchanged: a wrong key NEVER yields plaintext.
+      expect(await service.decryptData(cipher, key2), isNull);
     });
 
     test('encryptForPeer produces deterministic key from public key', () async {

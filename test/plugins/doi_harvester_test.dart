@@ -159,6 +159,9 @@ void main() {
       await plugin.initialize(PluginContext(
         container: container,
         pluginId: plugin.manifest.id,
+        // Grant exactly the manifest-declared permissions — the context
+        // no longer exposes raw ProviderContainer access (round-3 fix).
+        permissions: plugin.manifest.permissions.toSet(),
       ));
     });
 

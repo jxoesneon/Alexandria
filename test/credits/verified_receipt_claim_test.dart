@@ -3,7 +3,7 @@
 // workType mapping, the daily-cap safety floor — and the ALX-012 Safety
 // mandate: wire-version floor, receipt-id tamper check, IN-PATH Ed25519
 // verification over the domain-separated signing payload, and the
-// Review-REV3 possession binding: the prover identity is resolved through
+// quorum-REV3 possession binding: the prover identity is resolved through
 // the injected localProverPubkeyHex resolver (ambient authority — never
 // caller-supplied) and proven by claimSignatureB64, an Ed25519 signature
 // by the prover key over 'alexandria:receipt-claim:v{v}:{receiptId}'.
@@ -61,8 +61,12 @@ void main() {
   /// Issues a receipt and signs its domain-separated [signingPayload]
   /// with [keyPair] (default: the verifier key) — exactly as a verifier
   /// node would. The receipt's own `v` selects the preimage, so a v1
-  /// artifact is signed over the bare canonical body and a v2 artifact
-  /// over the 'alexandria:receipt:v2:'-prefixed bytes.
+  /// artifact is signed over the bare canonical body and a v2+ artifact
+  /// over the 'alexandria:receipt:vN:'-prefixed bytes. Wire v3+ also
+  /// attaches the issuance-acknowledgment counter-signature
+  /// ([WorkReceipt.ackPayload]) under [proverKeyPair] (default: the
+  /// local prover key) — pass an explicit [proverSig] to override (''
+  /// builds an un-acked artifact).
   Future<WorkReceipt> signedReceipt({
     int? v,
     String workType = 'storage',
@@ -75,9 +79,12 @@ void main() {
     // it verbatim — '' builds an unsigned artifact, garbage builds a
     // forgery.
     String? verifierSig,
+    SimpleKeyPair? proverKeyPair,
+    String? proverSig,
   }) async {
+    final version = v ?? WorkReceipt.wireVersion;
     final unsigned = WorkReceipt.issue(
-      v: v ?? WorkReceipt.wireVersion,
+      v: version,
       workType: workType,
       proverPubkey: proverPubkey,
       verifierPubkey: verifierPubkey ?? verifierPubHex,
@@ -91,12 +98,28 @@ void main() {
       expiresAt: expiresAt ??
           DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
     );
+    WorkReceipt signed;
     if (verifierSig != null) {
-      return unsigned.withVerifierSig(verifierSig);
+      signed = unsigned.withVerifierSig(verifierSig);
+    } else {
+      final sig = await algorithm.sign(unsigned.signingPayload,
+          keyPair: keyPair ?? verifierKeyPair);
+      signed = unsigned.withVerifierSig(base64Encode(sig.bytes));
     }
-    final sig = await algorithm.sign(unsigned.signingPayload,
-        keyPair: keyPair ?? verifierKeyPair);
-    return unsigned.withVerifierSig(base64Encode(sig.bytes));
+    // v3+ issuance acknowledgment (ALX-012 §5.8): the prover
+    // counter-signs the ack domain — a claim without it is refused.
+    if (version >= WorkReceipt.minAckWireVersion) {
+      if (proverSig != null) {
+        if (proverSig.isNotEmpty) {
+          signed = signed.withProverSig(proverSig);
+        }
+      } else {
+        final ack = await algorithm.sign(signed.ackPayload,
+            keyPair: proverKeyPair ?? localKeyPair);
+        signed = signed.withProverSig(base64Encode(ack.bytes));
+      }
+    }
+    return signed;
   }
 
   group('CreditService.claimVerifiedReceipt (ALX-010 attested mint)', () {

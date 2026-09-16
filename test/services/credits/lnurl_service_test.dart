@@ -60,7 +60,7 @@ void main() {
         return http.Response('Not Found', 404);
       });
 
-      final service = LnurlService(client: mockClient);
+      final service = LnurlService(client: mockClient, callbackTransport: mockClient.get);
       final invoice = await service.resolveAddressToInvoice(
         lightningAddress: 'alice@example.com',
         amountSats: 100,
@@ -97,7 +97,7 @@ void main() {
         return http.Response('Not Found', 404);
       });
 
-      final service = LnurlService(client: mockClient);
+      final service = LnurlService(client: mockClient, callbackTransport: mockClient.get);
       final invoice = await service.resolveAddressToInvoice(
         lightningAddress: 'bob@testnet.example.com',
         amountSats: 50,
@@ -112,7 +112,7 @@ void main() {
         return http.Response('Error', 500);
       });
 
-      final service = LnurlService(client: mockClient);
+      final service = LnurlService(client: mockClient, callbackTransport: mockClient.get);
       expect(
         () => service.resolveAddressToInvoice(
           lightningAddress: 'alice@example.com',
@@ -135,7 +135,7 @@ void main() {
         );
       });
 
-      final service = LnurlService(client: mockClient);
+      final service = LnurlService(client: mockClient, callbackTransport: mockClient.get);
       expect(
         () => service.resolveAddressToInvoice(
           lightningAddress: 'alice@example.com',
@@ -157,7 +157,7 @@ void main() {
         );
       });
 
-      final service = LnurlService(client: mockClient);
+      final service = LnurlService(client: mockClient, callbackTransport: mockClient.get);
       expect(
         () => service.resolveAddressToInvoice(
           lightningAddress: 'alice@example.com',
@@ -182,7 +182,7 @@ void main() {
         );
       });
 
-      final service = LnurlService(client: mockClient);
+      final service = LnurlService(client: mockClient, callbackTransport: mockClient.get);
       // Below min (5 sats = 5000 msats)
       expect(
         () => service.resolveAddressToInvoice(
@@ -227,7 +227,7 @@ void main() {
         }
       });
 
-      final service = LnurlService(client: mockClient);
+      final service = LnurlService(client: mockClient, callbackTransport: mockClient.get);
       expect(
         () => service.resolveAddressToInvoice(
           lightningAddress: 'alice@example.com',

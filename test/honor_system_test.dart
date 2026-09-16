@@ -40,6 +40,51 @@ void main() {
           throwsArgumentError);
     });
 
+    test('one ballot per validator per target — repeat votes replace, '
+        'never stack', () {
+      // Without dedup a validator could call recordVote N times and
+      // multiply its weight N-fold; a re-vote must REPLACE the prior
+      // ballot for the same (validatorId, targetCid).
+      honorSystem.recordVote(
+        validatorId: 'val_alice',
+        targetCid: 'cid_300',
+        score: 1,
+        reputation: 90, // weight 2.0
+      );
+      honorSystem.recordVote(
+        validatorId: 'val_alice',
+        targetCid: 'cid_300',
+        score: 1,
+        reputation: 90,
+      );
+      honorSystem.recordVote(
+        validatorId: 'val_alice',
+        targetCid: 'cid_300',
+        score: 1,
+        reputation: 90,
+      );
+      expect(honorSystem.computeTrustScore('cid_300'), equals(2));
+
+      // A validator may change its mind — newest ballot stands.
+      honorSystem.recordVote(
+        validatorId: 'val_alice',
+        targetCid: 'cid_300',
+        score: -1,
+        reputation: 90,
+      );
+      expect(honorSystem.computeTrustScore('cid_300'), equals(-2));
+
+      // ...while votes on OTHER targets are unaffected.
+      honorSystem.recordVote(
+        validatorId: 'val_alice',
+        targetCid: 'cid_301',
+        score: 1,
+        reputation: 90,
+      );
+      expect(honorSystem.computeTrustScore('cid_301'), equals(2));
+      expect(honorSystem.computeTrustScore('cid_300'), equals(-2));
+    });
+
     test('validateContent and getTrustScore aliases work correctly', () {
       honorSystem.validateContent(
         validatorId: 'val_charlie',

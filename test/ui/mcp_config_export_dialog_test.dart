@@ -4,7 +4,7 @@ import 'package:alexandria/ui/agent/mcp_config_export_dialog.dart';
 import 'package:alexandria/ui/theme/app_theme.dart';
 
 void main() {
-  testWidgets('McpConfigExportDialog renders tabs, Governance review, and config content',
+  testWidgets('McpConfigExportDialog renders tabs, Alexandria quorum, and config content',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -31,9 +31,9 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // 1. Header and Review verification
+    // 1. Header and quorum verification
     expect(find.text('Connect External AI Agents (ALX-006)'), findsOneWidget);
-    expect(find.text('Governance — Lord of Wisdom Orchestration'), findsOneWidget);
+    expect(find.text('Alexandria Protocol Governance'), findsOneWidget);
     expect(find.text('Claude Desktop'), findsOneWidget);
     expect(find.text('Gemini CLI'), findsOneWidget);
     expect(find.text('Cursor / Windsurf'), findsOneWidget);

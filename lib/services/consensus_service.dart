@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import '../services/biometric_service.dart';
 import '../services/identity_service.dart';
 import '../services/ledger_service.dart';
 
@@ -9,7 +10,56 @@ import '../services/ledger_service.dart';
 final consensusServiceProvider = Provider((ref) {
   final identityService = ref.watch(identityServiceProvider);
   final ledgerService = ref.watch(ledgerServiceProvider);
-  return ConsensusService(identityService, ledgerService);
+  // Human attestation is bound to the biometric service's
+  // last-real-authentication clock — see [ConsensusService.castVote].
+  final biometricService = ref.watch(biometricServiceProvider);
+  return ConsensusService(
+    identityService,
+    ledgerService,
+    humanAttestationClock: () => biometricService.lastAuthenticatedAt,
+    // The strong human-attestation path: per-vote HMAC tokens minted by
+    // BiometricService.attestVoteIntent behind a real device-credential
+    // prompt, bound to voterKey‖changeId‖choice and single-use.
+    voteAttestationVerifier: biometricService.consumeVoteAttestation,
+  );
+});
+
+/// Returns the timestamp of the last successful device-credential
+/// (biometric/PIN) authentication, or null when none exists. Wired to
+/// [BiometricService.lastAuthenticatedAt] in production; injectable so
+/// tests and headless embedders can supply their own evidence source.
+///
+/// TRUST MODEL: the clock must be fed ONLY by genuine authentication
+/// events — never by a caller's claim and never by a fail-open bypass.
+/// [BiometricService.authenticate] returns true without prompting when
+/// biometrics are unavailable or secure mode is off; those paths do
+/// NOT update the clock, so "the user was allowed through" is never
+/// mistaken for "a human was verified".
+typedef HumanAttestationClock = DateTime? Function();
+
+/// Verifies (and consumes) a per-vote human attestation token — the
+/// STRONG human-binding path that supersedes the temporal
+/// [HumanAttestationClock] window (campaign-2 hardening).
+///
+/// A token is a short-lived HMAC minted by
+/// [BiometricService.attestVoteIntent] only after a genuine
+/// device-credential prompt, committing to the exact ballot fields
+/// (voterKey ‖ changeId ‖ choice ‖ issuedAt ‖ nonce). The verifier
+/// returns true only when the token's MAC covers THESE fields, it is
+/// inside its TTL, and it has never been consumed — a token minted
+/// for another change, another choice, or another voter attests
+/// nothing, and a replayed token refuses.
+///
+/// TRUST MODEL: same as [HumanAttestationClock] — the source must be
+/// fed only by genuine authentication events, and every failure mode
+/// (throw, malformed, stale) attests nothing. Wired to
+/// [BiometricService.consumeVoteAttestation] in production; injectable
+/// so tests/headless embedders can supply their own evidence source.
+typedef VoteAttestationVerifier = Future<bool> Function(
+  String token, {
+  required Uint8List voterKey,
+  required String changeId,
+  required bool approve,
 });
 
 /// Constants for consensus (Spec §5.2, §5.3)
@@ -29,7 +79,49 @@ class Vote {
   final bool approve;
   final Uint8List signature;
   final DateTime timestamp;
+
+  /// Whether this ballot is an ATTESTED human vote.
+  ///
+  /// (WORKING_ON residual, closed this round) `isHuman` used to be a
+  /// caller-declared flag even on `weightAttested` ballots — the tally
+  /// trusted the signature's weight but took humanity on faith. Now,
+  /// on a service-minted attested ballot, `isHuman` is DERIVED, not
+  /// declared: [ConsensusService.castVote] sets it only when a
+  /// [HumanAttestationClock] reports a real device-credential
+  /// authentication within the attestation window. A caller asking for
+  /// `isHuman: true` without biometric evidence produces a ballot with
+  /// `isHuman == false` — fail-closed.
+  ///
+  /// Wire-deserialized votes still carry whatever flag their author
+  /// claimed, but they are `weightAttested == false` and therefore
+  /// already excluded from [ChangeRequest.humanApprovalCount].
   final bool isHuman;
+
+  /// (campaign-2 hardening) The consumed per-vote attestation token
+  /// this human ballot was minted against, when the STRONG binding
+  /// path was used ([ConsensusService.castVote] with
+  /// `humanAttestationToken`). Non-null only on attested ballots whose
+  /// `isHuman` was derived from a field-bound token rather than the
+  /// recency window — a human ballot carrying this pin is bound to
+  /// THAT vote, not just to a recent unlock. The token is single-use
+  /// and already consumed, so persisting it here leaks no replayable
+  /// credential.
+  final String? humanAttestation;
+
+  /// (round-3 red finding) Whether [weight] was derived locally from
+  /// ledger state at cast time. Votes deserialized from the wire carry
+  /// `weightAttested = false` — a serialized `weight` is a self-declared
+  /// claim and is NEVER load-bearing in [ChangeRequest.approvalWeight] /
+  /// [ChangeRequest.rejectionWeight] tallies.
+  ///
+  /// (round-4 red finding) The marker is UNFORGEABLE BY CONSTRUCTION:
+  /// the public constructor accepts — and IGNORES — a `weightAttested`
+  /// argument, always producing an unattested vote. Only the private
+  /// [Vote._attested] constructor, reachable solely from
+  /// [ConsensusService.castVote] inside this library, can mint an
+  /// attested ballot. A caller pushing `Vote(weightAttested: true)`
+  /// onto [ChangeRequest.votes] fabricates nothing.
+  final bool weightAttested;
 
   Vote({
     required this.voterKey,
@@ -38,7 +130,23 @@ class Vote {
     required this.signature,
     required this.timestamp,
     this.isHuman = true,
-  });
+    this.humanAttestation,
+    // Ignored — see field doc. Retained only for call-site compatibility.
+    bool weightAttested = false,
+  }) : weightAttested = false;
+
+  /// The only attested-vote constructor — private to this library so
+  /// attestation can be minted exclusively by [ConsensusService.castVote]
+  /// after deriving the weight from ledger state (round-4 red finding).
+  Vote._attested({
+    required this.voterKey,
+    required this.weight,
+    required this.approve,
+    required this.signature,
+    required this.timestamp,
+    this.isHuman = true,
+    this.humanAttestation,
+  }) : weightAttested = true;
 
   Map<String, dynamic> toJson() => {
         'voterKey': base64Encode(voterKey),
@@ -47,6 +155,7 @@ class Vote {
         'signature': base64Encode(signature),
         'timestamp': timestamp.toIso8601String(),
         'isHuman': isHuman,
+        'humanAttestation': humanAttestation,
       };
 
   factory Vote.fromJson(Map<String, dynamic> json) {
@@ -57,6 +166,7 @@ class Vote {
       signature: base64Decode(json['signature'] as String),
       timestamp: DateTime.parse(json['timestamp'] as String),
       isHuman: json['isHuman'] as bool? ?? true,
+      humanAttestation: json['humanAttestation'] as String?,
     );
   }
 }
@@ -72,7 +182,13 @@ class ChangeRequest {
   final Uint8List proposerSignature;
   final DateTime timestamp;
   final List<Vote> votes;
-  ChangeRequestStatus status;
+
+  /// (round-5 red finding) Was a public mutable field — any holder of a
+  /// returned reference could write `status = approved`/`vetoed` and
+  /// [isApproved] would honour the forged terminal state. Now private;
+  /// the only transition path is [resolve], which moves pending → a
+  /// terminal state and never back.
+  ChangeRequestStatus _status;
   final Uint8List? uploaderKey; // Original uploader for veto/fast-track
   final bool isAiProposal;
 
@@ -86,22 +202,74 @@ class ChangeRequest {
     required this.proposerSignature,
     required this.timestamp,
     List<Vote>? votes,
-    this.status = ChangeRequestStatus.pending,
+    ChangeRequestStatus status = ChangeRequestStatus.pending,
     this.uploaderKey,
     this.isAiProposal = false,
-  }) : votes = votes != null ? List.from(votes) : [];
+  })  : votes = votes != null ? List.from(votes) : [],
+        _status = status;
 
-  /// Calculate total approval weight
-  double get approvalWeight =>
-      votes.where((v) => v.approve).fold(0.0, (sum, v) => sum + v.weight);
+  /// Current lifecycle state (read-only to callers).
+  ChangeRequestStatus get status => _status;
 
-  /// Calculate total rejection weight
-  double get rejectionWeight =>
-      votes.where((v) => !v.approve).fold(0.0, (sum, v) => sum + v.weight);
+  /// Service-internal state transition: pending → terminal, never
+  /// terminal → anything and never pending → pending. A call that
+  /// violates the lifecycle is a no-op rather than a rewrite of a
+  /// decided outcome.
+  void resolve(ChangeRequestStatus next) {
+    if (_status != ChangeRequestStatus.pending ||
+        next == ChangeRequestStatus.pending) {
+      return;
+    }
+    _status = next;
+  }
 
-  /// Count human approvals (for AI proposals)
-  int get humanApprovalCount =>
-      votes.where((v) => v.approve && v.isHuman).length;
+  /// Calculate total approval weight. (round-3 red finding) Only votes
+  /// whose weight was attested at cast time count — wire-deserialized
+  /// votes declare whatever weight their author wanted and are tallied
+  /// as zero. (round-4 red finding) Tallies are deduplicated by
+  /// [Vote.voterKey]: [votes] is a publicly mutable list, so a copied
+  /// attested ballot must never double-count.
+  double get approvalWeight => _tallyWeight(approve: true);
+
+  /// Calculate total rejection weight (same attestation rule as
+  /// [approvalWeight]).
+  double get rejectionWeight => _tallyWeight(approve: false);
+
+  /// Attested, voterKey-deduplicated weight for one side of the tally.
+  double _tallyWeight({required bool approve}) {
+    final seenKeys = <String>{};
+    var sum = 0.0;
+    for (final v in votes) {
+      if (v.approve != approve || !v.weightAttested) continue;
+      if (seenKeys.add(base64Encode(v.voterKey))) sum += v.weight;
+    }
+    return sum;
+  }
+
+  /// Count human approvals (for AI proposals).
+  ///
+  /// (round-4 red finding) The human quorum counts only ATTESTED human
+  /// approvals — the same trust class as the weight tally. Previously
+  /// any wire ballot could self-assert `isHuman` (weightAttested=false)
+  /// and satisfy `humanThreshold` without a single ledger-derived vote;
+  /// and the count is deduplicated by [Vote.voterKey] so a duplicated
+  /// ballot is still one human.
+  ///
+  /// (WORKING_ON residual, closed this round) On top of weight
+  /// attestation, `isHuman` on a counted ballot is now itself derived:
+  /// [ConsensusService.castVote] sets it only when a biometric-bound
+  /// [HumanAttestationClock] attests a human presence within the
+  /// attestation window — a self-asserted flag can no longer satisfy
+  /// the human quorum even through the real cast path.
+  int get humanApprovalCount {
+    final seenKeys = <String>{};
+    var count = 0;
+    for (final v in votes) {
+      if (!v.approve || !v.isHuman || !v.weightAttested) continue;
+      if (seenKeys.add(base64Encode(v.voterKey))) count++;
+    }
+    return count;
+  }
 
   /// Check if approved based on consensus rules
   bool get isApproved {
@@ -156,10 +324,13 @@ class ChangeRequest {
               ?.map((v) => Vote.fromJson(v as Map<String, dynamic>))
               .toList() ??
           [],
-      status: ChangeRequestStatus.values.firstWhere(
-        (s) => s.name == json['status'],
-        orElse: () => ChangeRequestStatus.pending,
-      ),
+      // (round-4 red finding) wire status is unverifiable — a
+      // deserialized request claiming 'approved'/'vetoed' would enter
+      // pre-resolved with zero votes. Always re-enter as pending,
+      // mirroring GovernanceService.addProposal's
+      // strip-unverifiable-fields rule. Resolution is re-derivable
+      // locally via _checkAndResolve once attested votes accrue.
+      status: ChangeRequestStatus.pending,
       uploaderKey: json['uploaderKey'] != null
           ? base64Decode(json['uploaderKey'] as String)
           : null,
@@ -275,7 +446,50 @@ class ConsensusService {
   final List<AuditEntry> _auditLog = [];
   final _uuid = const Uuid();
 
-  ConsensusService(this._identityService, this._ledgerService);
+  /// Resolves the authenticated uploader of a target CID from trusted
+  /// content metadata. Injectable for tests / future content-registry
+  /// integration; the default resolves only LOCALLY-ATTESTED uploads —
+  /// content this node created itself (a `createContent` ledger entry
+  /// under the local identity). Anything else yields null, which makes
+  /// veto/fast-track authority unprovable rather than claimable
+  /// (round-3 red finding).
+  final Future<Uint8List?> Function(String targetCid)? _uploaderResolver;
+
+  /// (WORKING_ON residual, closed this round) Evidence source for
+  /// human-attested ballots: returns the timestamp of the last REAL
+  /// device-credential authentication on this node (wired to
+  /// [BiometricService.lastAuthenticatedAt] by the provider). When
+  /// null — or when the clock reports nothing recent — every ballot
+  /// minted by [castVote] carries `isHuman == false` regardless of
+  /// the caller's claim: unattested means not counted.
+  final HumanAttestationClock? _humanAttestationClock;
+
+  /// (campaign-2 hardening) Verifier for per-vote attestation tokens —
+  /// the STRONG human-binding path in [castVote]. Wired to
+  /// [BiometricService.consumeVoteAttestation] by the provider. When a
+  /// caller supplies `humanAttestationToken` it is checked against the
+  /// actual ballot fields and consumed; when absent, the temporal
+  /// [HumanAttestationClock] window remains as the compat/fallback
+  /// evidence source.
+  final VoteAttestationVerifier? _voteAttestationVerifier;
+
+  /// How long a device-credential authentication stays fresh enough to
+  /// attest a human vote. The binding is temporal and deliberately
+  /// narrow: a human ballot requires a biometric-authenticated vote
+  /// EVENT, so an authentication older than this window does not carry
+  /// forward into later votes.
+  final Duration humanAttestationWindow;
+
+  ConsensusService(
+    this._identityService,
+    this._ledgerService, {
+    Future<Uint8List?> Function(String targetCid)? uploaderResolver,
+    HumanAttestationClock? humanAttestationClock,
+    VoteAttestationVerifier? voteAttestationVerifier,
+    this.humanAttestationWindow = const Duration(minutes: 5),
+  })  : _uploaderResolver = uploaderResolver,
+        _humanAttestationClock = humanAttestationClock,
+        _voteAttestationVerifier = voteAttestationVerifier;
 
   /// Get all pending change requests
   List<ChangeRequest> get pendingRequests => _changeRequests
@@ -294,7 +508,13 @@ class ConsensusService {
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
   }
 
-  /// Create a new change request
+  /// Create a new change request.
+  ///
+  /// (round-3 red finding) [uploaderKey] is retained for API
+  /// compatibility but is IGNORED — uploader authority is resolved from
+  /// attested content metadata (see [_resolveUploaderKey]), never from a
+  /// caller claim. A proposer can no longer name themself uploader of
+  /// someone else's content to self-mint veto/fast-track power.
   Future<ChangeRequest> proposeChange({
     required String targetCid,
     required String field,
@@ -305,6 +525,8 @@ class ConsensusService {
   }) async {
     final identity = await _identityService.getIdentity();
     if (identity == null) throw StateError('No identity found');
+
+    final resolvedUploaderKey = await _resolveUploaderKey(targetCid);
 
     final id = _uuid.v4();
     final timestamp = DateTime.now();
@@ -325,7 +547,7 @@ class ConsensusService {
       proposerKey: identity.publicKey,
       proposerSignature: signature,
       timestamp: timestamp,
-      uploaderKey: uploaderKey,
+      uploaderKey: resolvedUploaderKey,
       isAiProposal: isAiProposal,
     );
 
@@ -349,13 +571,66 @@ class ConsensusService {
     return request;
   }
 
-  /// Cast a vote on a change request
+  /// Resolves the uploader of [targetCid] from attested metadata.
+  /// Default: only content this node itself created (a `createContent`
+  /// ledger entry under the local identity) has a provable uploader.
+  /// Residual limitation: for remote content there is no signed
+  /// uploader attestation format yet, so veto/fast-track is simply
+  /// unavailable — unprovable is safer than self-minted.
+  Future<Uint8List?> _resolveUploaderKey(String targetCid) async {
+    final resolver = _uploaderResolver;
+    if (resolver != null) return resolver(targetCid);
+    final createdLocally = _ledgerService.entries.any((e) =>
+        e.action == LedgerActionType.createContent &&
+        e.contentCid == targetCid);
+    if (!createdLocally) return null;
+    final identity = await _identityService.getIdentity();
+    return identity?.publicKey;
+  }
+
+  /// Cast a vote on a change request.
+  ///
+  /// (round-3 red finding) [reputation] and [daysActive] are retained
+  /// for API compatibility but are IGNORED — a caller cannot declare
+  /// its own weight. Weight is derived from the local ledger
+  /// ([LedgerService.totalReputation]) and the identity's real account
+  /// age, and the resulting vote is marked `weightAttested` so it — and
+  /// only it — counts in the tally.
+  ///
+  /// (WORKING_ON residual, closed this round) [isHuman] is likewise a
+  /// caller CLAIM, not a fact. The stored ballot's `isHuman` is true
+  /// only when the claim is made AND the [_humanAttestationClock]
+  /// reports a real device-credential authentication within
+  /// [humanAttestationWindow] of the cast — a biometric-authenticated
+  /// vote event, bound by recency. Without that evidence the claim
+  /// fails closed: the ballot is minted `isHuman == false`, which both
+  /// keeps it out of [ChangeRequest.humanApprovalCount] and prices its
+  /// weight at the AI factor (an unproven human claim must not even
+  /// double its own weight). A clock that throws attests nothing.
+  ///
+  /// (campaign-2 hardening — per-vote binding) [humanAttestationToken]
+  /// is the STRONG path: a short-lived token minted by
+  /// [BiometricService.attestVoteIntent] behind a real device-credential
+  /// prompt, committing to exactly (voterKey, requestId, approve). When
+  /// supplied it must verify — a forged, stale, replayed, or
+  /// wrong-field token REFUSES THE CAST entirely (returns null): a
+  /// caller presenting attestation evidence that fails must not get a
+  /// silent downgrade to an AI-priced ballot, which would hide the
+  /// forgery attempt inside an apparently ordinary vote. When no token
+  /// is supplied, [isHuman] falls back to the temporal
+  /// [_humanAttestationClock] window (compat path — one recent unlock
+  /// covers every vote in the window, which is why the token path
+  /// dominates when available). A verified token is pinned onto the
+  /// minted ballot as [Vote.humanAttestation] and folded into the
+  /// signed ballot data, so the ballot itself carries its human
+  /// binding.
   Future<Vote?> castVote({
     required String requestId,
     required bool approve,
     required double reputation,
     required int daysActive,
     bool isHuman = true,
+    String? humanAttestationToken,
   }) async {
     final request = _changeRequests.firstWhere(
       (r) => r.id == requestId,
@@ -374,27 +649,89 @@ class ConsensusService {
       return null; // Already voted
     }
 
-    // Calculate weight
+    // Calculate weight from ATTESTED inputs (round-3 red finding):
+    // reputation comes from the honor ledger, not the caller's claim;
+    // account age comes from the identity record, not a parameter.
+    //
+    // Human attestation (WORKING_ON residual, closed): the caller's
+    // `isHuman` claim is honoured ONLY when the attestation clock
+    // reports a device-credential authentication inside the window —
+    // and a clock reading in the FUTURE attests nothing either (a
+    // skewed/fake source cannot pre-mint human ballots). The derived
+    // flag feeds BOTH the stored ballot and the weight factor, so an
+    // unattested human claim never earns the 1.0 human multiplier.
+    //
+    // (campaign-2 hardening) STRONG path first: a supplied token must
+    // verify against THIS ballot's fields (this voter's key, this
+    // request, this choice) — binding the biometric event to this
+    // exact vote, not merely to a recent unlock. Verification also
+    // CONSUMES the token (single-use), so it is deliberately run only
+    // after the pending/identity/duplicate checks above: a rejected
+    // cast must not burn an honest token. A presented-but-invalid
+    // token refuses the cast outright.
+    bool attestedIsHuman;
+    if (isHuman && humanAttestationToken != null) {
+      final verifier = _voteAttestationVerifier;
+      var tokenOk = false;
+      if (verifier != null) {
+        try {
+          tokenOk = await verifier(
+            humanAttestationToken,
+            voterKey: identity.publicKey,
+            changeId: requestId,
+            approve: approve,
+          );
+        } catch (_) {
+          tokenOk = false; // a throwing verifier attests nothing
+        }
+      }
+      if (!tokenOk) return null; // forged/stale/replayed token → refuse
+      attestedIsHuman = true;
+    } else {
+      // Compat path: temporal recency window only.
+      attestedIsHuman = isHuman && _hasRecentHumanAttestation();
+    }
+    final attestedReputation = _ledgerService.totalReputation;
+    final attestedDaysActive =
+        DateTime.now().difference(identity.createdAt).inDays;
     final weight = VoteWeightCalculator.calculateWeight(
-      reputationScore: reputation,
-      daysActive: daysActive,
-      isHuman: isHuman,
+      reputationScore: attestedReputation,
+      daysActive: attestedDaysActive,
+      isHuman: attestedIsHuman,
     );
 
-    // Create vote data to sign
+    // Create vote data to sign. (campaign-2 hardening) the signed
+    // payload folds in the attestation binding — 'att:<token>' when a
+    // per-vote token verified, 'att:window' for the temporal-fallback
+    // human path, 'att:none' otherwise — so the ballot signature
+    // commits to WHICH kind of human evidence authorized it.
+    final attBinding = attestedIsHuman
+        ? (humanAttestationToken != null
+            ? 'att:$humanAttestationToken'
+            : 'att:window')
+        : 'att:none';
     final data =
-        '$requestId|$approve|$weight|${DateTime.now().toIso8601String()}';
+        '$requestId|$approve|$weight|${DateTime.now().toIso8601String()}|$attBinding';
     final signature = await _identityService.sign(
       Uint8List.fromList(utf8.encode(data)),
     );
 
-    final vote = Vote(
+    // (round-4 red finding) attestation is minted ONLY through the
+    // private constructor — the weight above was derived from ledger
+    // state, so this is the one place an attested ballot may exist.
+    // The consumed token is pinned onto the ballot (it is single-use
+    // and burned, so persisting it leaks nothing replayable).
+    final vote = Vote._attested(
       voterKey: identity.publicKey,
       weight: weight,
       approve: approve,
       signature: signature,
       timestamp: DateTime.now(),
-      isHuman: isHuman,
+      isHuman: attestedIsHuman,
+      humanAttestation:
+          attestedIsHuman && humanAttestationToken != null
+              ? humanAttestationToken
+              : null,
     );
 
     request.votes.add(vote);
@@ -411,6 +748,27 @@ class ConsensusService {
     _checkAndResolve(request);
 
     return vote;
+  }
+
+  /// Whether the attestation clock reports a real device-credential
+  /// authentication inside [humanAttestationWindow]. Every failure
+  /// mode — no clock wired, clock throws, no authentication yet,
+  /// stale authentication, or a timestamp in the future — returns
+  /// false. Fail-closed by construction.
+  bool _hasRecentHumanAttestation() {
+    final clock = _humanAttestationClock;
+    if (clock == null) return false;
+    final DateTime lastAuth;
+    try {
+      final t = clock();
+      if (t == null) return false;
+      lastAuth = t;
+    } catch (_) {
+      return false;
+    }
+    final now = DateTime.now();
+    if (lastAuth.isAfter(now)) return false;
+    return now.difference(lastAuth) <= humanAttestationWindow;
   }
 
   /// Uploader veto (immediately rejects)
@@ -431,7 +789,7 @@ class ConsensusService {
       return false;
     }
 
-    request.status = ChangeRequestStatus.vetoed;
+    request.resolve(ChangeRequestStatus.vetoed);
 
     await _recordAuditEntry(
       changeRequestId: requestId,
@@ -461,7 +819,7 @@ class ConsensusService {
       return false;
     }
 
-    request.status = ChangeRequestStatus.approved;
+    request.resolve(ChangeRequestStatus.approved);
 
     await _recordAuditEntry(
       changeRequestId: requestId,
@@ -482,9 +840,9 @@ class ConsensusService {
   /// Check if request should be resolved and update status
   void _checkAndResolve(ChangeRequest request) {
     if (request.isApproved) {
-      request.status = ChangeRequestStatus.approved;
+      request.resolve(ChangeRequestStatus.approved);
     } else if (request.isRejected) {
-      request.status = ChangeRequestStatus.rejected;
+      request.resolve(ChangeRequestStatus.rejected);
     }
   }
 

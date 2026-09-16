@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **RFC** | ALX-005 |
 | **Title** | Tokenless Resource-Sharing Economics, Proof of Common Heritage, and Ethical Micro-Sponsorships Specification |
-| **Author** | Alexandria Core Team & Governance Review |
+| **Author** | Alexandria Core Team |
 | **Status** | Standard / Active |
 | **Version** | 1.0.0 |
 | **Date** | 2026-09-13 |

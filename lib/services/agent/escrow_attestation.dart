@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'beacon_models.dart';
+import 'bounty_id_canonicalization.dart';
 
 /// Ed25519 verification callback, injected so [EscrowAttestation] stays
 /// crypto-agnostic. Same shape as `ReceiptSignatureVerifier` in
@@ -15,7 +16,7 @@ typedef EscrowAttestationVerifier = Future<bool> Function(
 );
 
 /// Cryptographic evidence that a bounty's escrow was attested by a
-/// FOREIGN attestor (ALX-011 / Review A3).
+/// FOREIGN attestor (ALX-011 / quorum A3).
 ///
 /// ONLY constructible via [EscrowAttestation.verify] — the private
 /// constructor means no code path can mint an "attestation" without a
@@ -211,7 +212,14 @@ class EscrowAttestation {
   bool bindsBounty(PreservationBounty bounty) {
     final milli = bounty.offeredCredits * 1000;
     if (!milli.isFinite || milli.abs() > _maxMilliProduct) return false;
-    return bountyId == bounty.id &&
+    // Canonical-equivalence-safe id compare: the signed [bountyId] is the
+    // literal spelling the attestor saw, while [PreservationBounty.id] is
+    // the NFD-normalized form stored at ingest. Comparing canonically
+    // (never by mutating the signed preimage) keeps an attestation signed
+    // for the composed spelling bound to the decomposed stored id — a
+    // spelling mismatch can no longer deny a legitimate attestation or
+    // fork the id space.
+    return bountyIdsEquivalent(bountyId, bounty.id) &&
         cid == bounty.cid &&
         amountMilli == milli.round();
   }

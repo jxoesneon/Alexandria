@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
-/// The Five Voices of the Governance review board
+/// The Five Governance Voices
 enum GovernanceVoice {
   coherence(
     name: 'Coherence',
@@ -55,7 +55,7 @@ enum GovernanceVoice {
   });
 }
 
-/// Comprehensive banner highlighting Governance review board governance & ratification
+/// Comprehensive banner highlighting protocol governance and ratification
 class GovernanceBanner extends StatelessWidget {
   final bool compact;
   final VoidCallback? onTap;
@@ -108,7 +108,7 @@ class GovernanceBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Governance — Lord of Wisdom Orchestration',
+                      'Alexandria Protocol Governance',
                       style: GoogleFonts.newsreader(
                         fontSize: compact ? 15 : 17,
                         fontWeight: FontWeight.w600,
@@ -116,7 +116,7 @@ class GovernanceBanner extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'review board Unanimously Ratified Protocol',
+                      'Unanimously Ratified Protocol',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         color: AppTheme.secondaryColor,

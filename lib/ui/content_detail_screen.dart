@@ -12,6 +12,7 @@ import '../services/ipfs_service.dart';
 import '../services/sibling_service.dart';
 import '../services/knowledge_graph_service.dart';
 import '../services/ledger_service.dart';
+import '../services/cid_service.dart';
 import '../services/universal_media_registry.dart';
 import '../services/external_player_service.dart';
 import 'widgets/glass_card.dart';
@@ -91,8 +92,15 @@ final integrityVerificationProvider =
   final ipfs = ref.read(ipfsServiceProvider);
 
   final challenge = porService.createChallenge(cid: cid, totalChunks: 4);
-  final data = await ipfs.getFile(cid).first;
-  if (data.isEmpty) return false;
+  // getFile yields an empty stream for absent content — collect rather
+  // than .first so a missing block reads as "not retrievable", not a
+  // StateError (round-2 red finding: honest absent-content semantics).
+  final chunks = <int>[];
+  await for (final chunk in ipfs.getFile(cid)) {
+    chunks.addAll(chunk);
+  }
+  if (chunks.isEmpty) return false;
+  final data = Uint8List.fromList(chunks);
 
   final chunkSize = (data.length / 4).ceil();
   final chunkIndex = challenge.chunkIndex;
@@ -319,10 +327,28 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
     final app = descriptor.preferredApp;
     final appName = _appName(app);
 
-    // Use the manifest category as the target path placeholder.
-    // In a real deployment this would be the decrypted file path or a
-    // streaming URL resolved from the content CID.
-    final targetPath = manifest.category;
+    // (round-3 red finding) the launch target is no longer a raw
+    // attacker-controlled manifest field — resolve the content's
+    // version CID and hand the player its public-gateway URL, but only
+    // when the CID is structurally valid. buildAppCommand additionally
+    // refuses unsafe targets (shell metacharacters, option injection,
+    // non-http(s) schemes) — and there is no shell in the launch path.
+    final String targetPath;
+    try {
+      final versions =
+          await ref.read(versionsProvider(manifest.id).future);
+      final cid = versions.isEmpty ? null : versions.first.cid;
+      if (cid == null || !CidService().isValidCid(cid)) {
+        throw StateError('No externally-openable content CID');
+      }
+      targetPath = 'https://ipfs.io/ipfs/$cid';
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot open externally: $e')),
+      );
+      return;
+    }
 
     try {
       final command = playerService.buildAppCommand(app, targetPath);
@@ -757,11 +783,10 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
       }
 
       final repo = ref.read(contentRepositoryProvider);
-      // Pass the manifest key if it exists
-      final data = await repo.downloadContent(
-        cid,
-        keyBase64: manifest.encryptionKey,
-      );
+      // The manifest row no longer carries key material (round-2 red
+      // finding): the DEK is unwrapped from secure storage ('dek_$uuid')
+      // inside the repository layer instead.
+      final data = await repo.retrieveManifestContent(manifest.uuid, cid);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

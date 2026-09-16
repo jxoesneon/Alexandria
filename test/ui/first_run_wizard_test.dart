@@ -5,7 +5,7 @@ import 'package:alexandria/ui/onboarding/first_run_wizard_dialog.dart';
 import 'package:alexandria/ui/theme/app_theme.dart';
 
 void main() {
-  testWidgets('FirstRunWizardDialog renders Governance Review banner and navigates all steps',
+  testWidgets('FirstRunWizardDialog renders Alexandria Core Team banner and navigates all steps',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -27,11 +27,11 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Step 0: Welcome & review board
+    // Step 0: Welcome & Protocol Governance
     expect(find.text('Alexandria Onboarding'), findsOneWidget);
     expect(find.text('Decentralized Archival Infrastructure & Common Heritage'), findsOneWidget);
-    expect(find.text('Governance — Lord of Wisdom Orchestration'), findsOneWidget);
-    expect(find.text('review board Unanimously Ratified Protocol'), findsOneWidget);
+    expect(find.text('Alexandria Protocol Governance'), findsOneWidget);
+    expect(find.text('Unanimously Ratified Protocol'), findsOneWidget);
     expect(find.text('Coherence'), findsOneWidget);
     expect(find.text('Capability'), findsOneWidget);
     expect(find.text('Safety'), findsOneWidget);

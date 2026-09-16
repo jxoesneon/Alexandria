@@ -61,7 +61,7 @@ void main() {
         action: LedgerActionType.pinContent,
         contentCid: 'bafy_pin_1',
       );
-      expect(e1.index, equals(0));
+      expect(e1!.index, equals(0));
       expect(e1.contentCid, equals('bafy_pin_1'));
       expect(e1.previousHash, equals(LedgerService.genesisHash));
       expect(e1.signature, isNotEmpty);
@@ -71,7 +71,7 @@ void main() {
         action: LedgerActionType.validateHash,
         contentCid: 'bafy_val_2',
       );
-      expect(e2.index, equals(1));
+      expect(e2!.index, equals(1));
       expect(e2.previousHash, equals(e1.computeHash()));
       expect(ledger.verifyChain(), isTrue);
 
@@ -79,7 +79,7 @@ void main() {
         action: LedgerActionType.curateCollection,
         contentCid: 'bafy_cur_3',
       );
-      expect(e3.index, equals(2));
+      expect(e3!.index, equals(2));
       expect(e3.previousHash, equals(e2.computeHash()));
       expect(ledger.verifyChain(), isTrue);
       expect(ledger.entries.length, equals(3));
@@ -144,7 +144,7 @@ void main() {
       final peerSig = Uint8List.fromList(List.filled(64, 8));
 
       await ledger.addCrossSignature(
-        entryIndex: entry.index,
+        entryIndex: entry!.index,
         signerPublicKey: peerKey,
         signature: peerSig,
       );

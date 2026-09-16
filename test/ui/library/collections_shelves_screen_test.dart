@@ -32,7 +32,7 @@ void main() {
             CollectionItem(
               id: 'item-1',
               title: 'The Architecture of Alexandria',
-              author: 'Governance',
+              author: 'Alexandria',
               format: 'PDF',
             ),
             CollectionItem(

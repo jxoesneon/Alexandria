@@ -27,12 +27,19 @@ void main() {
       expect(peers.first.peerId, equals('p1'));
     });
 
-    test('connectToPeer creates a reachable peer from a multiaddr', () async {
+    test('connectToPeer creates a reachable peer from a multiaddr',
+        () async {
+      // Simulated successful handshake — the default probe requires a
+      // real endpoint (round-2 fix).
+      final probedMesh =
+          MeshTransportService(handshakeProbe: (_) async => true);
+      addTearDown(probedMesh.dispose);
       const multiaddr = '/ip4/1.2.3.4/tcp/4001/p2p/new-peer';
-      final ok = await mesh.connectToPeer(multiaddr);
+      final ok = await probedMesh.connectToPeer(multiaddr);
       expect(ok, isTrue);
 
-      final peer = mesh.peers.firstWhere((p) => p.peerId == 'new-peer');
+      final peer =
+          probedMesh.peers.firstWhere((p) => p.peerId == 'new-peer');
       expect(peer.isReachable, isTrue);
       expect(peer.isPending, isFalse);
       expect(peer.address, equals(multiaddr));

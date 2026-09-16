@@ -10,6 +10,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../data/database.dart';
 import '../../models/library_models.dart';
 import '../../providers/library_providers.dart';
+import '../../services/cid_service.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ContentViewerScreen extends ConsumerStatefulWidget {
   final String documentCid;
@@ -34,6 +36,50 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   String _editionSearchQuery = '';
   String _editionFilterFormat = 'all';
 
+  final CidService _cidService = CidService();
+
+  /// (round-3 red finding) local-file rendering is restricted to
+  /// app-owned directories — resolved paths under the app documents /
+  /// temp roots only. Previously ANY filesystem path appearing in
+  /// document markup was opened by the reader. Populated async; until
+  /// loaded, NO local file renders.
+  List<String>? _allowedLocalRoots;
+
+  Future<void> _loadAllowedLocalRoots() async {
+    final roots = <String>[];
+    try {
+      roots.add(Directory((await getApplicationDocumentsDirectory()).path)
+          .resolveSymbolicLinksSync());
+    } catch (_) {}
+    try {
+      roots.add(Directory((await getTemporaryDirectory()).path)
+          .resolveSymbolicLinksSync());
+    } catch (_) {}
+    if (mounted) setState(() => _allowedLocalRoots = roots);
+  }
+
+  /// True only when [path] resolves (symlinks chased) inside an
+  /// app-owned root.
+  bool _isAllowedLocalFile(String path) {
+    final roots = _allowedLocalRoots;
+    if (roots == null) return false;
+    try {
+      final resolved = File(path).resolveSymbolicLinksSync();
+      final sep = Platform.pathSeparator;
+      return roots.any(
+          (root) => resolved == root || resolved.startsWith('$root$sep'));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// (round-3 red finding) a public-gateway URL is minted ONLY for a
+  /// structurally valid CID — previously any 'bafy…'/'Qm…'-looking
+  /// string (including path/query smuggling) was concatenated into an
+  /// https URL the reader then fetched.
+  String? _gatewayForCid(String cid) =>
+      _cidService.isValidCid(cid) ? 'https://ipfs.io/ipfs/$cid' : null;
+
   void _openEditionsPanel() {
     ref.read(sidebarVisibleProvider.notifier).state = true;
     setState(() {
@@ -45,6 +91,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadAllowedLocalRoots();
   }
 
   @override
@@ -810,8 +857,12 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         );
       } else if (url.startsWith('assets/')) {
         return SvgPicture.asset(url, fit: BoxFit.contain);
-      } else {
+      } else if (_isAllowedLocalFile(url)) {
+        // (round-3 red finding) local SVG files render only from
+        // app-owned directories — an arbitrary path is refused.
         return SvgPicture.file(File(url), fit: BoxFit.contain);
+      } else {
+        return _buildImageErrorWidget(context, url, alt);
       }
     }
 
@@ -828,16 +879,28 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
       }
     }
 
-    // 3. IPFS URI / CID
+    // 3. IPFS URI / CID — gateway rewrite requires a VALID CID.
     String effectiveUrl = url;
     if (url.startsWith('ipfs://')) {
       final cid = url.substring('ipfs://'.length);
-      effectiveUrl = 'https://ipfs.io/ipfs/$cid';
+      final gateway = _gatewayForCid(cid);
+      if (gateway == null) {
+        return _buildImageErrorWidget(context, url, alt);
+      }
+      effectiveUrl = gateway;
     } else if (url.startsWith('/ipfs/')) {
       final cid = url.substring('/ipfs/'.length);
-      effectiveUrl = 'https://ipfs.io/ipfs/$cid';
+      final gateway = _gatewayForCid(cid);
+      if (gateway == null) {
+        return _buildImageErrorWidget(context, url, alt);
+      }
+      effectiveUrl = gateway;
     } else if (url.startsWith('bafy') || url.startsWith('Qm')) {
-      effectiveUrl = 'https://ipfs.io/ipfs/$url';
+      final gateway = _gatewayForCid(url);
+      if (gateway == null) {
+        return _buildImageErrorWidget(context, url, alt);
+      }
+      effectiveUrl = gateway;
     }
 
     // 4. Remote HTTP/HTTPS
@@ -875,8 +938,10 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
       );
     }
 
-    // 5. Local File
-    if (File(url).existsSync()) {
+    // 5. Local File — restricted to app-owned directories (round-3 red
+    // finding): resolved path must live under the app documents/temp
+    // roots; arbitrary filesystem paths are never opened.
+    if (_isAllowedLocalFile(url) && File(url).existsSync()) {
       return Image.file(
         File(url),
         fit: BoxFit.contain,

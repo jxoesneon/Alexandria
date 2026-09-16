@@ -32,7 +32,7 @@ void main() {
         return http.Response('Not Found', 404);
       });
 
-      final lnurlService = LnurlService(client: mockClient);
+      final lnurlService = LnurlService(client: mockClient, callbackTransport: mockClient.get);
       final invoice = await lnurlService.resolveAddressToInvoice(
         lightningAddress: 'alice@stacker.news',
         amountSats: 250,
@@ -56,7 +56,7 @@ void main() {
         );
       });
 
-      final service = LnurlService(client: mockClient);
+      final service = LnurlService(client: mockClient, callbackTransport: mockClient.get);
 
       // 5 sats is below 10 sats minSendable
       expect(

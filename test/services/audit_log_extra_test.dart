@@ -64,6 +64,14 @@ void main() {
       // With no log file the entry is computed and discarded, but no error.
       expect(await storage.read('master_key_v1'), isNotNull);
     });
+
+    test('getRecentLogs clamps a non-positive limit instead of throwing',
+        () async {
+      // sublist(0, negative) used to throw RangeError at the tail of the
+      // read path; a caller bug must degrade to an empty result.
+      expect(await service.getRecentLogs(0), isEmpty);
+      expect(await service.getRecentLogs(-5), isEmpty);
+    });
   });
 
   group('EncryptionService.encryptForPeer', () {

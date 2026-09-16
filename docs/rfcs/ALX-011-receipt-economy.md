@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **RFC** | ALX-011 |
 | **Title** | Persistent Receipt Economy: Attested/Unattested Credit Split, Verifier-Signed Work Receipts, and Egress Lockdown |
-| **Author** | Alexandria Core Team & Governance Review |
+| **Author** | Alexandria Core Team |
 | **Status** | Standard / Active |
 | **Version** | 1.0.0 |
 | **Date** | 2026-11-21 |

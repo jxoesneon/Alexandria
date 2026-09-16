@@ -61,7 +61,8 @@ class FakeEncryptionService implements EncryptionService {
   }
 
   @override
-  Future<Uint8List> decryptData(Uint8List cipherData, SecretKey key) async {
+  Future<Uint8List?> decryptData(
+      Uint8List cipherData, SecretKey key) async {
     return cipherData;
   }
 
@@ -335,15 +336,133 @@ void main() {
       );
     });
 
-    test('exportPrivateKey succeeds and validates key id', () async {
+    test('exportPrivateKey emits a versioned KDF envelope and validates '
+        'key id', () async {
       identity.setIdentity(_makeIdentity());
       final exported = await service.exportPrivateKey('11111111', 'p@ss');
-      expect(base64Decode(exported), [1, 2, 3]);
+
+      // v2 format: base64(JSON{kdf params, salt, blob}) — never the raw
+      // ciphertext, and never keyed by bare SHA-256(password).
+      final envelope =
+          jsonDecode(utf8.decode(base64Decode(exported))) as Map;
+      expect(envelope['v'], SecurityOverviewService.exportFormatVersion);
+      expect(envelope['kdf'], 'argon2id');
+      expect(envelope['memory'], isA<int>());
+      expect(envelope['iterations'], isA<int>());
+      expect(envelope['parallelism'], isA<int>());
+      expect(envelope['hashLength'], 32);
+      expect(base64Decode(envelope['salt'] as String), hasLength(16));
+      expect(base64Decode(envelope['blob'] as String), [1, 2, 3]);
 
       expect(
         () async => await service.exportPrivateKey('wrong-id', 'p@ss'),
         throwsA(isA<ArgumentError>()),
       );
+    });
+
+    test('exportPrivateKey uses a random salt — exports are not '
+        'correlatable', () async {
+      identity.setIdentity(_makeIdentity());
+      final a = await service.exportPrivateKey('11111111', 'p@ss');
+      final b = await service.exportPrivateKey('11111111', 'p@ss');
+      // Same password, same key — but different salts, so the envelopes
+      // (and derived keys) differ. Unsalted derivation would emit
+      // identical exports.
+      expect(a, isNot(b));
+      final envA = jsonDecode(utf8.decode(base64Decode(a))) as Map;
+      final envB = jsonDecode(utf8.decode(base64Decode(b))) as Map;
+      expect(envA['salt'], isNot(envB['salt']));
+    });
+
+    test('exported blob decrypts under an Argon2id-derived key', () async {
+      // Full round-trip against the REAL encryption service: parse the
+      // envelope, re-derive the wrapping key from the embedded KDF
+      // parameters, and recover the private key.
+      final real = EncryptionService();
+      final realContainer = ProviderContainer(overrides: [
+        identityServiceProvider.overrideWithValue(identity),
+        encryptionServiceProvider.overrideWithValue(real),
+        secureStorageServiceProvider.overrideWithValue(storage),
+      ]);
+      addTearDown(realContainer.dispose);
+      final realService = realContainer.read(securityOverviewServiceProvider);
+
+      identity.setIdentity(_makeIdentity());
+      final exported =
+          await realService.exportPrivateKey('11111111', 'correct horse');
+      final env =
+          jsonDecode(utf8.decode(base64Decode(exported))) as Map;
+      final kdf = Argon2id(
+        parallelism: env['parallelism'] as int,
+        memory: env['memory'] as int,
+        iterations: env['iterations'] as int,
+        hashLength: env['hashLength'] as int,
+      );
+      final key = await kdf.deriveKey(
+        secretKey: SecretKey(utf8.encode('correct horse')),
+        nonce: base64Decode(env['salt'] as String),
+      );
+      final plain = await real.decryptData(
+        base64Decode(env['blob'] as String),
+        key,
+      );
+      expect(plain, _makeIdentity().privateKey);
+
+      // A wrong password derives a different key → MAC failure → null.
+      final wrongKey = await kdf.deriveKey(
+        secretKey: SecretKey(utf8.encode('wrong password')),
+        nonce: base64Decode(env['salt'] as String),
+      );
+      expect(
+        await real.decryptData(base64Decode(env['blob'] as String), wrongKey),
+        equals(null), // 'isNull' is ambiguous with drift's isNull here
+      );
+    });
+
+    test('grantAccess rejects malformed peer DIDs', () async {
+      for (final bad in [
+        '',
+        'not-a-did',
+        'did:alex:has space',
+        'did:alex:pipe|forgery',
+        'did:alex:line\nbreak',
+        'did:${'x' * 300}',
+      ]) {
+        await expectLater(
+          service.grantAccess('cid-1', bad),
+          throwsA(isA<ArgumentError>()),
+          reason: 'peer DID "$bad" was accepted',
+        );
+        await expectLater(
+          service.revokeAccess('cid-1', bad),
+          throwsA(isA<ArgumentError>()),
+        );
+      }
+      expect(await service.getAccessPolicies('cid-1'), isEmpty);
+    });
+
+    test('getAccessPolicies survives a corrupt policy store', () async {
+      await storage.write('alexandria_access_policies', 'not json at all');
+      expect(await service.getAccessPolicies('cid-1'), isEmpty);
+
+      await storage.write('alexandria_access_policies', '[1,2,3]');
+      expect(await service.getAccessPolicies('cid-1'), isEmpty);
+
+      // Well-formed map with one malformed entry — the bad entry is
+      // dropped, the good grant still reads.
+      await storage.write(
+        'alexandria_access_policies',
+        jsonEncode({
+          'cid-1': [
+            {'cid': 'cid-1', 'peerDid': 'did:alex:ok', 'grantedAt': '2024-01-01T00:00:00.000Z'},
+            'garbage-entry',
+            {'cid': 'cid-1'}, // missing peerDid/grantedAt
+          ],
+        }),
+      );
+      final policies = await service.getAccessPolicies('cid-1');
+      expect(policies.length, 1);
+      expect(policies.first.peerDid, 'did:alex:ok');
     });
 
     test('resolveDid resolves own did:alex and database profiles', () async {

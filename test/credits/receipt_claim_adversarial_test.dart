@@ -1,7 +1,7 @@
 // PERMANENT REGRESSION SUITE — adversarial exploit tests for the
 // claimVerifiedReceipt guard chain (ALX-010 attested mint + ALX-012
 // per-receipt `v`, domain-separated signingPayload, in-path Ed25519
-// verification + Review-REV3 possession binding: ambient-identity
+// verification + quorum-REV3 possession binding: ambient-identity
 // resolver + claimSignatureB64 over 'alexandria:receipt-claim:v{v}:
 // {receiptId}'). Covers: forgery & domain confusion, replay/CAS dedup,
 // verifier-oracle wiring, pubkey-canonicalization self-dealing bypasses,
@@ -52,9 +52,16 @@ void main() {
     SimpleKeyPair? keyPair,
     String? verifierSig,
     List<int> chunkIndices = const [0, 1],
+    // v3+ issuance acknowledgment (ALX-012 §5.8): signed over
+    // [WorkReceipt.ackPayload] under [proverKeyPair] (default: the
+    // local prover key). An explicit string attaches verbatim; ''
+    // leaves the artifact un-acked.
+    SimpleKeyPair? proverKeyPair,
+    String? proverSig,
   }) async {
+    final version = v ?? WorkReceipt.wireVersion;
     final unsigned = WorkReceipt.issue(
-      v: v ?? WorkReceipt.wireVersion,
+      v: version,
       workType: workType,
       proverPubkey: proverPubkey,
       verifierPubkey: verifierPubkey ?? verifierPubHex,
@@ -68,10 +75,35 @@ void main() {
       expiresAt: expiresAt ??
           DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
     );
-    if (verifierSig != null) return unsigned.withVerifierSig(verifierSig);
-    final sig = await algorithm.sign(unsigned.signingPayload,
-        keyPair: keyPair ?? verifierKeyPair);
-    return unsigned.withVerifierSig(base64Encode(sig.bytes));
+    WorkReceipt signed;
+    if (verifierSig != null) {
+      signed = unsigned.withVerifierSig(verifierSig);
+    } else {
+      final sig = await algorithm.sign(unsigned.signingPayload,
+          keyPair: keyPair ?? verifierKeyPair);
+      signed = unsigned.withVerifierSig(base64Encode(sig.bytes));
+    }
+    if (version >= WorkReceipt.minAckWireVersion) {
+      if (proverSig != null) {
+        if (proverSig.isNotEmpty) {
+          signed = signed.withProverSig(proverSig);
+        }
+      } else {
+        final ack = await algorithm.sign(signed.ackPayload,
+            keyPair: proverKeyPair ?? localKeyPair);
+        signed = signed.withProverSig(base64Encode(ack.bytes));
+      }
+    }
+    return signed;
+  }
+
+  /// Attaches the v3 issuance-acknowledgment counter-signature to an
+  /// already-signed receipt built OUTSIDE [signedReceipt] — for tests
+  /// that construct the artifact by hand.
+  Future<WorkReceipt> withAck(WorkReceipt r, {SimpleKeyPair? keyPair}) async {
+    final ack = await algorithm.sign(r.ackPayload,
+        keyPair: keyPair ?? localKeyPair);
+    return r.withProverSig(base64Encode(ack.bytes));
   }
 
   /// Signs the REV3 possession-proof preimage — the ASCII bytes of
@@ -168,11 +200,12 @@ void main() {
       expect((await db.getWorkReceipt(forged.receiptId))!['spent'], isFalse);
 
       // Now the SAME body with the REAL verifier signature — same
-      // receiptId, still-claimable row.
+      // receiptId, still-claimable row. v3 also needs the prover's
+      // issuance-acknowledgment signature.
       final honestSig = await algorithm.sign(unsigned.signingPayload,
           keyPair: verifierKeyPair);
-      final honest =
-          unsigned.withVerifierSig(base64Encode(honestSig.bytes));
+      final honest = await withAck(
+          unsigned.withVerifierSig(base64Encode(honestSig.bytes)));
       expect(honest.receiptId, forged.receiptId);
       expect(
           await svc.claimVerifiedReceipt(honest,
@@ -733,8 +766,11 @@ void main() {
       final respelledLocal = respell(hex, i, '\t${hex[i + 1]}');
       // A clean, legitimately-claimable receipt naming the CANONICAL
       // local key — claimed by a node whose resolver serves a respelled
-      // 'local' spelling: the prover binding fails closed.
-      final r = await persist(await signedReceipt(proverPubkey: hex));
+      // 'local' spelling: the prover binding fails closed. The v3 ack
+      // is signed by the receipt's actual prover key (kp), not the
+      // default local key.
+      final r = await persist(await signedReceipt(
+          proverPubkey: hex, proverKeyPair: kp));
       final sig = await claimSig(r, keyPair: kp);
       final respelledSvc = CreditService(
         db: db,

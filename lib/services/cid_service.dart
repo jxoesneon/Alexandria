@@ -175,12 +175,64 @@ class CidService {
     return Uint8List.fromList(List.filled(zeroes, 0) + bytes);
   }
 
+  /// Structural CID validation (round-2 red finding): decodes the
+  /// multibase payload and verifies the multihash/CID framing — version,
+  /// codec varint, hash-function varint, and an exact digest-length
+  /// match — instead of the old shape check that rubber-stamped any
+  /// ≥40-char 'b'/'z' string or 46-char 'Qm…'.
+  ///
+  /// CIDv0 (`Qm…`, base58btc, no multibase char) must decode to a bare
+  /// sha2-256 multihash (0x12 0x20 ‖ 32-byte digest).
   bool isValidCid(String cid) {
     if (cid.isEmpty) return false;
-    if (cid.startsWith('b') && cid.length >= 40) return true;
-    if (cid.startsWith('z') && cid.length >= 40) return true;
-    if (cid.startsWith('Qm') && cid.length == 46) return true;
-    return false;
+
+    // CIDv0: 46-char base58btc-encoded raw multihash.
+    if (cid.startsWith('Qm')) {
+      if (cid.length != 46) return false;
+      final bytes = _base58Decode(cid);
+      return bytes != null &&
+          bytes.length == 34 &&
+          bytes[0] == _Multicodec.sha2_256 &&
+          bytes[1] == 32;
+    }
+
+    final Uint8List? bytes;
+    if (cid.startsWith(_Multibase.base32lower)) {
+      bytes = _base32Decode(cid.substring(1));
+    } else if (cid.startsWith(_Multibase.base58btc)) {
+      bytes = _base58Decode(cid.substring(1));
+    } else {
+      return false;
+    }
+    if (bytes == null) return false;
+    return _isWellFormedCidV1(bytes);
+  }
+
+  /// Structural check of decoded CIDv1 bytes: version 0x01, then varint
+  /// codec, varint hash function, varint digest length, and a digest
+  /// occupying exactly the remaining bytes.
+  static bool _isWellFormedCidV1(Uint8List bytes) {
+    var i = 0;
+    int? varint() {
+      var result = 0;
+      var shift = 0;
+      while (i < bytes.length && shift <= 28) {
+        final b = bytes[i++];
+        result |= (b & 0x7F) << shift;
+        if (b & 0x80 == 0) return result;
+        shift += 7;
+      }
+      return null;
+    }
+
+    if (bytes.isEmpty || bytes[i++] != 0x01) return false; // version
+    final codec = varint();
+    final hashFn = varint();
+    final digestLen = varint();
+    if (codec == null || hashFn == null || digestLen == null) return false;
+    if (codec <= 0 || hashFn <= 0) return false;
+    if (digestLen <= 0 || digestLen > 64) return false;
+    return bytes.length - i == digestLen;
   }
 
   String cidFromBytes(Uint8List data) => computeCid(data).toBase32();

@@ -40,15 +40,27 @@ class IpfsService {
     return cid;
   }
 
+  /// Streams the block for [cid], or NOTHING when the block is absent
+  /// (round-2 red finding): the previous implementation yielded an
+  /// empty chunk for unknown CIDs, making "content missing" and
+  /// "zero-byte file" indistinguishable. Callers detect absence via an
+  /// empty stream (aggregate chunk count == 0).
   Stream<Uint8List> getFile(String cid) async* {
-    if (_localStore.containsKey(cid)) {
-      yield _localStore[cid]!;
-    } else {
-      yield Uint8List(0);
+    final data = _localStore[cid];
+    if (data != null) {
+      yield data;
     }
+    // Absent block: yield nothing — distinguishable from stored content.
   }
 
+  /// Pins [cid] ONLY when the identifier is structurally valid and the
+  /// block is actually retrievable from this node's store (round-2 red
+  /// finding): claiming a pin for an arbitrary string let preservation
+  /// accounting count phantom content. A real remote pin/fetch path is
+  /// not yet wired — until it is, pinning absent content reports false.
   Future<bool> pinCid(String cid) async {
+    if (!_ref.read(cidServiceProvider).isValidCid(cid)) return false;
+    if (!_localStore.containsKey(cid)) return false;
     _pinnedCids.add(cid);
     return true;
   }
@@ -58,11 +70,15 @@ class IpfsService {
     return true;
   }
 
+  /// Reports providers for [cid] — honestly: only this node, and only
+  /// when it actually holds the block (round-2 red finding): the old
+  /// stub fabricated a `peer_dht_node_1` provider for ANY cid, which
+  /// made PreservationService report nonexistent content as
+  /// 'endangered' instead of 'lost'. A real DHT provider query is not
+  /// yet wired.
   Future<List<String>> findProviders(String cid) async {
-    // In production dart_ipfs, queries DHT router for provider records
-    return _pinnedCids.contains(cid)
-        ? ['peer_local_self', 'peer_dht_node_1']
-        : ['peer_dht_node_1'];
+    if (_localStore.containsKey(cid)) return ['peer_local_self'];
+    return const [];
   }
 
   Future<bool> publishToPubsub(String topic, String data) async {

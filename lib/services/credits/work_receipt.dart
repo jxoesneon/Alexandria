@@ -77,7 +77,16 @@ class WorkReceipt {
   /// records the work but can only be claimed as unattested value.
   final String verifierSig;
 
-  /// Optional prover counter-signature (base64) acknowledging the receipt.
+  /// Optional prover counter-signature (base64) — the issuance-time
+  /// acknowledgment (ALX-012 §5.8). For [v] >= [minAckWireVersion] it is
+  /// REQUIRED for a claim: the signature must verify under
+  /// [proverPubkey] over the domain-separated [ackPayload]
+  /// (`alexandria:receipt-ack:v{v}:{receiptId}`). Its semantics are
+  /// provenance, not anti-theft: a verifier cannot mint a claimable
+  /// receipt naming prover P without P's live counter-signature, so a
+  /// fabricated artifact can never become claimable on the victim's
+  /// behalf. (Theft of a fully-signed artifact is still stopped by the
+  /// claim-time possession proof, not by this field.)
   final String? proverSig;
 
   /// Spend-dedup flag: set once the receipt has been claimed.
@@ -163,8 +172,21 @@ class WorkReceipt {
   /// Canonical wire-format version issued by THIS build. Bumped when the
   /// signed body changes shape so foreign verifiers can pin the scheme
   /// they recompute. v2 (ALX-012) introduced the domain-separated
-  /// [signingPayload] — a domain change IS a wire change.
-  static const int wireVersion = 2;
+  /// [signingPayload] — a domain change IS a wire change. v3 (residual
+  /// closure, ALX-012 §5.8) makes the issuance-ack counter-signature
+  /// ([proverSig] over [ackPayload]) a claim precondition — the signed
+  /// BODY is unchanged, so v3 receipts recompute under the same
+  /// `'alexandria:receipt:v3:'` domain.
+  static const int wireVersion = 3;
+
+  /// First wire epoch requiring the artifact-carried issuance ack:
+  /// claims of receipts with `v >= minAckWireVersion` must present a
+  /// [proverSig] that verifies over [ackPayload]. v1/v2 artifacts stay
+  /// claimable without one inside the {previous, current} grace window —
+  /// their 24 h TTL drains the un-acked stock after the bump (ALX-012
+  /// §3.3–3.4); outstanding unsigned v2 receipts simply ride out their
+  /// TTL.
+  static const int minAckWireVersion = 3;
 
   /// [amount] expressed as integer milli-units (`amount * 1000`, rounded).
   /// The canonical body serializes ONLY this integer form: a foreign
@@ -245,6 +267,36 @@ class WorkReceipt {
   Uint8List get signingPayload {
     final canonical = canonicalJson();
     final preimage = v >= 2 ? 'alexandria:receipt:v$v:$canonical' : canonical;
+    return Uint8List.fromList(utf8.encode(preimage));
+  }
+
+  /// The canonical bytes the PROVER counter-signs to acknowledge
+  /// issuance (ALX-012 §5.8 issue→ack flow): the ASCII bytes of
+  /// `'alexandria:receipt-ack:v$v:$receiptId'`. Because [receiptId] is
+  /// the sha256 of the canonical body, the ack binds every signed field
+  /// while staying a distinct domain from both the verifier's
+  /// [signingPayload] and the claim-time possession proof — an ack
+  /// signature can never be transplanted into either role.
+  Uint8List get ackPayload => Uint8List.fromList(
+      utf8.encode('alexandria:receipt-ack:v$v:$receiptId'));
+
+  /// The canonical bytes the claim-time possession signature must sign
+  /// (REV3 possession proof + ALX-012 §5.8 DPoP-style freshness).
+  ///
+  /// Base form (local claims): `'alexandria:receipt-claim:v$v:
+  /// $receiptId'`. When [verifierNonce] is supplied — a claim PRESENTED
+  /// TO A REMOTE NODE — the preimage extends to
+  /// `'alexandria:receipt-claim:v$v:$receiptId:$verifierNonce:
+  /// $expiryMillis'` (RFC 9449 `jti`/`iat`/`nonce` template): the
+  /// verifier's server-chosen nonce plus an expiry make the signature
+  /// freshness-bound, so a replayed remote proof is stale on arrival.
+  /// The local CAS (`spent=0` update) already dedups same-node replay,
+  /// which is why the base preimage stays legal for local claims.
+  Uint8List claimPreimage({String? verifierNonce, int? expiryMillis}) {
+    final base = 'alexandria:receipt-claim:v$v:$receiptId';
+    final preimage = verifierNonce == null
+        ? base
+        : '$base:$verifierNonce:$expiryMillis';
     return Uint8List.fromList(utf8.encode(preimage));
   }
 
@@ -342,6 +394,11 @@ class WorkReceipt {
   /// unchanged — the signature is outside the canonical body.
   WorkReceipt withVerifierSig(String sig) => _with(verifierSig: sig);
 
+  /// Returns a copy carrying [sig] as [proverSig] — the issuance-ack
+  /// counter-signature ([ackPayload] domain). The receipt id is
+  /// unchanged: signatures live outside the canonical body.
+  WorkReceipt withProverSig(String sig) => _with(proverSig: sig);
+
   /// Returns a copy flagged as consumed by a claim. `spent` is
   /// bookkeeping outside the canonical body, so the receipt id is
   /// unchanged. Used so the artifact returned to callers reflects the
@@ -365,6 +422,47 @@ class WorkReceipt {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Verifies [proverSig] — the issuance-ack counter-signature — over
+  /// the domain-separated [ackPayload] under [proverPubkey] using the
+  /// injected Ed25519 [verifyFn]. Returns false for absent/malformed
+  /// signatures. Required in-path for claims of
+  /// `v >= minAckWireVersion` receipts; for older epochs the field
+  /// remains unverified provenance.
+  Future<bool> verifyProverSignature(
+      ReceiptSignatureVerifier verifyFn) async {
+    final sig = proverSig;
+    if (sig == null || sig.isEmpty || proverPubkey.isEmpty) return false;
+    try {
+      final sigBytes = base64Decode(sig);
+      if (sigBytes.length != 64) return false;
+      return await verifyFn(
+        ackPayload,
+        sigBytes,
+        proverPubkey,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Canonical spelling of a public key for equality / SQL `IN`
+  /// comparison — the column form of `attested_pubkey` and the
+  /// normalization applied to held-key sets. Equivalent-by-[samePubkey]
+  /// keys canonicalize identically (exact-trim equality, or strict-hex
+  /// decoding to the same bytes → lowercase compacted hex); keys that
+  /// are NOT the same pubkey never canonicalize equal. A non-hex
+  /// identity keeps its trimmed spelling verbatim.
+  static String canonicalPubkey(String key) {
+    final trimmed = key.trim();
+    final compact = trimmed.replaceAll(' ', '');
+    if (compact.isNotEmpty &&
+        compact.length.isEven &&
+        _hexChars.hasMatch(compact)) {
+      return compact.toLowerCase();
+    }
+    return trimmed;
   }
 
   WorkReceipt _with({

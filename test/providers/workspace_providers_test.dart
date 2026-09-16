@@ -329,6 +329,44 @@ void main() {
       expect(state.queue.first.conflictMessage, contains('Ingestion error'));
     });
 
+    test('refuses a file whose declared size exceeds the ingest '
+        'ceiling (campaign-2 service-side bound)', () async {
+      final container = _makeContainer();
+      addTearDown(container.dispose);
+
+      // Declared size over the cap — bytes never materialized.
+      final file = PlatformFile(
+        name: 'huge.bin',
+        size: IngestionPipelineManager.maxIngestBytes + 1,
+        identifier: 'id',
+      );
+
+      await container.read(ingestionManagerProvider.notifier).addFiles([file]);
+
+      final state = container.read(ingestionManagerProvider);
+      expect(state.queue.first.status, IngestionStatus.error);
+      expect(state.queue.first.conflictMessage, contains('ingest limit'));
+    });
+
+    test('a file with neither bytes nor path errors out instead of '
+        'ingesting a phantom zero-byte manifest', () async {
+      final container = _makeContainer();
+      addTearDown(container.dispose);
+
+      final file = PlatformFile(
+        name: 'ghost.bin',
+        size: 10,
+        identifier: 'id',
+      );
+
+      await container.read(ingestionManagerProvider.notifier).addFiles([file]);
+
+      final state = container.read(ingestionManagerProvider);
+      expect(state.queue.first.status, IngestionStatus.error);
+      expect(
+          state.queue.first.conflictMessage, contains('No file data'));
+    });
+
     test('addFiles does nothing when the file list is empty', () async {
       final container = _makeContainer();
       addTearDown(container.dispose);

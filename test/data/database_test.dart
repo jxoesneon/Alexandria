@@ -16,8 +16,14 @@ void main() {
       await db.close();
     });
 
-    test('schemaVersion is 5', () {
-      expect(db.schemaVersion, equals(5));
+    // (round-5 red finding) v6: rehome-and-scrub of the legacy
+    // content_manifests.encryption_key column. v7 adds
+    // credit_transactions.attested_pubkey (multi-identity attested
+    // sharding — the prover-key-scoped egress gate). v8 adds
+    // credit_transactions.burned_attested (durable attested-burn
+    // attribution — the sufficient egress gate).
+    test('schemaVersion is 8', () {
+      expect(db.schemaVersion, equals(8));
     });
 
     test('insert and retrieve a manifest by uuid', () async {
@@ -254,7 +260,9 @@ void main() {
       expect(match.tags, 'a,b');
       expect(match.metadata, '{}');
       expect(match.isEncrypted, isTrue);
-      expect(match.encryptionKey, 'key');
+      // (round-5 red finding) insertManifest no longer accepts key
+      // material — DEKs live only in secure storage under dek_<uuid>.
+      expect(match.encryptionKey, isNull);
     });
 
     test('getVersionsForManifest returns empty for unknown manifest', () async {
@@ -353,8 +361,7 @@ void main() {
       expect(row!['spent'], isTrue);
     });
 
-    test('markReceiptSpent shares the conditional-update semantics',
-        () async {
+    test('markReceiptSpent shares the conditional-update semantics', () async {
       await db.insertWorkReceipt({
         'receiptId': 'rcpt_legacy',
         'workType': 'storage',
@@ -423,8 +430,7 @@ void main() {
       expect(await db.hasAwardedDoi('10.1/race'), isTrue);
     });
 
-    test('claimed_bounties is a durable claim CAS with release (REV3)',
-        () async {
+    test('claimed_bounties is a durable claim CAS with release (REV3)', () async {
       expect(await db.isBountyClaimed('bounty_x'), isFalse);
 
       // First claim wins the PK compare-and-swap; replays lose it.
@@ -444,7 +450,8 @@ void main() {
       await db.deleteClaimedBounty('bounty_missing');
     });
 
-    test('insertClaimedBounty accepts an explicit claimedAt and '
+    test(
+        'insertClaimedBounty accepts an explicit claimedAt and '
         'deleteClaimedBountyIfClaimedAt releases only the row that '
         'still owns that timestamp (E-REV4b F4/F5)', () async {
       const ownTs = 1700000000000;
@@ -458,21 +465,15 @@ void main() {
       // that a racing claim deleted and re-inserted — must NOT remove
       // the current row, and reports 0.
       expect(
-          await db.deleteClaimedBountyIfClaimedAt(
-              'bounty_own', ownTs + 1),
-          0);
+          await db.deleteClaimedBountyIfClaimedAt('bounty_own', ownTs + 1), 0);
       expect(await db.isBountyClaimed('bounty_own'), isTrue);
 
       // The owning timestamp removes it and reports the row count.
-      expect(
-          await db.deleteClaimedBountyIfClaimedAt('bounty_own', ownTs),
-          1);
+      expect(await db.deleteClaimedBountyIfClaimedAt('bounty_own', ownTs), 1);
       expect(await db.isBountyClaimed('bounty_own'), isFalse);
 
       // Absent row: 0, harmless.
-      expect(
-          await db.deleteClaimedBountyIfClaimedAt('bounty_own', ownTs),
-          0);
+      expect(await db.deleteClaimedBountyIfClaimedAt('bounty_own', ownTs), 0);
 
       // The default claimedAt path still works and stays releasable
       // through a read-back timestamp.
@@ -512,8 +513,7 @@ void main() {
       expect(at, lessThanOrEqualTo(after));
     });
 
-    test('getClaimedBountiesOlderThan returns only stale rows (REV4)',
-        () async {
+    test('getClaimedBountiesOlderThan returns only stale rows (REV4)', () async {
       final now = DateTime.now().millisecondsSinceEpoch;
       const fifteenMin = 15 * 60 * 1000;
       // Direct row inserts so claimedAt is caller-controlled.
@@ -538,11 +538,9 @@ void main() {
       expect(stale.single.claimedAt, now - fifteenMin - 1000);
     });
 
-    test('getLedgerBalanceSum nets credits and debits over all rows',
-        () async {
+    test('getLedgerBalanceSum nets credits and debits over all rows', () async {
       expect(await db.getLedgerBalanceSum(), 0.0);
-      Future<void> tx(String id, double amount) =>
-          db.insertCreditTransaction({
+      Future<void> tx(String id, double amount) => db.insertCreditTransaction({
             'id': id,
             'timestamp': DateTime(2026, 1, 1),
             'type': 'storageReward',
@@ -595,8 +593,6 @@ void main() {
       expect(endangered, isA<List<ContentVersion>>());
     });
 
-
-
     test('migration strategy executes onUpgrade logic', () async {
       final strategy = db.migration;
       final calledTables = <String>[];
@@ -604,42 +600,88 @@ void main() {
 
       // Custom test migrator tracking invocations
       final fakeMigrator = _FakeMigrator(
-        onAddCol: (tbl, col) => calledColumns.add('${tbl.entityName}.${col.$name}'),
+        onAddCol: (tbl, col) =>
+            calledColumns.add('${tbl.entityName}.${col.$name}'),
         onCreateTbl: (tbl) => calledTables.add(tbl.entityName),
       );
 
-      // v1→v5: the three v2 content_versions columns, the four v3
-      // tables, the v4 work_receipts.v column, and the v5
-      // claimed_bounties table. (onUpgrade keys off `from` alone.)
-      await strategy.onUpgrade(fakeMigrator, 1, 5);
-      expect(calledColumns.length, equals(4));
+      // v1→v8: the three v2 content_versions columns, the four v3
+      // tables, the v4 work_receipts.v column, the v5 claimed_bounties
+      // table, the v7 credit_transactions.attested_pubkey column, and
+      // the v8 credit_transactions.burned_attested column.
+      // (onUpgrade keys off `from` alone; v6 rehomes keys and the v8
+      // backfill writes rows outside the fake migrator's tracked calls.)
+      await strategy.onUpgrade(fakeMigrator, 1, 8);
+      expect(calledColumns.length, equals(6));
       expect(calledColumns, contains('work_receipts.v'));
+      expect(calledColumns, contains('credit_transactions.attested_pubkey'));
+      expect(calledColumns, contains('credit_transactions.burned_attested'));
       expect(calledTables.length, equals(5));
       expect(calledTables, contains('claimed_bounties'));
 
       calledColumns.clear();
       calledTables.clear();
 
-      await strategy.onUpgrade(fakeMigrator, 2, 5);
-      expect(calledColumns, equals(['work_receipts.v']));
+      await strategy.onUpgrade(fakeMigrator, 2, 8);
+      expect(
+          calledColumns,
+          equals([
+            'work_receipts.v',
+            'credit_transactions.attested_pubkey',
+            'credit_transactions.burned_attested'
+          ]));
       expect(calledTables.length, equals(5));
 
       calledColumns.clear();
       calledTables.clear();
 
-      // The v3→v5 step adds the receipt wire-version column AND the
-      // v5 claimed_bounties table.
-      await strategy.onUpgrade(fakeMigrator, 3, 5);
-      expect(calledColumns, equals(['work_receipts.v']));
+      // The v3→v8 step adds the receipt wire-version column, the v5
+      // claimed_bounties table, the v7 attested_pubkey column, and the
+      // v8 burned_attested column.
+      await strategy.onUpgrade(fakeMigrator, 3, 8);
+      expect(
+          calledColumns,
+          equals([
+            'work_receipts.v',
+            'credit_transactions.attested_pubkey',
+            'credit_transactions.burned_attested'
+          ]));
       expect(calledTables, equals(['claimed_bounties']));
 
       calledColumns.clear();
       calledTables.clear();
 
-      // The v4→v5 step creates ONLY the durable bounty-claim ledger.
-      await strategy.onUpgrade(fakeMigrator, 4, 5);
-      expect(calledColumns, isEmpty);
+      // The v4→v8 step creates the durable bounty-claim ledger and
+      // adds attested_pubkey + burned_attested.
+      await strategy.onUpgrade(fakeMigrator, 4, 8);
+      expect(
+          calledColumns,
+          equals([
+            'credit_transactions.attested_pubkey',
+            'credit_transactions.burned_attested'
+          ]));
       expect(calledTables, equals(['claimed_bounties']));
+
+      calledColumns.clear();
+      calledTables.clear();
+
+      // The v6→v8 step adds ONLY the two credit_transactions columns.
+      await strategy.onUpgrade(fakeMigrator, 6, 8);
+      expect(
+          calledColumns,
+          equals([
+            'credit_transactions.attested_pubkey',
+            'credit_transactions.burned_attested'
+          ]));
+      expect(calledTables, isEmpty);
+
+      calledColumns.clear();
+      calledTables.clear();
+
+      // The v7→v8 step adds ONLY the burned_attested column.
+      await strategy.onUpgrade(fakeMigrator, 7, 8);
+      expect(calledColumns, equals(['credit_transactions.burned_attested']));
+      expect(calledTables, isEmpty);
     });
 
     test('work_receipts.v round-trips and defaults to the legacy scheme',
@@ -708,6 +750,52 @@ void main() {
         "'sig_v3', 0, 1700000000)",
       );
 
+      // onUpgrade keys off `from` alone, so a 3→4 call also replays the
+      // v7 step: rebuild credit_transactions at its v3 shape (no
+      // attested_pubkey) or the ADD COLUMN would hit a duplicate.
+      await db.customStatement('DROP TABLE credit_transactions');
+      await db.customStatement('''
+        CREATE TABLE credit_transactions (
+          id TEXT NOT NULL PRIMARY KEY,
+          timestamp INTEGER NOT NULL,
+          type TEXT NOT NULL,
+          amount REAL NOT NULL,
+          description TEXT NOT NULL,
+          reference_id TEXT,
+          hash TEXT NOT NULL,
+          is_attested INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+      await db.customStatement(
+        'INSERT INTO credit_transactions (id, timestamp, type, amount, '
+        'description, hash, is_attested) VALUES (\'tx_legacy\', '
+        "1700000000, 'storageReward', 5.0, 'legacy attested mint', "
+        "'h_leg', 1)",
+      );
+      // v8 backfill fixtures: an ordinary debit that burns attested
+      // once the unattested pool is dry (mint 5 attested, balance 5,
+      // debit 3 → unattested 0 → burn 3), an attested-flagged egress
+      // debit (burns its full amount), and a PoR penalty (never burns
+      // attested). Insert order = replay order (rowid tiebreaker).
+      await db.customStatement(
+        'INSERT INTO credit_transactions (id, timestamp, type, amount, '
+        'description, hash, is_attested) VALUES (\'tx_ord_debit\', '
+        "1700000001, 'priorityAccessDebit', -3.0, 'ordinary debit', "
+        "'h_d', 0)",
+      );
+      await db.customStatement(
+        'INSERT INTO credit_transactions (id, timestamp, type, amount, '
+        'description, hash, is_attested) VALUES (\'tx_egress\', '
+        "1700000002, 'priorityAccessDebit', -2.0, 'egress', "
+        "'h_e', 1)",
+      );
+      await db.customStatement(
+        'INSERT INTO credit_transactions (id, timestamp, type, amount, '
+        'description, hash, is_attested) VALUES (\'tx_penalty\', '
+        "1700000003, 'storageReward', -1.0, 'PoR penalty', "
+        "'h_p', 0)",
+      );
+
       // The real migration path — a Migrator bound to this database, so
       // the ALTER TABLE actually executes.
       await db.migration.onUpgrade(db.createMigrator(), 3, 4);
@@ -719,6 +807,35 @@ void main() {
       expect(row['verifierSig'], 'sig_v3');
       expect(row['amount'], 7.5);
       expect(row['spent'], isFalse);
+      final txRows = await db.customSelect(
+        'SELECT attested_pubkey FROM credit_transactions WHERE id = ?',
+        variables: [Variable.withString('tx_legacy')],
+      ).get();
+      expect(txRows, hasLength(1));
+      expect(txRows.single.data['attested_pubkey'], isNull,
+          reason: 'the replayed v7 step adds attested_pubkey — pre-v7 '
+              'rows stay NULL (the unscoped legacy attested bucket)');
+      // The replayed v8 step backfills burned_attested under the
+      // service's unattested-first replay rule.
+      final burnRows = await db
+          .customSelect(
+            'SELECT id, burned_attested FROM credit_transactions '
+            'ORDER BY timestamp ASC, rowid ASC',
+          )
+          .get();
+      expect(
+          {
+            for (final r in burnRows)
+              r.data['id'] as String: r.data['burned_attested']
+          },
+          equals({
+            'tx_legacy': 0.0, // mint — never a burn
+            'tx_ord_debit': 3.0, // unattested pool was dry → all attested
+            'tx_egress': 2.0, // attested egress burns its full debit
+            'tx_penalty': 0.0, // PoR slashing never eats attested value
+          }),
+          reason: 'the v8 backfill must reproduce the runtime burn '
+              'attribution row-for-row');
       // And the upgraded table accepts new v2 writes.
       await db.insertWorkReceipt({
         'receiptId': 'post_mig',
@@ -757,4 +874,3 @@ class _FakeMigrator extends Migrator {
     onCreateTbl(table);
   }
 }
-

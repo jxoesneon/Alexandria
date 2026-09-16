@@ -7,7 +7,7 @@
  * in-app Dart MCP server (lib/services/agent/alexandria_mcp_server.dart)
  * kept for exercising external-agent client plumbing during development.
  *
- * SAFETY (Review ALX-010/ALX-011 veto):
+ * SAFETY (ALX-010/ALX-011 veto):
  *  - Every response is stamped `simulated: true` / `mock: true`.
  *  - ALL financial and credit-minting tools were REMOVED. A previous
  *    version of this file minted fake credits (`+=15`/`+=5`), exported
@@ -24,23 +24,115 @@
  * the persistent credit ledger, verifier-signed work receipts, and the
  * egress lockdown. This file mirrors only the harmless subset of its
  * schema and must never be presented as a production node.
+ *
+ * BRIDGE MODE (ALX-012 §5.2/§5.6 — the real stdio runner): invoked with
+ *   --bridge --port <p> --token <t>     (or env ALX_MCP_PORT/ALX_MCP_TOKEN)
+ * this file becomes a zero-dependency thin shim between stdio JSON-RPC
+ * and the app's authenticated loopback control socket
+ * (lib/services/agent/mcp_stdio_runner.dart — McpControlSocket). The
+ * shim holds the per-process session token and injects it into every
+ * forwarded request (`session_token`), so MCP clients never learn the
+ * credential. It performs no tool logic, no auth decisions, and no
+ * buffering beyond line framing — the Dart runner enforces the
+ * allowlist, rate budgets, and consent ceilings.
  */
 
 const readline = require('readline');
 const crypto = require('crypto');
+const net = require('net');
 
-// ---- Dev-mode gate ------------------------------------------------------
-// Refuse to run as a default/implicit MCP server. The exported configs
-// produced by the app pass --dev explicitly.
+// ---- Mode selection ------------------------------------------------------
+const bridgeMode = process.argv.includes('--bridge');
 const devMode =
   process.argv.includes('--dev') || process.argv.includes('--simulator');
-if (!devMode) {
+
+function argValue(flag) {
+  const i = process.argv.indexOf(flag);
+  return i !== -1 ? process.argv[i + 1] : undefined;
+}
+
+if (bridgeMode) {
+  // ---- Thin stdio → authenticated control-socket bridge -----------------
+  const port = Number(argValue('--port') || process.env.ALX_MCP_PORT || 0);
+  const token = argValue('--token') || process.env.ALX_MCP_TOKEN || '';
+  if (!port || !token) {
+    process.stderr.write(
+      'alexandria-mcp-bridge: --bridge requires --port and --token ' +
+        '(or ALX_MCP_PORT / ALX_MCP_TOKEN).\n'
+    );
+    process.exit(1);
+  }
+
+  const socket = net.connect({ host: '127.0.0.1', port });
+  let authed = false;
+  let sockBuf = '';
+
+  socket.on('connect', () => {
+    // First frame is the control-socket handshake; every later request
+    // still carries the token — the handshake is transport auth, not a
+    // credential replacement.
+    socket.write(JSON.stringify({ auth: token }) + '\n');
+  });
+
+  socket.on('data', (chunk) => {
+    sockBuf += chunk.toString('utf8');
+    let nl;
+    while ((nl = sockBuf.indexOf('\n')) !== -1) {
+      const line = sockBuf.slice(0, nl);
+      sockBuf = sockBuf.slice(nl + 1);
+      if (!line.trim()) continue;
+      if (!authed) {
+        // Expected: {"ok":true} — anything else means auth failed.
+        try {
+          const frame = JSON.parse(line);
+          if (frame.ok === true) {
+            authed = true;
+            continue;
+          }
+        } catch (_) {}
+        process.stderr.write('alexandria-mcp-bridge: control socket rejected auth.\n');
+        process.exit(1);
+      }
+      process.stdout.write(line + '\n');
+    }
+  });
+
+  socket.on('error', (err) => {
+    process.stderr.write(`alexandria-mcp-bridge: socket error: ${err.message}\n`);
+    process.exit(1);
+  });
+  socket.on('close', () => process.exit(0));
+
+  const bridgeRl = readline.createInterface({
+    input: process.stdin,
+    terminal: false
+  });
+  bridgeRl.on('line', (line) => {
+    if (!line.trim()) return;
+    try {
+      const req = JSON.parse(line);
+      // Inject the session credential into every forwarded request.
+      req.session_token = token;
+      socket.write(JSON.stringify(req) + '\n');
+    } catch (err) {
+      process.stdout.write(JSON.stringify({
+        jsonrpc: '2.0',
+        error: { code: -32700, message: `Parse error: ${err.message}` }
+      }) + '\n');
+    }
+  });
+} else if (!devMode) {
+  // ---- Dev-mode gate ------------------------------------------------------
+  // Refuse to run as a default/implicit MCP server. The exported configs
+  // produced by the app pass --dev explicitly.
   process.stderr.write(
-    'alexandria-mcp-simulator: refusing to start without --dev.\n' +
+    'alexandria-mcp-simulator: refusing to start without --dev or --bridge.\n' +
       'This file is a DEVELOPMENT SIMULATOR — it is not a live Alexandria ' +
       'node and exposes no real credits, payouts, or archive state.\n' +
       'The production MCP surface is AlexandriaMcpServer inside the app ' +
-      '(lib/services/agent/alexandria_mcp_server.dart).\n'
+      '(lib/services/agent/alexandria_mcp_server.dart), reached through ' +
+      '--bridge --port <p> --token <t> against its authenticated control ' +
+      'socket.\n'
   );
   process.exit(1);
 }
@@ -275,7 +367,10 @@ async function executeTool(name, args = {}) {
   }
 }
 
-// JSON-RPC 2.0 stdio loop
+// JSON-RPC 2.0 stdio loop — simulator only. In --bridge mode stdin is
+// owned by the bridge's own readline interface above; registering a
+// second consumer would split the input stream.
+if (!bridgeMode) {
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -342,3 +437,4 @@ rl.on('line', async (line) => {
     }) + '\n');
   }
 });
+}

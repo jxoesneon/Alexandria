@@ -71,7 +71,7 @@ class _WorkspaceDashboardScreenState
           // Onboarding Tour Action
           IconButton(
             icon: const Icon(Icons.auto_stories_outlined, color: AppTheme.primaryAccent),
-            tooltip: 'Launch Onboarding & Governance Review Tour',
+            tooltip: 'Launch Onboarding & Alexandria Core Team Tour',
             onPressed: () => FirstRunWizardDialog.show(context),
           ),
           // Wallet Quick Balance Action

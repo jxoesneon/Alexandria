@@ -9,8 +9,40 @@ import '../credits/credit_models.dart' show CreditTransaction, CreditType;
 import '../credits/credit_service.dart';
 import '../credits/work_receipt.dart';
 import '../ipfs_service.dart';
+import '../mesh_transport_service.dart';
+import '../release/release_manifest.dart';
+import '../release/release_manifest_authority.dart';
+import '../release/release_providers.dart';
 import 'beacon_models.dart';
+import 'bounty_claim_event.dart';
+import 'bounty_id_canonicalization.dart';
 import 'escrow_attestation.dart';
+import 'mesh_bounty_transport.dart';
+
+/// Outcome of [MoltbookService.releaseBountyEscrow] — the poster-side
+/// evidence-checked escrow-release rail (cross-ledger payout).
+enum BountyEscrowRelease {
+  /// The escrow was released INTO a verified claim/settlement record —
+  /// durably consumed (spent tombstone), never refunded. This is the
+  /// settlement direction: the claimant's payout already minted on its
+  /// own ledger and our consumed hold is its backing.
+  settledToVerifiedClaim,
+
+  /// The escrow hold was refunded to the poster via
+  /// [CreditService.releaseEscrow] — reachable only through the
+  /// explicit `operatorReconciliation` override with no verified
+  /// claim/settlement record present.
+  refunded,
+
+  /// Release refused: not a locally escrowed id, already released, a
+  /// settlement-state probe failed, or the refund found no hold.
+  refused,
+
+  /// Release refused: no verified claim/settlement record exists and
+  /// no operator reconciliation was asserted — an announced escrow can
+  /// never prove it was not claimed on a remote ledger.
+  refusedUnproven,
+}
 
 /// Riverpod provider for MoltbookService
 final moltbookServiceProvider = ChangeNotifierProvider<MoltbookService>((ref) {
@@ -18,10 +50,21 @@ final moltbookServiceProvider = ChangeNotifierProvider<MoltbookService>((ref) {
   return MoltbookService(
     creditService: creditService,
     ipfsService: ref.read(ipfsServiceProvider),
-    // Durable bounty-claim dedup (Review REV3): the claimed_bounties
+    // Durable bounty-claim dedup (REV3 review): the claimed_bounties
     // ledger makes a won claim restart-proof and unreachable through
     // any returned bounty copy.
     db: ref.read(databaseProvider),
+    // Production BountyTransport: bounty announcements, signed claim
+    // events and release manifests ride the MAC'd mesh channel layer —
+    // every outbound envelope is fanned out to proven peers, every
+    // inbound payload re-enters through the signature-checked ingest
+    // gates (the transport is never trusted).
+    bountyTransport:
+        MeshBountyTransport(ref.read(meshTransportServiceProvider)),
+    // ALX-012 §5.1 machinery: the release manifest authority (empty
+    // registry by default — fails closed until a quorum is configured
+    // via releaseKeyRegistryProvider, the RFC's trigger condition i).
+    releaseManifestAuthority: ref.read(releaseManifestAuthorityProvider),
   );
 });
 
@@ -31,7 +74,7 @@ class MoltbookService extends ChangeNotifier {
   final IpfsService? _ipfsService;
   final AppDatabase? _db;
 
-  /// Ambient trust root for funding attestations (Review REV3 Safety
+  /// Ambient trust root for funding attestations (REV3 review Safety
   /// fix). This used to be a per-call `trustedAttestors` parameter on
   /// [ingestBountyAnnouncement] — a footgun that let every future
   /// transport call site weaken policy by passing announcement-derived
@@ -43,6 +86,43 @@ class MoltbookService extends ChangeNotifier {
 
   final String _baseUrl;
   String? _apiKey;
+
+  /// Optional remote transport (the deferred-milestone seam): when
+  /// injected, inbound envelopes stream into [ingestBountyEnvelope] /
+  /// [ingestBountyClaimEnvelope] and outbound announcements/claim events
+  /// are published through it. The verification+attribution layer is
+  /// complete and exercised here; what remains external is a concrete
+  /// networked [BountyTransport] implementation.
+  final BountyTransport? _bountyTransport;
+  StreamSubscription<BeaconEnvelope>? _transportSubscription;
+
+  /// Optional release manifest authority (ALX-012 §5.1 machinery):
+  /// when injected, `release_manifest` envelopes arriving over
+  /// [_bountyTransport] are routed into its verification chain — the
+  /// signed-manifest transport binding the RFC's trigger condition (ii)
+  /// names. Null by default: no authority means manifest envelopes are
+  /// dropped like every other non-bounty kind.
+  final ReleaseManifestAuthority? _manifestAuthority;
+
+  /// Verified remote claim events keyed by NFD-normalized bounty id.
+  /// Insertion-ordered; oldest evicts first at capacity so a claim-event
+  /// flood cannot grow memory without bound (same DoS class as the
+  /// bounty registry cap).
+  final Map<String, BountyClaimEvent> _remoteClaims = {};
+  static const int _maxRemoteClaims = 512;
+
+  /// Normalized ids carrying at least one verified remote claim —
+  /// settlement evidence for the cancel path: a verified remote claim
+  /// means the escrow is spoken for even when the registry record is
+  /// gone (post-restart), so [cancelBounty] must refuse it.
+  final Set<String> _remoteClaimedBountyIds = {};
+
+  /// Normalized ids whose `originAgentId` was attributed to a verified
+  /// envelope signer through [ingestBountyEnvelope] — these ids arrived
+  /// over a signature-checked channel; records ingested through raw
+  /// [ingestBountyAnnouncement] stay unattributed by construction.
+  final Set<String> _verifiedOriginBountyIds = {};
+  static const int _maxVerifiedOriginIds = 4096;
 
   SimpleKeyPair? _keyPair;
   String _pubkeyHex = '';
@@ -59,7 +139,7 @@ class MoltbookService extends ChangeNotifier {
 
   final List<PreservationBounty> _bounties = [];
 
-  /// Hard cap on the bounty registry (Review REV4 / Safety 4A): once a
+  /// Hard cap on the bounty registry (REV4 review / Safety 4A): once a
   /// transport exists, unbounded ingest is a remote memory-DoS — a
   /// flooding announcer could grow the list without limit. At capacity,
   /// eviction prefers the oldest UNFUNDED record (no escrow evidence
@@ -99,15 +179,16 @@ class MoltbookService extends ChangeNotifier {
   /// [_escrowedBountyIds] after a restart (RE-REV4b E1).
   static const String _escrowHoldTxPrefix = 'tx_escrow_hold_';
 
-  /// Bounds for the post-payout durability wait (E-REV4b F6): a wedged
-  /// ledger write must never park a won claim forever while holding the
-  /// in-flight mark AND the durable claim row — that bricks the bounty
-  /// for the process. The wait exits on the first of: `CreditService
-  /// .settled` resolving, this many event-loop turns, or this much
-  /// wall-clock. `settled` is only a pacing hint — it awaits the write
-  /// ATTEMPT and persist errors are swallowed — so durability is PROVEN
-  /// by the payout-row point query that follows, never by the wait.
-  static const int _maxPayoutSettleTurns = 16;
+  /// Default bound on the durable payout write (E-REV4b F6 carried
+  /// forward): a wedged `insertCreditTransactionIfAbsent` must never
+  /// park a won claim forever while holding the in-flight mark AND the
+  /// durable claim row — that bricks the bounty for the process.
+  /// [claimBounty] awaits `awardBountyEscrowDurable` under a
+  /// `.timeout(_payoutWriteTimeout)`; expiry takes the
+  /// indeterminate-write path (spent tombstone + standing claim row —
+  /// the id is dead whether the queued CAS lands late or never).
+  /// Injectable for tests via the `payoutWriteTimeout` constructor
+  /// argument.
   static const Duration _maxPayoutSettleWait = Duration(seconds: 30);
 
   /// A claim row older than this WITHOUT a durable payout row is
@@ -177,15 +258,21 @@ class MoltbookService extends ChangeNotifier {
   /// through the tombstone's own failure path). Pending ids are retried
   /// at service init and on every [claimBounty] entry.
   ///
-  /// The set is keyed by the SHARED [AppDatabase] handle rather than by
+  /// The map value is the tombstone row's human-readable reason —
+  /// currently two settlement causes share the row shape: a lost
+  /// payout-row write (claimant-side, RE-REV4b F2) and a verified
+  /// remote-claim settlement (poster-side payout rail). Both assert the
+  /// same invariant — "this escrow is spent; never pay or refund".
+  ///
+  /// The map is keyed by the SHARED [AppDatabase] handle rather than by
   /// service instance: a freshly-constructed MoltbookService on the
   /// same database retries tombstones a previous incarnation
   /// registered — which is what makes the retry meaningful across a
   /// service-layer restart. An [Expando] is used so the mapping never
   /// pins a database past its own lifetime (important in tests, which
   /// create and close many databases in one process).
-  static final Expando<Set<String>> _pendingReleaseTombstones =
-      Expando<Set<String>>('pendingReleaseTombstones');
+  static final Expando<Map<String, String>> _pendingReleaseTombstones =
+      Expando<Map<String, String>>('pendingReleaseTombstones');
 
   /// Completes when the locally-posted / cancelled / escrowed id sets
   /// have been rebuilt from durable ledger rows
@@ -195,16 +282,27 @@ class MoltbookService extends ChangeNotifier {
   /// rows outlive the process, so the paths that act on them must too.
   late final Future<void> _localStateReady;
 
+  /// Bound on the durable payout CAS inside [claimBounty] — see
+  /// [_maxPayoutSettleWait]. Constructor-injectable so tests can model
+  /// a wedged ledger write without a 30-second wait.
+  final Duration _payoutWriteTimeout;
+
   MoltbookService({
     required CreditService creditService,
     IpfsService? ipfsService,
     AppDatabase? db,
     Set<String> trustedAttestorPubkeys = const {},
+    BountyTransport? bountyTransport,
+    ReleaseManifestAuthority? releaseManifestAuthority,
+    Duration payoutWriteTimeout = _maxPayoutSettleWait,
     String baseUrl = 'https://www.moltbook.com',
     String? apiKey,
   })  : _creditService = creditService,
         _ipfsService = ipfsService,
         _db = db,
+        _bountyTransport = bountyTransport,
+        _manifestAuthority = releaseManifestAuthority,
+        _payoutWriteTimeout = payoutWriteTimeout,
         // Frozen copy: the caller must not be able to grow the trust
         // root after construction by mutating the set it handed in.
         _trustedAttestorPubkeys = Set.unmodifiable(trustedAttestorPubkeys),
@@ -212,7 +310,7 @@ class MoltbookService extends ChangeNotifier {
         _apiKey = apiKey {
     _seedInitialPosts();
     _initKey();
-    // Startup reconciliation (Review REV4): heal claim rows nobody will
+    // Startup reconciliation (REV4 review): heal claim rows nobody will
     // ever retry — the in-claimBounty healer only runs when a claim is
     // attempted, so a stranded row for a bounty nobody claims again
     // would block head-of-line forever. Fire-and-forget; gated on
@@ -225,6 +323,106 @@ class MoltbookService extends ChangeNotifier {
     // un-cancellable after a restart. Stored so [cancelBounty] and
     // [postPreservationBounty] can await the rebuild before acting.
     _localStateReady = _restoreLocalBountyState();
+
+    // Remote transport (verified bounty claim events milestone): every
+    // inbound envelope funnels through the signature-checked ingest
+    // paths — the transport itself is never trusted.
+    final transport = _bountyTransport;
+    if (transport != null) {
+      _transportSubscription = transport.envelopes.listen((envelope) {
+        unawaited(_routeTransportEnvelope(envelope));
+      });
+    }
+  }
+
+  /// Transport-frame routing: claim events and bounty announcements get
+  /// separate verification paths; every ingest gate fails closed by
+  /// dropping, so a malformed or hostile frame can never surface as an
+  /// unhandled stream error.
+  Future<void> _routeTransportEnvelope(BeaconEnvelope envelope) async {
+    try {
+      if (envelope.kind == BountyClaimEvent.envelopeKind) {
+        await ingestBountyClaimEnvelope(envelope);
+      } else if (envelope.kind == ReleaseManifest.envelopeKind) {
+        // release manifest channel (ALX-012 §5.1): routed only when an
+        // authority is injected — the envelope itself is unsigned
+        // metadata until the authority's threshold chain evaluates it.
+        await _manifestAuthority?.ingestEnvelope(envelope);
+      } else {
+        await ingestBountyEnvelope(envelope);
+      }
+    } catch (_) {}
+  }
+
+  /// Best-effort envelope broadcast — publication failure must never
+  /// fail a completed ledger operation (the durable ledger rows, not
+  /// the announcement, are the settlement record).
+  void _publishEnvelope(BeaconEnvelope? envelope) {
+    final transport = _bountyTransport;
+    if (transport == null || envelope == null) return;
+    unawaited(() async {
+      try {
+        await transport.publish(envelope);
+      } catch (_) {}
+    }());
+  }
+
+  /// Signs and broadcasts a [BountyClaimEvent] for a won claim — the
+  /// claimant-side half of the remote-claim transport: the poster's
+  /// node can then verify settlement evidence instead of trusting a
+  /// self-asserted `is_claimed` flag.
+  Future<void> _publishClaimEvent(PreservationBounty bounty) async {
+    if (_bountyTransport == null) return;
+    try {
+      await _ensureKeyPair();
+      final event = await BountyClaimEvent.issue(
+        keyPair: _keyPair!,
+        bountyId: bounty.id,
+        cid: bounty.cid,
+      );
+      final envelope = await event.toEnvelope(
+        _keyPair!,
+        clientInfo: BuildInfo.current().claimedBroadcastInfo,
+      );
+      await _bountyTransport.publish(envelope);
+    } catch (_) {
+      // Settlement evidence is best-effort: the claim already settled
+      // on this node's durable ledger.
+    }
+  }
+
+  /// The verified remote claim event recorded for [bountyId] (canonical
+  /// id comparison), or null. The returned event's claimant identity is
+  /// attributed to the signing key by [BountyClaimEvent.verify] — never
+  /// a self-asserted string.
+  BountyClaimEvent? remoteClaimFor(String bountyId) =>
+      _remoteClaims[normalizeBountyId(bountyId)];
+
+  /// Whether [bountyId] carries a verified remote claim — settlement
+  /// evidence that the escrow is spoken for.
+  bool isRemotelyClaimed(String bountyId) =>
+      _remoteClaimedBountyIds.contains(normalizeBountyId(bountyId));
+
+  /// Whether [bountyId]'s `originAgentId` arrived over a signature-
+  /// checked envelope (attributed to a real key) rather than an
+  /// unattributed raw announcement.
+  bool isOriginVerified(String bountyId) =>
+      _verifiedOriginBountyIds.contains(normalizeBountyId(bountyId));
+
+  /// Adds [value] to an insertion-ordered set, evicting the oldest
+  /// entry when at capacity. `LinkedHashSet` iterates in insertion
+  /// order, so `set.first` is the oldest live entry.
+  static void _addBounded(Set<String> set, String value, int cap) {
+    if (!set.contains(value) && set.length >= cap) {
+      set.remove(set.first);
+    }
+    set.add(value);
+  }
+
+  @override
+  void dispose() {
+    _transportSubscription?.cancel();
+    super.dispose();
   }
 
   String get baseUrl => _baseUrl;
@@ -232,7 +430,7 @@ class MoltbookService extends ChangeNotifier {
   String get agentId => _agentId;
   String get pubkeyHex => _pubkeyHex;
   DateTime? get lastPostTime => _lastPostTime;
-  /// Live unclaimed bounties as DEFENSIVE COPIES (Review REV3): the
+  /// Live unclaimed bounties as DEFENSIVE COPIES (REV3 review): the
   /// stored records are never handed out, so a caller mutating a
   /// returned bounty (e.g. flipping `isClaimed` back to false) cannot
   /// reopen a claimed bounty for a second escrow payout.
@@ -317,7 +515,7 @@ class MoltbookService extends ChangeNotifier {
     await _ensureKeyPair();
 
     // 2. Sign Beacon v2 envelope. The client_info claim is the NARROWED
-    // broadcast subset (Review REV3-D): claimed client version, build
+    // broadcast subset (REV3-D review): claimed client version, build
     // channel and protocol version only — exact commit SHA, artifact
     // digest and build timestamp are high-entropy provenance that would
     // let a peer scan the swarm for known-vulnerable builds, so they
@@ -400,7 +598,7 @@ class MoltbookService extends ChangeNotifier {
     }
 
     // The generated id is canonical by construction; the check is the
-    // contract, not the generator (Review REV4): a non-canonical id must
+    // contract, not the generator (REV4 review): a non-canonical id must
     // be refused here just as it is dropped at ingest — raw `==` id
     // comparisons are load-bearing in EscrowAttestation.bindsBounty.
     if (!_isCanonicalBountyId(bountyId)) {
@@ -424,7 +622,7 @@ class MoltbookService extends ChangeNotifier {
     // previous debit-then-broadcast order permanently burned the escrow
     // whenever the broadcast threw — the caller saw a StateError while
     // the credits stayed locked behind a bounty nobody could claim.
-    await createPost(
+    final announcementPost = await createPost(
       submolt: 'alexandria-bounties',
       title: '[BOUNTY: $urgency.toUpperCase()] $title',
       content: 'Seeking swarm replication for endangered document.\nCID: $cid\nDOI: ${doi ?? 'N/A'}\nReward: $offeredCredits ℭ\nUrgency: $urgency',
@@ -436,7 +634,14 @@ class MoltbookService extends ChangeNotifier {
     // the full amount is owed to the future claimant, so skimming the 5%
     // treasury fee here would mint unbacked value on payout. debitEscrow
     // keeps the post+claim cycle net-zero (ALX-010 / E-T5 #5).
-    final escrowed = _creditService.debitEscrow(
+    //
+    // DURABLE-FIRST (optimistic-return residual — adopted): the hold row
+    // commits through the insert-if-absent CAS BEFORE the balance
+    // mutates, so a returned `true` provably corresponds to a
+    // durably-committed `tx_escrow_hold_` row — the escrow the poster
+    // announces is the escrow the ledger can prove. A write failure
+    // fails closed (`false`, nothing mutated) into the StateError below.
+    final escrowed = await _creditService.debitEscrowDurable(
       amount: offeredCredits,
       // The hold is keyed by the BOUNTY id — cancelBounty releases it
       // through releaseEscrow(referenceId: bountyId), and one bounty id
@@ -454,8 +659,14 @@ class MoltbookService extends ChangeNotifier {
     _locallyPostedBountyIds.add(bounty.id);
     _escrowedBountyIds.add(bounty.id);
 
+    // Remote transport fan-out: the signed announcement envelope also
+    // rides the injected BountyTransport so remote nodes ingest it
+    // through the verified path (originAgentId attributed to our
+    // signing key) rather than as an unattributed self-claim.
+    _publishEnvelope(announcementPost.beaconEnvelope);
+
     notifyListeners();
-    // Defensive copy (Review REV3): the stored record stays private so a
+    // Defensive copy (REV3 review): the stored record stays private so a
     // caller mutating the returned bounty can never touch registry
     // state — same rule as activeBounties.
     return bounty.copyWith();
@@ -488,11 +699,11 @@ class MoltbookService extends ChangeNotifier {
   /// root closes). `funded` therefore additionally requires the node's
   /// configured attestor set to contain the attestor's pubkey hex. The
   /// set is ambient constructor configuration — deliberately NOT a
-  /// per-call parameter (Review REV3): a call-site trust root would let
+  /// per-call parameter (REV3 review): a call-site trust root would let
   /// every future transport caller weaken policy with
   /// announcement-derived keys. The default EMPTY set fails closed — no
   /// attestation is ever trusted — until the node's configured attestor
-  /// quorum is supplied (verifier-quorum / review keys, populated by
+  /// quorum is supplied (verifier-quorum / release keys, populated by
   /// the transport layer once the quorum protocol lands; ALX-011 A3).
   ///
   /// DEDUP-UPGRADE (griefing fix): naive first-wins dedup lets an
@@ -521,12 +732,18 @@ class MoltbookService extends ChangeNotifier {
     PreservationBounty bounty, {
     EscrowAttestation? escrowAttestation,
   }) {
-    // Drop non-canonical ids outright (Review REV4): blank, padded,
-    // overlong or control-char ids can never be legitimately addressed —
-    // and MUST NOT be normalized, because raw `==` on the id is
-    // load-bearing in EscrowAttestation.bindsBounty and the claim-row
-    // primary key.
-    if (!_isCanonicalBountyId(bounty.id)) return;
+    // Normalize to the canonical (NFD) form FIRST (canonical-equivalence
+    // fix): 'bounty_é' and 'bounty_e'+U+0301 are the SAME id — storing
+    // them as distinct records would fork the dedup/claim/attestation
+    // key space. The stored record carries the normalized spelling, so
+    // every downstream key (claim-row PK, escrow referenceId, tombstone
+    // sets, bindsBounty) sees one canonical form.
+    final bountyId = normalizeBountyId(bounty.id);
+    // Drop non-canonical ids outright (REV4 review): blank, padded,
+    // overlong or control-char ids can never be legitimately addressed.
+    // The gate runs on the normalized form — normalization resolves
+    // canonical-equivalence, not whitespace/control junk.
+    if (!_isCanonicalBountyId(bountyId)) return;
 
     // A cancelled or escrow-released id is dead forever (E-REV4b F1 +
     // RE-REV4b E1): its escrow was refunded or spent-tombstoned, so the
@@ -545,15 +762,15 @@ class MoltbookService extends ChangeNotifier {
     // row and the payout dedup, not by dead-marking. Only the
     // release-tombstone classes (cancelled / escrow-released) are dead
     // at ingest.
-    final deadId = _cancelledBountyIds.contains(bounty.id) ||
-        _creditService.isEscrowReleased(bounty.id);
+    final deadId = _cancelledBountyIds.contains(bountyId) ||
+        _creditService.isEscrowReleased(bountyId);
 
     // Ignore echoes of our own posts. [_locallyPostedBountyIds] is
     // never shrunk by [cancelBounty] (it doubles as the cancellation
     // tombstone), so this drop covers re-announcements of live local
     // posts AND cancelled ids alike; a cancelled id falls through to be
     // stored as a dead unfunded record.
-    if (_locallyPostedBountyIds.contains(bounty.id) && !deadId) {
+    if (_locallyPostedBountyIds.contains(bountyId) && !deadId) {
       return;
     }
     if (_sameAgentId(bounty.originAgentId, _agentId)) return;
@@ -565,7 +782,7 @@ class MoltbookService extends ChangeNotifier {
     // announcement's `funded` flag is not consulted here: the trusted
     // attestation IS the escrow evidence (the flag is forgeable noise
     // in both directions).
-    final existingIndex = _bounties.indexWhere((b) => b.id == bounty.id);
+    final existingIndex = _bounties.indexWhere((b) => b.id == bountyId);
     if (existingIndex != -1) {
       final stored = _bounties[existingIndex];
       // A dead id can never be re-funded — the upgrade gate is
@@ -616,7 +833,7 @@ class MoltbookService extends ChangeNotifier {
           bounty,
         );
 
-    // Bound the registry (Review REV4 / Safety 4A): an unbounded list is
+    // Bound the registry (REV4 review / Safety 4A): an unbounded list is
     // a remote memory-DoS once a transport exists. Index 0 is newest, so
     // the LAST matching element is the oldest. Eviction prefers the
     // oldest UNFUNDED record — unattested announcements carry no escrow
@@ -653,7 +870,7 @@ class MoltbookService extends ChangeNotifier {
     _bounties.insert(
       0,
       PreservationBounty(
-        id: bounty.id,
+        id: bountyId,
         cid: bounty.cid,
         doi: bounty.doi,
         title: bounty.title,
@@ -726,7 +943,7 @@ class MoltbookService extends ChangeNotifier {
   ///    IpfsService is provided (e.g. unit tests without IPFS), this
   ///    blockstore check is skipped.
   ///
-  /// TOCTOU safety (E-T5 #1 / Review REV3): [_claimedBountyIds] is marked
+  /// TOCTOU safety (E-T5 #1 / REV3 review): [_claimedBountyIds] is marked
   /// synchronously BEFORE the first `await`, so two overlapping
   /// `claimBounty()` calls can never both pass the guard. The DURABLE
   /// guard is the `claimed_bounties` primary-key CAS
@@ -750,14 +967,22 @@ class MoltbookService extends ChangeNotifier {
   /// row already changed hands and is left standing for the CAS retry
   /// to judge.
   ///
-  /// Payout durability (E-REV4b F2/F6): `CreditService.settled` proves
-  /// only that the write ATTEMPT finished — persist errors are
-  /// swallowed — so the deterministic payout row is probed directly by
-  /// primary key, under a bounded wait (a wedged write must not park a
-  /// won claim forever). A row that never landed triggers the
-  /// do-not-pay tombstone path: the escrow id is permanently killed via
-  /// the durable release prefix so a restart can never re-pay it.
+  /// Payout durability (E-REV4b F2/F6 — durable-first form): the payout
+  /// runs through `CreditService.awardBountyEscrowDurable`, which
+  /// commits `tx_bounty_payout_<id>` through the insert-if-absent CAS
+  /// BEFORE minting — a `paid > 0` return already proves the durable
+  /// row (no settle-wait, no point probe), and a refused payout
+  /// mutated nothing so releasing our claim row is always safe. The
+  /// write is bounded by [_payoutWriteTimeout]: a wedged CAS takes the
+  /// indeterminate-write branch — the spent tombstone is queued so the
+  /// id is permanently un-payable and un-refundable whether the queued
+  /// write lands late or never, and the durable claim row stays
+  /// standing as the settlement marker.
   Future<bool> claimBounty(String bountyId) async {
+    // Canonically-equivalent spellings name the same bounty — normalize
+    // the caller's id so 'é' vs 'e'+U+0301 cannot miss (or double-
+    // address) a stored record. Stored ids are already normalized.
+    bountyId = normalizeBountyId(bountyId);
     final index = _bounties.indexWhere((b) => b.id == bountyId);
     if (index == -1) return false;
 
@@ -850,7 +1075,7 @@ class MoltbookService extends ChangeNotifier {
         return false;
       }
       if (!wonCas) {
-        // Crash-window reconciliation (Review REV4): the CAS-loss branch
+        // Crash-window reconciliation (REV4 review): the CAS-loss branch
         // is the healer. A lost CAS can mean three different things:
         //  1. The claim DURABLY SETTLED — the deterministic payout row
         //     exists in the ledger. Heal the stored record (mark it
@@ -867,10 +1092,16 @@ class MoltbookService extends ChangeNotifier {
         // ([AppDatabase.hasCreditTransaction]) — NEVER the hydrated
         // transaction window, which silently truncates old rows and
         // would misread a settled claim as stranded (Safety mandate).
+        // The synchronous [_paidBountyIds] belt is consulted first: it
+        // covers a payout this process already minted whose ledger
+        // cannot hold a row at all (a CreditService running pure
+        // in-memory against a durable claim registry), and it mirrors
+        // the durable row when one exists.
         bool durablyPaid;
         try {
-          durablyPaid = await db.hasCreditTransaction(
-              '$_bountyPayoutTxPrefix${bounty.id}');
+          durablyPaid = _creditService.isBountyPayoutRecorded(bounty.id) ||
+              await db.hasCreditTransaction(
+                  '$_bountyPayoutTxPrefix${bounty.id}');
         } catch (_) {
           // A throwing probe can't prove the payout did NOT land —
           // fail conservative: leave the row standing and the record
@@ -964,15 +1195,62 @@ class MoltbookService extends ChangeNotifier {
     }
 
     // Pay out the escrowed reward BEFORE marking the claim: a refused
-    // payout (0.0 — e.g. the dedup guard caught a double-claim the CAS
-    // missed, or the credit service is unhydrated) must not leave a
-    // claim marked won but unpaid (E-REV4-B F3/F4). Release OUR row so
-    // the bounty remains retryable.
-    final paid = _creditService.awardBountyEscrow(
-      amount: bounty.offeredCredits,
-      bountyId: bounty.id,
-      cid: bounty.cid,
-    );
+    // payout (0.0 — the dedup guard caught a double-claim the CAS
+    // missed, a durable release tombstone already killed the id, the
+    // credit service is unhydrated, or the ledger write itself failed)
+    // must not leave a claim marked won but unpaid (E-REV4-B F3/F4).
+    // Release OUR row so the bounty remains retryable.
+    //
+    // DURABLE-FIRST (optimistic-return residual — adopted):
+    // awardBountyEscrowDurable commits `tx_bounty_payout_<id>` through
+    // the insert-if-absent CAS BEFORE the balance mints, so `paid > 0`
+    // provably corresponds to a durably-committed payout row — the
+    // settle-wait, the primary-key probe, and the lost-write tombstone
+    // the optimistic variant needed here are all subsumed by that
+    // contract. A refusal mutates NOTHING (fail closed): a lost CAS
+    // means a sibling paid, a throwing write means nothing persisted —
+    // both are cleanly retryable once our claim row is released.
+    double paid;
+    var payoutIndeterminate = false;
+    try {
+      paid = await _creditService
+          .awardBountyEscrowDurable(
+            amount: bounty.offeredCredits,
+            bountyId: bounty.id,
+            cid: bounty.cid,
+          )
+          .timeout(_payoutWriteTimeout);
+    } on TimeoutException {
+      paid = 0.0;
+      payoutIndeterminate = true;
+    }
+    if (payoutIndeterminate) {
+      // INDETERMINATE WRITE (E-REV4b F6 carried forward): the durable CAS
+      // may still be queued behind a wedged store and can complete
+      // after we stop waiting — when it does, the mint lands (the CAS
+      // is the last await inside the mutator; the commit that follows
+      // is synchronous). Whether the row lands late or never does, the
+      // id must be terminally dead: the spent tombstone is queued so a
+      // late-landing payout coexists with it (the paid+tombstoned
+      // shape both dedup sets already treat as dead — no re-pay, no
+      // refund, no double-count) and a never-landing write still
+      // leaves the escrow un-payable AND un-refundable. The durable
+      // claim row stays standing as the settlement marker and the
+      // claim reports won — the same terminal state the lost-write
+      // path converged on.
+      _cancelledBountyIds.add(bounty.id);
+      if (db != null) {
+        _pendingTombstonesFor(db)[bounty.id] =
+            'Escrow spent tombstone — payout write wedged past '
+            '$_payoutWriteTimeout; the id is permanently un-payable '
+            'and un-refundable (${bounty.id})';
+        await _flushPendingReleaseTombstones();
+      }
+      bounty.isClaimed = true;
+      unawaited(_publishClaimEvent(bounty));
+      notifyListeners();
+      return true;
+    }
     if (paid <= 0.0) {
       await releaseOwnClaimRow();
       _claimedBountyIds.remove(bounty.id);
@@ -980,88 +1258,17 @@ class MoltbookService extends ChangeNotifier {
       return false;
     }
 
-    if (db != null) {
-      // Awaited payout durability (Review REV4): awardBountyEscrow writes
-      // its ledger row fire-and-forget — wait for that write to LAND
-      // before reporting a won claim, so a returned-true claim provably
-      // has its durable payout row persisted. Without this, a crash in
-      // the gap left a won-claim row with no payout — a state the
-      // crash-window reconciler would (correctly) treat as stranded.
-      //
-      // E-REV4b F6: the wait is BOUNDED — `settled` awaits every tracked
-      // write attempt, and a wedged write must not park a won claim
-      // forever holding the in-flight mark and the durable row.
-      var settled = false;
-      unawaited(_creditService.settled.then((_) => settled = true,
-          onError: (_) => settled = true));
-      final waitStart = DateTime.now();
-      var turns = 0;
-      while (!settled &&
-          turns < _maxPayoutSettleTurns &&
-          DateTime.now().difference(waitStart) < _maxPayoutSettleWait) {
-        await Future<void>.delayed(Duration.zero);
-        turns++;
-      }
-
-      // E-REV4b F2: `settled` only proves the write ATTEMPT ran —
-      // _persistWrite swallows errors — so durability is PROVEN by a
-      // direct primary-key probe of the deterministic payout row.
-      bool payoutLanded;
-      try {
-        payoutLanded = await db.hasCreditTransaction(
-            '$_bountyPayoutTxPrefix${bounty.id}');
-      } catch (_) {
-        // Cannot prove the write was lost — fail conservative: leave
-        // the durable claim row standing (it keeps gating re-claims)
-        // and release the in-flight mark so a later attempt re-verifies.
-        // The mint is already in-memory (awardBountyEscrow ran), so
-        // register the spent-tombstone as pending (RE-REV4b F): if the
-        // payout row truly never landed, the tombstone is the only
-        // durable record that this escrow was spent. Safe either way —
-        // a landed payout plus a tombstone is the F2-slow shape, which
-        // both dedup sets already treat as "dead, no re-pay, no refund".
-        _pendingTombstonesFor(db).add(bounty.id);
-        unawaited(_flushPendingReleaseTombstones());
-        _claimedBountyIds.remove(bounty.id);
-        return false;
-      }
-      if (!payoutLanded) {
-        // The escrow minted in-memory but its durable proof never
-        // landed: releasing the claim row and reporting failure would
-        // let a restart re-pay the same escrow (the E1 double-pay) —
-        // the restarted CreditService rebuilds _paidBountyIds from
-        // payout rows, of which there are none. Instead the id is
-        // permanently killed: the durable release-prefix tombstone
-        // repopulates _releasedEscrowIds on every future hydration, so
-        // awardBountyEscrow AND releaseEscrow both refuse this id
-        // forever — while the still-standing claim row gates every
-        // re-claim in the meantime. The claim reports WON: the mint
-        // did happen, and this state is now un-double-payable.
-        //
-        // RE-REV4b F: the tombstone write shares the same fallible insert
-        // path that just lost the payout row — a correlated failure
-        // here must not silently re-open the double-pay. The id is
-        // registered in [_pendingReleaseTombstones] FIRST so the write
-        // is retried at init and on every claimBounty entry — and by
-        // any service instance sharing this database handle — until it
-        // lands. [_cancelledBountyIds] additionally dead-marks the id
-        // for THIS process while the tombstone is still in flight.
-        _pendingTombstonesFor(db).add(bounty.id);
-        _cancelledBountyIds.add(bounty.id);
-        await _flushPendingReleaseTombstones();
-        bounty.isClaimed = true;
-        notifyListeners();
-        return true;
-      }
-    } else {
-      // No durable layer — nothing to prove; drain pending writes as
-      // before.
-      await _creditService.settled;
-    }
-
-    // Claim won: mark the STORED record (never reachable through the
-    // defensive copies activeBounties/postPreservationBounty hand out).
+    // Claim won AND payout provably durable (the durable CAS already
+    // committed `tx_bounty_payout_<id>`): mark the STORED record
+    // (never reachable through the defensive copies
+    // activeBounties/postPreservationBounty hand out).
     bounty.isClaimed = true;
+
+    // Emit the signed claim event so remote nodes (the poster above
+    // all) receive verifiable settlement evidence attributed to our
+    // signing key — the remote-transport caller the deferred milestone
+    // waited for. Best-effort: the local claim is already durable.
+    unawaited(_publishClaimEvent(bounty));
 
     notifyListeners();
     return true;
@@ -1074,22 +1281,21 @@ class MoltbookService extends ChangeNotifier {
   /// [CreditService.awardBountyEscrow] and
   /// [CreditService.releaseEscrow] across restarts — the durable half
   /// of the lost-payout-write fix (the in-memory half is the standing
-  /// claim row plus [_claimedBountyIds]).
+  /// claim row plus [_claimedBountyIds]) AND of the poster-side
+  /// remote-claim settlement (the payout rail).
   ///
   /// insertOrIgnore semantics: if a real release row already exists for
   /// the id the tombstone collapses onto it — both rows assert the same
   /// "this escrow is spent" invariant. Callers register the id in
   /// [_pendingReleaseTombstones] BEFORE invoking this so a throw leaves
-  /// the write retryable (RE-REV4b F).
+  /// the write retryable (RE-REV4b F). [description] is the operator-
+  /// readable settlement cause recorded on the row.
   Future<void> _writeEscrowSpentTombstone(
-      AppDatabase db, String bountyId) async {
+      AppDatabase db, String bountyId, String description) async {
     final txId = '$_escrowReleaseTxPrefix$bountyId';
     final now = DateTime.now();
     const type = CreditType.priorityAccessDebit;
     const amount = 0.0;
-    final description =
-        'Escrow spent tombstone — payout-row write was lost; the id '
-        'is permanently un-payable and un-refundable ($bountyId)';
     await db.insertCreditTransaction({
       'id': txId,
       'timestamp': now,
@@ -1109,10 +1315,10 @@ class MoltbookService extends ChangeNotifier {
     });
   }
 
-  /// The pending-tombstone set for [db] — shared across every
+  /// The pending-tombstone map for [db] — shared across every
   /// MoltbookService instance holding this database handle (RE-REV4b F).
-  Set<String> _pendingTombstonesFor(AppDatabase db) =>
-      _pendingReleaseTombstones[db] ??= <String>{};
+  Map<String, String> _pendingTombstonesFor(AppDatabase db) =>
+      _pendingReleaseTombstones[db] ??= <String, String>{};
 
   /// Attempts a durable `tx_escrow_release_<id>` tombstone for every id
   /// still pending on this database — called at service init
@@ -1125,9 +1331,9 @@ class MoltbookService extends ChangeNotifier {
     if (db == null) return;
     final pending = _pendingReleaseTombstones[db];
     if (pending == null || pending.isEmpty) return;
-    for (final id in List.of(pending)) {
+    for (final id in List.of(pending.keys)) {
       try {
-        await _writeEscrowSpentTombstone(db, id);
+        await _writeEscrowSpentTombstone(db, id, pending[id]!);
         pending.remove(id);
       } catch (_) {
         // Still pending — the next flush (init or claim entry) retries.
@@ -1135,8 +1341,9 @@ class MoltbookService extends ChangeNotifier {
     }
   }
 
-  /// Cancels a LOCALLY-posted, unclaimed bounty and releases its escrow
-  /// (Review REV4 / Safety 6c — pairs with CreditService.releaseEscrow).
+  /// Cancels a LOCALLY-posted, unclaimed bounty — delists it and
+  /// tombstones the id, but NEVER auto-releases its escrow (REV4 review /
+  /// Safety 6c — pairs with CreditService.releaseEscrow).
   ///
   /// Only bounties this node escrowed via [postPreservationBounty] can
   /// be cancelled — a FOREIGN bounty's escrow lives on someone else's
@@ -1149,27 +1356,39 @@ class MoltbookService extends ChangeNotifier {
   /// a settled-but-rowless claim must still not be refunded on top of a
   /// payout.
   ///
+  /// CROSS-LEDGER REFUND GUARD (round-1 red finding): every probe above
+  /// reads the POSTER's ledger only. The claim lifecycle is ledger-local
+  /// end-to-end — a REMOTE claimant's `claimed_bounties` CAS row and
+  /// `tx_bounty_payout_<id>` row live on the CLAIMANT's database,
+  /// invisible here. Since [postPreservationBounty] broadcasts the
+  /// announcement before the escrow debit, every escrowed id is an
+  /// announcement that already left this node — the poster can never
+  /// prove the escrow unclaimed, and refunding on top of a remote
+  /// payout mints unbacked supply. [CreditService.releaseEscrow] is
+  /// therefore NEVER invoked from this path — the settlement witness
+  /// now exists (verified remote claim events), and the evidence-
+  /// checked release path lives in [releaseBountyEscrow]: a verified
+  /// claim SETTLES the escrow (durable tombstone, never a refund) and
+  /// every other state stays refused. The hold
+  /// is NOT burned and the id stays in [_escrowedBountyIds]: the
+  /// durable hold row remains releasable through
+  /// [CreditService.releaseEscrow] for operator reconciliation.
+  ///
   /// Cancellation tombstone (E-REV4b F1): [_locallyPostedBountyIds] is
   /// NEVER cleared and [_cancelledBountyIds] gains the id — a
   /// re-announcement of a cancelled id can never re-arm it (the escrow
-  /// was refunded; paying it mints unbacked value).
+  /// is locked or already released; paying it mints unbacked value).
   ///
   /// Restart survival (RE-REV4b E1): [_locallyPostedBountyIds] and
   /// [_escrowedBountyIds] are rebuilt at init from durable
   /// `tx_escrow_hold_*` rows, so a locally-posted bounty remains
   /// cancellable after a restart even though the registry record is
   /// in-memory only and gone. A record-less cancel tombstones the id
-  /// and delists nothing — and deliberately does NOT auto-release the
-  /// escrow: [CreditService.releaseEscrow] fires only when a live
-  /// registry record was actually delisted AND a hold was tracked. The
-  /// registry and the
-  /// escrow set can disagree (a record can be evicted, or the hold can
-  /// outlive a rebuilt-but-absent record), and a record-less cancel is
-  /// the shape where a mistaken release refunds real escrow while the
-  /// "cancelled" bounty was never verifiably ours beyond the hold row.
-  /// The hold itself is never stranded: it remains releasable through
+  /// and delists nothing — it reports success because no release was
+  /// ever owed BY THIS PATH (the cross-ledger guard above refuses the
+  /// refund regardless; the durable hold remains releasable through
   /// [CreditService.releaseEscrow] on demand, and a double-refund is
-  /// impossible (the release dedup row covers it).
+  /// impossible — the release dedup row covers it).
   ///
   /// Concurrency (E-REV4b F3): NO positional index is carried across the
   /// durable awaits — the old code captured `index`, awaited
@@ -1180,15 +1399,21 @@ class MoltbookService extends ChangeNotifier {
   /// serializes on [_cancellingBountyIds]; removal is by id
   /// (`removeWhere`), never by position.
   ///
-  /// The registry entries are removed BEFORE the refund call so any
-  /// re-entrant claim or cancel observes the post-cancel state while
-  /// the release is in flight. Returns true iff the refund landed
-  /// (refund > 0) or no release was owed (no escrow tracked for the id,
-  /// or the record was already gone — the tombstone still committed);
-  /// a refused release returns false (the bounty stays delisted — the
-  /// ledger keeps the hold, which a future release path can still
-  /// reach).
+  /// The registry entries are removed BEFORE the refusal is reported so
+  /// any re-entrant claim or cancel observes the post-cancel state.
+  /// Returns true iff the cancel completed with no escrow refund owed
+  /// by this path (no registry record existed to delist, or no hold was
+  /// tracked — the tombstone still committed); false when a claim is
+  /// visible OR when a live record was delisted while a tracked escrow
+  /// hold remains — the cross-ledger refund guard refused it (the
+  /// bounty stays delisted and dead-marked — the ledger keeps the hold,
+  /// which [CreditService.releaseEscrow] can still reach for operator
+  /// reconciliation).
   Future<bool> cancelBounty(String bountyId) async {
+    // Canonical form first — same equivalence rule as ingest/claim: a
+    // caller spelling the id with decomposed marks must reach the same
+    // escrow/tombstone state.
+    bountyId = normalizeBountyId(bountyId);
     // The locally-posted set is hydrated from durable hold rows — await
     // that rebuild so a cancel issued immediately after construction
     // sees the restored state (RE-REV4b E1: the escrow hold outlives the
@@ -1200,6 +1425,13 @@ class MoltbookService extends ChangeNotifier {
     // A previously-cancelled id is dead forever — the second of two
     // cancels (or a replay after an exception) fails fast here.
     if (_cancelledBountyIds.contains(bountyId)) return false;
+    // Verified remote claim = settlement evidence (verified claim
+    // events milestone): a remote claimant proved possession of the
+    // claim under its signing key, so the escrow is spoken for. This
+    // check runs BEFORE the registry record check so a post-restart
+    // record-less id stays locked — refunding on top of a remote claim
+    // is the cross-ledger double-mint the guard exists to prevent.
+    if (_remoteClaimedBountyIds.contains(bountyId)) return false;
     // A CLAIMED record blocks cancellation. A locally-posted id with NO
     // registry record is a post-restart orphan — the registry is
     // in-memory only — and remains cancellable: the durable probes
@@ -1258,34 +1490,32 @@ class MoltbookService extends ChangeNotifier {
       // _locallyPostedBountyIds is deliberately NOT cleared — it
       // doubles as the cancellation tombstone (E-REV4b F1): ingest keeps
       // dropping re-announcements of the id and the self-claim guard
-      // keeps refusing local claims for the refunded escrow.
+      // keeps refusing local claims for the still-locked escrow.
       _cancelledBountyIds.add(bountyId);
       notifyListeners();
 
-      // releaseEscrow fires only for an escrow this registry can fully
-      // account for — a live record AND a tracked hold (RE-REV4b E1). For
-      // a post-restart orphan (hold row present, record gone) the
-      // durable hold is left standing rather than released blind: the
-      // id is dead, and CreditService.releaseEscrow can still refund
-      // the hold on demand, so nothing is stranded — while a
-      // double-refund or an escrow-record mismatch refund can never
-      // occur.
-      var releaseAttempted = false;
-      var refund = 0.0;
-      if (hadRecord && _escrowedBountyIds.remove(bountyId)) {
-        releaseAttempted = true;
-        // The escrow hold was keyed by the bounty id at post time, so
-        // the release is keyed the same way. releaseEscrow returns the
-        // refunded amount — 0.0 on refusal or when nothing is held.
-        refund = await _creditService.releaseEscrow(referenceId: bountyId);
+      // CROSS-LEDGER REFUND GUARD (round-1 red finding):
+      // [CreditService.releaseEscrow] is deliberately NEVER fired here —
+      // see the docstring. The claim state that would make the refund
+      // safe lives on the CLAIMANT's ledger, not ours, so every probe
+      // above can only ever see a local subset; refunding on top of a
+      // remote payout is a cross-ledger double-mint. The id stays in
+      // [_escrowedBountyIds] and the durable hold row keeps the escrow
+      // locked — the evidence-checked release path is
+      // [releaseBountyEscrow] (verified claim → settle; operator
+      // reconciliation → explicit refund). A record-less cancel (post-
+      // restart orphan) reports success: no release was ever owed by
+      // this path.
+      if (hadRecord && _escrowedBountyIds.contains(bountyId)) {
+        return false;
       }
-      return refund > 0 || !releaseAttempted;
+      return true;
     } finally {
       _cancellingBountyIds.remove(bountyId);
     }
   }
 
-  /// Verified-envelope seam for bounty announcements (Review REV4 /
+  /// Verified-envelope seam for bounty announcements (REV4 review /
   /// Evolution+Coherence): the transport-facing entry point wire callers
   /// funnel through once envelope delivery exists. Fails closed at every
   /// step:
@@ -1318,10 +1548,254 @@ class MoltbookService extends ChangeNotifier {
       return; // malformed payload — drop, never throw
     }
     if (!_sameAgentId(envelope.agentId, bounty.originAgentId)) return;
-    ingestBountyAnnouncement(bounty, escrowAttestation: escrowAttestation);
+
+    // Envelope-carried escrow attestation (the transport-caller seam):
+    // a poster may RELAY its attestor's signed attestation inside the
+    // announcement payload under `escrow_attestation`. Verifying it
+    // in-path is exactly the model — the attestation is a nested signed
+    // artifact, so relaying it cannot forge it. A caller-supplied
+    // attestation still takes precedence.
+    var attestation = escrowAttestation;
+    final rawAtt = envelope.payload['escrow_attestation'];
+    if (attestation == null && rawAtt is Map) {
+      final m = rawAtt.cast<String, dynamic>();
+      attestation = await EscrowAttestation.verify(
+        attestorPubkey: m['attestor_pubkey'] as String? ?? '',
+        bountyId: m['bounty_id'] as String? ?? '',
+        cid: m['cid'] as String? ?? '',
+        amountMilli: (m['amount_milli'] as num?)?.toInt() ?? 0,
+        expiresAt: (m['expires_at'] as num?)?.toInt() ?? 0,
+        signature: m['sig'] as String? ?? '',
+        verifyFn: EscrowAttestation.verifyEd25519,
+      );
+    }
+
+    // Origin attribution: envelope.verify() bound `agent_id` to the
+    // signing pubkey, and the check above bound `originAgentId` to that
+    // agent id — so a bounty id reaching the registry through THIS path
+    // is attributed to a real key. Raw ingestBountyAnnouncement records
+    // remain unattributed by construction (they carry no signature).
+    _addBounded(_verifiedOriginBountyIds, normalizeBountyId(bounty.id),
+        _maxVerifiedOriginIds);
+
+    ingestBountyAnnouncement(bounty, escrowAttestation: attestation);
   }
 
-  /// Startup reconciliation sweep (Review REV4): heals claim rows nobody
+  /// Ingests a signed bounty-claim event envelope — the poster-side
+  /// half of the remote-claim transport (deferred milestone:
+  /// "verified bounty claim events").
+  ///
+  /// Fail-closed chain:
+  ///  * `envelope.kind` must be [BountyClaimEvent.envelopeKind];
+  ///  * [BeaconEnvelope.verify] must pass (signature + agent-id↔pubkey
+  ///    derivation);
+  ///  * the payload must parse AND verify as a [BountyClaimEvent] —
+  ///    Ed25519 over the `alexandria:bounty-claim:v2:` preimage binding
+  ///    bountyId/cid/claimant agent/timestamp/nonce;
+  ///  * the event's attributed claimant must be the envelope's signer —
+  ///    agent id (canonical) AND pubkey (canonical via
+  ///    [WorkReceipt.samePubkey]) — a relayer cannot launder claims in
+  ///    another agent's name;
+  ///  * when a stored bounty record exists, the claim's cid must match —
+  ///    a claim signed over different content is evidence about a
+  ///    different escrow entirely.
+  ///
+  /// Effects of an accepted event: the id joins
+  /// [_remoteClaimedBountyIds] (settlement evidence — [cancelBounty]
+  /// refuses the id, closing the cross-ledger refund window the guard
+  /// documented), any stored record is marked claimed so the
+  /// listing/steward stop offering an already-claimed bounty, AND — for
+  /// ids THIS node escrowed — the poster-side payout rail settles the
+  /// escrow into the verified claim via [_settleEscrowToVerifiedClaim]
+  /// (durable spent tombstone; never a refund — a refund on top of the
+  /// claimant's already-minted payout is the cross-ledger double-mint).
+  ///
+  /// REMAINING SEAM (for the orchestrator): the settlement consumes the
+  /// hold via a moltbook-side `tx_escrow_release_<id>` tombstone row
+  /// written through [AppDatabase.insertCreditTransaction] (same
+  /// primitive the lost-payout path already uses). The clean
+  /// credits-domain form is a public
+  /// `CreditService.settleEscrow(referenceId)` that consumes a hold
+  /// into a zero-amount release row; `releaseEscrow` itself cannot
+  /// serve — it is a refund-to-poster primitive, and invoking it here
+  /// would double-mint.
+  Future<bool> ingestBountyClaimEnvelope(BeaconEnvelope envelope) async {
+    if (envelope.kind != BountyClaimEvent.envelopeKind) return false;
+    // The settlement below consults the locally-posted/escrowed sets,
+    // which hydrate from durable hold rows — await the rebuild so a
+    // claim event arriving during startup still settles the escrow.
+    await _localStateReady;
+    if (!await envelope.verify()) return false;
+    final event = await BountyClaimEvent.fromPayload(envelope.payload);
+    if (event == null) return false;
+    // Transport binding: the claim's attributed identity must be the
+    // envelope's signer — canonical on both the agent id and the raw
+    // pubkey (case/space-variant spellings of the same key material
+    // must not slip past, the same H1 class as _sameAgentId).
+    if (!_sameAgentId(event.claimantAgentId, envelope.agentId)) {
+      return false;
+    }
+    if (!WorkReceipt.samePubkey(event.claimantPubkey, envelope.pubkey)) {
+      return false;
+    }
+    final bountyId = normalizeBountyId(event.bountyId);
+
+    final index = _bounties.indexWhere((b) => b.id == bountyId);
+    if (index != -1 && _bounties[index].cid != event.cid) return false;
+
+    _remoteClaimedBountyIds.add(bountyId);
+    if (!_remoteClaims.containsKey(bountyId) &&
+        _remoteClaims.length >= _maxRemoteClaims) {
+      _remoteClaims.remove(_remoteClaims.keys.first);
+    }
+    _remoteClaims[bountyId] = event;
+
+    // POSTER-SIDE SETTLEMENT (cross-ledger payout rail): when the
+    // claimed id is one of OUR escrows, the verified claim event is the
+    // settlement witness the cross-ledger guard documented — the hold
+    // is released INTO the verified claim, durably consumed so neither
+    // a refund (releaseEscrow — would double-mint) nor a re-pay can
+    // ever touch it, and so the evidence survives restart (the
+    // in-memory _remoteClaimedBountyIds alone did not).
+    if (_locallyPostedBountyIds.contains(bountyId)) {
+      await _settleEscrowToVerifiedClaim(bountyId);
+    }
+
+    if (index != -1 && !_bounties[index].isClaimed) {
+      _bounties[index].isClaimed = true;
+      notifyListeners();
+    }
+    return true;
+  }
+
+  /// Settles a locally-escrowed bounty into a verified remote claim —
+  /// the poster-side half of the cross-ledger payout rail.
+  ///
+  /// The claimant's `tx_bounty_payout_<id>` mint already settled on the
+  /// CLAIMANT's ledger; the backing for it is OUR escrow hold, which
+  /// must now be provably spent forever. The durable
+  /// `tx_escrow_release_<id>` tombstone (amount 0 — a release row with
+  /// no refund) is that proof: [CreditService.releaseEscrow] refuses
+  /// released ids, [CreditService.awardBountyEscrow] refuses them, and
+  /// hydration rebuilds the released set from the release prefix, so
+  /// the settlement survives restarts and multi-instance stale views.
+  /// The write goes through the pending-tombstone queue so a fault
+  /// window that loses it is retried at init and on every claim entry.
+  ///
+  /// GRIEFING BOUND: a claimant can sign a claim event without having
+  /// minted — "settlement evidence" proves a signed claim, not the
+  /// remote ledger row (which is unverifiable here). A false claim
+  /// locks our escrow — but the cross-ledger guard already kept every
+  /// announced escrow locked, so the griefer spends a signature to buy
+  /// nothing new. Fail-safe direction, by design.
+  Future<void> _settleEscrowToVerifiedClaim(String bountyId) async {
+    // In-memory dead-mark, mirroring what the durable tombstone lands
+    // in _cancelledBountyIds at the next rebuild: a settled id is dead
+    // forever — never re-ingestible as funded, never re-claimable.
+    _cancelledBountyIds.add(bountyId);
+    final db = _db;
+    if (db == null) return; // in-memory mode: _remoteClaimedBountyIds is the record
+    _pendingTombstonesFor(db)[bountyId] =
+        'Escrow spent tombstone — released into verified remote claim; '
+        'the id is permanently un-payable and un-refundable ($bountyId)';
+    await _flushPendingReleaseTombstones();
+  }
+
+  /// The poster-side escrow-release rail: evaluates the verified
+  /// claim/settlement record for [bountyId] and releases the escrow
+  /// accordingly. This is the evidence-check + release authorization
+  /// the cross-ledger guard deferred to.
+  ///
+  /// Outcomes:
+  ///  * [BountyEscrowRelease.settledToVerifiedClaim] — a verified
+  ///    claim/settlement record exists (a verified remote claim event,
+  ///    or durable claim/payout rows on this ledger): the escrow is
+  ///    released INTO the claim — consumed via the spent tombstone,
+  ///    NEVER refunded (the claimant's payout already minted on its own
+  ///    ledger; refunding the backing hold is the round-1 cross-ledger
+  ///    double-mint). Escrow release REQUIRES the verified record —
+  ///    exactly what this branch enforces.
+  ///  * [BountyEscrowRelease.refunded] — ONLY via
+  ///    `operatorReconciliation: true`: no verified claim/settlement
+  ///    record exists AND the operator asserts out-of-band knowledge
+  ///    that the escrow was never claimed — the pre-rail semantics of
+  ///    calling `CreditService.releaseEscrow` directly, now routed
+  ///    through the evidence check first (a verified claim event makes
+  ///    this branch unreachable even with the flag). The residual the
+  ///    flag accepts: a remote claim whose evidence has not yet
+  ///    ARRIVED is invisible to every check here; the operator override
+  ///    is a manual act, never an automated path.
+  ///  * [BountyEscrowRelease.refusedUnproven] — no verified
+  ///    claim/settlement record and no operator override: an announced
+  ///    escrow can never prove it was not remotely claimed, so the
+  ///    refund stays refused (the guard stands).
+  ///  * [BountyEscrowRelease.refused] — not a locally escrowed id,
+  ///    already terminally released, a durable probe failed, or the
+  ///    refund attempt found nothing releasable.
+  Future<BountyEscrowRelease> releaseBountyEscrow(
+    String bountyId, {
+    bool operatorReconciliation = false,
+  }) async {
+    bountyId = normalizeBountyId(bountyId);
+    // The escrow/local-posted sets hydrate from durable hold rows —
+    // the release decision must see the restored state (RE-REV4b E1).
+    await _localStateReady;
+
+    // Only OUR escrows are ours to release — a foreign bounty's hold
+    // sits on the poster's ledger elsewhere.
+    if (!_locallyPostedBountyIds.contains(bountyId) ||
+        !_escrowedBountyIds.contains(bountyId)) {
+      return BountyEscrowRelease.refused;
+    }
+    // Already released (refunded or spent-tombstoned) — terminal.
+    if (_creditService.isEscrowReleased(bountyId)) {
+      return BountyEscrowRelease.refused;
+    }
+
+    // Verified claim/settlement record (in-memory evidence) → settle.
+    if (_remoteClaims.containsKey(bountyId) ||
+        _remoteClaimedBountyIds.contains(bountyId)) {
+      await _settleEscrowToVerifiedClaim(bountyId);
+      return BountyEscrowRelease.settledToVerifiedClaim;
+    }
+
+    // Durable settlement evidence: a claim row or payout row on OUR
+    // ledger means the escrow was already claimed locally or durably —
+    // settle it rather than refund on top.
+    final db = _db;
+    if (db != null) {
+      try {
+        if (await db.isBountyClaimed(bountyId) ||
+            await db.hasCreditTransaction(
+                '$_bountyPayoutTxPrefix$bountyId')) {
+          await _settleEscrowToVerifiedClaim(bountyId);
+          return BountyEscrowRelease.settledToVerifiedClaim;
+        }
+      } catch (_) {
+        // Cannot read the settlement state — fail closed.
+        return BountyEscrowRelease.refused;
+      }
+    }
+
+    // No verified claim/settlement record: for an announced escrow the
+    // unclaimed state is unprovable (remote claims settle on the
+    // claimant's ledger), so the refund requires an explicit operator
+    // reconciliation — the same manual semantics `releaseEscrow`
+    // already exposed, now behind the evidence check.
+    if (!operatorReconciliation) {
+      return BountyEscrowRelease.refusedUnproven;
+    }
+    final refunded =
+        await _creditService.releaseEscrow(referenceId: bountyId);
+    if (refunded <= 0) return BountyEscrowRelease.refused;
+    // A refunded id is dead forever — a re-announcement must never
+    // re-arm it (the release row is the durable half; this is the
+    // in-memory half, mirroring cancelBounty's tombstone).
+    _cancelledBountyIds.add(bountyId);
+    return BountyEscrowRelease.refunded;
+  }
+
+  /// Startup reconciliation sweep (REV4 review): heals claim rows nobody
   /// will ever retry. The in-[claimBounty] healer only runs when a claim
   /// is ATTEMPTED for that bounty — a row stranded by a crash between
   /// the CAS and the payout (or by a thrown release-delete) for a bounty
@@ -1461,9 +1935,12 @@ class MoltbookService extends ChangeNotifier {
   /// zero-width/invisible format characters, and free of ANY whitespace
   /// (edge OR interior).
   ///
-  /// Non-canonical ids are dropped at ingest and refused at post —
-  /// NEVER normalized — because raw `==` on the id is load-bearing in
-  /// `EscrowAttestation.bindsBounty` and the claim-row primary key.
+  /// Callers pass the [normalizeBountyId] form — canonical-equivalence
+  /// (composed vs decomposed spellings) is resolved by normalization at
+  /// the boundary, never by weakening this gate. What this gate rejects
+  /// stays rejected outright because the NFD-normalized id remains
+  /// load-bearing as a raw `==` key in `EscrowAttestation.bindsBounty`
+  /// and the claim-row primary key.
   ///
   /// E-REV4b F8 (invisible-id spoofing): the earlier gate only rejected
   /// C0+DEL, so an id like `a b` / `a​b` (interior NBSP / zero-width

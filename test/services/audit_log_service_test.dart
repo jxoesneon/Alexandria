@@ -122,7 +122,10 @@ void main() {
       final logs = await service.getRecentLogs(1);
       expect(logs.length, equals(1));
       expect(logs.single.actor, equals('fallback details'));
-      expect(logs.single.status, equals('Success'));
+      // Round-3: no master key was configured, so the entry was written
+      // 'nosig' and must surface as Unverified, never as a trusted
+      // Success line.
+      expect(logs.single.status, equals('Unverified'));
     });
 
     test('getRecentLogs marks unsigned four-part entries as Unverified',

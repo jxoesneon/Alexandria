@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -91,14 +93,20 @@ class _PeerDiscoveryScreenState extends ConsumerState<PeerDiscoveryScreen> {
     final mesh = ref.read(meshTransportServiceProvider);
     var peerId = _peerIdFromMultiaddr(multiaddr);
     peerId ??= const Uuid().v4();
+    // (round-3 red finding) the peer is registered as an UNPROVEN
+    // candidate — the service ignores any caller-supplied reachability.
+    // The actual dial below must complete the ALX-MESH handshake before
+    // the peer can carry traffic.
     mesh.registerPeer(
       MeshPeer(
         peerId: peerId,
         address: multiaddr,
         tier: TransportTier.webrtcDirect,
         latencyMs: 0,
+        isPending: true,
       ),
     );
+    unawaited(mesh.connectToPeer(multiaddr));
   }
 
   String? _peerIdFromMultiaddr(String multiaddr) {

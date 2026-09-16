@@ -31,11 +31,10 @@ void main() {
 
       final encrypted = await service.encryptData(data, key1);
 
-      // AES-GCM uses Poly1305 MAC, so wrong key triggers authentication failure
-      expect(
-        () async => await service.decryptData(encrypted, key2),
-        throwsException,
-      );
+      // AES-GCM authentication failure now surfaces as a null result
+      // (EncryptionService.decryptData contract) — a wrong key must
+      // never produce plaintext.
+      expect(await service.decryptData(encrypted, key2), isNull);
     });
   });
 }

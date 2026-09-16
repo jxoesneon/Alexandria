@@ -70,6 +70,14 @@ class IngestionPipelineManager extends StateNotifier<IngestionState> {
   final Ref _ref;
   final _uuid = const Uuid();
 
+  /// Per-file ingest ceiling — the same 512 MiB bound
+  /// AddContentScreen.maxFileBytes enforces (campaign-2 hardening).
+  /// This pipeline reads `file.path` off disk itself, so the picker's
+  /// declared size AND the materialized buffer are both checked before
+  /// the bytes are chunked or stored; an unbounded `readAsBytes` is a
+  /// memory-exhaustion primitive.
+  static const int maxIngestBytes = 512 * 1024 * 1024;
+
   Future<void> addFiles(List<PlatformFile> files) async {
     if (files.isEmpty) return;
 
@@ -112,6 +120,16 @@ class IngestionPipelineManager extends StateNotifier<IngestionState> {
             ));
 
     try {
+      // (campaign-2 hardening) bound the ingest BEFORE the byte buffer
+      // is touched — the picker's declared size is checked first so an
+      // oversized file is refused even when its bytes were never
+      // materialized; _readFileBytes re-checks the actual buffer.
+      if (file.size > maxIngestBytes) {
+        throw StateError(
+          'File exceeds the ${maxIngestBytes ~/ (1024 * 1024)} MiB '
+          'ingest limit',
+        );
+      }
       final bytes = await _readFileBytes(file);
       final fileWithBytes = PlatformFile(
         name: file.name,
@@ -172,13 +190,24 @@ class IngestionPipelineManager extends StateNotifier<IngestionState> {
   }
 
   Future<Uint8List> _readFileBytes(PlatformFile file) async {
+    Uint8List bytes;
     if (file.bytes != null && file.bytes!.isNotEmpty) {
-      return Uint8List.fromList(file.bytes!);
+      bytes = Uint8List.fromList(file.bytes!);
+    } else if (file.path != null && file.path!.isNotEmpty) {
+      bytes = await File(file.path!).readAsBytes();
+    } else {
+      // (campaign-2 hardening) previously returned an empty buffer,
+      // which ingested a phantom zero-byte manifest and reported the
+      // item "completed" — fail loudly instead.
+      throw StateError('No file data available (bytes not read)');
     }
-    if (file.path != null && file.path!.isNotEmpty) {
-      return File(file.path!).readAsBytes();
+    if (bytes.length > maxIngestBytes) {
+      throw StateError(
+        'File exceeds the ${maxIngestBytes ~/ (1024 * 1024)} MiB '
+        'ingest limit',
+      );
     }
-    return Uint8List(0);
+    return bytes;
   }
 
   void _updateItem(

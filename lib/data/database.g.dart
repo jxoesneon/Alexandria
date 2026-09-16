@@ -1831,9 +1831,33 @@ class $CreditTransactionsTable extends CreditTransactions
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_attested" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _attestedPubkeyMeta =
+      const VerificationMeta('attestedPubkey');
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, timestamp, type, amount, description, referenceId, hash, isAttested];
+  late final GeneratedColumn<String> attestedPubkey = GeneratedColumn<String>(
+      'attested_pubkey', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _burnedAttestedMeta =
+      const VerificationMeta('burnedAttested');
+  @override
+  late final GeneratedColumn<double> burnedAttested = GeneratedColumn<double>(
+      'burned_attested', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        timestamp,
+        type,
+        amount,
+        description,
+        referenceId,
+        hash,
+        isAttested,
+        attestedPubkey,
+        burnedAttested
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1893,6 +1917,18 @@ class $CreditTransactionsTable extends CreditTransactions
           isAttested.isAcceptableOrUnknown(
               data['is_attested']!, _isAttestedMeta));
     }
+    if (data.containsKey('attested_pubkey')) {
+      context.handle(
+          _attestedPubkeyMeta,
+          attestedPubkey.isAcceptableOrUnknown(
+              data['attested_pubkey']!, _attestedPubkeyMeta));
+    }
+    if (data.containsKey('burned_attested')) {
+      context.handle(
+          _burnedAttestedMeta,
+          burnedAttested.isAcceptableOrUnknown(
+              data['burned_attested']!, _burnedAttestedMeta));
+    }
     return context;
   }
 
@@ -1918,6 +1954,10 @@ class $CreditTransactionsTable extends CreditTransactions
           .read(DriftSqlType.string, data['${effectivePrefix}hash'])!,
       isAttested: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_attested'])!,
+      attestedPubkey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}attested_pubkey']),
+      burnedAttested: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}burned_attested'])!,
     );
   }
 
@@ -1937,6 +1977,8 @@ class CreditTransaction extends DataClass
   final String? referenceId;
   final String hash;
   final bool isAttested;
+  final String? attestedPubkey;
+  final double burnedAttested;
   const CreditTransaction(
       {required this.id,
       required this.timestamp,
@@ -1945,7 +1987,9 @@ class CreditTransaction extends DataClass
       required this.description,
       this.referenceId,
       required this.hash,
-      required this.isAttested});
+      required this.isAttested,
+      this.attestedPubkey,
+      required this.burnedAttested});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1959,6 +2003,10 @@ class CreditTransaction extends DataClass
     }
     map['hash'] = Variable<String>(hash);
     map['is_attested'] = Variable<bool>(isAttested);
+    if (!nullToAbsent || attestedPubkey != null) {
+      map['attested_pubkey'] = Variable<String>(attestedPubkey);
+    }
+    map['burned_attested'] = Variable<double>(burnedAttested);
     return map;
   }
 
@@ -1974,6 +2022,10 @@ class CreditTransaction extends DataClass
           : Value(referenceId),
       hash: Value(hash),
       isAttested: Value(isAttested),
+      attestedPubkey: attestedPubkey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(attestedPubkey),
+      burnedAttested: Value(burnedAttested),
     );
   }
 
@@ -1989,6 +2041,8 @@ class CreditTransaction extends DataClass
       referenceId: serializer.fromJson<String?>(json['referenceId']),
       hash: serializer.fromJson<String>(json['hash']),
       isAttested: serializer.fromJson<bool>(json['isAttested']),
+      attestedPubkey: serializer.fromJson<String?>(json['attestedPubkey']),
+      burnedAttested: serializer.fromJson<double>(json['burnedAttested']),
     );
   }
   @override
@@ -2003,6 +2057,8 @@ class CreditTransaction extends DataClass
       'referenceId': serializer.toJson<String?>(referenceId),
       'hash': serializer.toJson<String>(hash),
       'isAttested': serializer.toJson<bool>(isAttested),
+      'attestedPubkey': serializer.toJson<String?>(attestedPubkey),
+      'burnedAttested': serializer.toJson<double>(burnedAttested),
     };
   }
 
@@ -2014,7 +2070,9 @@ class CreditTransaction extends DataClass
           String? description,
           Value<String?> referenceId = const Value.absent(),
           String? hash,
-          bool? isAttested}) =>
+          bool? isAttested,
+          Value<String?> attestedPubkey = const Value.absent(),
+          double? burnedAttested}) =>
       CreditTransaction(
         id: id ?? this.id,
         timestamp: timestamp ?? this.timestamp,
@@ -2024,6 +2082,9 @@ class CreditTransaction extends DataClass
         referenceId: referenceId.present ? referenceId.value : this.referenceId,
         hash: hash ?? this.hash,
         isAttested: isAttested ?? this.isAttested,
+        attestedPubkey:
+            attestedPubkey.present ? attestedPubkey.value : this.attestedPubkey,
+        burnedAttested: burnedAttested ?? this.burnedAttested,
       );
   CreditTransaction copyWithCompanion(CreditTransactionsCompanion data) {
     return CreditTransaction(
@@ -2038,6 +2099,12 @@ class CreditTransaction extends DataClass
       hash: data.hash.present ? data.hash.value : this.hash,
       isAttested:
           data.isAttested.present ? data.isAttested.value : this.isAttested,
+      attestedPubkey: data.attestedPubkey.present
+          ? data.attestedPubkey.value
+          : this.attestedPubkey,
+      burnedAttested: data.burnedAttested.present
+          ? data.burnedAttested.value
+          : this.burnedAttested,
     );
   }
 
@@ -2051,14 +2118,16 @@ class CreditTransaction extends DataClass
           ..write('description: $description, ')
           ..write('referenceId: $referenceId, ')
           ..write('hash: $hash, ')
-          ..write('isAttested: $isAttested')
+          ..write('isAttested: $isAttested, ')
+          ..write('attestedPubkey: $attestedPubkey, ')
+          ..write('burnedAttested: $burnedAttested')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, timestamp, type, amount, description, referenceId, hash, isAttested);
+  int get hashCode => Object.hash(id, timestamp, type, amount, description,
+      referenceId, hash, isAttested, attestedPubkey, burnedAttested);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2070,7 +2139,9 @@ class CreditTransaction extends DataClass
           other.description == this.description &&
           other.referenceId == this.referenceId &&
           other.hash == this.hash &&
-          other.isAttested == this.isAttested);
+          other.isAttested == this.isAttested &&
+          other.attestedPubkey == this.attestedPubkey &&
+          other.burnedAttested == this.burnedAttested);
 }
 
 class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
@@ -2082,6 +2153,8 @@ class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
   final Value<String?> referenceId;
   final Value<String> hash;
   final Value<bool> isAttested;
+  final Value<String?> attestedPubkey;
+  final Value<double> burnedAttested;
   final Value<int> rowid;
   const CreditTransactionsCompanion({
     this.id = const Value.absent(),
@@ -2092,6 +2165,8 @@ class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
     this.referenceId = const Value.absent(),
     this.hash = const Value.absent(),
     this.isAttested = const Value.absent(),
+    this.attestedPubkey = const Value.absent(),
+    this.burnedAttested = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CreditTransactionsCompanion.insert({
@@ -2103,6 +2178,8 @@ class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
     this.referenceId = const Value.absent(),
     required String hash,
     this.isAttested = const Value.absent(),
+    this.attestedPubkey = const Value.absent(),
+    this.burnedAttested = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         timestamp = Value(timestamp),
@@ -2119,6 +2196,8 @@ class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
     Expression<String>? referenceId,
     Expression<String>? hash,
     Expression<bool>? isAttested,
+    Expression<String>? attestedPubkey,
+    Expression<double>? burnedAttested,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2130,6 +2209,8 @@ class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
       if (referenceId != null) 'reference_id': referenceId,
       if (hash != null) 'hash': hash,
       if (isAttested != null) 'is_attested': isAttested,
+      if (attestedPubkey != null) 'attested_pubkey': attestedPubkey,
+      if (burnedAttested != null) 'burned_attested': burnedAttested,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2143,6 +2224,8 @@ class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
       Value<String?>? referenceId,
       Value<String>? hash,
       Value<bool>? isAttested,
+      Value<String?>? attestedPubkey,
+      Value<double>? burnedAttested,
       Value<int>? rowid}) {
     return CreditTransactionsCompanion(
       id: id ?? this.id,
@@ -2153,6 +2236,8 @@ class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
       referenceId: referenceId ?? this.referenceId,
       hash: hash ?? this.hash,
       isAttested: isAttested ?? this.isAttested,
+      attestedPubkey: attestedPubkey ?? this.attestedPubkey,
+      burnedAttested: burnedAttested ?? this.burnedAttested,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2184,6 +2269,12 @@ class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
     if (isAttested.present) {
       map['is_attested'] = Variable<bool>(isAttested.value);
     }
+    if (attestedPubkey.present) {
+      map['attested_pubkey'] = Variable<String>(attestedPubkey.value);
+    }
+    if (burnedAttested.present) {
+      map['burned_attested'] = Variable<double>(burnedAttested.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2201,6 +2292,8 @@ class CreditTransactionsCompanion extends UpdateCompanion<CreditTransaction> {
           ..write('referenceId: $referenceId, ')
           ..write('hash: $hash, ')
           ..write('isAttested: $isAttested, ')
+          ..write('attestedPubkey: $attestedPubkey, ')
+          ..write('burnedAttested: $burnedAttested, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4872,6 +4965,8 @@ typedef $$CreditTransactionsTableCreateCompanionBuilder
   Value<String?> referenceId,
   required String hash,
   Value<bool> isAttested,
+  Value<String?> attestedPubkey,
+  Value<double> burnedAttested,
   Value<int> rowid,
 });
 typedef $$CreditTransactionsTableUpdateCompanionBuilder
@@ -4884,6 +4979,8 @@ typedef $$CreditTransactionsTableUpdateCompanionBuilder
   Value<String?> referenceId,
   Value<String> hash,
   Value<bool> isAttested,
+  Value<String?> attestedPubkey,
+  Value<double> burnedAttested,
   Value<int> rowid,
 });
 
@@ -4919,6 +5016,14 @@ class $$CreditTransactionsTableFilterComposer
 
   ColumnFilters<bool> get isAttested => $composableBuilder(
       column: $table.isAttested, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get attestedPubkey => $composableBuilder(
+      column: $table.attestedPubkey,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get burnedAttested => $composableBuilder(
+      column: $table.burnedAttested,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$CreditTransactionsTableOrderingComposer
@@ -4953,6 +5058,14 @@ class $$CreditTransactionsTableOrderingComposer
 
   ColumnOrderings<bool> get isAttested => $composableBuilder(
       column: $table.isAttested, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get attestedPubkey => $composableBuilder(
+      column: $table.attestedPubkey,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get burnedAttested => $composableBuilder(
+      column: $table.burnedAttested,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$CreditTransactionsTableAnnotationComposer
@@ -4987,6 +5100,12 @@ class $$CreditTransactionsTableAnnotationComposer
 
   GeneratedColumn<bool> get isAttested => $composableBuilder(
       column: $table.isAttested, builder: (column) => column);
+
+  GeneratedColumn<String> get attestedPubkey => $composableBuilder(
+      column: $table.attestedPubkey, builder: (column) => column);
+
+  GeneratedColumn<double> get burnedAttested => $composableBuilder(
+      column: $table.burnedAttested, builder: (column) => column);
 }
 
 class $$CreditTransactionsTableTableManager extends RootTableManager<
@@ -5025,6 +5144,8 @@ class $$CreditTransactionsTableTableManager extends RootTableManager<
             Value<String?> referenceId = const Value.absent(),
             Value<String> hash = const Value.absent(),
             Value<bool> isAttested = const Value.absent(),
+            Value<String?> attestedPubkey = const Value.absent(),
+            Value<double> burnedAttested = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               CreditTransactionsCompanion(
@@ -5036,6 +5157,8 @@ class $$CreditTransactionsTableTableManager extends RootTableManager<
             referenceId: referenceId,
             hash: hash,
             isAttested: isAttested,
+            attestedPubkey: attestedPubkey,
+            burnedAttested: burnedAttested,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -5047,6 +5170,8 @@ class $$CreditTransactionsTableTableManager extends RootTableManager<
             Value<String?> referenceId = const Value.absent(),
             required String hash,
             Value<bool> isAttested = const Value.absent(),
+            Value<String?> attestedPubkey = const Value.absent(),
+            Value<double> burnedAttested = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               CreditTransactionsCompanion.insert(
@@ -5058,6 +5183,8 @@ class $$CreditTransactionsTableTableManager extends RootTableManager<
             referenceId: referenceId,
             hash: hash,
             isAttested: isAttested,
+            attestedPubkey: attestedPubkey,
+            burnedAttested: burnedAttested,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

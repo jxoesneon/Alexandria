@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:crypto/crypto.dart';
 import '../services/identity_service.dart';
@@ -124,11 +125,15 @@ class LedgerEntry {
     this.crossSignatures = const [],
   });
 
+  /// The canonical byte string [signature] commits to — the exact
+  /// payload signed at [LedgerService.recordAction] time. Shared by the
+  /// write path and the import-time verifier so they cannot drift.
+  String get signedPayload =>
+      '$index|${timestamp.toIso8601String()}|${action.name}|$contentCid|${base64Encode(previousHash)}';
+
   /// Compute the hash of this entry for Merkle linking
   Uint8List computeHash() {
-    final data =
-        '$index|${timestamp.toIso8601String()}|${action.name}|$contentCid|${base64Encode(previousHash)}';
-    final digest = sha256.convert(utf8.encode(data));
+    final digest = sha256.convert(utf8.encode(signedPayload));
     return Uint8List.fromList(digest.bytes);
   }
 
@@ -224,21 +229,36 @@ class LedgerService {
     return _entries.last.computeHash();
   }
 
-  /// Record a new action in the ledger
-  Future<LedgerEntry> recordAction({
+  /// Record a new action in the ledger.
+  ///
+  /// (round-3 red finding) Enforces [ReputationWeights.dailyLimits] on
+  /// the WRITE path — `isWithinDailyLimit` used to be dead code and
+  /// reputation accrued without bound. Returns null when today's count
+  /// for [action] has already reached its configured limit.
+  Future<LedgerEntry?> recordAction({
     required LedgerActionType action,
     required String contentCid,
   }) async {
+    if (!isWithinDailyLimit(action)) {
+      return null;
+    }
+
     final timestamp = DateTime.now();
     final index = _entries.length;
     final previousHash = _previousHash;
 
-    // Create the entry data to sign
-    final data =
-        '$index|${timestamp.toIso8601String()}|${action.name}|$contentCid|${base64Encode(previousHash)}';
-    final dataBytes = Uint8List.fromList(utf8.encode(data));
+    // Sign the canonical entry payload — the same string an importer
+    // will verify (see [LedgerEntry.signedPayload]).
+    final entry0 = LedgerEntry(
+      index: index,
+      timestamp: timestamp,
+      action: action,
+      contentCid: contentCid,
+      previousHash: previousHash,
+      signature: Uint8List(0),
+    );
+    final dataBytes = Uint8List.fromList(utf8.encode(entry0.signedPayload));
 
-    // Sign the entry
     final signature = await _identityService.sign(dataBytes);
 
     final entry = LedgerEntry(
@@ -273,7 +293,16 @@ class LedgerService {
     return jsonEncode(_entries.map((e) => e.toJson()).toList());
   }
 
-  /// Import a ledger from JSON
+  /// Import a ledger from JSON.
+  ///
+  /// (round-3 red finding) Hash linkage alone is forgeable — computeHash
+  /// is deterministic sha256 over public fields, so a crafted chain used
+  /// to import cleanly and accrue real reputation. The ledger is the
+  /// PERSONAL honor chain of the local identity: every imported entry
+  /// must therefore carry an Ed25519 signature over
+  /// [LedgerEntry.signedPayload] that verifies against the current
+  /// identity's public key. Foreign chains and zero-filled signatures
+  /// are refused outright; a missing identity also fails closed.
   Future<bool> importFromJson(String json) async {
     try {
       final List<dynamic> decoded = jsonDecode(json) as List<dynamic>;
@@ -281,13 +310,30 @@ class LedgerService {
           .map((e) => LedgerEntry.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      // Verify the imported chain
+      // Verify the imported chain linkage.
       var expectedPreviousHash = genesisHash;
       for (final entry in importedEntries) {
         if (!entry.verifyChain(expectedPreviousHash)) {
           return false;
         }
         expectedPreviousHash = entry.computeHash();
+      }
+
+      // Verify every entry's signature against the local identity.
+      final identity = await _identityService.getIdentity();
+      if (identity == null) return false;
+      final ed25519 = Ed25519();
+      final publicKey = SimplePublicKey(
+        identity.publicKey,
+        type: KeyPairType.ed25519,
+      );
+      for (final entry in importedEntries) {
+        if (entry.signature.length != 64) return false;
+        final ok = await ed25519.verify(
+          utf8.encode(entry.signedPayload),
+          signature: Signature(entry.signature, publicKey: publicKey),
+        );
+        if (!ok) return false;
       }
 
       _entries.clear();

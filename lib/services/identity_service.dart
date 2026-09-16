@@ -742,6 +742,34 @@ class IdentityService {
     return Uint8List.fromList(digest.bytes);
   }
 
+  /// X25519 agreement private key derived from the stored Ed25519 seed
+  /// (SHA-512(seed)[0..32], libsodium sk_to_curve25519 semantics).
+  ///
+  /// This is the private input to EncryptionService.decryptFromPeer —
+  /// the node can open peer-addressed ECIES envelopes produced via
+  /// `encryptForPeer(data, publicKeyBase58)` without the Ed25519 signing
+  /// key ever leaving this service. Returns null when no identity exists.
+  /// (round-2 red finding: replaces the public sha256(pubkey) "key".)
+  Future<Uint8List?> x25519PrivateKeyBytes() async {
+    final identity = await getIdentity();
+    if (identity == null) return null;
+    final h = crypto.sha512.convert(identity.privateKey).bytes;
+    return Uint8List.fromList(h.sublist(0, 32));
+  }
+
+  /// The X25519 agreement public key (Montgomery u-coordinate) matching
+  /// [x25519PrivateKeyBytes] — the value a sender needs inside
+  /// EncryptionService.encryptForPeer. Peers normally arrive at it by
+  /// converting the Base58 Ed25519 [AlexandriaIdentity.publicKeyBase58].
+  Future<Uint8List?> x25519PublicKeyBytes() async {
+    final identity = await getIdentity();
+    if (identity == null) return null;
+    final seed = await x25519PrivateKeyBytes();
+    if (seed == null) return null;
+    final keyPair = await X25519().newKeyPairFromSeed(seed);
+    return Uint8List.fromList((await keyPair.extractPublicKey()).bytes);
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Helper methods
   // ─────────────────────────────────────────────────────────────────────────

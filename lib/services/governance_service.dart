@@ -66,13 +66,39 @@ class GovernanceVote {
   final DateTime timestamp;
   final String signature;
 
+  /// (round-3 red finding) Whether [weight] was derived from local
+  /// ledger state at cast time ([GovernanceService.vote]). A vote
+  /// deserialized from the wire carries `weightAttested = false` — its
+  /// declared weight and signature are self-asserted and never
+  /// load-bearing in resolution tallies.
+  ///
+  /// (round-4 red finding) Unforgeable by construction: the public
+  /// constructor IGNORES any `weightAttested` argument — only the
+  /// private [GovernanceVote._attested] constructor, reachable solely
+  /// from [GovernanceService.vote] in this library, mints attestation.
+  final bool weightAttested;
+
   GovernanceVote({
     required this.voterId,
     required this.weight,
     required this.approve,
     required this.timestamp,
     required this.signature,
-  });
+    // Ignored — see field doc. Retained for call-site compatibility.
+    bool weightAttested = false,
+  }) : weightAttested = false;
+
+  /// Private attested-vote constructor — only [GovernanceService.vote]
+  /// may mint attestation, after deriving weight from the ledger
+  /// (round-4 red finding, same fix as ConsensusService's attested
+  /// vote constructor).
+  GovernanceVote._attested({
+    required this.voterId,
+    required this.weight,
+    required this.approve,
+    required this.timestamp,
+    required this.signature,
+  }) : weightAttested = true;
 
   Map<String, dynamic> toJson() => {
         'voterId': voterId,
@@ -104,7 +130,18 @@ class Proposal {
   final DateTime created;
   final DateTime deadline;
   final List<GovernanceVote> votes;
-  ProposalStatus status;
+
+  /// (campaign-2 hardening) Was a public mutable field — the same
+  /// finding class as `ChangeRequest.status` (round-5): any holder of
+  /// a returned reference could write `status = approved`/`executed`
+  /// and the [GovernanceService.activeProposals] filter and
+  /// [GovernanceService.vote]
+  /// gate would honour the forged lifecycle state. Now private; the
+  /// only transition paths are [activate] and [resolve], which move
+  /// draft → active → {approved, rejected, expired} and
+  /// approved → executed — never backward and never terminal →
+  /// anything.
+  ProposalStatus _status;
   final String signature;
 
   Proposal({
@@ -117,11 +154,35 @@ class Proposal {
     required this.created,
     required this.deadline,
     List<GovernanceVote>? votes,
-    this.status = ProposalStatus.draft,
+    ProposalStatus status = ProposalStatus.draft,
     required this.signature,
-  }) : votes = votes != null ? List.from(votes) : [];
+  })  : votes = votes != null ? List.from(votes) : [],
+        _status = status;
 
-  /// Calculate total approval weight
+  /// Current lifecycle state (read-only to callers).
+  ProposalStatus get status => _status;
+
+  /// draft → active. A no-op from any other state.
+  void activate() {
+    if (_status == ProposalStatus.draft) _status = ProposalStatus.active;
+  }
+
+  /// Lifecycle transition: active may resolve to approved, rejected or
+  /// expired; approved may resolve to executed. Every other move —
+  /// terminal → anything, draft → terminal, backward transitions — is
+  /// a no-op rather than a rewrite of a decided outcome.
+  void resolve(ProposalStatus next) {
+    final allowed = (_status == ProposalStatus.active &&
+            (next == ProposalStatus.approved ||
+                next == ProposalStatus.rejected ||
+                next == ProposalStatus.expired)) ||
+        (_status == ProposalStatus.approved &&
+            next == ProposalStatus.executed);
+    if (allowed) _status = next;
+  }
+
+  /// Calculate total approval weight (raw view of declared weights —
+  /// display only; resolution uses the attested getters below).
   double get approvalWeight =>
       votes.where((v) => v.approve).fold(0.0, (sum, v) => sum + v.weight);
 
@@ -136,16 +197,53 @@ class Proposal {
   double get approvalPercentage =>
       totalVoteWeight > 0 ? approvalWeight / totalVoteWeight : 0;
 
-  /// Check if quorum is met
+  /// (round-3 red finding) attested tallies — only votes whose weight
+  /// was ledger-derived at cast time count toward resolution. A
+  /// serialized vote can declare any weight it likes; it tallies zero.
+  /// (round-4 red finding) deduplicated by [GovernanceVote.voterId] —
+  /// [votes] is a publicly mutable list, so a copied attested ballot
+  /// must never double-count.
+  double get attestedApprovalWeight => _attestedTally(approve: true);
+
+  double get attestedRejectionWeight => _attestedTally(approve: false);
+
+  double _attestedTally({required bool approve}) {
+    final seenVoters = <String>{};
+    var sum = 0.0;
+    for (final v in votes) {
+      if (v.approve != approve || !v.weightAttested) continue;
+      if (seenVoters.add(v.voterId)) sum += v.weight;
+    }
+    return sum;
+  }
+
+  double get attestedTotalVoteWeight =>
+      attestedApprovalWeight + attestedRejectionWeight;
+
+  /// Check if quorum is met (raw/declared view — display only).
   bool hasQuorum(double totalEligibleWeight) {
     final quorum = GovernanceConstants.quorumThresholds[type] ?? 0.25;
     return totalVoteWeight / totalEligibleWeight >= quorum;
   }
 
-  /// Check if proposal passes
+  /// Quorum check over ATTESTED weight only — used by resolution.
+  bool hasAttestedQuorum(double totalEligibleWeight) {
+    if (totalEligibleWeight <= 0) return false;
+    final quorum = GovernanceConstants.quorumThresholds[type] ?? 0.25;
+    return attestedTotalVoteWeight / totalEligibleWeight >= quorum;
+  }
+
+  /// Check if proposal passes (raw/declared view — display only).
   bool passes() {
     final threshold = GovernanceConstants.passThresholds[type] ?? 0.50;
     return approvalPercentage >= threshold;
+  }
+
+  /// Pass check over ATTESTED weight only — used by resolution.
+  bool attestedPasses() {
+    final threshold = GovernanceConstants.passThresholds[type] ?? 0.50;
+    final total = attestedTotalVoteWeight;
+    return total > 0 && attestedApprovalWeight / total >= threshold;
   }
 
   /// Check if deadline has passed
@@ -179,7 +277,11 @@ class Proposal {
               ?.map((v) => GovernanceVote.fromJson(v as Map<String, dynamic>))
               .toList() ??
           [],
-      status: ProposalStatus.values.firstWhere((s) => s.name == json['status']),
+      // (round-4 red finding) wire status is unverifiable — the same
+      // strip-unverifiable-fields rule as [GovernanceService.addProposal]
+      // and ChangeRequest.fromJson: a deserialized proposal re-enters
+      // as a draft rather than importing a claimed 'active'/'approved'.
+      status: ProposalStatus.draft,
       signature: json['signature'] as String,
     );
   }
@@ -341,7 +443,8 @@ class GovernanceService {
       return false;
     }
 
-    // Calculate vote weight based on reputation
+    // Calculate vote weight from ledger-attested reputation — never
+    // from a caller-supplied figure (round-3 red finding).
     final weight = _ledgerService.totalReputation;
 
     // Sign the vote
@@ -351,7 +454,7 @@ class GovernanceService {
       Uint8List.fromList(utf8.encode(data)),
     );
 
-    final vote = GovernanceVote(
+    final vote = GovernanceVote._attested(
       voterId: identity.publicKeyBase58,
       weight: weight,
       approve: approve,
@@ -367,25 +470,39 @@ class GovernanceService {
     return true;
   }
 
-  /// Check and resolve proposal status
+  /// Check and resolve proposal status.
+  ///
+  /// (round-3 red finding) the hardcoded `totalEligibleWeight = 1000.0`
+  /// is gone: resolution now runs over ATTESTED weight only, with the
+  /// eligible base set to the locally-attestable electorate — this
+  /// node's own ledger reputation, which must cover at least the
+  /// attested votes cast. Residual: the true remote electorate size is
+  /// unknowable until cross-signed vote attestations land in the
+  /// transport layer; unverifiable remote votes are already stripped at
+  /// ingest by [addProposal], so no remote claim can move a tally here.
   void _checkAndResolveProposal(Proposal proposal) {
-    // For now use a simplified total weight calculation
-    final totalEligibleWeight = 1000.0; // Would be sum of all eligible voters
+    if (!proposal.isExpired) return;
 
-    if (proposal.isExpired) {
-      if (proposal.hasQuorum(totalEligibleWeight) && proposal.passes()) {
-        proposal.status = ProposalStatus.approved;
-        _executeProposal(proposal);
-      } else {
-        proposal.status = ProposalStatus.rejected;
-      }
+    final localReputation = _ledgerService.totalReputation;
+    final totalEligibleWeight =
+        localReputation > proposal.attestedTotalVoteWeight
+            ? localReputation
+            : proposal.attestedTotalVoteWeight;
+
+    if (totalEligibleWeight > 0 &&
+        proposal.hasAttestedQuorum(totalEligibleWeight) &&
+        proposal.attestedPasses()) {
+      proposal.resolve(ProposalStatus.approved);
+      _executeProposal(proposal);
+    } else {
+      proposal.resolve(ProposalStatus.rejected);
     }
   }
 
   /// Execute an approved proposal
   void _executeProposal(Proposal proposal) {
     // Log execution
-    proposal.status = ProposalStatus.executed;
+    proposal.resolve(ProposalStatus.executed);
 
     // Proposal-type specific execution would go here
     switch (proposal.type) {

@@ -118,6 +118,17 @@ class ErasureCodingService {
     int m = 2,
   }) {
     if (k <= 0 || m <= 0) throw ArgumentError('k and m must be positive');
+    // GF(256) field tables have 256 entries: the Cauchy construction
+    // computes x^y for shard indices 0..k+m-1, so k+m > 255 overflows the
+    // log/exp tables mid-encode with a raw RangeError (round-2 red
+    // finding). Reject as ArgumentError BEFORE touching the matrix.
+    if (k + m > 255) {
+      throw ArgumentError(
+          'k + m ($k + $m) exceeds GF(256) capacity of 255 shards');
+    }
+    if (data.isEmpty) {
+      throw ArgumentError('Cannot erasure-encode an empty payload');
+    }
     final originalSize = data.length;
     final shardSize = (originalSize + k - 1) ~/ k;
     final dataShards = List.generate(k, (i) => Uint8List(shardSize));
@@ -177,8 +188,32 @@ class ErasureCodingService {
     required ErasureBlock block,
     required List<ErasureShard> availableShards,
   }) {
-    final validShards =
-        availableShards.where((s) => s.verifyChecksum()).toList();
+    // Validate wire-supplied block metadata BEFORE indexing with it
+    // (round-2 red finding): a forged shard index, a truncated shard
+    // payload, or an inflated originalSize must surface as a controlled
+    // StateError — never an uncaught RangeError mid-reconstruction.
+    if (block.k <= 0 || block.m < 0 || block.k + block.m > 255) {
+      throw StateError(
+          'Malformed erasure block parameters (k=${block.k}, m=${block.m})');
+    }
+    if (block.shardSize <= 0 || block.originalSize < 0 ||
+        block.originalSize > block.k * block.shardSize) {
+      throw StateError(
+          'Malformed erasure block sizes (originalSize=${block.originalSize}, '
+          'shardSize=${block.shardSize})');
+    }
+
+    final validShards = <ErasureShard>[];
+    final seenIndexes = <int>{};
+    for (final s in availableShards) {
+      // A checksum proves only self-consistency, never provenance:
+      // index range, uniqueness, and length are verified independently.
+      if (s.index < 0 || s.index >= block.k + block.m) continue;
+      if (!seenIndexes.add(s.index)) continue; // first claim wins
+      if (s.data.length != block.shardSize) continue;
+      if (!s.verifyChecksum()) continue;
+      validShards.add(s);
+    }
     if (validShards.length < block.k) {
       throw StateError(
           'Insufficient valid shards to decode. Required: ${block.k}, Available: ${validShards.length}');

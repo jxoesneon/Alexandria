@@ -58,7 +58,7 @@ void main() {
       expect(bareMap.containsKey('evidenceHash'), isFalse);
     });
 
-    test('wire format v2: integer milli-units, no floats in canonical body',
+    test('wire format v3: integer milli-units, no floats in canonical body',
         () {
       final r = buildReceipt(amount: 5.0);
       final body = r.unsignedBody();
@@ -66,8 +66,8 @@ void main() {
       // Scheme version pins the canonicalization contract — and it is the
       // receipt's OWN v, not just the build constant (ALX-012).
       expect(body['v'], equals(WorkReceipt.wireVersion));
-      expect(body['v'], equals(2));
-      expect(r.v, equals(2));
+      expect(body['v'], equals(3));
+      expect(r.v, equals(3));
 
       // Monetary fields travel as INTEGER milli-units so a JS verifier
       // recomputing the receipt id via RFC 8785 JCS never diverges on
@@ -81,7 +81,7 @@ void main() {
 
       // The canonical JSON itself must carry no fractional component.
       final json = r.canonicalJson();
-      expect(json, contains('"v":2'));
+      expect(json, contains('"v":3'));
       expect(json, contains('"amountMilli":5000'));
       expect(json, isNot(contains('.')));
 
@@ -96,7 +96,7 @@ void main() {
 
     test('toJson exposes the wire fields for foreign verifiers', () {
       final json = buildReceipt(amount: 5.0).toJson();
-      expect(json['v'], equals(2));
+      expect(json['v'], equals(3));
       expect(json['amount_milli'], equals(5000));
       expect(json['work_units_milli'], equals(4096000));
       // Display doubles remain alongside.
@@ -155,11 +155,11 @@ void main() {
       expect(await misattributed.verifyVerifierSignature(verifier), isFalse);
     });
 
-    test('v2 signing payload is domain-separated (ALX-012)', () {
+    test('v3 signing payload is domain-separated (ALX-012)', () {
       final r = buildReceipt();
-      // v>=2 preimage: 'alexandria:receipt:v2:' + canonical JSON.
+      // v>=2 preimage: 'alexandria:receipt:vN:' + canonical JSON.
       final expected =
-          utf8.encode('alexandria:receipt:v2:${r.canonicalJson()}');
+          utf8.encode('alexandria:receipt:v3:${r.canonicalJson()}');
       expect(r.signingPayload, equals(expected));
       // And it is provably NOT the bare canonical body.
       expect(r.signingPayload, isNot(equals(utf8.encode(r.canonicalJson()))));
@@ -292,11 +292,11 @@ void main() {
         expect(map.containsKey(key), isTrue, reason: 'missing key $key');
       }
       expect(map['chunkIndices'], isA<String>());
-      expect(map['v'], equals(2));
+      expect(map['v'], equals(3));
 
       final restored = WorkReceipt.fromDbMap(map);
       expect(restored.receiptId, equals(r.receiptId));
-      expect(restored.v, equals(2));
+      expect(restored.v, equals(3));
       expect(restored.chunkIndices, equals(r.chunkIndices));
       expect(restored.amount, equals(r.amount));
       expect(restored.verifierSig, equals(r.verifierSig));

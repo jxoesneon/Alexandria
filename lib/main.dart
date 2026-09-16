@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/scaffold/main_scaffold.dart';
 import 'services/ipfs_service.dart';
@@ -12,6 +13,13 @@ import 'providers/library_providers.dart';
 import 'providers/workspace_providers.dart';
 
 void main() {
+  // (round-6 red finding) Never fetch fonts at runtime: google_fonts'
+  // first-render download from fonts.gstatic.com uses a direct
+  // connection — bypassing Tor and leaking the real IP — and fails
+  // offline. Every family the UI references is bundled under
+  // assets/fonts/, so disabling runtime fetching loses nothing; any
+  // missing font now fails visibly instead of leaking.
+  GoogleFonts.config.allowRuntimeFetching = false;
   runApp(const ProviderScope(child: AlexandriaApp()));
 }
 

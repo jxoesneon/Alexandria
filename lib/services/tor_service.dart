@@ -26,8 +26,31 @@ class TorService {
   String get proxyHost => _proxyHost;
   int get proxyPort => _proxyPort;
 
+  /// Host grammar shared by [setProxy] and [init]: dotted IPv4,
+  /// bracketed IPv6, or DNS hostname. Anything else (spaces, `;`,
+  /// directives) could smuggle `findProxy` grammar — e.g. ` PROXY x
+  /// DIRECT` — into the proxy string.
+  static bool _isValidProxyHost(String h) {
+    return RegExp(
+      r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[[0-9a-fA-F:]+\]|[A-Za-z0-9]([A-Za-z0-9\-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]*[A-Za-z0-9])?)*)$',
+    ).hasMatch(h);
+  }
+
+  static bool _isValidProxyPort(int port) => port > 0 && port <= 65535;
+
   Future<void> setProxy(String host, int port) async {
-    _proxyHost = host.isNotEmpty ? host : '127.0.0.1';
+    // Validate host/port shape (red minor-observation hardening): a
+    // malformed host reaches Socket.connect and the proxy string
+    // verbatim — restrict to dotted IPv4, [IPv6], or DNS hostname shape,
+    // and a real port range.
+    final h = host.trim();
+    if (h.isEmpty || !_isValidProxyHost(h)) {
+      throw ArgumentError('Invalid Tor proxy host: $host');
+    }
+    if (!_isValidProxyPort(port)) {
+      throw ArgumentError('Invalid Tor proxy port: $port');
+    }
+    _proxyHost = h;
     _proxyPort = port;
     await _storage.write('tor_host', _proxyHost);
     await _storage.write('tor_port', _proxyPort.toString());
@@ -39,8 +62,16 @@ class TorService {
     final port = await _storage.read('tor_port');
 
     _isEnabled = enabled == 'true';
-    _proxyHost = host ?? '127.0.0.1';
-    _proxyPort = int.tryParse(port ?? '') ?? 9050;
+    // (slot-C sweep) Stored values bypass setProxy()'s grammar — a
+    // corrupt or tampered store could smuggle `findProxy` directives
+    // (spaces, ';', 'DIRECT') into the proxy string or feed garbage to
+    // Socket.connect. Re-validate on load and fail closed to the
+    // loopback defaults.
+    final h = host?.trim();
+    _proxyHost =
+        (h != null && h.isNotEmpty && _isValidProxyHost(h)) ? h : '127.0.0.1';
+    final p = int.tryParse(port ?? '');
+    _proxyPort = (p != null && _isValidProxyPort(p)) ? p : 9050;
 
     if (_isEnabled) {
       await enable();

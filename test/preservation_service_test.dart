@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:alexandria/services/ipfs_service.dart';
 import 'package:alexandria/services/preservation_service.dart';
 
 void main() {
@@ -26,7 +29,14 @@ void main() {
     });
 
     test('checks content health and heals pinned items', () async {
-      final health = await preservation.checkContentHealth('bafy_sample_test');
+      // healContent → IpfsService.pinCid now requires the block to be
+      // actually retrievable (round-2 fix — phantom pins are refused),
+      // so the test stores real content first.
+      final ipfs = container.read(ipfsServiceProvider);
+      final cid = await ipfs.addFile(
+          Uint8List.fromList('pinned preservation payload'.codeUnits));
+
+      final health = await preservation.checkContentHealth(cid);
       expect(
           health,
           isIn([
@@ -35,8 +45,11 @@ void main() {
             HealthStatus.lost
           ]));
 
-      final heal = await preservation.healContent('bafy_sample_test');
+      final heal = await preservation.healContent(cid);
       expect(heal, isTrue);
+
+      // A fabricated identifier must NOT heal — nothing to pin.
+      expect(await preservation.healContent('bafy_sample_test'), isFalse);
     });
   });
 }

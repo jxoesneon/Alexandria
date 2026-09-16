@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../../logic/content_repository.dart';
 import '../plugin_service.dart';
+import '../url_safety.dart';
 
 /// Structured metadata model for a scholarly work resolved via DOI.
 class DoiRecord {
@@ -409,31 +410,77 @@ class DoiResolver {
     return null;
   }
 
+  /// Hard cap on a single PDF download — a hostile or buggy endpoint
+  /// streaming unbounded bytes would otherwise exhaust node memory
+  /// (red minor-observation hardening).
+  static const int maxPdfBytes = 64 * 1024 * 1024; // 64 MiB
+
   /// Attempts to download PDF bytes for open-access papers.
+  /// Aborts and returns null once the response exceeds [maxPdfBytes].
+  ///
+  /// SSRF gate (round-3 red finding): `pdfUrl` is publisher/Crossref
+  /// metadata — attacker-influenced remote input. Before ANY connection
+  /// is opened the URL must pass [UrlSafety.requirePublicFetchUri]
+  /// (https-only, public host, DNS-checked). Redirects are followed
+  /// manually and re-gated per hop so a public landing page cannot 302
+  /// the fetch into private space.
   Future<Uint8List?> downloadPdf(String pdfUrl) async {
+    final initial = Uri.tryParse(pdfUrl);
+    if (initial == null) return null;
+    var uri = initial;
     try {
       final client = _customHttpClient ?? HttpClient();
       client.connectionTimeout = const Duration(seconds: 25);
-      final request = await client.getUrl(Uri.parse(pdfUrl));
-      request.headers.set('User-Agent', 'Mozilla/5.0 (compatible; Alexandria/1.0; +https://alexandria.pub)');
+      for (var hop = 0; hop <= UrlSafety.maxRedirectHops; hop++) {
+        await UrlSafety.requirePublicFetchUri(uri);
+        final request = await client.getUrl(uri);
+        // (round-3 red finding) never let the transport auto-follow —
+        // each Location target re-enters the SSRF gate above.
+        request.followRedirects = false;
+        request.headers.set('User-Agent', 'Mozilla/5.0 (compatible; Alexandria/1.0; +https://alexandria.pub)');
 
-      final response = await request.close();
-      if (response.statusCode == 200) {
-        final bytesBuilder = BytesBuilder();
-        await for (final chunk in response) {
-          bytesBuilder.add(chunk);
+        final response = await request.close();
+        final location = response.headers.value('location');
+        if (_isRedirect(response.statusCode) && location != null) {
+          final next = Uri.tryParse(location);
+          if (next == null) return null;
+          uri = uri.resolveUri(next);
+          continue;
         }
-        final data = bytesBuilder.toBytes();
-        // Verify PDF magic header %PDF
-        if (data.length > 4 && data[0] == 0x25 && data[1] == 0x50 && data[2] == 0x44 && data[3] == 0x46) {
-          return data;
+        if (response.statusCode == 200) {
+          final bytesBuilder = BytesBuilder();
+          var oversized = false;
+          await for (final chunk in response) {
+            if (bytesBuilder.length + chunk.length > maxPdfBytes) {
+              oversized = true;
+              break;
+            }
+            bytesBuilder.add(chunk);
+          }
+          if (oversized) {
+            debugPrint('PDF download aborted: exceeds $maxPdfBytes bytes ($pdfUrl)');
+            return null;
+          }
+          final data = bytesBuilder.toBytes();
+          // Verify PDF magic header %PDF
+          if (data.length > 4 && data[0] == 0x25 && data[1] == 0x50 && data[2] == 0x44 && data[3] == 0x46) {
+            return data;
+          }
         }
+        return null;
       }
     } catch (e) {
       debugPrint('PDF download failed for $pdfUrl: $e');
     }
     return null;
   }
+
+  static bool _isRedirect(int statusCode) =>
+      statusCode == 301 ||
+      statusCode == 302 ||
+      statusCode == 303 ||
+      statusCode == 307 ||
+      statusCode == 308;
 }
 
 /// The First Flagship Plugin: DOI Scientific Harvester.
@@ -576,6 +623,14 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
           dois = DoiResolver.extractDoisInText(rawInput);
         }
 
+        // Bound batch work: each entry costs network resolution plus a
+        // possible download — an unbounded list is a resource-exhaustion
+        // vector (red minor-observation hardening).
+        const maxBatchSize = 50;
+        if (dois.length > maxBatchSize) {
+          dois = dois.sublist(0, maxBatchSize);
+        }
+
         if (dois.isEmpty) {
           return PluginActionResult.error('No valid DOIs found in input.');
         }
@@ -620,6 +675,15 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
 
     try {
       final repository = context.read(contentRepositoryProvider);
+      // (round-3 red finding) a denied capability resolves to an inert
+      // object, not a ContentRepository — fail closed rather than
+      // operating on a capability shell.
+      if (repository is! ContentRepository) {
+        return {
+          'success': false,
+          'error': 'Plugin lacks content repository permission.',
+        };
+      }
 
       Uint8List fileBytes;
       String format = 'md';

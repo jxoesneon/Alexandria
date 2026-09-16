@@ -204,7 +204,7 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
     );
   }
 
-  // Step 0: Welcome & The Governance Review
+  // Step 0: Welcome & The Alexandria Core Team
   Widget _buildStep0Welcome() {
     return SingleChildScrollView(
       child: Column(
@@ -220,7 +220,7 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Alexandria is an immutable, peer-to-peer preservation network operating under the statutory non-profit safe harbor of 17 U.S.C. § 108, 17 U.S.C. § 512, and the Marrakesh Treaty. Governed under the Governance review board architectural standard.',
+            'Alexandria is an immutable, peer-to-peer preservation network operating under the statutory non-profit safe harbor of 17 U.S.C. § 108, 17 U.S.C. § 512, and the Marrakesh Treaty. Governed under the five-pillar governance architectural standard.',
             style: GoogleFonts.inter(fontSize: 13, height: 1.6, color: AppTheme.textColor),
           ),
           const SizedBox(height: 16),

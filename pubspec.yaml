@@ -64,3 +64,164 @@ dependency_overrides:
 flutter:
   uses-material-design: true
   generate: true
+  # (round-6 red finding) Bundled fonts: every google_fonts
+  # family/variant the UI uses is registered synchronously so
+  # GoogleFonts.config.allowRuntimeFetching=false (main.dart) can
+  # disable the runtime download from fonts.gstatic.com, which bypasses
+  # Tor (real-IP leak) and fails offline. Files are byte-identical to
+  # the SHA-256-pinned files google_fonts 6.3.3 would fetch. They are
+  # deliberately NOT named <Family>-<Variant>.ttf: google_fonts matches
+  # assets by that suffix and would async-load them via FontLoader —
+  # which swaps text metrics mid-frame (breaks widget tests) — whereas
+  # the google_fonts fontFamilyFallback resolves to these families
+  # synchronously at engine level.
+  fonts:
+    - family: Cinzel
+      fonts:
+        - asset: assets/fonts/cinzel_regular.ttf
+          weight: 400
+        - asset: assets/fonts/cinzel_medium.ttf
+          weight: 500
+        - asset: assets/fonts/cinzel_semibold.ttf
+          weight: 600
+        - asset: assets/fonts/cinzel_bold.ttf
+          weight: 700
+        - asset: assets/fonts/cinzel_extrabold.ttf
+          weight: 800
+        - asset: assets/fonts/cinzel_black.ttf
+          weight: 900
+    - family: FiraCode
+      fonts:
+        - asset: assets/fonts/firacode_light.ttf
+          weight: 300
+        - asset: assets/fonts/firacode_regular.ttf
+          weight: 400
+        - asset: assets/fonts/firacode_medium.ttf
+          weight: 500
+        - asset: assets/fonts/firacode_semibold.ttf
+          weight: 600
+        - asset: assets/fonts/firacode_bold.ttf
+          weight: 700
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/inter_thin.ttf
+          weight: 100
+        - asset: assets/fonts/inter_extralight.ttf
+          weight: 200
+        - asset: assets/fonts/inter_light.ttf
+          weight: 300
+        - asset: assets/fonts/inter_regular.ttf
+          weight: 400
+        - asset: assets/fonts/inter_medium.ttf
+          weight: 500
+        - asset: assets/fonts/inter_semibold.ttf
+          weight: 600
+        - asset: assets/fonts/inter_bold.ttf
+          weight: 700
+        - asset: assets/fonts/inter_extrabold.ttf
+          weight: 800
+        - asset: assets/fonts/inter_black.ttf
+          weight: 900
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/jetbrainsmono_thin.ttf
+          weight: 100
+        - asset: assets/fonts/jetbrainsmono_thinitalic.ttf
+          weight: 100
+          style: italic
+        - asset: assets/fonts/jetbrainsmono_extralight.ttf
+          weight: 200
+        - asset: assets/fonts/jetbrainsmono_extralightitalic.ttf
+          weight: 200
+          style: italic
+        - asset: assets/fonts/jetbrainsmono_light.ttf
+          weight: 300
+        - asset: assets/fonts/jetbrainsmono_lightitalic.ttf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/jetbrainsmono_regular.ttf
+          weight: 400
+        - asset: assets/fonts/jetbrainsmono_italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/jetbrainsmono_medium.ttf
+          weight: 500
+        - asset: assets/fonts/jetbrainsmono_mediumitalic.ttf
+          weight: 500
+          style: italic
+        - asset: assets/fonts/jetbrainsmono_semibold.ttf
+          weight: 600
+        - asset: assets/fonts/jetbrainsmono_semibolditalic.ttf
+          weight: 600
+          style: italic
+        - asset: assets/fonts/jetbrainsmono_bold.ttf
+          weight: 700
+        - asset: assets/fonts/jetbrainsmono_bolditalic.ttf
+          weight: 700
+          style: italic
+        - asset: assets/fonts/jetbrainsmono_extrabold.ttf
+          weight: 800
+        - asset: assets/fonts/jetbrainsmono_extrabolditalic.ttf
+          weight: 800
+          style: italic
+    - family: LibreBaskerville
+      fonts:
+        - asset: assets/fonts/librebaskerville_regular.ttf
+          weight: 400
+        - asset: assets/fonts/librebaskerville_italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/librebaskerville_bold.ttf
+          weight: 700
+    - family: Newsreader
+      fonts:
+        - asset: assets/fonts/newsreader_extralight.ttf
+          weight: 200
+        - asset: assets/fonts/newsreader_extralightitalic.ttf
+          weight: 200
+          style: italic
+        - asset: assets/fonts/newsreader_light.ttf
+          weight: 300
+        - asset: assets/fonts/newsreader_lightitalic.ttf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/newsreader_regular.ttf
+          weight: 400
+        - asset: assets/fonts/newsreader_italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/newsreader_medium.ttf
+          weight: 500
+        - asset: assets/fonts/newsreader_mediumitalic.ttf
+          weight: 500
+          style: italic
+        - asset: assets/fonts/newsreader_semibold.ttf
+          weight: 600
+        - asset: assets/fonts/newsreader_semibolditalic.ttf
+          weight: 600
+          style: italic
+        - asset: assets/fonts/newsreader_bold.ttf
+          weight: 700
+        - asset: assets/fonts/newsreader_bolditalic.ttf
+          weight: 700
+          style: italic
+        - asset: assets/fonts/newsreader_extrabold.ttf
+          weight: 800
+        - asset: assets/fonts/newsreader_extrabolditalic.ttf
+          weight: 800
+          style: italic
+    - family: Orbitron
+      fonts:
+        - asset: assets/fonts/orbitron_regular.ttf
+          weight: 400
+        - asset: assets/fonts/orbitron_medium.ttf
+          weight: 500
+        - asset: assets/fonts/orbitron_semibold.ttf
+          weight: 600
+        - asset: assets/fonts/orbitron_bold.ttf
+          weight: 700
+        - asset: assets/fonts/orbitron_extrabold.ttf
+          weight: 800
+        - asset: assets/fonts/orbitron_black.ttf
+          weight: 900
+

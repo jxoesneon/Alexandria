@@ -7,6 +7,7 @@ import 'credit_models.dart';
 import 'credit_service.dart';
 import 'cashu_mint_client.dart';
 import 'lnurl_service.dart';
+import '../url_safety.dart';
 
 /// Provider for CryptoBridgeService
 final cryptoBridgeServiceProvider =
@@ -113,7 +114,8 @@ class CashuToken {
         b64 += '=';
       }
       final jsonBytes = base64Url.decode(b64);
-      final jsonMap = jsonDecode(utf8.decode(jsonBytes)) as Map<String, dynamic>;
+      final jsonMap =
+          jsonDecode(utf8.decode(jsonBytes)) as Map<String, dynamic>;
 
       final tokenList = jsonMap['token'] as List<dynamic>;
       if (tokenList.isEmpty) return null;
@@ -165,18 +167,27 @@ class CryptoBridgeService extends ChangeNotifier {
 
   /// Runtime view of the compile-time kill switch [payoutsEnabled]. Control
   /// flow must read the gate through this getter so the analyzer does not
-  /// constant-fold the flag and flag the attested-balance invariant inside
-  /// [egressRejectionReason] as dead code while the feature is dark.
+  /// constant-fold the flag while the feature is dark.
   final bool? _overridePayoutsAllowed;
   bool get _payoutsAllowed => _overridePayoutsAllowed ?? payoutsEnabled;
 
   /// Returns a human-readable reason an egress of [credits] ℭ is barred, or
-  /// null when it may proceed. Only verifier-signed attested credits may ever
-  /// leave Alexandria (ALX-010); self-certified value stays internal-only.
+  /// null when the request is well-formed and the kill switch is open.
+  ///
+  /// This is an ADVISORY, request-level check — it is deliberately NOT the
+  /// attested-budget gate (round-1 red finding): a per-request
+  /// `requested <= attestedBalance` comparison here is only a rate limit,
+  /// because each approved call then settles through the debit path. The
+  /// CUMULATIVE budget lives in the debit itself — every egress path below
+  /// calls [CreditService.spendCredits] (or its durable variant) with
+  /// `isAttested: true`, which
+  /// refuses atomically once the attested pool is exhausted. Only
+  /// verifier-signed attested credit may ever leave Alexandria (ALX-010);
+  /// self-certified value stays internal-only.
   String? egressRejectionReason(double credits) {
     // Fail closed on non-finite / non-positive input BEFORE any comparison:
     // `NaN > x` is always false, so NaN and -Infinity would otherwise slip
-    // past the attested-balance check and crash later on
+    // past the checks and crash later on
     // `(credits * satsPerCredit).toInt()` (UnsupportedError outside the try
     // in sweepToLightningAddressLive).
     if (!credits.isFinite || credits <= 0) {
@@ -184,16 +195,6 @@ class CryptoBridgeService extends ChangeNotifier {
     }
     if (!_payoutsAllowed) {
       return payoutsDisabledReason;
-    }
-    // Invariant wired NOW behind the gate: when payouts eventually open, only
-    // verifier-signed attested credit may egress — never self-certified value.
-    // Contract: [CreditService.attestedBalance] must be NET of attested
-    // spending (attested debit transactions decrement it) — a gross sum would
-    // let the same attested credit egress twice. See credit_service.dart.
-    if (credits > _creditService.attestedBalance) {
-      return 'Only verifier-signed attested credits may egress (ALX-010): '
-          'requested ${credits.toStringAsFixed(1)} ℭ exceeds attested balance '
-          'of ${_creditService.attestedBalance.toStringAsFixed(1)} ℭ.';
     }
     return null;
   }
@@ -213,16 +214,33 @@ class CryptoBridgeService extends ChangeNotifier {
 
   String get lightningAddress => _lightningAddress;
   String get preferredCashuMint => _preferredCashuMint;
-  List<String> get exportedTokensHistory => List.unmodifiable(_exportedTokensHistory);
+  List<String> get exportedTokensHistory =>
+      List.unmodifiable(_exportedTokensHistory);
 
   void setLightningAddress(String address) {
     _lightningAddress = address.trim();
     notifyListeners();
   }
 
-  void setCashuMint(String mintUrl) {
-    _preferredCashuMint = mintUrl.trim();
+  /// Sets the preferred Cashu mint, gated through
+  /// [UrlSafety.requirePublicFetchUri] at set time (orchestrator seam —
+  /// the request-time gate in [CashuMintClient] already refuses private
+  /// targets, but a mint URL that can never pass the gate is dead config
+  /// and should be rejected where it is entered). `.onion` mints over
+  /// plain http are allowed, matching the client's fetch policy.
+  /// Returns true iff the URL was accepted.
+  Future<bool> setCashuMint(String mintUrl) async {
+    final trimmed = mintUrl.trim();
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null) return false;
+    try {
+      await UrlSafety.requirePublicFetchUri(uri, allowOnionHttp: true);
+    } on StateError {
+      return false;
+    }
+    _preferredCashuMint = trimmed;
     notifyListeners();
+    return true;
   }
 
   /// Validates a standard Lightning Address format (user@domain.com)
@@ -233,10 +251,19 @@ class CryptoBridgeService extends ChangeNotifier {
   }
 
   /// Exports a specified amount of Archival Credits into an anonymous Chaumian E-Cash bearer token
+  ///
+  /// OPTIMISTIC-RETURN SEMANTICS (kept synchronous for the existing
+  /// MCP/UI call sites — documented seam): the attested debit settles
+  /// through the write-behind path, so the returned bearer token can
+  /// precede the durable row by a settle window. The durable gate still
+  /// makes the over-spend non-canonical and rolls the local debit back,
+  /// but an emitted token cannot be recalled — new callers should use
+  /// [exportCreditsAsCashuTokenDurable], where a returned token
+  /// provably corresponds to a durably-committed debit.
   CashuToken? exportCreditsAsCashuToken(double creditsToExport) {
-    // ALX-010 service gate: no egress while payouts are disabled; when enabled,
-    // only attested (verifier-signed) credit may leave. Reason is available to
-    // callers via [egressRejectionReason]. Never debits when rejected.
+    // ALX-010 service gate: no egress while payouts are disabled. Reason is
+    // available to callers via [egressRejectionReason]. Never debits when
+    // rejected.
     if (egressRejectionReason(creditsToExport) != null) return null;
 
     if (creditsToExport <= 0 || _creditService.balance < creditsToExport) {
@@ -246,16 +273,60 @@ class CryptoBridgeService extends ChangeNotifier {
     final totalSats = (creditsToExport * satsPerCredit).toInt();
     if (totalSats <= 0) return null;
 
-    // Deduct from local wallet balance
+    // Deduct from local wallet balance — settled against the ATTESTED pool
+    // (isAttested: true): only foreign-verifier-backed value may ever leave
+    // the system, and the refusal lands atomically inside the debit so the
+    // cumulative attested budget can never be raced or re-read stale.
     final success = _creditService.spendCredits(
       amount: creditsToExport,
       reason: 'Exported to Chaumian E-Cash ($totalSats Sats)',
       debitType: CreditType.priorityAccessDebit,
+      isAttested: true,
     );
 
     if (!success) return null;
 
     // Deconstruct total sats into power-of-2 denominations (Cashu standard)
+    final proofs = _generateProofsForAmount(totalSats);
+    final token = CashuToken(
+      mint: _preferredCashuMint,
+      proofs: proofs,
+    );
+
+    final serialized = token.serialize();
+    _exportedTokensHistory.add(serialized);
+    notifyListeners();
+
+    return token;
+  }
+
+  /// DURABLE variant of [exportCreditsAsCashuToken] (optimistic-return
+  /// residual — the egress half of the closure): the attested debit is
+  /// committed through
+  /// [CreditService.spendCreditsDurable] BEFORE the bearer token is
+  /// assembled, so a non-null return provably corresponds to a
+  /// durably-committed debit — the token can never outrun its own
+  /// collateral.
+  Future<CashuToken?> exportCreditsAsCashuTokenDurable(
+      double creditsToExport) async {
+    if (egressRejectionReason(creditsToExport) != null) return null;
+
+    if (creditsToExport <= 0 || _creditService.balance < creditsToExport) {
+      return null;
+    }
+
+    final totalSats = (creditsToExport * satsPerCredit).toInt();
+    if (totalSats <= 0) return null;
+
+    final success = await _creditService.spendCreditsDurable(
+      amount: creditsToExport,
+      reason: 'Exported to Chaumian E-Cash ($totalSats Sats)',
+      debitType: CreditType.priorityAccessDebit,
+      isAttested: true,
+    );
+
+    if (!success) return null;
+
     final proofs = _generateProofsForAmount(totalSats);
     final token = CashuToken(
       mint: _preferredCashuMint,
@@ -292,6 +363,11 @@ class CryptoBridgeService extends ChangeNotifier {
   }
 
   /// Simulates a non-custodial Lightning payment sweep to the user's configured Lightning Address
+  ///
+  /// OPTIMISTIC-RETURN SEMANTICS — same seam as
+  /// [exportCreditsAsCashuToken]: the returned `true` precedes the
+  /// durable debit's settle. Prefer [sweepToLightningAddressDurable]
+  /// for `true ⇒ committed` semantics.
   bool sweepToLightningAddress({
     required double creditsToSweep,
     String? customAddress,
@@ -302,15 +378,53 @@ class CryptoBridgeService extends ChangeNotifier {
 
     final target = customAddress ?? _lightningAddress;
     if (!isValidLightningAddress(target)) return false;
-    if (creditsToSweep <= 0 || _creditService.balance < creditsToSweep) return false;
+    if (creditsToSweep <= 0 || _creditService.balance < creditsToSweep) {
+      return false;
+    }
 
     final sats = (creditsToSweep * satsPerCredit).toInt();
 
+    // Attested-pool debit (isAttested: true) — a simulated payout is still a
+    // ℭ→external-value path, so it draws on the same cumulative
+    // foreign-verifier budget as a real sweep.
     final success = _creditService.spendCredits(
       amount: creditsToSweep,
       reason: 'Lightning Payout to $target ($sats Sats)',
       referenceId: target,
       debitType: CreditType.priorityAccessDebit,
+      isAttested: true,
+    );
+
+    if (success) {
+      notifyListeners();
+    }
+    return success;
+  }
+
+  /// DURABLE variant of [sweepToLightningAddress] — the attested debit
+  /// is committed through [CreditService.spendCreditsDurable] before
+  /// `true` is returned (optimistic-return residual closure on the
+  /// egress paths).
+  Future<bool> sweepToLightningAddressDurable({
+    required double creditsToSweep,
+    String? customAddress,
+  }) async {
+    if (egressRejectionReason(creditsToSweep) != null) return false;
+
+    final target = customAddress ?? _lightningAddress;
+    if (!isValidLightningAddress(target)) return false;
+    if (creditsToSweep <= 0 || _creditService.balance < creditsToSweep) {
+      return false;
+    }
+
+    final sats = (creditsToSweep * satsPerCredit).toInt();
+
+    final success = await _creditService.spendCreditsDurable(
+      amount: creditsToSweep,
+      reason: 'Lightning Payout to $target ($sats Sats)',
+      referenceId: target,
+      debitType: CreditType.priorityAccessDebit,
+      isAttested: true,
     );
 
     if (success) {
@@ -383,14 +497,22 @@ class CryptoBridgeService extends ChangeNotifier {
       );
 
       if (meltResult.paid) {
-        // 5. Deduct credits on successful payment confirmation. The result is
-        // captured: sats already left on the wire, so a failed local debit is
-        // a reconciliation event — never report 'confirmed' on a stale ledger.
-        final debited = _creditService.spendCredits(
+        // 5. Deduct credits on successful payment confirmation — settled
+        // against the ATTESTED pool (isAttested: true): sats already left on
+        // the wire, so the cumulative foreign-verifier budget must be
+        // enforced by the debit itself, not a stale pre-flight read.
+        // DURABLE debit (optimistic-return residual — closed on the real
+        // egress path): spendCreditsDurable commits the ledger row
+        // through the durable attested-coverage gate BEFORE returning,
+        // so a 'confirmed' result provably corresponds to a
+        // durably-committed debit. A refusal is a reconciliation event —
+        // never report 'confirmed' on a stale ledger.
+        final debited = await _creditService.spendCreditsDurable(
           amount: creditsToSweep,
           reason: 'Live Lightning Payout to $target ($sats Sats)',
           referenceId: meltResult.paymentPreimage ?? invoice.pr,
           debitType: CreditType.priorityAccessDebit,
+          isAttested: true,
         );
 
         if (!debited) {

@@ -1,5 +1,5 @@
 // REV4b ADVERSARIAL EVALUATION — exploit tests attacking the just-landed
-// Review REV4 changes: the CAS-loss claim healer, the startup
+// REV4 review changes: the CAS-loss claim healer, the startup
 // claimed_bounties sweep, cancelBounty/releaseEscrow, the canonical
 // bounty-id gate, the bounded _bounties registry, the verified
 // ingestBountyEnvelope seam, the SecurityOverviewService PoR
@@ -50,7 +50,10 @@ final _gatedIpfsProvider = Provider<IpfsService>((ref) => _GatedIpfs(ref));
 /// The durable payout-row write is LOST (throws → swallowed by
 /// CreditService._persistWrite's catchError). Every other write lands.
 /// Models sqlite dropping exactly the row the crash-window reconciler
-/// treats as "claim durably settled" proof.
+/// treats as "claim durably settled" proof. BOTH write paths must be
+/// intercepted: deterministic-id rows (payout/release) persist through
+/// the insertCreditTransactionIfAbsent durable gate, everything else
+/// through plain insertCreditTransaction.
 class _PayoutWriteLostDb extends AppDatabase {
   @override
   Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
@@ -59,6 +62,16 @@ class _PayoutWriteLostDb extends AppDatabase {
       throw StateError('simulated payout-row write loss');
     }
     return super.insertCreditTransaction(data);
+  }
+
+  @override
+  Future<bool> insertCreditTransactionIfAbsent(
+      Map<String, dynamic> data) async {
+    final id = data['id'] as String?;
+    if (id != null && id.startsWith('tx_bounty_payout_')) {
+      throw StateError('simulated payout-row write loss');
+    }
+    return super.insertCreditTransactionIfAbsent(data);
   }
 }
 
@@ -73,6 +86,16 @@ class _PayoutWriteHangsDb extends AppDatabase {
       return Completer<void>().future; // never completes
     }
     return super.insertCreditTransaction(data);
+  }
+
+  @override
+  Future<bool> insertCreditTransactionIfAbsent(
+      Map<String, dynamic> data) {
+    final id = data['id'] as String?;
+    if (id != null && id.startsWith('tx_bounty_payout_')) {
+      return Completer<bool>().future; // never completes
+    }
+    return super.insertCreditTransactionIfAbsent(data);
   }
 }
 
@@ -227,11 +250,9 @@ Future<void> _pump([int n = 20]) async {
 void main() {
   // ═══════════════════ ITEM 1: CAS-loss healer ═══════════════════
   group('claimBounty CAS-loss healer', () {
-    test('E1: a returned-true claim does NOT always have a durable '
-        'payout row — the payout write is best-effort and swallowed. '
-        'After restart + row aging the healer DELETES the legitimately '
-        'paid claim row and the bounty pays AGAIN (double-pay)',
-        () async {
+    test('E1: a lost payout write refuses the claim CLOSED — the '
+        'durable-first CAS mints nothing, releases the claim row, and '
+        'leaves the bounty cleanly retryable', () async {
       final db = _PayoutWriteLostDb();
       addTearDown(db.close);
       final cs1 = CreditService(db: db, initialBalance: 100.0);
@@ -245,40 +266,30 @@ void main() {
           trustedAttestorPubkeys: {await _pubHex(attestor)});
       svc1.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
-      // Claim 1 "wins": balance minted, row stands, but the payout-row
-      // write was lost — `await settled` resolved anyway (catchError).
-      expect(await svc1.claimBounty(bounty.id), isTrue);
-      expect(cs1.balance, 125.0);
-      expect(await db.isBountyClaimed(bounty.id), isTrue);
-      // The promised durable proof does NOT exist.
+      // awardBountyEscrowDurable commits the payout row through the
+      // CAS BEFORE minting — the write throws, so the mutator fails
+      // closed (0.0, nothing mutated) and the claim refuses: no mint,
+      // no claim row, no tombstone (there is nothing to tombstone —
+      // the mint never happened). This replaces the old mint-first /
+      // probe-later path whose crash window needed the tombstone fix.
+      expect(await svc1.claimBounty(bounty.id), isFalse);
+      expect(cs1.balance, 100.0);
+      expect(await db.isBountyClaimed(bounty.id), isFalse,
+          reason: 'our claim row was released — the claim is retryable');
       expect(
           await db.hasCreditTransaction('tx_bounty_payout_${bounty.id}'),
+          isFalse);
+      expect(
+          await db
+              .hasCreditTransaction('tx_escrow_release_${bounty.id}'),
           isFalse,
-          reason: 'settled awaited the write ATTEMPT, not the LANDING');
+          reason: 'nothing minted → no spent tombstone is owed');
 
-      // Time passes (the claim row ages past the 15-min TTL), then a
-      // restart: fresh CreditService — its _paidBountyIds belt is empty
-      // because no payout row was ever persisted.
-      await db.deleteClaimedBounty(bounty.id);
-      await _insertClaimRow(db, bounty.id,
-          claimedAt: _ageMillis(const Duration(minutes: 20)));
-      final cs2 = CreditService(db: db, initialBalance: 0.0);
-      await cs2.ready;
-      expect(cs2.balance, 100.0); // ledger: genesis only
-      final svc2 = MoltbookService(
-          creditService: cs2,
-          db: db,
-          trustedAttestorPubkeys: {await _pubHex(attestor)});
-      svc2.ingestBountyAnnouncement(bounty, escrowAttestation: att);
-
-      // EXPLOIT: the healer reads "no payout row" as "stranded",
-      // deletes the paid claim's durable row, retries the CAS, wins,
-      // and pays the SAME escrow a second time.
-      final second = await svc2.claimBounty(bounty.id);
-      expect(second, isFalse,
-          reason: 'a settled-but-unpersisted payout must not re-pay');
-      expect(cs2.balance, 100.0,
-          reason: 'balance must not mint a second payout');
+      // A retry while the store still loses the write fails closed the
+      // same way — and the record is neither poisoned nor claimed.
+      expect(await svc1.claimBounty(bounty.id), isFalse);
+      expect(cs1.balance, 100.0);
+      expect(svc1.activeBounties.any((b) => b.id == bounty.id), isTrue);
     });
 
     test('E2: healer deletes a row owned by a LIVE >15min in-flight '
@@ -364,9 +375,10 @@ void main() {
       expect(cs.balance, 100.0);
     });
 
-    test('E4: a never-completing payout write hangs claimBounty '
-        'forever — the in-flight mark and the durable row are held '
-        'permanently, bricking the bounty for this process', () async {
+    test('E4: a never-completing payout write cannot park claimBounty '
+        'forever — the bounded wait expires into the '
+        'indeterminate-write path: spent tombstone, standing claim '
+        'row, dead id', () async {
       final db = _PayoutWriteHangsDb();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
@@ -376,21 +388,29 @@ void main() {
       final svc = MoltbookService(
           creditService: cs,
           db: db,
+          payoutWriteTimeout: const Duration(milliseconds: 50),
           trustedAttestorPubkeys: {await _pubHex(attestor)});
       svc.ingestBountyAnnouncement(bounty,
           escrowAttestation: await _attestBounty(attestor, bounty));
 
       var done = false;
       unawaited(svc.claimBounty(bounty.id).then((_) => done = true));
-      await _pump(30);
+      for (var i = 0; i < 100 && !done; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
       expect(done, isTrue,
           reason:
               'a hung ledger write must not park a won claim forever');
-      if (!done) {
-        // The hang leaves the bounty listed but unclaimable.
-        expect(await svc.claimBounty(bounty.id), isFalse);
-        expect(await db.isBountyClaimed(bounty.id), isTrue);
-      }
+      // The durable claim row stands as the settlement marker, the
+      // spent tombstone landed, and the id is dead to re-claims.
+      expect(await db.isBountyClaimed(bounty.id), isTrue);
+      expect(
+          await db
+              .hasCreditTransaction('tx_escrow_release_${bounty.id}'),
+          isTrue,
+          reason: 'the indeterminate write dead-marks the id — '
+              'un-payable and un-refundable either way it resolves');
+      expect(await svc.claimBounty(bounty.id), isFalse);
     });
 
     test('E5: stale-row delete throws → retry CAS loses → returns '
@@ -533,8 +553,10 @@ void main() {
       svc.ingestBountyAnnouncement(
           _foreignBounty(id: 'bounty_victim', cid: 'bafk_victim'));
       db.gate.complete();
-      expect(await cancel, isTrue);
-      expect(cs.balance, 100.0); // refund landed
+      expect(await cancel, isFalse,
+          reason: 'the cancel completes (delist + tombstone) but the '
+              'refund is refused by the cross-ledger guard');
+      expect(cs.balance, 75.0); // escrow stays locked, never refunded
 
       // Rotate the local key: the cancelled bounty is still listed
       // (the stale index removed a DIFFERENT record) but its
@@ -544,8 +566,8 @@ void main() {
       await svc.setKeyPair(await _newKey());
       final relClaim = await svc.claimBounty(posted.id);
       expect(relClaim, isFalse,
-          reason: 'released escrow paid out again = mint from nothing');
-      expect(cs.balance, 100.0);
+          reason: 'locked escrow paid out again = mint from nothing');
+      expect(cs.balance, 75.0);
       // Correct behavior: the cancelled record is gone, and ONLY it.
       expect(svc.activeBounties.any((b) => b.id == posted.id), isFalse,
           reason: 'the cancelled bounty should be delisted');
@@ -574,7 +596,9 @@ void main() {
       db.gate.complete();
       final r1 = await c1;
       final r2 = await c2;
-      expect(r1, isTrue);
+      expect(r1, isFalse,
+          reason: 'the winning cancel refuses the refund (cross-ledger '
+              'guard) — the announced escrow stays locked');
       expect(r2, isFalse,
           reason: 'a second concurrent cancel must not report success');
       // The second cancel's stale removeAt(0) evicted a seed bounty.
@@ -583,7 +607,7 @@ void main() {
               svc.activeBounties.any((b) => b.id == 'bounty_1002'),
           isTrue,
           reason: 'an unrelated bounty was silently delisted');
-      expect(cs.balance, 100.0); // exactly one refund either way
+      expect(cs.balance, 75.0); // no refund ever lands
     });
 
     test('E11: cancel → re-ingest same id (foreign origin, trusted '
@@ -606,8 +630,10 @@ void main() {
           offeredCredits: 25.0,
           force: true);
       expect(cs.balance, 75.0);
-      expect(await svc.cancelBounty(posted.id), isTrue);
-      expect(cs.balance, 100.0);
+      expect(await svc.cancelBounty(posted.id), isFalse,
+          reason: 'cancel tombstones + delists but refuses the refund — '
+              'the announced escrow stays locked (R1)');
+      expect(cs.balance, 75.0);
 
       // Any relayer re-announces the id with a foreign origin claim +
       // a trusted attestation binding id/cid/amount.
@@ -619,9 +645,9 @@ void main() {
 
       final claim = await svc.claimBounty(posted.id);
       expect(claim, isFalse,
-          reason: 'the escrow for this id was already refunded — '
+          reason: 'the escrow for this id stays locked — '
               'paying it mints unbacked value');
-      expect(cs.balance, 100.0);
+      expect(cs.balance, 75.0);
     });
 
     test('E12: fail-closed claim-state read — a throwing '
@@ -664,9 +690,10 @@ void main() {
           reason: 'locally-posted records are never eviction '
               'candidates — their escrow must stay reachable');
 
-      expect(await svc.cancelBounty(posted.id), isTrue);
-      expect(cs.balance, 100.0,
-          reason: 'the escrow hold is released back to the poster');
+      expect(await svc.cancelBounty(posted.id), isFalse,
+          reason: 'the escrow stays reachable — the cancel path delists '
+              'it, but the cross-ledger guard refuses the refund');
+      expect(cs.balance, 75.0);
     });
   });
 
@@ -731,10 +758,11 @@ void main() {
             id: 'uf_$i', cid: 'bafk_uf_$i', funded: false));
       }
       // Unfunded spam only evicts unfunded records — the funded local
-      // bounty survives and stays cancellable.
+      // bounty survives and stays reachable by the cancel path (which
+      // delists it while the cross-ledger guard refuses the refund).
       expect(svc.activeBounties.any((b) => b.id == posted.id), isTrue);
-      expect(await svc.cancelBounty(posted.id), isTrue);
-      expect(cs.balance, 100.0);
+      expect(await svc.cancelBounty(posted.id), isFalse);
+      expect(cs.balance, 75.0);
     });
   });
 

@@ -73,9 +73,7 @@ class _ProbeGateDb extends AppDatabase {
   @override
   Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
     final id = data['id'] as String?;
-    if (holdPayoutRows &&
-        id != null &&
-        id.startsWith('tx_bounty_payout_')) {
+    if (holdPayoutRows && id != null && id.startsWith('tx_bounty_payout_')) {
       await payoutGate.future;
     }
     return super.insertCreditTransaction(data);
@@ -119,10 +117,10 @@ void main() {
   }
 
   group('RE-A: releaseEscrow probe-window TOCTOU', () {
-    test('an awardBountyEscrow landing DURING the payout-probe await '
+    test(
+        'an awardBountyEscrow landing DURING the payout-probe await '
         'mints while the release still refunds — the in-memory '
-        '_paidBountyIds set is never re-checked after the await',
-        () async {
+        '_paidBountyIds set is never re-checked after the await', () async {
       final gdb = _ProbeGateDb();
       addTearDown(gdb.close);
       final s = svc(onDb: gdb);
@@ -142,8 +140,7 @@ void main() {
       // awardBountyEscrow is synchronous) runs while the release's
       // durable probe is parked. The award mints and enqueues its
       // payout row — which stays parked so the probe cannot see it.
-      expect(
-          s.awardBountyEscrow(amount: 20.0, bountyId: 'victim', cid: 'c'),
+      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'victim', cid: 'c'),
           20.0);
       expect(s.balance, 50.0); // 50 - 20 hold + 20 payout
 
@@ -168,14 +165,15 @@ void main() {
               'not +release(20) on top');
     });
 
-    test('control: an award that completed BEFORE the probe still '
+    test(
+        'control: an award that completed BEFORE the probe still '
         'refuses the release', () async {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
       s.debitEscrow(amount: 20.0, referenceId: 'ctl');
-      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'ctl', cid: 'c'),
-          20.0);
+      expect(
+          s.awardBountyEscrow(amount: 20.0, bountyId: 'ctl', cid: 'c'), 20.0);
       await s.settled;
       expect(await s.releaseEscrow(referenceId: 'ctl'), 0.0);
       expect(s.balance, 50.0);
@@ -183,7 +181,8 @@ void main() {
   });
 
   group('RE-B: hold-id seq reuse across restart', () {
-    test('a re-posted hold whose seq collides with a persisted row is '
+    test(
+        'a re-posted hold whose seq collides with a persisted row is '
         'insertOrIgnore-dropped — the durable ledger loses a real debit '
         'and releaseEscrow refunds BOTH in-memory holds', () async {
       // Model the post-restart collision deterministically: learn the
@@ -220,8 +219,8 @@ void main() {
       expect(s2.debitEscrow(amount: 20.0, referenceId: 'shared'), isTrue);
       await s2.settled;
       final holdRows = (await db.getCreditTransactions())
-          .where((r) =>
-              (r['id'] as String).startsWith('tx_escrow_hold_shared_'))
+          .where(
+              (r) => (r['id'] as String).startsWith('tx_escrow_hold_shared_'))
           .toList();
       expect(holdRows.length, 2,
           reason: 'two distinct debits of -20 must both persist — '
@@ -240,7 +239,8 @@ void main() {
               'mint created by a primary-key collision');
     });
 
-    test('a hold row written by a PRE-REV4a build (auto id + description '
+    test(
+        'a hold row written by a PRE-REV4a build (auto id + description '
         'marker, no hold-prefix id) is now unreleasable — upgrade '
         'strands existing escrow', () async {
       // Older debitEscrow wrote: id 'tx_<micros>_<len>', description
@@ -266,9 +266,9 @@ void main() {
   group('RE-C: delete-path pubkey history → claim refusal', () {
     final algorithm = Ed25519();
 
-    test('a key installed pre-feature, never read, then DELETED still '
-        'refuses its verifier-signed receipts after a fresh install',
-        () async {
+    test(
+        'a key installed pre-feature, never read, then DELETED still '
+        'refuses its verifier-signed receipts after a fresh install', () async {
       final keyA = await algorithm.newKeyPair();
       final keyB = await algorithm.newKeyPair();
       final pubA = bytesToHex((await keyA.extractPublicKey()).bytes);
@@ -279,8 +279,8 @@ void main() {
       await storage.write('alexandria_identity_private_key',
           bytesToHex(await keyA.extractPrivateKeyBytes()));
       await storage.write('alexandria_identity_public_key', pubA);
-      await storage.write('alexandria_identity_created',
-          DateTime.now().toIso8601String());
+      await storage.write(
+          'alexandria_identity_created', DateTime.now().toIso8601String());
 
       final identity = IdentityService(storage);
       addTearDown(identity.dispose);
@@ -288,8 +288,7 @@ void main() {
       await identity.deleteIdentity();
       await identity.importIdentity(
           Uint8List.fromList(await keyB.extractPrivateKeyBytes()));
-      expect(await identity.knownLocalPubkeyHexes(),
-          containsAll({pubA, pubB}));
+      expect(await identity.knownLocalPubkeyHexes(), containsAll({pubA, pubB}));
 
       // Receipt: prover = current key B, verifier = deleted key A.
       final unsigned = WorkReceipt.issue(
@@ -303,21 +302,23 @@ void main() {
         workUnits: 2048,
         amount: 25.0,
         epoch: WorkReceipt.epochFor(DateTime.now()),
-        expiresAt: DateTime.now()
-            .add(const Duration(hours: 1))
-            .millisecondsSinceEpoch,
+        expiresAt:
+            DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
       );
-      final vsig = await algorithm.sign(unsigned.signingPayload,
-          keyPair: keyA);
-      final receipt =
-          unsigned.withVerifierSig(base64Encode(vsig.bytes));
+      final vsig = await algorithm.sign(unsigned.signingPayload, keyPair: keyA);
+      var receipt = unsigned.withVerifierSig(base64Encode(vsig.bytes));
+      // v3 issuance acknowledgment — prover B counter-signs the ack
+      // domain (the claim is still refused on the self-issued guard).
+      if (receipt.v >= WorkReceipt.minAckWireVersion) {
+        final ack = await algorithm.sign(receipt.ackPayload, keyPair: keyB);
+        receipt = receipt.withProverSig(base64Encode(ack.bytes));
+      }
       await db.insertWorkReceipt(receipt.toDbMap());
 
-      Future<bool> verifier(
-          Uint8List msg, Uint8List sig, String pubHex) async {
+      Future<bool> verifier(Uint8List msg, Uint8List sig, String pubHex) async {
         try {
-          final pk = SimplePublicKey(hexToBytes(pubHex),
-              type: KeyPairType.ed25519);
+          final pk =
+              SimplePublicKey(hexToBytes(pubHex), type: KeyPairType.ed25519);
           return await algorithm.verify(msg,
               signature: Signature(sig, publicKey: pk));
         } catch (_) {
@@ -342,8 +343,7 @@ void main() {
       final claimSig = base64Encode(
           (await algorithm.sign(claimPreimage, keyPair: keyB)).bytes);
       expect(
-          await cs.claimVerifiedReceipt(receipt,
-              claimSignatureB64: claimSig),
+          await cs.claimVerifiedReceipt(receipt, claimSignatureB64: claimSig),
           0.0,
           reason: 'deleted-before-read key A signed this receipt — the '
               'delete-path history record must keep it self-issued');
@@ -351,7 +351,8 @@ void main() {
   });
 
   group('RE-D: non-finite ledger rows', () {
-    test('a hydrated hold row with amount -infinity cannot mint an '
+    test(
+        'a hydrated hold row with amount -infinity cannot mint an '
         'infinite refund', () async {
       await db.insertCreditTransaction(_txRow(
         id: 'tx_escrow_hold_inf_0',
@@ -368,7 +369,8 @@ void main() {
     });
   });
   group('RE-W: hydration-window-bound dedup + hold scan', () {
-    test('a payout/hold row older than the 100k hydration window is '
+    test(
+        'a payout/hold row older than the 100k hydration window is '
         'invisible to the dedup rebuild AND to the release hold scan — '
         'old paid ids re-mint, old holds strand', () async {
       // Seed an OLD paid escrow pair, then >window newer rows so both
@@ -413,6 +415,20 @@ void main() {
             referenceId: const Value('rel'),
           ),
         );
+        // A STALE but never-paid, never-released hold — the case the
+        // getEscrowHoldRows listing (RE-W closure) exists for.
+        b.insert(
+          db.creditTransactions,
+          CreditTransactionsCompanion.insert(
+            id: 'tx_escrow_hold_stale_0',
+            timestamp: DateTime.fromMillisecondsSinceEpoch(base + 3),
+            type: 'priorityAccessDebit',
+            amount: -7.5,
+            description: 'Bounty Escrow Hold (stale)',
+            hash: 'h_stale',
+            referenceId: const Value('stale'),
+          ),
+        );
       });
       // Fill past the 100k window with newer rows.
       const pad = 100005;
@@ -424,8 +440,7 @@ void main() {
               db.creditTransactions,
               CreditTransactionsCompanion.insert(
                 id: 'pad_$n',
-                timestamp:
-                    DateTime.fromMillisecondsSinceEpoch(base + 100 + n),
+                timestamp: DateTime.fromMillisecondsSinceEpoch(base + 100 + n),
                 type: 'computeReward',
                 amount: 0.0001,
                 description: 'pad $n',
@@ -439,16 +454,13 @@ void main() {
       final s = CreditService(db: db, initialBalance: 0.0);
       await s.ready;
       // Sanity: the window truncated (SUM fallback) — balance is the
-      // full-table sum: -20 +20 +15 + pads.
-      expect(s.balance, greaterThan(24.0));
+      // full-table sum: -20 +20 +15 -7.5 + pads.
+      expect(s.balance, greaterThan(17.0));
 
       // The durable payout row exists — a re-pay must refuse.
-      expect(
-          await db.hasCreditTransaction('tx_bounty_payout_old'), isTrue);
+      expect(await db.hasCreditTransaction('tx_bounty_payout_old'), isTrue);
       // …but the dedup rebuild only scans the hydrated window:
-      expect(
-          s.awardBountyEscrow(
-              amount: 20.0, bountyId: 'old', cid: 'cid_old'),
+      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'old', cid: 'cid_old'),
           0.0,
           reason: 'payout row is beyond the 100k window — refused '
               'because _paidBountyIds is rebuilt from the targeted '
@@ -463,7 +475,16 @@ void main() {
           reason: 'a paid bounty id must NEVER refund — the durable '
               'tx_bounty_payout_old row makes the release refuse; '
               'the stranded-hold bound is documented on releaseEscrow');
+      // RE-W CLOSED: the unpaid 'stale' hold lives beyond the replay
+      // window but IS reachable through getEscrowHoldRows — a stale
+      // cancel now refunds instead of stranding.
+      final before = s.balance;
+      expect(await s.releaseEscrow(referenceId: 'stale'), 7.5,
+          reason: 'the durable hold listing is window-independent — '
+              'the beyond-window hold must refund');
+      expect(s.balance, before + 7.5);
+      // And the release tombstone dedups a repeat attempt.
+      expect(await s.releaseEscrow(referenceId: 'stale'), 0.0);
     }, timeout: const Timeout(Duration(minutes: 3)));
   });
 }
-

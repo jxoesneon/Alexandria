@@ -62,7 +62,7 @@ class BuildInfo {
   final String? builtAt;
 
   /// Claimed client semver, injected via `--dart-define=ALX_CLIENT_VERSION`
-  /// (Review B3-lite, ALX-012). Advisory only: identical zero-trust-weight
+  /// (B3-lite review, ALX-012). Advisory only: identical zero-trust-weight
   /// semantics to every other `claimed_*` value — a forked client can claim
   /// any version string. Display and quarantine-heuristic use ONLY; it must
   /// never feed admission, rewards, or any gate.
@@ -123,7 +123,7 @@ class BuildInfo {
       };
 
   /// The narrowed subset of [claimedBuildInfo] safe to BROADCAST in
-  /// signed envelopes (Review REV3-D, Safety-narrowed): exact commit
+  /// signed envelopes (REV3-D review, Safety-narrowed): exact commit
   /// SHA, artifact digest and build timestamp let a peer scan the swarm
   /// for known-vulnerable builds and correlate `bcn_*` agent ids with
   /// developer commit activity — so only the low-entropy version,
