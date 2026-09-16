@@ -47,6 +47,4 @@ app.*.map.json
 # Golden test failure artifacts
 test/goldens/failures/
 
-.governance/
 .fastembed_cache/
-.gemini/
