@@ -430,7 +430,8 @@ void main() {
       expect(await db.hasAwardedDoi('10.1/race'), isTrue);
     });
 
-    test('claimed_bounties is a durable claim CAS with release (REV3)', () async {
+    test('claimed_bounties is a durable claim CAS with release (REV3)',
+        () async {
       expect(await db.isBountyClaimed('bounty_x'), isFalse);
 
       // First claim wins the PK compare-and-swap; replays lose it.
@@ -513,7 +514,8 @@ void main() {
       expect(at, lessThanOrEqualTo(after));
     });
 
-    test('getClaimedBountiesOlderThan returns only stale rows (REV4)', () async {
+    test('getClaimedBountiesOlderThan returns only stale rows (REV4)',
+        () async {
       final now = DateTime.now().millisecondsSinceEpoch;
       const fifteenMin = 15 * 60 * 1000;
       // Direct row inserts so claimedAt is caller-controlled.
