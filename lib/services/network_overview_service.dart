@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../models/network_models.dart';
 import 'ipfs_service.dart';
 import 'mesh_transport_service.dart';
+import 'rendezvous_service.dart';
 import 'secure_storage_service.dart';
 import 'sync_service.dart';
 import 'tor_service.dart';
@@ -42,6 +43,7 @@ class NetworkOverviewService {
   int _manualSyncTotal = 0;
 
   void dispose() {
+    _meshRetryTimer?.cancel();
     _nodeStatusController.close();
     _bandwidthController.close();
     _syncProgressController.close();
@@ -68,7 +70,9 @@ class NetworkOverviewService {
     final ipfs = _ref.read(ipfsServiceProvider);
     final mesh = _ref.read(meshTransportServiceProvider);
     final web = _ref.read(webNodeServiceProvider);
-    final connectedPeers = mesh.activePeers.length + web.connectedPeers.length;
+    final connectedPeers = mesh.activePeers.length +
+        web.connectedPeers.length +
+        ipfs.swarmPeerCount;
     return NodeStatus(
       isRunning: ipfs.isStarted,
       connectedPeers: connectedPeers,
@@ -90,12 +94,49 @@ class NetworkOverviewService {
 
   Future<void> startNode() async {
     final ipfs = _ref.read(ipfsServiceProvider);
+    final mesh = _ref.read(meshTransportServiceProvider);
     await ipfs.startNode();
+    // Outbound dials need no identity - bootstrap candidates and
+    // registered peers are dialed anonymously (responder-authenticated)
+    // right away.
+    unawaited(mesh.dialPending());
+    await _ensureListenerAndRendezvous();
     _emitNodeStatus();
+  }
+
+  // The inbound listener and rendezvous announce need a local identity
+  // to sign with. On first run none exists until onboarding creates
+  // one - so retry on a bounded cadence rather than leaving the node
+  // permanently outbound-only until restart.
+  Timer? _meshRetryTimer;
+  int _meshRetries = 0;
+  static const int _maxMeshRetries = 45; // ~15 min at 20s cadence
+
+  Future<void> _ensureListenerAndRendezvous() async {
+    final mesh = _ref.read(meshTransportServiceProvider);
+    try {
+      if (!mesh.isListening) await mesh.startListening();
+    } catch (_) {
+      // Bind failure - stays outbound-only; isListening reports truth.
+    }
+    if (mesh.isListening) {
+      _meshRetryTimer?.cancel();
+      unawaited(_ref.read(rendezvousServiceProvider).start());
+      return;
+    }
+    if (_meshRetries++ < _maxMeshRetries) {
+      _meshRetryTimer?.cancel();
+      _meshRetryTimer = Timer(const Duration(seconds: 20),
+          () => unawaited(_ensureListenerAndRendezvous()));
+    }
   }
 
   Future<void> stopNode() async {
     final ipfs = _ref.read(ipfsServiceProvider);
+    final mesh = _ref.read(meshTransportServiceProvider);
+    _meshRetryTimer?.cancel();
+    await _ref.read(rendezvousServiceProvider).stop();
+    await mesh.stopListening();
     await ipfs.stopNode();
     _emitNodeStatus();
   }

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/scaffold/main_scaffold.dart';
-import 'services/ipfs_service.dart';
+import 'services/network_overview_service.dart';
 import 'services/preservation_service.dart';
 import 'services/web_node_service.dart';
 import 'data/database.dart';
@@ -35,7 +35,9 @@ class _AlexandriaAppState extends ConsumerState<AlexandriaApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(ipfsServiceProvider).startNode();
+      // Full node start: IPFS engine + mesh listener + bootstrap
+      // auto-dial + rendezvous announce (see NetworkOverviewService).
+      await ref.read(networkOverviewServiceProvider).startNode();
       await ref.read(webNodeServiceProvider).initializeWebNode();
       ref.read(preservationServiceProvider).startBackgroundPreservation();
 

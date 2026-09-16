@@ -93,6 +93,10 @@ class BiometricService {
       return canAuth || await _auth.isDeviceSupported();
     } on PlatformException {
       return false;
+    } on MissingPluginException {
+      // local_auth has no Linux implementation - the channel is absent
+      // entirely, which is unavailability, not an error.
+      return false;
     }
   }
 
@@ -119,6 +123,8 @@ class BiometricService {
       }
       return authenticated;
     } on PlatformException {
+      return false;
+    } on MissingPluginException {
       return false;
     }
   }
@@ -154,6 +160,8 @@ class BiometricService {
       final mac = _tokenMac(key, voterKey, changeId, approve, issuedAt, nonce);
       return '$_tokenPrefix.$issuedAt.$nonce.$mac';
     } on PlatformException {
+      return null;
+    } on MissingPluginException {
       return null;
     }
   }

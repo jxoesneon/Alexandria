@@ -96,6 +96,23 @@ class FakeMeshTransportService extends MeshTransportService {
   final List<MeshPeer> _peers = [];
   final _peerListController = StreamController<List<MeshPeer>>.broadcast();
 
+  // Network-touching seams stay inert in tests - no real binds or dials.
+  @override
+  Future<int> startListening({int port = 0, int preferredPort = 4401}) async =>
+      0;
+
+  @override
+  Future<void> stopListening() async {}
+
+  @override
+  int? get listenPort => null;
+
+  @override
+  bool get isListening => false;
+
+  @override
+  Future<int> dialPending({int concurrency = 8, int maxDials = 32}) async => 0;
+
   @override
   List<MeshPeer> get activePeers => _peers.where((p) => p.isReachable).toList();
 

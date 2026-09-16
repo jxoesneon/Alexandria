@@ -285,26 +285,26 @@ packages:
     dependency: "direct main"
     description:
       name: dart_ipfs
-      sha256: "56031fe97bc2ab3df91e2b329bfdb01622e0d722315a0cc9f0218975e1f9fca7"
+      sha256: da20d10c4616b7bf7453e07064b65507e0e62327e8936dd6fd1b899000d23708
       url: "https://pub.dev"
     source: hosted
-    version: "1.12.0"
+    version: "1.14.1"
   dart_ipfs_core:
     dependency: transitive
     description:
       name: dart_ipfs_core
-      sha256: "6af55ef9e221e774d4795e30d8f5be0bf476cc3090ad4ca67366524bf3895d4a"
+      sha256: "2f70af338f40bc6e9ecca97037f6b6c064e66dcf6f02aca1a054b355a005d1e7"
       url: "https://pub.dev"
     source: hosted
-    version: "1.11.5"
+    version: "1.11.6"
   dart_ipfs_quic:
     dependency: transitive
     description:
       name: dart_ipfs_quic
-      sha256: f4cc407c6b58a86081e17d17a4bf9f9e04436abac18c96b1be76f577e956a1f0
+      sha256: fd01bdfe92c2f5dee18a0d524505440307802b615697fd6751f067e61a8ed2ce
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.0"
+    version: "0.2.1"
   dart_lz4:
     dependency: transitive
     description:

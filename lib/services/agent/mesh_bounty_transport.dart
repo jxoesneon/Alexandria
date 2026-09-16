@@ -14,11 +14,12 @@ import 'bounty_claim_event.dart';
 /// `seq ‖ payload ‖ HMAC-SHA256(channelKey, …)` under a key derived
 /// from the ALX-MESH/1 ephemeral-X25519 handshake, and inbound frames
 /// are MAC-verified and replay-checked by `receiveFrame` before
-/// release. `IpfsService.publishToPubsub` is a loopback stub that
-/// echoes to its own controller with `sender: 'self'` - binding a
-/// transport to it would deliver envelopes only to ourselves, which is
-/// strictly less real than InMemoryBountyTransport. When dart_ipfs
-/// gains a real pubsub backend this class can be swapped at the seam.
+/// release. `IpfsService.publishToPubsub` delegates to the real
+/// dart_ipfs gossipsub backend when the engine is networked, and falls
+/// back to a local loopback controller in offline mode - envelopes
+/// published in offline mode still reach only ourselves, which is no
+/// more real than InMemoryBountyTransport, so callers should check
+/// `IpfsService.isNetworked` when delivery guarantees matter.
 ///
 /// WIRE FORMAT: each outbound envelope is one mesh frame payload -
 /// `utf8(jsonEncode(envelope.toJson()))`. Inbound payloads are decoded

@@ -222,6 +222,12 @@ class MeshTransportService {
     TransportTier.circuitRelay,
   };
 
+  /// Inbound listener state: the TCP server that answers HELLOs with
+  /// [serveHandshake] and binds admitted sessions to [_channels].
+  ServerSocket? _listener;
+  StreamSubscription<Socket>? _listenerSub;
+  int? _listenPort;
+
   /// Reachability prover used by [connectToPeer]. Defaults to a real
   /// TCP connect + signed protocol exchange against `/…/tcp/<port>`
   /// multiaddrs (see [_defaultSessionProbe]); injectable so tests can
@@ -1027,15 +1033,20 @@ class MeshTransportService {
   /// this attach is impossible - the ticket's broadcast stream pauses
   /// the underlying socket while it has no listeners.
   void _attachSocket(
-      String peerId, _MeshChannel channel, MeshHandshakeTicket ticket) {
+      String peerId, _MeshChannel channel, MeshHandshakeTicket ticket,
+      [String? boundAddress]) {
     final socket = ticket.socket;
     final stream = ticket.socketStream;
     if (socket == null || stream == null) return;
+    // For inbound-admitted peers the ticket's multiaddr is the address
+    // the DIALER claimed to dial (ours) - the address recorded on the
+    // peer row is the honest key for round-6 demotion matching.
+    final multiaddr = boundAddress ?? ticket.multiaddr;
     channel.socket = socket;
     channel.socketSub = stream.listen(
-      (chunk) => _onSocketChunk(peerId, channel, ticket.multiaddr, chunk),
-      onError: (_) => _handleSocketGone(peerId, channel, ticket.multiaddr),
-      onDone: () => _handleSocketGone(peerId, channel, ticket.multiaddr),
+      (chunk) => _onSocketChunk(peerId, channel, multiaddr, chunk),
+      onError: (_) => _handleSocketGone(peerId, channel, multiaddr),
+      onDone: () => _handleSocketGone(peerId, channel, multiaddr),
       cancelOnError: true,
     );
   }
@@ -1146,6 +1157,159 @@ class MeshTransportService {
     yield* _peerListController.stream;
   }
 
+  // --- Inbound listener ---
+
+  /// The TCP port the inbound listener is bound to; null when not
+  /// listening.
+  int? get listenPort => _listenPort;
+
+  bool get isListening => _listener != null;
+
+  /// Opens the inbound listener: peers that complete a mutual
+  /// ALX-MESH/1 handshake toward us are admitted as proven
+  /// `isReachable` peers with a bound channel, symmetric to a
+  /// successful [connectToPeer] dial.
+  ///
+  /// [port] 0 picks an ephemeral port. When [preferredPort] is taken,
+  /// the bind falls back to ephemeral rather than failing the node
+  /// start - [listenPort] always reports the truth. Returns the bound
+  /// port.
+  ///
+  /// Requires identity material: without a self-certifying local
+  /// peerId + signer the responder cannot produce the signed ACK the
+  /// protocol demands, so the listen attempt fails closed (returns 0)
+  /// rather than answering unauthenticated.
+  Future<int> startListening({int port = 0, int preferredPort = 4401}) async {
+    final existing = _listener;
+    if (existing != null) return _listenPort ?? existing.port;
+    final localId = await _resolveLocalPeerId();
+    final signer = identitySigner;
+    if (localId == null || localId.isEmpty || signer == null) {
+      return 0; // no credentials to answer handshakes with
+    }
+    ServerSocket server;
+    try {
+      server = await ServerSocket.bind(
+          InternetAddress.anyIPv6, port == 0 ? preferredPort : port,
+          shared: true);
+    } on SocketException {
+      // Preferred port taken, or an IPv4-only host - fall back.
+      try {
+        server =
+            await ServerSocket.bind(InternetAddress.anyIPv4, 0, shared: true);
+      } on SocketException {
+        server =
+            await ServerSocket.bind(InternetAddress.anyIPv6, 0, shared: true);
+      }
+    }
+    _listener = server;
+    _listenPort = server.port;
+    _listenerSub = server.listen(
+      (socket) => unawaited(_acceptInbound(socket, localId, signer)),
+      onError: (_) {},
+    );
+    return server.port;
+  }
+
+  Future<void> stopListening() async {
+    await _listenerSub?.cancel();
+    _listenerSub = null;
+    final server = _listener;
+    _listener = null;
+    _listenPort = null;
+    await server?.close();
+  }
+
+  /// Per-connection accept path: run the responder handshake, and on a
+  /// bound session admit the verified dialer as a proven peer.
+  Future<void> _acceptInbound(Socket socket, String localId,
+      Future<Uint8List> Function(Uint8List) signer) async {
+    MeshHandshakeTicket? bound;
+    bool served;
+    try {
+      served = await serveHandshake(
+        socket,
+        localId,
+        identitySigner: signer,
+        onSessionBound: (t) => bound = t,
+      );
+    } catch (_) {
+      served = false;
+    }
+    final ticket = bound;
+    if (!served || ticket == null) {
+      socket.destroy();
+      return;
+    }
+    _admitInbound(ticket, socket);
+  }
+
+  /// Installs a responder-side channel for a completed inbound mutual
+  /// handshake. The remote identity is [MeshHandshakeTicket.dialerPeerId]
+  /// - self-certifying and already signature-verified by
+  /// [serveHandshake]. Anonymous inbound dials carry no bindable
+  /// identity: their ACK was still served (they verified US), but no
+  /// peer record or channel is installed - there is nothing to
+  /// attribute traffic to.
+  ///
+  /// The recorded address prefers a previously known dialable
+  /// multiaddr; otherwise it stores the observed socket endpoint, which
+  /// is honest about being the live connection's source (possibly an
+  /// ephemeral port), not a discovered listen address.
+  void _admitInbound(MeshHandshakeTicket ticket, Socket socket) {
+    final remoteId = ticket.dialerPeerId;
+    if (remoteId.isEmpty || _peerIdPublicKey(remoteId) == null) {
+      socket.destroy();
+      return;
+    }
+    final observed = '/ip4/${socket.remoteAddress.address}'
+        '/tcp/${socket.remotePort}/p2p/$remoteId';
+    final existing = _peers[remoteId];
+    final address = (existing != null && existing.address.isNotEmpty)
+        ? existing.address
+        : observed;
+    _peers[remoteId] = MeshPeer(
+      peerId: remoteId,
+      address: address,
+      tier: existing?.tier ?? TransportTier.webrtcDirect,
+      latencyMs: existing?.latencyMs ?? 0,
+      isReachable: true,
+      isPending: false,
+    );
+    // Same write-back discipline as the dialer path: a previous channel
+    // for this peerId is dropped first so stale sessions cannot shadow
+    // the fresh handshake's binding.
+    _dropChannel(remoteId);
+    final channel = _MeshChannel(
+      deriveSessionKey(ticket),
+      responderSide: true,
+      transcriptBound: ticket.transcriptBound,
+    );
+    _channels[remoteId] = channel;
+    _attachSocket(remoteId, channel, ticket, address);
+    _emitPeerList();
+  }
+
+  /// Dials every pending, unproven peer (bootstrap candidates and
+  /// discovery-registered addresses). Bounded concurrency, honest
+  /// results: failed dials stay pending, self is never dialed.
+  /// Returns the number of peers that completed a handshake.
+  Future<int> dialPending({int concurrency = 8, int maxDials = 32}) async {
+    final localId = await _resolveLocalPeerId();
+    final targets = _peers.values
+        .where((p) => p.isPending && !p.isReachable && p.peerId != localId)
+        .take(maxDials)
+        .map((p) => p.address)
+        .toList();
+    var succeeded = 0;
+    for (var i = 0; i < targets.length; i += concurrency) {
+      final results = await Future.wait(
+          targets.skip(i).take(concurrency).map(connectToPeer));
+      succeeded += results.where((r) => r).length;
+    }
+    return succeeded;
+  }
+
   Future<bool> connectToPeer(String multiaddr) async {
     final peerId = _peerIdFromMultiaddr(multiaddr);
     if (peerId == null || peerId.isEmpty) return false;
@@ -1254,6 +1418,11 @@ class MeshTransportService {
     }
   }
 
+  /// Public form of the `/p2p/` extractor - discovery layers
+  /// (rendezvous) validate announced addresses against it.
+  static String? peerIdFromMultiaddr(String multiaddr) =>
+      _peerIdFromMultiaddrStatic(multiaddr);
+
   String? _peerIdFromMultiaddr(String multiaddr) =>
       _peerIdFromMultiaddrStatic(multiaddr);
 
@@ -1269,6 +1438,7 @@ class MeshTransportService {
   }
 
   void dispose() {
+    unawaited(stopListening());
     for (final peerId in _channels.keys.toList()) {
       _dropChannel(peerId);
     }
