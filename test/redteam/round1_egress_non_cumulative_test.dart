@@ -39,7 +39,8 @@ Map<String, dynamic> _txRow({
     };
 
 void main() {
-  test('egress gate is cumulative: total exported must never exceed the '
+  test(
+      'egress gate is cumulative: total exported must never exceed the '
       'attested balance', () async {
     final db = AppDatabase();
     addTearDown(db.close);
@@ -63,8 +64,8 @@ void main() {
 
     // The test-only override exercises the flag-on code path the gate
     // will run once payouts open.
-    final bridge = CryptoBridgeService(
-        creditService: cs, overridePayoutsAllowed: true);
+    final bridge =
+        CryptoBridgeService(creditService: cs, overridePayoutsAllowed: true);
 
     var exported = 0.0;
     // Attacker drains the wallet in attested-sized chunks. Every call
@@ -106,8 +107,8 @@ void main() {
     ));
     final cs = CreditService(db: db, initialBalance: 0.0);
     await cs.ready;
-    final bridge = CryptoBridgeService(
-        creditService: cs, overridePayoutsAllowed: true);
+    final bridge =
+        CryptoBridgeService(creditService: cs, overridePayoutsAllowed: true);
 
     // The *simulated* sweep debits real credits for a pretend payment —
     // the same spend path, the same gate. Loop 5-ℭ sweeps.

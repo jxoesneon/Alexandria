@@ -559,8 +559,7 @@ class MetadataScrubbingService {
   static bool _jpegSegmentCarriesEmbeddedMetadata(
       Uint8List bytes, int fillStart, int markerStart, int segEnd) {
     for (var p = fillStart; p + 1 < segEnd; p++) {
-      if (bytes[p] == 0xFF &&
-          _isJpegReaderLandingPad(bytes, p, segEnd)) {
+      if (bytes[p] == 0xFF && _isJpegReaderLandingPad(bytes, p, segEnd)) {
         return true;
       }
     }
@@ -766,15 +765,18 @@ class MetadataScrubbingService {
         // unchanged; the output remains a valid JFIF APP0.
         if (_isJfifApp0(bytes, i, segLen)) {
           final app0 = Uint8List.fromList(<int>[
-            0xFF, 0xE0, 0x00, 0x10,
+            0xFF,
+            0xE0,
+            0x00,
+            0x10,
             ...bytes.sublist(i + 4, i + 16),
-            0x00, 0x00,
+            0x00,
+            0x00,
           ]);
           // (round-10 red finding) the version/units/density bytes are
           // attacker-controlled too — drop the APP0 rather than ship a
           // landing pad or signature folded into them.
-          if (!_jpegSegmentCarriesEmbeddedMetadata(
-              app0, 0, 0, app0.length)) {
+          if (!_jpegSegmentCarriesEmbeddedMetadata(app0, 0, 0, app0.length)) {
             out.add(app0);
           }
         }
@@ -856,8 +858,8 @@ class MetadataScrubbingService {
     'eXIf', // EXIF metadata chunk
     'tIME', // modification timestamp
     'iCCP', // (round-7 red finding) ICC profile — embeds 'desc'/'cprt'
-            // author/copyright strings readable by exiftool-class
-            // extractors; ancillary, so dropping it is decode-safe.
+    // author/copyright strings readable by exiftool-class
+    // extractors; ancillary, so dropping it is decode-safe.
   };
 
   /// Removes textual/EXIF ancillary chunks from a PNG stream. Chunks are

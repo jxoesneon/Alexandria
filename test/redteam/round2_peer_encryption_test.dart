@@ -19,7 +19,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/encryption_service.dart';
 
 void main() {
-  test('peer ciphertext must require the peer private key, not the '
+  test(
+      'peer ciphertext must require the peer private key, not the '
       'public key string', () async {
     final enc = EncryptionService();
     const peerPublicKey = 'attacker-known-public-key-base58-string';
@@ -36,8 +37,7 @@ void main() {
     final recovered = await enc.decryptData(ciphertext, eavesKey);
 
     expect(recovered, isNot(equals(secret)),
-        reason:
-            'an eavesdropper decrypted "peer-encrypted" data using only '
+        reason: 'an eavesdropper decrypted "peer-encrypted" data using only '
             'the recipient\'s PUBLIC key — sha256(pubkey) is a '
             'deterministic public value, so encryptForPeer provides '
             'zero confidentiality');

@@ -36,8 +36,7 @@ class _ReadFailsDb extends AppDatabase {
   int failures;
   _ReadFailsDb({this.failures = 1});
   @override
-  Future<List<Map<String, dynamic>>> getCreditTransactions(
-      {int limit = 200}) {
+  Future<List<Map<String, dynamic>>> getCreditTransactions({int limit = 200}) {
     if (failures > 0) {
       failures--;
       throw StateError('simulated ledger read failure');
@@ -118,14 +117,11 @@ void main() {
     final db = AppDatabase();
     addTearDown(db.close);
     final svc = CreditService(db: db, initialBalance: 0.0);
-    expect(
-        svc.awardComputeCredits(cauchyMb: 5.0), 0.0,
+    expect(svc.awardComputeCredits(cauchyMb: 5.0), 0.0,
         reason: 'compute mint pre-hydration');
-    expect(
-        svc.awardVerificationCredits(action: 'x', targetId: 'y'), 0.0,
+    expect(svc.awardVerificationCredits(action: 'x', targetId: 'y'), 0.0,
         reason: 'verification mint pre-hydration');
-    expect(
-        svc.awardBountyEscrow(amount: 5, bountyId: 'b', cid: 'c'), 0.0,
+    expect(svc.awardBountyEscrow(amount: 5, bountyId: 'b', cid: 'c'), 0.0,
         reason: 'escrow payout pre-hydration');
     final receipt = svc.awardSponsorshipKickback(
         campaignId: 'c', grossCredits: 10.0, dwellTimeSeconds: 1.0);
@@ -262,11 +258,8 @@ void main() {
     final db = AppDatabase();
     addTearDown(db.close);
     final base = DateTime(2024, 1, 1);
-    await db.insertCreditTransaction(_txRow(
-        id: 'a100',
-        timestamp: base,
-        amount: 100.0,
-        isAttested: true));
+    await db.insertCreditTransaction(
+        _txRow(id: 'a100', timestamp: base, amount: 100.0, isAttested: true));
     await db.insertCreditTransaction(_txRow(
         id: 'd100',
         timestamp: base.add(const Duration(minutes: 1)),
@@ -290,11 +283,8 @@ void main() {
     final db = AppDatabase();
     addTearDown(db.close);
     final base = DateTime(2024, 1, 1);
-    await db.insertCreditTransaction(_txRow(
-        id: 'a100',
-        timestamp: base,
-        amount: 100.0,
-        isAttested: true));
+    await db.insertCreditTransaction(
+        _txRow(id: 'a100', timestamp: base, amount: 100.0, isAttested: true));
     await db.insertCreditTransaction(_txRow(
         id: 'd150',
         timestamp: base.add(const Duration(minutes: 1)),
@@ -325,8 +315,8 @@ void main() {
         reason: 'escrow hold must burn attested too');
     expect(svc.balance, 0.0);
     // Then a bounty payout restores unattested, NOT attested.
-    expect(svc.awardBountyEscrow(amount: 100.0, bountyId: 'b1', cid: 'c'),
-        100.0);
+    expect(
+        svc.awardBountyEscrow(amount: 100.0, bountyId: 'b1', cid: 'c'), 100.0);
     expect(svc.attestedBalance, 0.0);
     expect(svc.balance, 100.0);
   });

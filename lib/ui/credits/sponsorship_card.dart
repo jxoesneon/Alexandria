@@ -105,7 +105,8 @@ class _SponsorshipCardState extends ConsumerState<SponsorshipCard> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.white10,
                           borderRadius: BorderRadius.circular(4),
@@ -132,7 +133,8 @@ class _SponsorshipCardState extends ConsumerState<SponsorshipCard> {
                       const Spacer(),
                       if (_rewardClaimed)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.green.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
@@ -160,7 +162,8 @@ class _SponsorshipCardState extends ConsumerState<SponsorshipCard> {
                   const SizedBox(height: 4),
                   Text(
                     slot.badgeText,
-                    style: const TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                    style: const TextStyle(
+                        fontSize: 11, color: AppTheme.secondaryColor),
                   ),
                 ],
               ),

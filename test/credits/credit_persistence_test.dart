@@ -194,8 +194,7 @@ void main() {
       expect(minted['storageReward'], 200.0);
     });
 
-    test('pre-hydration spend cannot exceed the real ledger balance',
-        () async {
+    test('pre-hydration spend cannot exceed the real ledger balance', () async {
       // Real ledger balance = 10.0 (no genesis granted).
       final instanceA = CreditService(db: db, initialBalance: 0.0);
       await instanceA.ready;
@@ -216,8 +215,10 @@ void main() {
 
       // The real ledger balance is now authoritative.
       expect(instanceB.balance, 10.0);
-      expect(instanceB.spendCredits(amount: 90.0, reason: 'overspend'), isFalse);
-      expect(instanceB.spendCredits(amount: 5.0, reason: 'honest spend'), isTrue);
+      expect(
+          instanceB.spendCredits(amount: 90.0, reason: 'overspend'), isFalse);
+      expect(
+          instanceB.spendCredits(amount: 5.0, reason: 'honest spend'), isTrue);
       expect(instanceB.balance, 5.0);
       await instanceB.settled;
     });
@@ -286,8 +287,7 @@ void main() {
       );
     });
 
-    test('service without a database still works purely in-memory',
-        () async {
+    test('service without a database still works purely in-memory', () async {
       final service = CreditService(initialBalance: 50.0);
       await service.ready; // resolves immediately, no db attached
 
@@ -320,8 +320,7 @@ class _FlakyReadDatabase extends AppDatabase {
   int failures;
 
   @override
-  Future<List<Map<String, dynamic>>> getCreditTransactions(
-      {int limit = 200}) {
+  Future<List<Map<String, dynamic>>> getCreditTransactions({int limit = 200}) {
     if (failures > 0) {
       failures--;
       throw StateError('simulated ledger read failure');

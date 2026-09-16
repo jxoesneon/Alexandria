@@ -2,124 +2,238 @@
 // Auto-generated test file to ensure all non-generated lib files are tracked in coverage
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/data/database.dart' as _import_data_database_dart;
-import 'package:alexandria/l10n/app_localizations.dart' as _import_l10n_app_localizations_dart;
-import 'package:alexandria/l10n/app_localizations_en.dart' as _import_l10n_app_localizations_en_dart;
-import 'package:alexandria/logic/content_repository.dart' as _import_logic_content_repository_dart;
-import 'package:alexandria/logic/honor_system.dart' as _import_logic_honor_system_dart;
-import 'package:alexandria/logic/settings_logic.dart' as _import_logic_settings_logic_dart;
+import 'package:alexandria/l10n/app_localizations.dart'
+    as _import_l10n_app_localizations_dart;
+import 'package:alexandria/l10n/app_localizations_en.dart'
+    as _import_l10n_app_localizations_en_dart;
+import 'package:alexandria/logic/content_repository.dart'
+    as _import_logic_content_repository_dart;
+import 'package:alexandria/logic/honor_system.dart'
+    as _import_logic_honor_system_dart;
+import 'package:alexandria/logic/settings_logic.dart'
+    as _import_logic_settings_logic_dart;
 import 'package:alexandria/main.dart' as _import_main_dart;
-import 'package:alexandria/models/library_models.dart' as _import_models_library_models_dart;
-import 'package:alexandria/models/network_models.dart' as _import_models_network_models_dart;
-import 'package:alexandria/models/security_models.dart' as _import_models_security_models_dart;
-import 'package:alexandria/models/workspace_models.dart' as _import_models_workspace_models_dart;
-import 'package:alexandria/providers/library_providers.dart' as _import_providers_library_providers_dart;
-import 'package:alexandria/providers/network_providers.dart' as _import_providers_network_providers_dart;
-import 'package:alexandria/providers/security_providers.dart' as _import_providers_security_providers_dart;
-import 'package:alexandria/providers/workspace_providers.dart' as _import_providers_workspace_providers_dart;
-import 'package:alexandria/services/agent/agent_steward_service.dart' as _import_services_agent_agent_steward_service_dart;
-import 'package:alexandria/services/agent/alexandria_mcp_server.dart' as _import_services_agent_alexandria_mcp_server_dart;
-import 'package:alexandria/services/agent/beacon_models.dart' as _import_services_agent_beacon_models_dart;
-import 'package:alexandria/services/agent/moltbook_service.dart' as _import_services_agent_moltbook_service_dart;
-import 'package:alexandria/services/audit_log_service.dart' as _import_services_audit_log_service_dart;
-import 'package:alexandria/services/biometric_service.dart' as _import_services_biometric_service_dart;
-import 'package:alexandria/services/build_info_service.dart' as _import_services_build_info_service_dart;
-import 'package:alexandria/services/cid_service.dart' as _import_services_cid_service_dart;
-import 'package:alexandria/services/collection_service.dart' as _import_services_collection_service_dart;
-import 'package:alexandria/services/consensus_service.dart' as _import_services_consensus_service_dart;
-import 'package:alexandria/services/credits/cashu_mint_client.dart' as _import_services_credits_cashu_mint_client_dart;
-import 'package:alexandria/services/credits/credit_models.dart' as _import_services_credits_credit_models_dart;
-import 'package:alexandria/services/credits/credit_service.dart' as _import_services_credits_credit_service_dart;
-import 'package:alexandria/services/credits/crypto_bridge_service.dart' as _import_services_credits_crypto_bridge_service_dart;
-import 'package:alexandria/services/credits/lnurl_service.dart' as _import_services_credits_lnurl_service_dart;
-import 'package:alexandria/services/credits/poch_service.dart' as _import_services_credits_poch_service_dart;
-import 'package:alexandria/services/credits/sponsorship_service.dart' as _import_services_credits_sponsorship_service_dart;
-import 'package:alexandria/services/credits/work_receipt.dart' as _import_services_credits_work_receipt_dart;
-import 'package:alexandria/services/encryption_service.dart' as _import_services_encryption_service_dart;
-import 'package:alexandria/services/erasure_coding_service.dart' as _import_services_erasure_coding_service_dart;
-import 'package:alexandria/services/external_player_service.dart' as _import_services_external_player_service_dart;
-import 'package:alexandria/services/fast_cdc_service.dart' as _import_services_fast_cdc_service_dart;
-import 'package:alexandria/services/governance_service.dart' as _import_services_governance_service_dart;
-import 'package:alexandria/services/headless_sdk.dart' as _import_services_headless_sdk_dart;
-import 'package:alexandria/services/honor_bandwidth_service.dart' as _import_services_honor_bandwidth_service_dart;
-import 'package:alexandria/services/identity_service.dart' as _import_services_identity_service_dart;
-import 'package:alexandria/services/ipfs_service.dart' as _import_services_ipfs_service_dart;
-import 'package:alexandria/services/knowledge_graph_service.dart' as _import_services_knowledge_graph_service_dart;
-import 'package:alexandria/services/ledger_service.dart' as _import_services_ledger_service_dart;
-import 'package:alexandria/services/logger_service.dart' as _import_services_logger_service_dart;
-import 'package:alexandria/services/media/academic_media_service.dart' as _import_services_media_academic_media_service_dart;
-import 'package:alexandria/services/media/audio_media_service.dart' as _import_services_media_audio_media_service_dart;
-import 'package:alexandria/services/media/comic_media_service.dart' as _import_services_media_comic_media_service_dart;
-import 'package:alexandria/services/media/dataset_media_service.dart' as _import_services_media_dataset_media_service_dart;
-import 'package:alexandria/services/media/hardware_schematics_service.dart' as _import_services_media_hardware_schematics_service_dart;
-import 'package:alexandria/services/media/literature_media_service.dart' as _import_services_media_literature_media_service_dart;
-import 'package:alexandria/services/media/software_heritage_service.dart' as _import_services_media_software_heritage_service_dart;
-import 'package:alexandria/services/media/spatial_media_service.dart' as _import_services_media_spatial_media_service_dart;
-import 'package:alexandria/services/media/web_archive_service.dart' as _import_services_media_web_archive_service_dart;
-import 'package:alexandria/services/merkle_scrubber_service.dart' as _import_services_merkle_scrubber_service_dart;
-import 'package:alexandria/services/mesh_transport_service.dart' as _import_services_mesh_transport_service_dart;
-import 'package:alexandria/services/metadata_scrubbing_service.dart' as _import_services_metadata_scrubbing_service_dart;
-import 'package:alexandria/services/metadata_service.dart' as _import_services_metadata_service_dart;
-import 'package:alexandria/services/mnemonic_service.dart' as _import_services_mnemonic_service_dart;
-import 'package:alexandria/services/network_overview_service.dart' as _import_services_network_overview_service_dart;
-import 'package:alexandria/services/pluggable_transport_service.dart' as _import_services_pluggable_transport_service_dart;
-import 'package:alexandria/services/plugin_service.dart' as _import_services_plugin_service_dart;
-import 'package:alexandria/services/plugins/doi_harvester_plugin.dart' as _import_services_plugins_doi_harvester_plugin_dart;
-import 'package:alexandria/services/plugins/plugin_interface.dart' as _import_services_plugins_plugin_interface_dart;
-import 'package:alexandria/services/preservation_service.dart' as _import_services_preservation_service_dart;
-import 'package:alexandria/services/proof_of_retrievability_service.dart' as _import_services_proof_of_retrievability_service_dart;
-import 'package:alexandria/services/secure_storage_service.dart' as _import_services_secure_storage_service_dart;
-import 'package:alexandria/services/security_overview_service.dart' as _import_services_security_overview_service_dart;
-import 'package:alexandria/services/seed/seed_data_texts.dart' as _import_services_seed_seed_data_texts_dart;
-import 'package:alexandria/services/seed/starter_seed_service.dart' as _import_services_seed_starter_seed_service_dart;
-import 'package:alexandria/services/sibling_service.dart' as _import_services_sibling_service_dart;
-import 'package:alexandria/services/sync_service.dart' as _import_services_sync_service_dart;
-import 'package:alexandria/services/tor_service.dart' as _import_services_tor_service_dart;
-import 'package:alexandria/services/universal_media_registry.dart' as _import_services_universal_media_registry_dart;
-import 'package:alexandria/services/web_node_service.dart' as _import_services_web_node_service_dart;
-import 'package:alexandria/ui/add_content_screen.dart' as _import_ui_add_content_screen_dart;
-import 'package:alexandria/ui/agent/agent_network_dialog.dart' as _import_ui_agent_agent_network_dialog_dart;
-import 'package:alexandria/ui/agent/mcp_config_export_dialog.dart' as _import_ui_agent_mcp_config_export_dialog_dart;
-import 'package:alexandria/ui/codex/search_screen.dart' as _import_ui_codex_search_screen_dart;
-import 'package:alexandria/ui/collection_screen.dart' as _import_ui_collection_screen_dart;
-import 'package:alexandria/ui/common/governance_badge.dart' as _import_ui_common_governance_badge_dart;
-import 'package:alexandria/ui/content_detail_screen.dart' as _import_ui_content_detail_screen_dart;
-import 'package:alexandria/ui/credits/credit_wallet_dialog.dart' as _import_ui_credits_credit_wallet_dialog_dart;
-import 'package:alexandria/ui/credits/sponsorship_card.dart' as _import_ui_credits_sponsorship_card_dart;
-import 'package:alexandria/ui/governance_screen.dart' as _import_ui_governance_screen_dart;
+import 'package:alexandria/models/library_models.dart'
+    as _import_models_library_models_dart;
+import 'package:alexandria/models/network_models.dart'
+    as _import_models_network_models_dart;
+import 'package:alexandria/models/security_models.dart'
+    as _import_models_security_models_dart;
+import 'package:alexandria/models/workspace_models.dart'
+    as _import_models_workspace_models_dart;
+import 'package:alexandria/providers/library_providers.dart'
+    as _import_providers_library_providers_dart;
+import 'package:alexandria/providers/network_providers.dart'
+    as _import_providers_network_providers_dart;
+import 'package:alexandria/providers/security_providers.dart'
+    as _import_providers_security_providers_dart;
+import 'package:alexandria/providers/workspace_providers.dart'
+    as _import_providers_workspace_providers_dart;
+import 'package:alexandria/services/agent/agent_steward_service.dart'
+    as _import_services_agent_agent_steward_service_dart;
+import 'package:alexandria/services/agent/alexandria_mcp_server.dart'
+    as _import_services_agent_alexandria_mcp_server_dart;
+import 'package:alexandria/services/agent/beacon_models.dart'
+    as _import_services_agent_beacon_models_dart;
+import 'package:alexandria/services/agent/moltbook_service.dart'
+    as _import_services_agent_moltbook_service_dart;
+import 'package:alexandria/services/audit_log_service.dart'
+    as _import_services_audit_log_service_dart;
+import 'package:alexandria/services/biometric_service.dart'
+    as _import_services_biometric_service_dart;
+import 'package:alexandria/services/build_info_service.dart'
+    as _import_services_build_info_service_dart;
+import 'package:alexandria/services/cid_service.dart'
+    as _import_services_cid_service_dart;
+import 'package:alexandria/services/collection_service.dart'
+    as _import_services_collection_service_dart;
+import 'package:alexandria/services/consensus_service.dart'
+    as _import_services_consensus_service_dart;
+import 'package:alexandria/services/credits/cashu_mint_client.dart'
+    as _import_services_credits_cashu_mint_client_dart;
+import 'package:alexandria/services/credits/credit_models.dart'
+    as _import_services_credits_credit_models_dart;
+import 'package:alexandria/services/credits/credit_service.dart'
+    as _import_services_credits_credit_service_dart;
+import 'package:alexandria/services/credits/crypto_bridge_service.dart'
+    as _import_services_credits_crypto_bridge_service_dart;
+import 'package:alexandria/services/credits/lnurl_service.dart'
+    as _import_services_credits_lnurl_service_dart;
+import 'package:alexandria/services/credits/poch_service.dart'
+    as _import_services_credits_poch_service_dart;
+import 'package:alexandria/services/credits/sponsorship_service.dart'
+    as _import_services_credits_sponsorship_service_dart;
+import 'package:alexandria/services/credits/work_receipt.dart'
+    as _import_services_credits_work_receipt_dart;
+import 'package:alexandria/services/encryption_service.dart'
+    as _import_services_encryption_service_dart;
+import 'package:alexandria/services/erasure_coding_service.dart'
+    as _import_services_erasure_coding_service_dart;
+import 'package:alexandria/services/external_player_service.dart'
+    as _import_services_external_player_service_dart;
+import 'package:alexandria/services/fast_cdc_service.dart'
+    as _import_services_fast_cdc_service_dart;
+import 'package:alexandria/services/governance_service.dart'
+    as _import_services_governance_service_dart;
+import 'package:alexandria/services/headless_sdk.dart'
+    as _import_services_headless_sdk_dart;
+import 'package:alexandria/services/honor_bandwidth_service.dart'
+    as _import_services_honor_bandwidth_service_dart;
+import 'package:alexandria/services/identity_service.dart'
+    as _import_services_identity_service_dart;
+import 'package:alexandria/services/ipfs_service.dart'
+    as _import_services_ipfs_service_dart;
+import 'package:alexandria/services/knowledge_graph_service.dart'
+    as _import_services_knowledge_graph_service_dart;
+import 'package:alexandria/services/ledger_service.dart'
+    as _import_services_ledger_service_dart;
+import 'package:alexandria/services/logger_service.dart'
+    as _import_services_logger_service_dart;
+import 'package:alexandria/services/media/academic_media_service.dart'
+    as _import_services_media_academic_media_service_dart;
+import 'package:alexandria/services/media/audio_media_service.dart'
+    as _import_services_media_audio_media_service_dart;
+import 'package:alexandria/services/media/comic_media_service.dart'
+    as _import_services_media_comic_media_service_dart;
+import 'package:alexandria/services/media/dataset_media_service.dart'
+    as _import_services_media_dataset_media_service_dart;
+import 'package:alexandria/services/media/hardware_schematics_service.dart'
+    as _import_services_media_hardware_schematics_service_dart;
+import 'package:alexandria/services/media/literature_media_service.dart'
+    as _import_services_media_literature_media_service_dart;
+import 'package:alexandria/services/media/software_heritage_service.dart'
+    as _import_services_media_software_heritage_service_dart;
+import 'package:alexandria/services/media/spatial_media_service.dart'
+    as _import_services_media_spatial_media_service_dart;
+import 'package:alexandria/services/media/web_archive_service.dart'
+    as _import_services_media_web_archive_service_dart;
+import 'package:alexandria/services/merkle_scrubber_service.dart'
+    as _import_services_merkle_scrubber_service_dart;
+import 'package:alexandria/services/mesh_transport_service.dart'
+    as _import_services_mesh_transport_service_dart;
+import 'package:alexandria/services/metadata_scrubbing_service.dart'
+    as _import_services_metadata_scrubbing_service_dart;
+import 'package:alexandria/services/metadata_service.dart'
+    as _import_services_metadata_service_dart;
+import 'package:alexandria/services/mnemonic_service.dart'
+    as _import_services_mnemonic_service_dart;
+import 'package:alexandria/services/network_overview_service.dart'
+    as _import_services_network_overview_service_dart;
+import 'package:alexandria/services/pluggable_transport_service.dart'
+    as _import_services_pluggable_transport_service_dart;
+import 'package:alexandria/services/plugin_service.dart'
+    as _import_services_plugin_service_dart;
+import 'package:alexandria/services/plugins/doi_harvester_plugin.dart'
+    as _import_services_plugins_doi_harvester_plugin_dart;
+import 'package:alexandria/services/plugins/plugin_interface.dart'
+    as _import_services_plugins_plugin_interface_dart;
+import 'package:alexandria/services/preservation_service.dart'
+    as _import_services_preservation_service_dart;
+import 'package:alexandria/services/proof_of_retrievability_service.dart'
+    as _import_services_proof_of_retrievability_service_dart;
+import 'package:alexandria/services/secure_storage_service.dart'
+    as _import_services_secure_storage_service_dart;
+import 'package:alexandria/services/security_overview_service.dart'
+    as _import_services_security_overview_service_dart;
+import 'package:alexandria/services/seed/seed_data_texts.dart'
+    as _import_services_seed_seed_data_texts_dart;
+import 'package:alexandria/services/seed/starter_seed_service.dart'
+    as _import_services_seed_starter_seed_service_dart;
+import 'package:alexandria/services/sibling_service.dart'
+    as _import_services_sibling_service_dart;
+import 'package:alexandria/services/sync_service.dart'
+    as _import_services_sync_service_dart;
+import 'package:alexandria/services/tor_service.dart'
+    as _import_services_tor_service_dart;
+import 'package:alexandria/services/universal_media_registry.dart'
+    as _import_services_universal_media_registry_dart;
+import 'package:alexandria/services/web_node_service.dart'
+    as _import_services_web_node_service_dart;
+import 'package:alexandria/ui/add_content_screen.dart'
+    as _import_ui_add_content_screen_dart;
+import 'package:alexandria/ui/agent/agent_network_dialog.dart'
+    as _import_ui_agent_agent_network_dialog_dart;
+import 'package:alexandria/ui/agent/mcp_config_export_dialog.dart'
+    as _import_ui_agent_mcp_config_export_dialog_dart;
+import 'package:alexandria/ui/codex/search_screen.dart'
+    as _import_ui_codex_search_screen_dart;
+import 'package:alexandria/ui/collection_screen.dart'
+    as _import_ui_collection_screen_dart;
+import 'package:alexandria/ui/common/governance_badge.dart'
+    as _import_ui_common_governance_badge_dart;
+import 'package:alexandria/ui/content_detail_screen.dart'
+    as _import_ui_content_detail_screen_dart;
+import 'package:alexandria/ui/credits/credit_wallet_dialog.dart'
+    as _import_ui_credits_credit_wallet_dialog_dart;
+import 'package:alexandria/ui/credits/sponsorship_card.dart'
+    as _import_ui_credits_sponsorship_card_dart;
+import 'package:alexandria/ui/governance_screen.dart'
+    as _import_ui_governance_screen_dart;
 import 'package:alexandria/ui/home_screen.dart' as _import_ui_home_screen_dart;
-import 'package:alexandria/ui/library/collections_shelves_screen.dart' as _import_ui_library_collections_shelves_screen_dart;
-import 'package:alexandria/ui/library/content_viewer_screen.dart' as _import_ui_library_content_viewer_screen_dart;
-import 'package:alexandria/ui/library/discovery_search_screen.dart' as _import_ui_library_discovery_search_screen_dart;
-import 'package:alexandria/ui/library/library_overview_screen.dart' as _import_ui_library_library_overview_screen_dart;
-import 'package:alexandria/ui/network/network_overview_screen.dart' as _import_ui_network_network_overview_screen_dart;
-import 'package:alexandria/ui/network/peer_discovery_screen.dart' as _import_ui_network_peer_discovery_screen_dart;
-import 'package:alexandria/ui/network/sync_conflict_screen.dart' as _import_ui_network_sync_conflict_screen_dart;
-import 'package:alexandria/ui/network/transports_config_screen.dart' as _import_ui_network_transports_config_screen_dart;
-import 'package:alexandria/ui/onboarding/first_run_wizard_dialog.dart' as _import_ui_onboarding_first_run_wizard_dialog_dart;
-import 'package:alexandria/ui/onboarding/setup_wizard_screen.dart' as _import_ui_onboarding_setup_wizard_screen_dart;
-import 'package:alexandria/ui/onboarding/welcome_screen.dart' as _import_ui_onboarding_welcome_screen_dart;
-import 'package:alexandria/ui/onboarding_screen.dart' as _import_ui_onboarding_screen_dart;
-import 'package:alexandria/ui/plugin_screen.dart' as _import_ui_plugin_screen_dart;
-import 'package:alexandria/ui/plugins/doi_harvester_dialog.dart' as _import_ui_plugins_doi_harvester_dialog_dart;
-import 'package:alexandria/ui/profile_screen.dart' as _import_ui_profile_screen_dart;
-import 'package:alexandria/ui/scaffold/main_scaffold.dart' as _import_ui_scaffold_main_scaffold_dart;
-import 'package:alexandria/ui/scriptorium/creation_wizard.dart' as _import_ui_scriptorium_creation_wizard_dart;
-import 'package:alexandria/ui/security/access_control_screen.dart' as _import_ui_security_access_control_screen_dart;
-import 'package:alexandria/ui/security/audit_logs_screen.dart' as _import_ui_security_audit_logs_screen_dart;
-import 'package:alexandria/ui/security/key_management_screen.dart' as _import_ui_security_key_management_screen_dart;
-import 'package:alexandria/ui/security/security_dashboard_screen.dart' as _import_ui_security_security_dashboard_screen_dart;
-import 'package:alexandria/ui/settings/settings_screen.dart' as _import_ui_settings_settings_screen_dart;
-import 'package:alexandria/ui/theme/app_theme.dart' as _import_ui_theme_app_theme_dart;
-import 'package:alexandria/ui/widgets/contribution_graph.dart' as _import_ui_widgets_contribution_graph_dart;
-import 'package:alexandria/ui/widgets/glass_card.dart' as _import_ui_widgets_glass_card_dart;
-import 'package:alexandria/ui/widgets/info_glass.dart' as _import_ui_widgets_info_glass_dart;
-import 'package:alexandria/ui/workspace/annotations_notes_screen.dart' as _import_ui_workspace_annotations_notes_screen_dart;
-import 'package:alexandria/ui/workspace/ingestion_pipeline_screen.dart' as _import_ui_workspace_ingestion_pipeline_screen_dart;
-import 'package:alexandria/ui/workspace/metadata_editor_screen.dart' as _import_ui_workspace_metadata_editor_screen_dart;
-import 'package:alexandria/ui/workspace/workspace_dashboard_screen.dart' as _import_ui_workspace_workspace_dashboard_screen_dart;
+import 'package:alexandria/ui/library/collections_shelves_screen.dart'
+    as _import_ui_library_collections_shelves_screen_dart;
+import 'package:alexandria/ui/library/content_viewer_screen.dart'
+    as _import_ui_library_content_viewer_screen_dart;
+import 'package:alexandria/ui/library/discovery_search_screen.dart'
+    as _import_ui_library_discovery_search_screen_dart;
+import 'package:alexandria/ui/library/library_overview_screen.dart'
+    as _import_ui_library_library_overview_screen_dart;
+import 'package:alexandria/ui/network/network_overview_screen.dart'
+    as _import_ui_network_network_overview_screen_dart;
+import 'package:alexandria/ui/network/peer_discovery_screen.dart'
+    as _import_ui_network_peer_discovery_screen_dart;
+import 'package:alexandria/ui/network/sync_conflict_screen.dart'
+    as _import_ui_network_sync_conflict_screen_dart;
+import 'package:alexandria/ui/network/transports_config_screen.dart'
+    as _import_ui_network_transports_config_screen_dart;
+import 'package:alexandria/ui/onboarding/first_run_wizard_dialog.dart'
+    as _import_ui_onboarding_first_run_wizard_dialog_dart;
+import 'package:alexandria/ui/onboarding/setup_wizard_screen.dart'
+    as _import_ui_onboarding_setup_wizard_screen_dart;
+import 'package:alexandria/ui/onboarding/welcome_screen.dart'
+    as _import_ui_onboarding_welcome_screen_dart;
+import 'package:alexandria/ui/onboarding_screen.dart'
+    as _import_ui_onboarding_screen_dart;
+import 'package:alexandria/ui/plugin_screen.dart'
+    as _import_ui_plugin_screen_dart;
+import 'package:alexandria/ui/plugins/doi_harvester_dialog.dart'
+    as _import_ui_plugins_doi_harvester_dialog_dart;
+import 'package:alexandria/ui/profile_screen.dart'
+    as _import_ui_profile_screen_dart;
+import 'package:alexandria/ui/scaffold/main_scaffold.dart'
+    as _import_ui_scaffold_main_scaffold_dart;
+import 'package:alexandria/ui/scriptorium/creation_wizard.dart'
+    as _import_ui_scriptorium_creation_wizard_dart;
+import 'package:alexandria/ui/security/access_control_screen.dart'
+    as _import_ui_security_access_control_screen_dart;
+import 'package:alexandria/ui/security/audit_logs_screen.dart'
+    as _import_ui_security_audit_logs_screen_dart;
+import 'package:alexandria/ui/security/key_management_screen.dart'
+    as _import_ui_security_key_management_screen_dart;
+import 'package:alexandria/ui/security/security_dashboard_screen.dart'
+    as _import_ui_security_security_dashboard_screen_dart;
+import 'package:alexandria/ui/settings/settings_screen.dart'
+    as _import_ui_settings_settings_screen_dart;
+import 'package:alexandria/ui/theme/app_theme.dart'
+    as _import_ui_theme_app_theme_dart;
+import 'package:alexandria/ui/widgets/contribution_graph.dart'
+    as _import_ui_widgets_contribution_graph_dart;
+import 'package:alexandria/ui/widgets/glass_card.dart'
+    as _import_ui_widgets_glass_card_dart;
+import 'package:alexandria/ui/widgets/info_glass.dart'
+    as _import_ui_widgets_info_glass_dart;
+import 'package:alexandria/ui/workspace/annotations_notes_screen.dart'
+    as _import_ui_workspace_annotations_notes_screen_dart;
+import 'package:alexandria/ui/workspace/ingestion_pipeline_screen.dart'
+    as _import_ui_workspace_ingestion_pipeline_screen_dart;
+import 'package:alexandria/ui/workspace/metadata_editor_screen.dart'
+    as _import_ui_workspace_metadata_editor_screen_dart;
+import 'package:alexandria/ui/workspace/workspace_dashboard_screen.dart'
+    as _import_ui_workspace_workspace_dashboard_screen_dart;
 
 void main() {
-  test('all non-generated sources are imported for complete coverage tracking', () {
+  test('all non-generated sources are imported for complete coverage tracking',
+      () {
     expect(true, isTrue);
   });
 }

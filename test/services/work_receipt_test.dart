@@ -149,9 +149,9 @@ void main() {
       // Wrong key -> fails.
       final otherKeyPair = await algorithm.newKeyPair();
       final otherPub = await otherKeyPair.extractPublicKey();
-      final misattributed = buildReceipt(
-              verifierPubkey: bytesToHex(otherPub.bytes))
-          .withVerifierSig(signed.verifierSig);
+      final misattributed =
+          buildReceipt(verifierPubkey: bytesToHex(otherPub.bytes))
+              .withVerifierSig(signed.verifierSig);
       expect(await misattributed.verifyVerifierSignature(verifier), isFalse);
     });
 
@@ -183,8 +183,8 @@ void main() {
       expect(legacy.canonicalJson(), contains('"v":1'));
       // Legacy domain: the preimage is the bare canonical JSON, exactly
       // what pre-domain builds signed.
-      expect(legacy.signingPayload,
-          equals(utf8.encode(legacy.canonicalJson())));
+      expect(
+          legacy.signingPayload, equals(utf8.encode(legacy.canonicalJson())));
       // Different v over identical work terms => different canonical body
       // => different receipt id (domain separation is structural).
       final modern = buildReceipt();

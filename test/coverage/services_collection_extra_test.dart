@@ -36,8 +36,8 @@ void main() {
       ]);
       addTearDown(container.dispose);
 
-      expect(container.read(collectionServiceProvider),
-          isA<CollectionService>());
+      expect(
+          container.read(collectionServiceProvider), isA<CollectionService>());
     });
   });
 
@@ -45,23 +45,20 @@ void main() {
     final node = Uint8List.fromList([9, 9]);
 
     test('merge takes fresh wall-clock branch', () {
-      final a = HybridLogicalClock(
-          wallTime: 1000, logical: 5, nodeId: node);
-      final b = HybridLogicalClock(
-          wallTime: 2000, logical: 7, nodeId: node);
+      final a = HybridLogicalClock(wallTime: 1000, logical: 5, nodeId: node);
+      final b = HybridLogicalClock(wallTime: 2000, logical: 7, nodeId: node);
       // Both timestamps far in the past — 'now' wins outright.
       final merged = a.merge(b);
-      expect(merged.wallTime,
-          greaterThan(2000)); // fresh wall time, logical reset
+      expect(
+          merged.wallTime, greaterThan(2000)); // fresh wall time, logical reset
       expect(merged.logical, 0);
     });
 
     test('merge keeps local when local wallTime is in the future', () {
       final future = DateTime.now().millisecondsSinceEpoch + 60000;
-      final a = HybridLogicalClock(
-          wallTime: future, logical: 3, nodeId: node);
-      final b = HybridLogicalClock(
-          wallTime: future - 10, logical: 9, nodeId: node);
+      final a = HybridLogicalClock(wallTime: future, logical: 3, nodeId: node);
+      final b =
+          HybridLogicalClock(wallTime: future - 10, logical: 9, nodeId: node);
       final merged = a.merge(b);
       expect(merged.wallTime, future);
       expect(merged.logical, 4);
@@ -69,10 +66,9 @@ void main() {
 
     test('merge adopts remote when remote wallTime is in the future', () {
       final future = DateTime.now().millisecondsSinceEpoch + 60000;
-      final a = HybridLogicalClock(
-          wallTime: future - 10, logical: 3, nodeId: node);
-      final b = HybridLogicalClock(
-          wallTime: future, logical: 9, nodeId: node);
+      final a =
+          HybridLogicalClock(wallTime: future - 10, logical: 3, nodeId: node);
+      final b = HybridLogicalClock(wallTime: future, logical: 9, nodeId: node);
       final merged = a.merge(b);
       expect(merged.wallTime, future);
       expect(merged.logical, 10);
@@ -80,19 +76,15 @@ void main() {
 
     test('merge on equal wallTime keeps the higher logical', () {
       final future = DateTime.now().millisecondsSinceEpoch + 60000;
-      final a = HybridLogicalClock(
-          wallTime: future, logical: 3, nodeId: node);
-      final b = HybridLogicalClock(
-          wallTime: future, logical: 9, nodeId: node);
+      final a = HybridLogicalClock(wallTime: future, logical: 3, nodeId: node);
+      final b = HybridLogicalClock(wallTime: future, logical: 9, nodeId: node);
       expect(a.merge(b).logical, 10);
       expect(b.merge(a).logical, 10);
     });
 
     test('compareTo orders by wallTime then logical then nodeId', () {
-      final early =
-          HybridLogicalClock(wallTime: 1, logical: 0, nodeId: node);
-      final late =
-          HybridLogicalClock(wallTime: 2, logical: 0, nodeId: node);
+      final early = HybridLogicalClock(wallTime: 1, logical: 0, nodeId: node);
+      final late = HybridLogicalClock(wallTime: 2, logical: 0, nodeId: node);
       expect(early.compareTo(late), lessThan(0));
       expect(late.compareTo(early), greaterThan(0));
 
@@ -103,10 +95,10 @@ void main() {
       expect(lowLogical.compareTo(highLogical), lessThan(0));
 
       // Equal wall+logical — node id bytes break the tie.
-      final nodeA =
-          HybridLogicalClock(wallTime: 5, logical: 1, nodeId: Uint8List.fromList([1]));
-      final nodeB =
-          HybridLogicalClock(wallTime: 5, logical: 1, nodeId: Uint8List.fromList([2]));
+      final nodeA = HybridLogicalClock(
+          wallTime: 5, logical: 1, nodeId: Uint8List.fromList([1]));
+      final nodeB = HybridLogicalClock(
+          wallTime: 5, logical: 1, nodeId: Uint8List.fromList([2]));
       expect(nodeA.compareTo(nodeB), lessThan(0));
       expect(nodeB.compareTo(nodeA), greaterThan(0));
 
@@ -129,14 +121,11 @@ void main() {
     });
 
     test('fromJson rejects malformed wire input', () {
-      expect(() => HybridLogicalClock.fromJson(const {}),
-          throwsFormatException);
       expect(
-          () => HybridLogicalClock.fromJson(const {
-                'wallTime': 'not-an-int',
-                'logical': 1,
-                'nodeId': 'eA=='
-              }),
+          () => HybridLogicalClock.fromJson(const {}), throwsFormatException);
+      expect(
+          () => HybridLogicalClock.fromJson(
+              const {'wallTime': 'not-an-int', 'logical': 1, 'nodeId': 'eA=='}),
           throwsFormatException);
       expect(
           () => HybridLogicalClock.fromJson(const {
@@ -146,11 +135,8 @@ void main() {
               }),
           throwsFormatException);
       expect(
-          () => HybridLogicalClock.fromJson(const {
-                'wallTime': 1,
-                'logical': 1,
-                'nodeId': ''
-              }),
+          () => HybridLogicalClock.fromJson(
+              const {'wallTime': 1, 'logical': 1, 'nodeId': ''}),
           throwsFormatException);
     });
   });
@@ -181,10 +167,8 @@ void main() {
     test('createCollection and forkCollection throw without identity',
         () async {
       final service = CollectionService(_FakeIdentityService(null));
-      await expectLater(service.createCollection(name: 'X'),
-          throwsStateError);
-      await expectLater(service.forkCollection('missing'),
-          throwsStateError);
+      await expectLater(service.createCollection(name: 'X'), throwsStateError);
+      await expectLater(service.forkCollection('missing'), throwsStateError);
     });
 
     test('createMergeRequest reports diffs for name, description, and items',
@@ -262,7 +246,11 @@ void main() {
         'description': {
           'value': 'hijacked',
           'author': otherAuthor,
-          'timestamp': {'wallTime': now + 1000, 'logical': 1, 'nodeId': otherAuthor},
+          'timestamp': {
+            'wallTime': now + 1000,
+            'logical': 1,
+            'nodeId': otherAuthor
+          },
         },
       });
       expect(collection.name.value, 'Keep');

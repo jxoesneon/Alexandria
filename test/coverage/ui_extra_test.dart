@@ -101,8 +101,7 @@ class _FakeMnemonicService implements MnemonicService {
   }
 
   @override
-  Future<AlexandriaIdentity?> recoverFromMnemonic(
-      List<String> words) async {
+  Future<AlexandriaIdentity?> recoverFromMnemonic(List<String> words) async {
     if (throwOnRecover) throw StateError('recover exploded');
     return recoverResult;
   }
@@ -194,8 +193,8 @@ void main() {
     testWidgets('stepper completes at last step and cancels at first',
         (tester) async {
       await bigSurface(tester);
-      await tester.pumpWidget(const ProviderScope(
-          child: MaterialApp(home: CreationWizard())));
+      await tester.pumpWidget(
+          const ProviderScope(child: MaterialApp(home: CreationWizard())));
       await tester.pumpAndSettle();
 
       // Drive the stepper via its callbacks: tapping the controls row
@@ -223,8 +222,8 @@ void main() {
 
     testWidgets('cancel on step 0 pops the wizard', (tester) async {
       await bigSurface(tester);
-      await tester.pumpWidget(const ProviderScope(
-          child: MaterialApp(home: CreationWizard())));
+      await tester.pumpWidget(
+          const ProviderScope(child: MaterialApp(home: CreationWizard())));
       await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(TextButton, 'Cancel').first);
@@ -296,8 +295,7 @@ void main() {
       ));
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      expect(find.text('Connect External AI Agents (ALX-006)'),
-          findsOneWidget);
+      expect(find.text('Connect External AI Agents (ALX-006)'), findsOneWidget);
     });
   });
 
@@ -370,10 +368,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.textContaining('Failed to load stats'), findsOneWidget);
-      expect(find.textContaining('Failed to load recent items'),
-          findsOneWidget);
-      expect(find.textContaining('Failed to load new arrivals'),
-          findsOneWidget);
+      expect(
+          find.textContaining('Failed to load recent items'), findsOneWidget);
+      expect(
+          find.textContaining('Failed to load new arrivals'), findsOneWidget);
     });
 
     testWidgets('carousel separator renders with multiple items',
@@ -403,8 +401,7 @@ void main() {
       await tester.pumpWidget(subject());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
-      await tester
-          .tap(find.byIcon(Icons.collections_bookmark_outlined));
+      await tester.tap(find.byIcon(Icons.collections_bookmark_outlined));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(LibraryOverviewScreen), findsNothing);
@@ -422,8 +419,7 @@ void main() {
       await bigSurface(tester);
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          identityServiceProvider
-              .overrideWithValue(_FakeIdentityService()),
+          identityServiceProvider.overrideWithValue(_FakeIdentityService()),
           ledgerServiceProvider.overrideWithValue(_FakeLedgerService()),
           governanceServiceProvider.overrideWithValue(gov),
           canVoteProvider.overrideWith((ref) async {
@@ -447,8 +443,7 @@ void main() {
 
     testWidgets('empty state and provider error branches', (tester) async {
       final gov = _FakeGovernanceService([]);
-      await pumpGov(tester,
-          gov: gov, canVoteError: 'x', canCreateError: 'y');
+      await pumpGov(tester, gov: gov, canVoteError: 'x', canCreateError: 'y');
       expect(find.text('No proposals yet'), findsOneWidget);
       expect(find.text('Be the first to create a governance proposal'),
           findsOneWidget);
@@ -477,8 +472,8 @@ void main() {
 
     testWidgets('proposal detail sheet: REJECT votes and canVote container',
         (tester) async {
-      final gov = _FakeGovernanceService(
-          [_prop('p_vote', ProposalStatus.active)]);
+      final gov =
+          _FakeGovernanceService([_prop('p_vote', ProposalStatus.active)]);
       await pumpGov(tester, gov: gov);
 
       // Open the detail bottom sheet.
@@ -492,15 +487,13 @@ void main() {
     });
 
     testWidgets('canVote false shows eligibility notice', (tester) async {
-      final gov = _FakeGovernanceService(
-          [_prop('p_nv', ProposalStatus.active)],
+      final gov = _FakeGovernanceService([_prop('p_nv', ProposalStatus.active)],
           canVoteResult: false);
       await pumpGov(tester, gov: gov);
       await tester.tap(find.text('Prop p_nv'));
       await tester.pumpAndSettle();
       expect(
-          find.textContaining('need at least 10 reputation'),
-          findsOneWidget);
+          find.textContaining('need at least 10 reputation'), findsOneWidget);
     });
 
     testWidgets('create proposal dialog: dropdown change and cancel',
@@ -543,8 +536,8 @@ void main() {
         (tester) async {
       installSecureStore();
       await pumpStep(tester, OnboardingStep.identity, overrides: [
-        identityServiceProvider.overrideWithValue(
-            _FakeIdentityService(throwOnGenerate: true)),
+        identityServiceProvider
+            .overrideWithValue(_FakeIdentityService(throwOnGenerate: true)),
       ]);
       await tester.tap(find.text('Create New Identity'));
       await tester.pump();
@@ -552,12 +545,11 @@ void main() {
       expect(find.textContaining('Error:'), findsOneWidget);
     });
 
-    testWidgets('backup phrase failure shows error snackbar',
-        (tester) async {
+    testWidgets('backup phrase failure shows error snackbar', (tester) async {
       installSecureStore();
       await pumpStep(tester, OnboardingStep.mnemonic, overrides: [
-        mnemonicServiceProvider.overrideWithValue(
-            _FakeMnemonicService(throwOnBackup: true)),
+        mnemonicServiceProvider
+            .overrideWithValue(_FakeMnemonicService(throwOnBackup: true)),
       ]);
       await tester.tap(find.text('Generate Backup Phrase'));
       await tester.pump();
@@ -565,26 +557,23 @@ void main() {
       expect(find.textContaining('Error:'), findsOneWidget);
     });
 
-    testWidgets('biometric failure shows unavailable snackbar',
-        (tester) async {
+    testWidgets('biometric failure shows unavailable snackbar', (tester) async {
       installSecureStore();
       await pumpStep(tester, OnboardingStep.biometric, overrides: [
-        biometricServiceProvider.overrideWithValue(
-            _FakeBiometricService(throwOnAuth: true)),
+        biometricServiceProvider
+            .overrideWithValue(_FakeBiometricService(throwOnAuth: true)),
       ]);
       await tester.tap(find.text('Enable Biometrics'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
-      expect(find.textContaining('Biometric not available'),
-          findsOneWidget);
+      expect(find.textContaining('Biometric not available'), findsOneWidget);
     });
 
-    testWidgets('mnemonic import failure shows error snackbar',
-        (tester) async {
+    testWidgets('mnemonic import failure shows error snackbar', (tester) async {
       installSecureStore();
       await pumpStep(tester, OnboardingStep.identity, overrides: [
-        mnemonicServiceProvider.overrideWithValue(
-            _FakeMnemonicService(throwOnRecover: true)),
+        mnemonicServiceProvider
+            .overrideWithValue(_FakeMnemonicService(throwOnRecover: true)),
       ]);
       await tester.tap(find.text('Import Existing Identity'));
       await tester.pumpAndSettle();
@@ -592,8 +581,7 @@ void main() {
       // Enter a plausible 24-word phrase into the recovery field.
       final field = find.byType(TextField);
       expect(field, findsWidgets);
-      await tester.enterText(
-          field.first, List.filled(24, 'anchor').join(' '));
+      await tester.enterText(field.first, List.filled(24, 'anchor').join(' '));
       await tester.pump();
       await tester.tap(find.text('Import'));
       await tester.pump();
@@ -618,8 +606,8 @@ void main() {
     testWidgets('identity creation error shows snackbar', (tester) async {
       installSecureStore();
       await pumpProfile(tester, overrides: [
-        identityServiceProvider.overrideWithValue(
-            _FakeIdentityService(throwOnGenerate: true)),
+        identityServiceProvider
+            .overrideWithValue(_FakeIdentityService(throwOnGenerate: true)),
       ]);
       await tester.tap(find.text('Generate Identity'));
       await tester.pump();
@@ -631,10 +619,8 @@ void main() {
         (tester) async {
       installSecureStore();
       await pumpProfile(tester, overrides: [
-        identityServiceProvider
-            .overrideWithValue(_FakeIdentityService()),
-        mnemonicServiceProvider
-            .overrideWithValue(_FakeMnemonicService()),
+        identityServiceProvider.overrideWithValue(_FakeIdentityService()),
+        mnemonicServiceProvider.overrideWithValue(_FakeMnemonicService()),
       ]);
       await tester.tap(find.text('Recover from Mnemonic'));
       await tester.pumpAndSettle();
@@ -648,18 +634,15 @@ void main() {
         (tester) async {
       installSecureStore();
       await pumpProfile(tester, overrides: [
-        identityServiceProvider
-            .overrideWithValue(_FakeIdentityService()),
-        mnemonicServiceProvider
-            .overrideWithValue(_FakeMnemonicService()),
+        identityServiceProvider.overrideWithValue(_FakeIdentityService()),
+        mnemonicServiceProvider.overrideWithValue(_FakeMnemonicService()),
       ]);
       await tester.tap(find.text('Recover from Mnemonic'));
       await tester.pumpAndSettle();
 
       final field = find.byType(TextField);
       expect(field, findsWidgets);
-      await tester.enterText(
-          field.first, List.filled(24, 'anchor').join(' '));
+      await tester.enterText(field.first, List.filled(24, 'anchor').join(' '));
       await tester.pump();
       await tester.tap(find.text('Recover'));
       await tester.pump();
@@ -672,10 +655,8 @@ void main() {
       installSecureStore();
       installClipboardMock();
       await pumpProfile(tester, overrides: [
-        identityServiceProvider
-            .overrideWithValue(_FakeIdentityService()),
-        mnemonicServiceProvider
-            .overrideWithValue(_FakeMnemonicService()),
+        identityServiceProvider.overrideWithValue(_FakeIdentityService()),
+        mnemonicServiceProvider.overrideWithValue(_FakeMnemonicService()),
       ]);
       await tester.tap(find.byTooltip('Backup Identity'));
       await tester.pumpAndSettle();

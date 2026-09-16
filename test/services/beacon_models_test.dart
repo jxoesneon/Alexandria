@@ -18,7 +18,8 @@ void main() {
       expect(agentId, 'bcn_abababababab');
     });
 
-    test('BeaconEnvelope creates, signs, verifies, and frames correctly', () async {
+    test('BeaconEnvelope creates, signs, verifies, and frames correctly',
+        () async {
       final algorithm = Ed25519();
       final keyPair = await algorithm.newKeyPair();
 

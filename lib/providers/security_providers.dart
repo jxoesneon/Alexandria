@@ -4,7 +4,8 @@ import '../models/security_models.dart';
 import '../services/identity_service.dart';
 import '../services/security_overview_service.dart';
 
-final securityOverviewServiceProvider = Provider<SecurityOverviewService>((ref) {
+final securityOverviewServiceProvider =
+    Provider<SecurityOverviewService>((ref) {
   return SecurityOverviewService(ref);
 });
 
@@ -51,7 +52,8 @@ final documentsProvider = FutureProvider<List<DocumentOption>>((ref) {
   return service.getDocuments();
 });
 
-final documentAclProvider = FutureProvider.family<List<AccessPolicy>, String>((ref, cid) {
+final documentAclProvider =
+    FutureProvider.family<List<AccessPolicy>, String>((ref, cid) {
   final service = ref.watch(accessControlServiceProvider);
   return service.getAccessPolicies(cid);
 });
@@ -74,7 +76,8 @@ final porServiceProvider = Provider<SecurityOverviewService>((ref) {
   return ref.watch(securityOverviewServiceProvider);
 });
 
-final porChallengesProvider = StateProvider<List<PorChallenge>>((ref) => const []);
+final porChallengesProvider =
+    StateProvider<List<PorChallenge>>((ref) => const []);
 final porCidProvider = StateProvider<String>((ref) => '');
 final porPeerIdProvider = StateProvider<String>((ref) => '');
 final porResultProvider = StateProvider<String?>((ref) => null);

@@ -79,9 +79,12 @@ void main() {
     });
 
     test('Lightning address validation', () {
-      expect(CryptoBridgeService.isValidLightningAddress('alice@stacker.news'), isTrue);
-      expect(CryptoBridgeService.isValidLightningAddress('satoshi@bitcoin.org'), isTrue);
-      expect(CryptoBridgeService.isValidLightningAddress('notanaddress'), isFalse);
+      expect(CryptoBridgeService.isValidLightningAddress('alice@stacker.news'),
+          isTrue);
+      expect(CryptoBridgeService.isValidLightningAddress('satoshi@bitcoin.org'),
+          isTrue);
+      expect(
+          CryptoBridgeService.isValidLightningAddress('notanaddress'), isFalse);
       expect(CryptoBridgeService.isValidLightningAddress('invalid@'), isFalse);
     });
 
@@ -91,21 +94,28 @@ void main() {
 
       // Payouts are disabled by default
       expect(CryptoBridgeService.payoutsEnabled, isFalse);
-      expect(bridge.egressRejectionReason(10.0), CryptoBridgeService.payoutsDisabledReason);
+      expect(bridge.egressRejectionReason(10.0),
+          CryptoBridgeService.payoutsDisabledReason);
 
       // Invalid amounts
       expect(bridge.egressRejectionReason(-5.0), 'Invalid egress amount.');
-      expect(bridge.egressRejectionReason(double.nan), 'Invalid egress amount.');
+      expect(
+          bridge.egressRejectionReason(double.nan), 'Invalid egress amount.');
 
       // Cashu token export blocked
       expect(bridge.exportCreditsAsCashuToken(10.0), isNull);
 
       // Lightning sweep blocked
-      expect(bridge.sweepToLightningAddress(creditsToSweep: 10.0, customAddress: 'alice@domain.com'), isFalse);
+      expect(
+          bridge.sweepToLightningAddress(
+              creditsToSweep: 10.0, customAddress: 'alice@domain.com'),
+          isFalse);
 
       // Redeem voucher returns 0.0 with rejection
-      const sampleProof = CashuProof(id: 'k1', amount: 10, secret: 'sec123', c: 'c123');
-      final sampleToken = const CashuToken(mint: 'https://mint.example.com', proofs: [sampleProof]);
+      const sampleProof =
+          CashuProof(id: 'k1', amount: 10, secret: 'sec123', c: 'c123');
+      final sampleToken = const CashuToken(
+          mint: 'https://mint.example.com', proofs: [sampleProof]);
       expect(bridge.redeemCashuToken(sampleToken.serialize()), 0.0);
       expect(bridge.redeemCashuToken('bad_token'), 0.0);
     });
@@ -140,7 +150,9 @@ void main() {
       expect(res.error, CryptoBridgeService.payoutsDisabledReason);
     });
 
-    test('enabled payouts allows export, simulated sweep, and checks attested balance', () {
+    test(
+        'enabled payouts allows export, simulated sweep, and checks attested balance',
+        () {
       final creditService = _FakeCreditService();
       final bridge = CryptoBridgeService(
         creditService: creditService,
@@ -153,7 +165,10 @@ void main() {
       // (isAttested spend), which refuses here.
       expect(bridge.egressRejectionReason(60.0), isNull);
       expect(bridge.exportCreditsAsCashuToken(60.0), isNull);
-      expect(bridge.sweepToLightningAddress(creditsToSweep: 60.0, customAddress: 'alice@domain.com'), isFalse);
+      expect(
+          bridge.sweepToLightningAddress(
+              creditsToSweep: 60.0, customAddress: 'alice@domain.com'),
+          isFalse);
 
       // Within attested balance (20 credits)
       expect(bridge.egressRejectionReason(20.0), isNull);

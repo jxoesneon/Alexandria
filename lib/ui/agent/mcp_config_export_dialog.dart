@@ -16,7 +16,8 @@ class McpConfigExportDialog extends StatefulWidget {
     required this.tools,
   });
 
-  static Future<void> show(BuildContext context, List<Map<String, dynamic>> tools) {
+  static Future<void> show(
+      BuildContext context, List<Map<String, dynamic>> tools) {
     return showDialog(
       context: context,
       builder: (context) => McpConfigExportDialog(tools: tools),
@@ -124,7 +125,8 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
     setState(() => _copied = true);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Configuration copied to clipboard! Paste into your agent settings.'),
+        content: Text(
+            'Configuration copied to clipboard! Paste into your agent settings.'),
         backgroundColor: AppTheme.honorColor,
         duration: Duration(seconds: 3),
       ),
@@ -159,7 +161,8 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                       color: AppTheme.primaryAccent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.hub_outlined, color: AppTheme.primaryAccent, size: 28),
+                    child: const Icon(Icons.hub_outlined,
+                        color: AppTheme.primaryAccent, size: 28),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -177,13 +180,15 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                         const SizedBox(height: 4),
                         Text(
                           '1-Click Model Context Protocol (MCP) configuration for Claude, Gemini, Cursor, and Windsurf.',
-                          style: GoogleFonts.inter(fontSize: 13, color: AppTheme.secondaryColor),
+                          style: GoogleFonts.inter(
+                              fontSize: 13, color: AppTheme.secondaryColor),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppTheme.secondaryColor),
+                    icon:
+                        const Icon(Icons.close, color: AppTheme.secondaryColor),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -199,7 +204,8 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
               // credits, payouts, or archive state. Financial/minting
               // tools were removed from it entirely.
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppTheme.honorColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
@@ -234,7 +240,8 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                   indicatorColor: AppTheme.primaryAccent,
                   labelColor: AppTheme.primaryAccent,
                   unselectedLabelColor: AppTheme.secondaryColor,
-                  labelStyle: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold),
+                  labelStyle: GoogleFonts.jetBrainsMono(
+                      fontSize: 12, fontWeight: FontWeight.bold),
                   tabs: [
                     const Tab(text: 'Claude Desktop'),
                     const Tab(text: 'Gemini CLI'),
@@ -250,10 +257,12 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildCodeTab(_getClaudeConfig(), 'claude_desktop_config.json'),
+                    _buildCodeTab(
+                        _getClaudeConfig(), 'claude_desktop_config.json'),
                     _buildCodeTab(_getGeminiConfig(), 'gemini_config.json'),
                     _buildCodeTab(_getCursorConfig(), '.cursor/mcp.json'),
-                    _buildCodeTab(_getRawToolSchemas(), 'alexandria_mcp_tools.json'),
+                    _buildCodeTab(
+                        _getRawToolSchemas(), 'alexandria_mcp_tools.json'),
                   ],
                 ),
               ),
@@ -266,12 +275,14 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                   Expanded(
                     child: Row(
                       children: [
-                        const Icon(Icons.lock_outline, size: 14, color: AppTheme.honorColor),
+                        const Icon(Icons.lock_outline,
+                            size: 14, color: AppTheme.honorColor),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             'Dev simulator • stdio / JSON-RPC 2.0 • mock data',
-                            style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppTheme.secondaryColor),
+                            style: GoogleFonts.jetBrainsMono(
+                                fontSize: 11, color: AppTheme.secondaryColor),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -310,7 +321,8 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
       decoration: BoxDecoration(
         color: AppTheme.canvasColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.secondaryColor.withValues(alpha: 0.2)),
+        border:
+            Border.all(color: AppTheme.secondaryColor.withValues(alpha: 0.2)),
       ),
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -331,7 +343,8 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                 onTap: () => _copyToClipboard(code),
                 child: Row(
                   children: [
-                    const Icon(Icons.copy, size: 13, color: AppTheme.secondaryColor),
+                    const Icon(Icons.copy,
+                        size: 13, color: AppTheme.secondaryColor),
                     const SizedBox(width: 4),
                     Text(
                       'Copy',

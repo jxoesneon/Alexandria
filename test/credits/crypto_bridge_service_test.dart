@@ -29,22 +29,32 @@ void main() {
     });
 
     test('validates Lightning Address formats correctly', () {
-      expect(CryptoBridgeService.isValidLightningAddress('satoshi@stacker.news'), isTrue);
-      expect(CryptoBridgeService.isValidLightningAddress('alexandria@getalby.com'), isTrue);
-      expect(CryptoBridgeService.isValidLightningAddress('invalid-address'), isFalse);
-      expect(CryptoBridgeService.isValidLightningAddress('missing_domain@'), isFalse);
-      expect(CryptoBridgeService.isValidLightningAddress('@nodomain.com'), isFalse);
+      expect(
+          CryptoBridgeService.isValidLightningAddress('satoshi@stacker.news'),
+          isTrue);
+      expect(
+          CryptoBridgeService.isValidLightningAddress('alexandria@getalby.com'),
+          isTrue);
+      expect(CryptoBridgeService.isValidLightningAddress('invalid-address'),
+          isFalse);
+      expect(CryptoBridgeService.isValidLightningAddress('missing_domain@'),
+          isFalse);
+      expect(CryptoBridgeService.isValidLightningAddress('@nodomain.com'),
+          isFalse);
     });
 
     test('updates Lightning Address and Mint configurations', () async {
       bridgeService.setLightningAddress('curator@fountain.fm');
       expect(bridgeService.lightningAddress, 'curator@fountain.fm');
 
-      await bridgeService.setCashuMint('https://legend.lnbits.com/cashu/api/v1/4gr9Xcm93Q9kzUkNuqtHzQ');
+      await bridgeService.setCashuMint(
+          'https://legend.lnbits.com/cashu/api/v1/4gr9Xcm93Q9kzUkNuqtHzQ');
       expect(bridgeService.preferredCashuMint, contains('legend.lnbits.com'));
     });
 
-    test('rejects Cashu export while the service-level payout gate is closed (ALX-010)', () {
+    test(
+        'rejects Cashu export while the service-level payout gate is closed (ALX-010)',
+        () {
       final initialBalance = creditService.balance; // 100.0
 
       // Sufficient balance — still rejected: the service-level gate holds even
@@ -82,8 +92,10 @@ void main() {
       final fabricated = const CashuToken(
         mint: 'https://mint.example.com/Bitcoin',
         proofs: [
-          CashuProof(id: 'fake_keyset', amount: 128, secret: 'deadbeef', c: 'cafe'),
-          CashuProof(id: 'fake_keyset', amount: 64, secret: 'beefdead', c: 'face'),
+          CashuProof(
+              id: 'fake_keyset', amount: 128, secret: 'deadbeef', c: 'cafe'),
+          CashuProof(
+              id: 'fake_keyset', amount: 64, secret: 'beefdead', c: 'face'),
         ],
       ).serialize();
 
@@ -104,13 +116,16 @@ void main() {
       expect(CashuToken.deserialize('cashuA'), isNull);
     });
 
-    test('simulated Lightning sweep is closed by the service-level gate (ALX-010)', () {
+    test(
+        'simulated Lightning sweep is closed by the service-level gate (ALX-010)',
+        () {
       bridgeService.setLightningAddress('preservationist@getalby.com');
       final initialBalance = creditService.balance; // 100.0
 
       // The simulated sweep was the fake-success fallback that burned real
       // credits — it is a ℭ→external-value path and must stay closed too.
-      final success = bridgeService.sweepToLightningAddress(creditsToSweep: 15.0);
+      final success =
+          bridgeService.sweepToLightningAddress(creditsToSweep: 15.0);
       expect(success, isFalse);
       expect(creditService.balance, initialBalance);
 
@@ -122,7 +137,9 @@ void main() {
       expect(creditService.balance, initialBalance);
     });
 
-    test('live Lightning sweep fails closed with surfaced reason before any network IO', () async {
+    test(
+        'live Lightning sweep fails closed with surfaced reason before any network IO',
+        () async {
       // Any request reaching the wire proves the gate did not short-circuit.
       var networkTouched = false;
       final mockClient = MockClient((request) async {
@@ -151,7 +168,9 @@ void main() {
       expect(creditService.balance, initialBalance);
     });
 
-    test('rejects NaN, Infinity, zero, and negative egress amounts without throwing or debiting', () async {
+    test(
+        'rejects NaN, Infinity, zero, and negative egress amounts without throwing or debiting',
+        () async {
       final initialBalance = creditService.balance; // 100.0
 
       // `NaN > x` is false, so these inputs used to slip past the

@@ -50,12 +50,14 @@ void main() {
 
     test('addVariant throws for missing entity', () {
       expect(
-        () => graph.addVariant('missing', KnowledgeVariant(
-          cid: 'cid',
-          format: 'pdf',
-          language: 'en',
-          sizeBytes: 1,
-        )),
+        () => graph.addVariant(
+            'missing',
+            KnowledgeVariant(
+              cid: 'cid',
+              format: 'pdf',
+              language: 'en',
+              sizeBytes: 1,
+            )),
         throwsArgumentError,
       );
     });
@@ -72,7 +74,8 @@ void main() {
 
     test('selectOptimalVariant returns null for missing or variant-less entity',
         () {
-      graph.registerEntity(KnowledgeEntity(entityId: 'empty', canonicalTitle: 'Empty'));
+      graph.registerEntity(
+          KnowledgeEntity(entityId: 'empty', canonicalTitle: 'Empty'));
       expect(graph.selectOptimalVariant('missing'), isNull);
       expect(graph.selectOptimalVariant('empty'), isNull);
     });

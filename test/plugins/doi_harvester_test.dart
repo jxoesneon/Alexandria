@@ -26,7 +26,9 @@ void main() {
       );
     });
 
-    test('extracts multiple unique DOIs from arbitrary literature text and bibliography', () {
+    test(
+        'extracts multiple unique DOIs from arbitrary literature text and bibliography',
+        () {
       const sampleText = '''
       # Archival Bibliography
       1. Quantum supremacy using a programmable superconducting processor.
@@ -64,7 +66,8 @@ void main() {
         'issue': '7825',
         'page': '357-362',
         'publisher': 'Springer Science and Business Media LLC',
-        'abstract': '<jats:p>Array programming provides a powerful, compact and expressive syntax for accessing, manipulating and computing on data in vectors, matrices and higher-dimensional arrays.</jats:p>',
+        'abstract':
+            '<jats:p>Array programming provides a powerful, compact and expressive syntax for accessing, manipulating and computing on data in vectors, matrices and higher-dimensional arrays.</jats:p>',
         'subject': ['Computer Science', 'Data Analysis'],
         'is-referenced-by-count': 5420,
         'link': [
@@ -91,7 +94,8 @@ void main() {
       expect(record.abstractText, startsWith('Array programming provides'));
       expect(record.abstractText, isNot(contains('<jats:p>')));
       expect(record.isOpenAccess, isTrue);
-      expect(record.pdfUrl, 'https://www.nature.com/articles/s41586-020-2649-2.pdf');
+      expect(record.pdfUrl,
+          'https://www.nature.com/articles/s41586-020-2649-2.pdf');
 
       // Check BibTeX format
       final bibtex = record.toBibtex();
@@ -124,7 +128,10 @@ void main() {
           'source': {'display_name': 'Wireless Networks'},
           'pdf_url': 'https://example.org/p2p-routing.pdf',
         },
-        'open_access': {'is_oa': true, 'oa_url': 'https://example.org/p2p-routing.pdf'},
+        'open_access': {
+          'is_oa': true,
+          'oa_url': 'https://example.org/p2p-routing.pdf'
+        },
         'cited_by_count': 142,
         'abstract_inverted_index': {
           'Decentralized': [0],
@@ -169,7 +176,9 @@ void main() {
       container.dispose();
     });
 
-    test('ingests scholarly DOI record into ContentRepository and Drift database', () async {
+    test(
+        'ingests scholarly DOI record into ContentRepository and Drift database',
+        () async {
       final record = DoiRecord(
         doi: '10.1038/nature12345',
         title: 'Quantum Entanglement in Macroscopic Crystals',
@@ -177,7 +186,8 @@ void main() {
         journal: 'Nature Physics',
         year: 2025,
         publisher: 'Nature Publishing Group',
-        abstractText: 'We report experimental observation of entanglement across spatial domains.',
+        abstractText:
+            'We report experimental observation of entanglement across spatial domains.',
         subjects: ['Quantum Physics', 'Optics'],
         citationCount: 42,
       );
@@ -202,7 +212,8 @@ void main() {
       expect(extraMeta['doi'], '10.1038/nature12345');
       expect(extraMeta['journal'], 'Nature Physics');
       expect(extraMeta['year'], 2025);
-      expect(extraMeta['harvesterPlugin'], 'org.alexandria.plugin.doi-harvester');
+      expect(
+          extraMeta['harvesterPlugin'], 'org.alexandria.plugin.doi-harvester');
 
       // Verify content file retrieval from IPFS blockstore
       final db = container.read(databaseProvider);
@@ -214,14 +225,17 @@ void main() {
 
       final bytes = await repository.retrieveContent(version.cid);
       final content = utf8.decode(bytes);
-      expect(content, contains('# Quantum Entanglement in Macroscopic Crystals'));
-      expect(content, contains('**DOI:** [https://doi.org/10.1038/nature12345]'));
+      expect(
+          content, contains('# Quantum Entanglement in Macroscopic Crystals'));
+      expect(
+          content, contains('**DOI:** [https://doi.org/10.1038/nature12345]'));
       expect(content, contains('```bibtex'));
     });
 
     test('executes action extract_dois via plugin interface', () async {
       final res = await plugin.executeAction('extract_dois', {
-        'text': 'References: 10.1016/j.cell.2021.01.001 and https://doi.org/10.1126/science.abc1234',
+        'text':
+            'References: 10.1016/j.cell.2021.01.001 and https://doi.org/10.1126/science.abc1234',
       });
 
       expect(res.success, isTrue);

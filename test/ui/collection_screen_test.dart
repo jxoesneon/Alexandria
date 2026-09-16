@@ -25,7 +25,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('CollectionScreen Tests', () {
-    testWidgets('renders collections list, creates collection and opens create dialog', (tester) async {
+    testWidgets(
+        'renders collections list, creates collection and opens create dialog',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -58,14 +60,18 @@ void main() {
       final textFields = find.byType(TextField);
       expect(textFields, findsNWidgets(2));
       await tester.enterText(textFields.at(0), 'Modern Thinkers');
-      await tester.enterText(textFields.at(1), 'Contemporary philosophical essays');
+      await tester.enterText(
+          textFields.at(1), 'Contemporary philosophical essays');
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
-      expect(service.collections.any((c) => c.name.value == 'Modern Thinkers'), isTrue);
+      expect(service.collections.any((c) => c.name.value == 'Modern Thinkers'),
+          isTrue);
     });
 
-    testWidgets('renders detail view, adds item, and tests menu actions (fork and history)', (tester) async {
+    testWidgets(
+        'renders detail view, adds item, and tests menu actions (fork and history)',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -114,7 +120,10 @@ void main() {
       await tester.tap(find.text('Add'));
       await tester.pumpAndSettle();
 
-      expect(col.items.elements.any((i) => i.contentCid == 'bafy_aristotle_ethics'), isTrue);
+      expect(
+          col.items.elements
+              .any((i) => i.contentCid == 'bafy_aristotle_ethics'),
+          isTrue);
 
       // Test PopupMenu actions (History)
       final moreBtn = find.byIcon(Icons.more_vert);

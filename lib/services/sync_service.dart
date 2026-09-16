@@ -92,8 +92,7 @@ class SyncService {
     try {
       jsonEncode(data);
     } catch (_) {
-      throw ArgumentError(
-          'Sync operation data is not JSON-encodable');
+      throw ArgumentError('Sync operation data is not JSON-encodable');
     }
     final op = QueuedOperation(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -120,8 +119,7 @@ class SyncService {
       // at the retry bound instead of poisoning the queue.
       try {
         final topic = '/alexandria/sync/v1/${op.collectionId}';
-        final success =
-            await ipfs.publishToPubsub(topic, jsonEncode(op.data));
+        final success = await ipfs.publishToPubsub(topic, jsonEncode(op.data));
         if (success) {
           completed.add(op);
         } else {
@@ -160,8 +158,7 @@ class SyncService {
     _offlineQueue.clear();
     for (final item in decoded) {
       try {
-        final op =
-            QueuedOperation.fromJson(item as Map<String, dynamic>);
+        final op = QueuedOperation.fromJson(item as Map<String, dynamic>);
         // (slot-C sweep) shape-check the fields that land in the pubsub
         // topic — a corrupted/tampered queue file must not let a
         // stored collectionId escape the /alexandria/sync/v1/

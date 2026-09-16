@@ -20,14 +20,19 @@ void main() {
     });
 
     test('serializes maps canonically with sorted keys', () {
-      final map1 = {'z': 1, 'a': 2, 'm': {'y': 'val2', 'b': 'val1'}};
+      final map1 = {
+        'z': 1,
+        'a': 2,
+        'm': {'y': 'val2', 'b': 'val1'}
+      };
       final canonicalStr = toCanonicalJson(map1);
 
       // Verify 'a' precedes 'm', 'm' precedes 'z', and nested 'b' precedes 'y'
       expect(canonicalStr, '{"a":2,"m":{"b":"val1","y":"val2"},"z":1}');
     });
 
-    test('creates and cryptographically verifies a valid Beacon v2 envelope', () async {
+    test('creates and cryptographically verifies a valid Beacon v2 envelope',
+        () async {
       final payload = {
         'cid': 'bafk_ancient_manuscript_01',
         'offered_credits': 30.0,

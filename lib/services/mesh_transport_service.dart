@@ -6,8 +6,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'identity_service.dart'
-    show AlexandriaIdentity, identityServiceProvider;
+import 'identity_service.dart' show AlexandriaIdentity, identityServiceProvider;
 
 final meshTransportServiceProvider = Provider((ref) {
   // Mutual-auth wiring (dialer-auth residual closure): the service
@@ -114,8 +113,7 @@ class MeshHandshakeTicket {
     this.responderSide = false,
     this.socket,
     this.socketStream,
-  })  : sharedSecret =
-            sharedSecret ?? MeshTransportService.randomBytes(32),
+  })  : sharedSecret = sharedSecret ?? MeshTransportService.randomBytes(32),
         dialerSignature = dialerSignature ?? Uint8List(0);
 
   /// A locally-fabricated ticket for injected-probe success paths: the
@@ -143,8 +141,7 @@ class MeshHandshakeTicket {
         : '${MeshTransportService.handshakeProtocol} HELLO $nonce '
             '$multiaddr $dialerEphemeral $dialerPeerId '
             '${base64Encode(dialerSignature)}';
-    return Uint8List.fromList(utf8.encode(
-        '$hello\n'
+    return Uint8List.fromList(utf8.encode('$hello\n'
         '${MeshTransportService.handshakeProtocol} ACK $nonce $peerId '
         '${base64Encode(responderSignature)} $responderEphemeral'));
   }
@@ -317,7 +314,7 @@ class MeshTransportService {
   /// configured identity material into the static wire routine so the
   /// [MeshSessionProbe] seam stays a bare `multiaddr → ticket`.
   Future<MeshHandshakeTicket?> _defaultSessionProbeWithIdentity(
-      String multiaddr) async =>
+          String multiaddr) async =>
       _defaultSessionProbe(
         multiaddr,
         localPeerId: await _resolveLocalPeerId(),
@@ -481,8 +478,8 @@ class MeshTransportService {
       Uint8List? dialerSignature;
       final String hello;
       if (mutual) {
-        dialerSignature = await identitySigner(dialerHelloSignBytes(
-            nonce, localPeerId, multiaddr, dialerEph));
+        dialerSignature = await identitySigner(
+            dialerHelloSignBytes(nonce, localPeerId, multiaddr, dialerEph));
         // A signer that cannot produce an Ed25519 signature is broken
         // identity plumbing — fail the dial closed rather than
         // silently downgrade to the anonymous form the operator did
@@ -491,8 +488,7 @@ class MeshTransportService {
         hello = '$handshakeProtocol HELLO $nonce $multiaddr $dialerEph '
             '$localPeerId ${base64Encode(dialerSignature)}';
       } else {
-        hello =
-            '$handshakeProtocol HELLO $nonce $multiaddr $dialerEph';
+        hello = '$handshakeProtocol HELLO $nonce $multiaddr $dialerEph';
       }
       socket.add(utf8.encode('$hello\n'));
       await socket.flush();
@@ -518,8 +514,8 @@ class MeshTransportService {
       // the channel secret — and, in the mutual form, the claimed
       // dialer identity, so the ACK cannot be re-attributed.
       final verified = await Ed25519().verify(
-        handshakeSignBytes(nonce, peerId, multiaddr, dialerEph,
-            responderEph, mutual ? localPeerId : ''),
+        handshakeSignBytes(nonce, peerId, multiaddr, dialerEph, responderEph,
+            mutual ? localPeerId : ''),
         signature: Signature(
           Uint8List.fromList(signature),
           publicKey: SimplePublicKey(peerKey, type: KeyPairType.ed25519),
@@ -528,8 +524,8 @@ class MeshTransportService {
       if (!verified) return null;
       final shared = await x25519.sharedSecretKey(
         keyPair: dialerPair,
-        remotePublicKey: SimplePublicKey(responderEphBytes,
-            type: KeyPairType.x25519),
+        remotePublicKey:
+            SimplePublicKey(responderEphBytes, type: KeyPairType.x25519),
       );
       final sharedBytes = Uint8List.fromList(await shared.extractBytes());
       // Low-order-point guard: an all-zero shared secret means the peer
@@ -644,12 +640,10 @@ class MeshTransportService {
         }
         if (dialerSignature.length != 64) return false;
         final dialerOk = await Ed25519().verify(
-          dialerHelloSignBytes(
-              nonce, dialerPeerId, dialedMultiaddr, dialerEph),
+          dialerHelloSignBytes(nonce, dialerPeerId, dialedMultiaddr, dialerEph),
           signature: Signature(
             dialerSignature,
-            publicKey:
-                SimplePublicKey(dialerKey, type: KeyPairType.ed25519),
+            publicKey: SimplePublicKey(dialerKey, type: KeyPairType.ed25519),
           ),
         );
         if (!dialerOk) return false;
@@ -674,9 +668,8 @@ class MeshTransportService {
       // Mutual form: the responder's signature additionally covers the
       // verified dialer identity, so the ACK cannot be re-attributed to
       // a different claimed dialer.
-      final signature = await signer(handshakeSignBytes(nonce,
-          localPeerId, dialedMultiaddr, dialerEph, responderEph,
-          dialerPeerId));
+      final signature = await signer(handshakeSignBytes(nonce, localPeerId,
+          dialedMultiaddr, dialerEph, responderEph, dialerPeerId));
       socket.add(utf8.encode(
           '$handshakeProtocol ACK $nonce $localPeerId ${base64Encode(signature)} $responderEph\n'));
       await socket.flush();
@@ -756,8 +749,7 @@ class MeshTransportService {
   /// memory-exhaustion attempt — the link is torn down.
   static const int maxFrameBytes = 1 << 20;
 
-  static final List<int> _frameMacDomain =
-      utf8.encode('alx-mesh-frame:v1');
+  static final List<int> _frameMacDomain = utf8.encode('alx-mesh-frame:v1');
 
   static Uint8List _hmacSha256(List<int> key, List<int> msg) =>
       Uint8List.fromList(crypto.Hmac(crypto.sha256, key).convert(msg).bytes);
@@ -786,15 +778,14 @@ class MeshTransportService {
   /// (unknown to handshake observers) over the transcript (binds the
   /// key to this dial). Public so the responder path ([serveHandshake]'s
   /// session-bound callback) and tests can recompute it.
-  static Uint8List deriveSessionKey(MeshHandshakeTicket ticket) =>
-      _hkdfSha256(
+  static Uint8List deriveSessionKey(MeshHandshakeTicket ticket) => _hkdfSha256(
         salt: ticket.sharedSecret,
         ikm: ticket.transcriptBytes,
         info: utf8.encode('alexandria:mesh-channel:v1'),
       );
 
   static Uint8List _frameMac(
-          Uint8List key, int seq, List<int> payload, int direction) {
+      Uint8List key, int seq, List<int> payload, int direction) {
     final seqBytes = ByteData(_frameSeqLen)..setUint64(0, seq);
     return _hmacSha256(key, [
       ..._frameMacDomain,
@@ -983,11 +974,9 @@ class MeshTransportService {
     // public API (channels are installed by the same write-back that
     // marks reachability) — this is defense in depth, not bookkeeping.
     if (channel == null) return false;
-    final direction = channel.responderSide
-        ? _dirResponderToDialer
-        : _dirDialerToResponder;
-    final frame =
-        encodeFrame(channel.key, channel.sendSeq, data, direction);
+    final direction =
+        channel.responderSide ? _dirResponderToDialer : _dirDialerToResponder;
+    final frame = encodeFrame(channel.key, channel.sendSeq, data, direction);
     // The sequence is consumed whether or not dispatch reports
     // success — a "failed" send may still have hit the wire, and
     // re-using a seq for different bytes reads as a replay attack to
@@ -1044,12 +1033,9 @@ class MeshTransportService {
     if (socket == null || stream == null) return;
     channel.socket = socket;
     channel.socketSub = stream.listen(
-      (chunk) =>
-          _onSocketChunk(peerId, channel, ticket.multiaddr, chunk),
-      onError: (_) =>
-          _handleSocketGone(peerId, channel, ticket.multiaddr),
-      onDone: () =>
-          _handleSocketGone(peerId, channel, ticket.multiaddr),
+      (chunk) => _onSocketChunk(peerId, channel, ticket.multiaddr, chunk),
+      onError: (_) => _handleSocketGone(peerId, channel, ticket.multiaddr),
+      onDone: () => _handleSocketGone(peerId, channel, ticket.multiaddr),
       cancelOnError: true,
     );
   }
@@ -1058,15 +1044,12 @@ class MeshTransportService {
   /// drains every complete `len(4 BE) ‖ frame` unit through
   /// [receiveFrame] (MAC + sequence verification happen there — this
   /// pump never releases plaintext itself).
-  void _onSocketChunk(String peerId, _MeshChannel channel,
-      String multiaddr, List<int> chunk) {
+  void _onSocketChunk(
+      String peerId, _MeshChannel channel, String multiaddr, List<int> chunk) {
     final buf = channel.rxBuf;
     buf.addAll(chunk);
     while (buf.length >= _framePrefixLen) {
-      final declared = (buf[0] << 24) |
-          (buf[1] << 16) |
-          (buf[2] << 8) |
-          buf[3];
+      final declared = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
       if (declared > maxFrameBytes) {
         // Protocol violation / memory-exhaustion attempt — tear the
         // link down rather than buffer toward an unbounded frame.
@@ -1140,9 +1123,8 @@ class MeshTransportService {
     final mac = frame.sublist(frame.length - _frameMacLen);
     // Inbound frames travel the OPPOSITE direction to our sends — a
     // reflected copy of our own outbound frame fails this MAC.
-    final direction = channel.responderSide
-        ? _dirDialerToResponder
-        : _dirResponderToDialer;
+    final direction =
+        channel.responderSide ? _dirDialerToResponder : _dirResponderToDialer;
     final expected = _frameMac(channel.key, seq, payload, direction);
     // Constant-time tag compare — a mismatch is forged/tampered input
     // and is rejected BEFORE any plaintext is released.

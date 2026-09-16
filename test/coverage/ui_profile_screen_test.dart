@@ -37,7 +37,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('providers', () {
-    test('reputationProvider, pinnedCountProvider, myProfileProvider, '
+    test(
+        'reputationProvider, pinnedCountProvider, myProfileProvider, '
         'userActivityProvider resolve', () async {
       installSecureStore();
       final container = ProviderContainer();
@@ -164,8 +165,8 @@ void main() {
       // The mnemonic word grid overflows ~7px at the default text scale
       // in the test font environment; shrink text so the dialog fits.
       tester.platformDispatcher.textScaleFactorTestValue = 0.7;
-      addTearDown(() =>
-          tester.platformDispatcher.clearTextScaleFactorTestValue());
+      addTearDown(
+          () => tester.platformDispatcher.clearTextScaleFactorTestValue());
 
       // Clipboard.setData is a no-op under the test messenger — no mock
       // needed (overriding 'flutter/platform' would break SystemChrome

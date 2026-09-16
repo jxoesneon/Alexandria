@@ -57,8 +57,8 @@ class _Sniffer {
           headers: {'content-type': 'application/json'},
         );
       }
-      return http.Response(jsonEncode({'pr': 'lnbc1x'}),
-          200, headers: {'content-type': 'application/json'});
+      return http.Response(jsonEncode({'pr': 'lnbc1x'}), 200,
+          headers: {'content-type': 'application/json'});
     });
   }
 }
@@ -90,8 +90,7 @@ class _RedirectFollowingClient extends http.BaseClient {
       } else if (current.url.host == 'callback.example.com') {
         // The public host redirects into the link-local metadata
         // service over cleartext HTTP.
-        res = http.StreamedResponse(const Stream.empty(),
-            HttpStatus.found,
+        res = http.StreamedResponse(const Stream.empty(), HttpStatus.found,
             headers: {
               'location': 'http://169.254.169.254/latest/meta-data/iam'
             },
@@ -123,8 +122,7 @@ void main() {
       '2130706433', // single decimal → 127.0.0.1
       'localhost.', // trailing-dot FQDN → loopback
     ]) {
-      test('callback host "$host" must be refused before fetch',
-          () async {
+      test('callback host "$host" must be refused before fetch', () async {
         sniffer.reset();
         final svc =
             LnurlService(client: sniffer.clientReturning('https://$host/cb'));
@@ -138,8 +136,7 @@ void main() {
         final hitHost =
             sniffer.captured.any((u) => u.host.toLowerCase() == host);
         expect(hitHost, isFalse,
-            reason:
-                'the callback request was issued to "$host" — the SSRF '
+            reason: 'the callback request was issued to "$host" — the SSRF '
                 'gate only recognises dotted-decimal quads, but the OS '
                 'resolver maps this spelling to a private/loopback '
                 'address. Wire trace: ${sniffer.captured}. '
@@ -148,7 +145,8 @@ void main() {
     }
   });
 
-  test('callback redirect target is never re-validated (302 → private '
+  test(
+      'callback redirect target is never re-validated (302 → private '
       'host)', () async {
     sniffer.reset();
     final svc = LnurlService(client: _RedirectFollowingClient(sniffer));
@@ -160,11 +158,10 @@ void main() {
       thrown = e;
     }
 
-    final hitMetadata = sniffer.captured.any((u) =>
-        u.host == '169.254.169.254' || u.scheme == 'http');
+    final hitMetadata = sniffer.captured
+        .any((u) => u.host == '169.254.169.254' || u.scheme == 'http');
     expect(hitMetadata, isFalse,
-        reason:
-            'the production client follows redirects (dart:io default), '
+        reason: 'the production client follows redirects (dart:io default), '
             'so a gate-clean https callback can 302 the fetch into '
             'cleartext link-local space with zero re-validation. Wire '
             'trace: ${sniffer.captured}. (thrown=$thrown)');

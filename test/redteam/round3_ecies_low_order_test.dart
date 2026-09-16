@@ -74,12 +74,12 @@ void main() {
 
   // The Ed25519 compressed encoding of y = -1 (mod p): converts to
   // Montgomery u = 0 — a low-order point with no private key.
-  final lowOrderEd =
-      Uint8List.fromList([0xec, ...List.filled(30, 0xff), 0x7f]);
+  final lowOrderEd = Uint8List.fromList([0xec, ...List.filled(30, 0xff), 0x7f]);
   final lowOrderU = EncryptionService.ed25519PublicToX25519(lowOrderEd);
   assert(lowOrderU.every((b) => b == 0), 'expected u=0 mapping');
 
-  test('envelope for a low-order peer key must NOT be decryptable by '
+  test(
+      'envelope for a low-order peer key must NOT be decryptable by '
       'an eavesdropper who knows only public values', () async {
     final secret =
         Uint8List.fromList(utf8.encode('sealed-bid: pay 42 credits'));
@@ -94,8 +94,7 @@ void main() {
     final eavesKp = await x.newKeyPair();
     final shared = await x.sharedSecretKey(
       keyPair: eavesKp,
-      remotePublicKey:
-          SimplePublicKey(lowOrderU, type: KeyPairType.x25519),
+      remotePublicKey: SimplePublicKey(lowOrderU, type: KeyPairType.x25519),
     );
     final sharedBytes = await shared.extractBytes();
     expect(sharedBytes.every((b) => b == 0), isTrue,
@@ -112,15 +111,14 @@ void main() {
     );
     Uint8List? recovered;
     try {
-      recovered = Uint8List.fromList(
-          await aes.decrypt(box, secretKey: aeadKey));
+      recovered =
+          Uint8List.fromList(await aes.decrypt(box, secretKey: aeadKey));
     } catch (_) {
       recovered = null;
     }
 
     expect(recovered, isNot(equals(secret)),
-        reason:
-            'an eavesdropper decrypted a "peer-encrypted" envelope using '
+        reason: 'an eavesdropper decrypted a "peer-encrypted" envelope using '
             'ONLY public values: the recipient key is a low-order point, '
             'so the X25519 shared secret is the all-zero constant and the '
             'HKDF salt is entirely on the wire. encryptForPeer must reject '
@@ -143,13 +141,10 @@ void main() {
     final forgeKp = await x.newKeyPair();
     final shared = await x.sharedSecretKey(
       keyPair: forgeKp,
-      remotePublicKey:
-          SimplePublicKey(Uint8List(32), type: KeyPairType.x25519),
+      remotePublicKey: SimplePublicKey(Uint8List(32), type: KeyPairType.x25519),
     );
     final aeadKey = await _attackerAeadKey(
-        shared: shared,
-        ephemeralPub: Uint8List(32),
-        peerU: victimPub);
+        shared: shared, ephemeralPub: Uint8List(32), peerU: victimPub);
     final forged = await aes.encrypt(
         Uint8List.fromList(utf8.encode('FORGED peer message')),
         secretKey: aeadKey);
@@ -168,8 +163,7 @@ void main() {
     }
 
     expect(threw, isNotNull,
-        reason:
-            'decryptFromPeer accepted an envelope whose ephemeral key is '
+        reason: 'decryptFromPeer accepted an envelope whose ephemeral key is '
             'the low-order point u=0: the victim derived the all-zero '
             'shared secret and released attacker-chosen plaintext '
             '("${plain == null ? '' : utf8.decode(plain)}"). A '
@@ -177,7 +171,8 @@ void main() {
             'and low-order public inputs) is required.');
   });
 
-  test('the documented x25519PublicKeyBytes value must round-trip '
+  test(
+      'the documented x25519PublicKeyBytes value must round-trip '
       'through encryptForPeer/decryptFromPeer', () async {
     // Real Ed25519 identity.
     final seed = Uint8List.fromList(List.generate(32, (i) => i + 7));
@@ -212,8 +207,7 @@ void main() {
       threw = e;
     }
     expect(opened, equals(data),
-        reason:
-            'encryptForPeer was fed the peer\'s documented X25519 public '
+        reason: 'encryptForPeer was fed the peer\'s documented X25519 public '
             'key (IdentityService.x25519PublicKeyBytes, "the value a '
             'sender needs inside EncryptionService.encryptForPeer") and '
             'produced a ciphertext the real recipient can never open '

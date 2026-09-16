@@ -83,8 +83,7 @@ void main() {
     ));
 
     expect(await rawKey('victim-note'), isNotNull,
-        reason:
-            'saveNote fetched the manifest through the projected view '
+        reason: 'saveNote fetched the manifest through the projected view '
             '(encryptionKey: null) and wrote it back with replace(), '
             'NULLing the legacy DEK column — the last copy of the key '
             'is gone and the ciphertext is unrecoverable.');
@@ -108,13 +107,11 @@ void main() {
     );
 
     expect(await rawKey('victim-doc'), isNotNull,
-        reason:
-            'addAnnotation round-trips the projected manifest through '
+        reason: 'addAnnotation round-trips the projected manifest through '
             'replace() and destroys the pending-rehome DEK column.');
   });
 
-  test('plugin saveManifest write-back erases the unrehomed DEK',
-      () async {
+  test('plugin saveManifest write-back erases the unrehomed DEK', () async {
     await insertLegacyRow('victim-manifest', 'b64-legacy-dek-CCC');
 
     final repo = container.read(contentRepositoryProvider);
@@ -130,8 +127,7 @@ void main() {
     ));
 
     expect(await rawKey('victim-manifest'), isNotNull,
-        reason:
-            'saveManifest replace()es the projected row verbatim — the '
+        reason: 'saveManifest replace()es the projected row verbatim — the '
             'hidden key column is written back as NULL, destroying the '
             'legacy DEK it was never allowed to read.');
   });

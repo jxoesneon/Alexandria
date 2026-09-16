@@ -28,6 +28,7 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
     _voucherController.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     final creditService = ref.watch(creditServiceProvider);
@@ -89,7 +90,8 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                         ),
                         Text(
                           'ALX-005 Tokenless Resource Economics & Credit Ledger',
-                          style: TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                          style: TextStyle(
+                              fontSize: 11, color: AppTheme.secondaryColor),
                         ),
                       ],
                     ),
@@ -98,7 +100,8 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                   const GovernancePillRow(),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 20, color: AppTheme.secondaryColor),
+                    icon: const Icon(Icons.close,
+                        size: 20, color: AppTheme.secondaryColor),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -135,7 +138,8 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                 ),
                                 const SizedBox(height: 6),
                                 Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.baseline,
                                   textBaseline: TextBaseline.alphabetic,
                                   children: [
                                     Text(
@@ -160,12 +164,16 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                 const SizedBox(height: 4),
                                 Text(
                                   'Attested: ${creditService.attestedBalance.toStringAsFixed(1)} ℭ • Unattested: ${creditService.unattestedBalance.toStringAsFixed(1)} ℭ',
-                                  style: const TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppTheme.secondaryColor),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'Treasury Reserve: ${creditService.protocolTreasury.toStringAsFixed(1)} ℭ (5% Micro-Fee)',
-                                  style: const TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppTheme.secondaryColor),
                                 ),
                               ],
                             ),
@@ -181,7 +189,8 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Expanded(
                                       child: Text(
@@ -197,19 +206,26 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                     ),
                                     const SizedBox(width: 8),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: pochMetrics.isCompliant
-                                            ? Colors.green.withValues(alpha: 0.2)
-                                            : Colors.orange.withValues(alpha: 0.2),
+                                            ? Colors.green
+                                                .withValues(alpha: 0.2)
+                                            : Colors.orange
+                                                .withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Text(
-                                        pochMetrics.isCompliant ? 'COMPLIANT' : 'RATE-LIMITED',
+                                        pochMetrics.isCompliant
+                                            ? 'COMPLIANT'
+                                            : 'RATE-LIMITED',
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
-                                          color: pochMetrics.isCompliant ? Colors.green : Colors.orange,
+                                          color: pochMetrics.isCompliant
+                                              ? Colors.green
+                                              : Colors.orange,
                                         ),
                                       ),
                                     ),
@@ -220,18 +236,23 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                   value: pochMetrics.score,
                                   backgroundColor: Colors.white10,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    pochMetrics.isCompliant ? AppTheme.primaryAccent : Colors.orange,
+                                    pochMetrics.isCompliant
+                                        ? AppTheme.primaryAccent
+                                        : Colors.orange,
                                   ),
                                   minHeight: 6,
                                   borderRadius: BorderRadius.circular(3),
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       'Score: ${(pochMetrics.score * 100).toInt()}%',
-                                      style: const TextStyle(fontSize: 11, color: AppTheme.textColor),
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppTheme.textColor),
                                     ),
                                     Text(
                                       'QoS Speed: ${pochMetrics.bandwidthMultiplier.toStringAsFixed(2)}x',
@@ -254,7 +275,10 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                     // Tri-Pillar Contribution Breakdown
                     const Text(
                       'Resource Contribution Breakdown',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textColor),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -262,28 +286,32 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                         _buildStatBox(
                           icon: Icons.storage_outlined,
                           title: 'Storage (PoR)',
-                          value: '${creditService.totalStorageEarned.toStringAsFixed(1)} ℭ',
+                          value:
+                              '${creditService.totalStorageEarned.toStringAsFixed(1)} ℭ',
                           subtitle: 'Pinning & Challenges',
                         ),
                         const SizedBox(width: 8),
                         _buildStatBox(
                           icon: Icons.memory,
                           title: 'Compute',
-                          value: '${creditService.totalComputeEarned.toStringAsFixed(1)} ℭ',
+                          value:
+                              '${creditService.totalComputeEarned.toStringAsFixed(1)} ℭ',
                           subtitle: 'Cauchy RS & OCR',
                         ),
                         const SizedBox(width: 8),
                         _buildStatBox(
                           icon: Icons.verified_outlined,
                           title: 'Verification',
-                          value: '${creditService.totalVerificationEarned.toStringAsFixed(1)} ℭ',
+                          value:
+                              '${creditService.totalVerificationEarned.toStringAsFixed(1)} ℭ',
                           subtitle: 'DOI & Metadata Audits',
                         ),
                         const SizedBox(width: 8),
                         _buildStatBox(
                           icon: Icons.campaign_outlined,
                           title: 'Ad Kickbacks',
-                          value: '${creditService.totalSponsorshipKickbacks.toStringAsFixed(1)} ℭ',
+                          value:
+                              '${creditService.totalSponsorshipKickbacks.toStringAsFixed(1)} ℭ',
                           subtitle: '85% Viewer Share',
                         ),
                       ],
@@ -291,20 +319,24 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                     // Ethical Sponsorship Opt-In Switch
                     Consumer(
                       builder: (context, ref, _) {
-                        final sponsorshipService = ref.watch(sponsorshipServiceProvider);
+                        final sponsorshipService =
+                            ref.watch(sponsorshipServiceProvider);
                         return Container(
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryAccent.withValues(alpha: 0.08),
+                            color:
+                                AppTheme.primaryAccent.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: AppTheme.primaryAccent.withValues(alpha: 0.25),
+                              color: AppTheme.primaryAccent
+                                  .withValues(alpha: 0.25),
                             ),
                           ),
                           child: Material(
                             type: MaterialType.transparency,
                             child: SwitchListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 2),
                               title: const Text(
                                 'Enable Community Sponsorships',
                                 style: TextStyle(
@@ -315,10 +347,13 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                               ),
                               subtitle: const Text(
                                 'Privacy-first local matching: zero tracking, zero PII. Receive an 85% viewer kickback credited directly to your balance.',
-                                style: TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.secondaryColor),
                               ),
                               value: sponsorshipService.isOptInEnabled,
-                              onChanged: (val) => sponsorshipService.toggleOptIn(val),
+                              onChanged: (val) =>
+                                  sponsorshipService.toggleOptIn(val),
                               activeThumbColor: AppTheme.primaryAccent,
                             ),
                           ),
@@ -329,7 +364,10 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                     // Quick Action Simulations
                     const Text(
                       'Actions & Resource Allocation',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textColor),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -345,17 +383,24 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                 cauchyMb: 10.0,
                                 fastCdcMb: 25.0,
                                 ocrPages: 2,
-                                description: 'Simulated Cauchy RS Parity Encoding',
+                                description:
+                                    'Simulated Cauchy RS Parity Encoding',
                               );
-                              ref.read(pochServiceProvider).recordSeedingActivity(50 * 1024 * 1024);
+                              ref
+                                  .read(pochServiceProvider)
+                                  .recordSeedingActivity(50 * 1024 * 1024);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Contributed Cauchy RS compute: +42.5 ℭ earned!')),
+                                const SnackBar(
+                                    content: Text(
+                                        'Contributed Cauchy RS compute: +42.5 ℭ earned!')),
                               );
                             },
                             icon: const Icon(Icons.bolt, size: 16),
-                            label: const Text('Simulate Parity Compute', style: TextStyle(fontSize: 12)),
+                            label: const Text('Simulate Parity Compute',
+                                style: TextStyle(fontSize: 12)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryAccent.withValues(alpha: 0.2),
+                              backgroundColor:
+                                  AppTheme.primaryAccent.withValues(alpha: 0.2),
                               foregroundColor: AppTheme.primaryAccent,
                             ),
                           ),
@@ -369,13 +414,17 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                 cid: 'bafkrei_simulated_endangered_work',
                               );
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Passed Endangered PoR Challenge: +50 ℭ earned!')),
+                                const SnackBar(
+                                    content: Text(
+                                        'Passed Endangered PoR Challenge: +50 ℭ earned!')),
                               );
                             },
                             icon: const Icon(Icons.shield_outlined, size: 16),
-                            label: const Text('Pass PoR Challenge', style: TextStyle(fontSize: 12)),
+                            label: const Text('Pass PoR Challenge',
+                                style: TextStyle(fontSize: 12)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryAccent.withValues(alpha: 0.2),
+                              backgroundColor:
+                                  AppTheme.primaryAccent.withValues(alpha: 0.2),
                               foregroundColor: AppTheme.primaryAccent,
                             ),
                           ),
@@ -384,18 +433,22 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                               ? () {
                                   final success = creditService.spendCredits(
                                     amount: 20.0,
-                                    reason: 'Commission Swarm Parity Replication',
+                                    reason:
+                                        'Commission Swarm Parity Replication',
                                     referenceId: 'req_rep_1',
                                   );
                                   if (success) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Spent 20 ℭ on Swarm Parity Replication (1 ℭ fee to Treasury)')),
+                                      const SnackBar(
+                                          content: Text(
+                                              'Spent 20 ℭ on Swarm Parity Replication (1 ℭ fee to Treasury)')),
                                     );
                                   }
                                 }
                               : null,
                           icon: const Icon(Icons.publish, size: 16),
-                          label: const Text('Commission Swarm Pinning (20 ℭ)', style: TextStyle(fontSize: 12)),
+                          label: const Text('Commission Swarm Pinning (20 ℭ)',
+                              style: TextStyle(fontSize: 12)),
                         ),
                       ],
                     ),
@@ -417,7 +470,8 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.currency_bitcoin, color: Colors.amber, size: 20),
+                              const Icon(Icons.currency_bitcoin,
+                                  color: Colors.amber, size: 20),
                               const SizedBox(width: 8),
                               const Expanded(
                                 child: Text(
@@ -432,17 +486,20 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                               ),
                               const SizedBox(width: 8),
                               TextButton(
-                                onPressed: () => setState(() => _showCryptoBridge = !_showCryptoBridge),
+                                onPressed: () => setState(() =>
+                                    _showCryptoBridge = !_showCryptoBridge),
                                 child: Text(
                                   _showCryptoBridge ? 'Hide' : 'Configure',
-                                  style: const TextStyle(fontSize: 11, color: Colors.amber),
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Colors.amber),
                                 ),
                               ),
                             ],
                           ),
                           const Text(
                             'Optional, non-custodial sovereign rails: 1 ℭ = 10 Satoshis. Zero speculative tokens.',
-                            style: TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                            style: TextStyle(
+                                fontSize: 11, color: AppTheme.secondaryColor),
                           ),
                           if (_showCryptoBridge) ...[
                             const SizedBox(height: 14),
@@ -452,7 +509,10 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                             // Cashu Bearer Vouchers
                             const Text(
                               'Chaumian E-Cash (Cashu NUT-00)',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textColor),
                             ),
                             const SizedBox(height: 6),
                             Wrap(
@@ -462,21 +522,30 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                 OutlinedButton.icon(
                                   onPressed: creditService.balance >= 10
                                       ? () {
-                                          final bridge = ref.read(cryptoBridgeServiceProvider);
-                                          final token = bridge.exportCreditsAsCashuToken(10.0);
+                                          final bridge = ref.read(
+                                              cryptoBridgeServiceProvider);
+                                          final token = bridge
+                                              .exportCreditsAsCashuToken(10.0);
                                           if (token != null) {
-                                            final serialized = token.serialize();
-                                            Clipboard.setData(ClipboardData(text: serialized));
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Exported 100 Sats to Cashu token! Copied to clipboard.')),
+                                            final serialized =
+                                                token.serialize();
+                                            Clipboard.setData(ClipboardData(
+                                                text: serialized));
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      'Exported 100 Sats to Cashu token! Copied to clipboard.')),
                                             );
                                           } else {
                                             // Surface the service-layer rejection reason
                                             // verbatim (e.g. ALX-010 payouts disabled).
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                  bridge.egressRejectionReason(10.0) ??
+                                                  bridge.egressRejectionReason(
+                                                          10.0) ??
                                                       'Cashu export failed.',
                                                 ),
                                               ),
@@ -485,7 +554,8 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                         }
                                       : null,
                                   icon: const Icon(Icons.download, size: 15),
-                                  label: const Text('Export 10 ℭ (100 Sats)', style: TextStyle(fontSize: 11)),
+                                  label: const Text('Export 10 ℭ (100 Sats)',
+                                      style: TextStyle(fontSize: 11)),
                                 ),
                               ],
                             ),
@@ -495,17 +565,26 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                 Expanded(
                                   child: TextField(
                                     controller: _voucherController,
-                                    style: const TextStyle(fontSize: 11, color: AppTheme.textColor),
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.textColor),
                                     decoration: InputDecoration(
-                                      hintText: 'Paste cashuA... voucher to deposit',
-                                      hintStyle: const TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                                      hintText:
+                                          'Paste cashuA... voucher to deposit',
+                                      hintStyle: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppTheme.secondaryColor),
                                       isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 8),
                                       filled: true,
-                                      fillColor: Colors.white.withValues(alpha: 0.04),
+                                      fillColor:
+                                          Colors.white.withValues(alpha: 0.04),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(6),
-                                        borderSide: const BorderSide(color: Colors.white12),
+                                        borderSide: const BorderSide(
+                                            color: Colors.white12),
                                       ),
                                     ),
                                   ),
@@ -513,29 +592,38 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                 const SizedBox(width: 8),
                                 ElevatedButton(
                                   onPressed: () {
-                                    final bridge = ref.read(cryptoBridgeServiceProvider);
-                                    final awarded = bridge.redeemCashuToken(_voucherController.text);
+                                    final bridge =
+                                        ref.read(cryptoBridgeServiceProvider);
+                                    final awarded = bridge.redeemCashuToken(
+                                        _voucherController.text);
                                     if (awarded > 0) {
                                       _voucherController.clear();
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Voucher redeemed: +${awarded.toStringAsFixed(1)} ℭ credited!')),
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                            content: Text(
+                                                'Voucher redeemed: +${awarded.toStringAsFixed(1)} ℭ credited!')),
                                       );
                                     } else {
                                       // Redemption is disabled at the service layer
                                       // (ALX-010) — show the documented reason.
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         const SnackBar(
-                                          content: Text(CryptoBridgeService.redemptionDisabledReason),
+                                          content: Text(CryptoBridgeService
+                                              .redemptionDisabledReason),
                                         ),
                                       );
                                     }
                                   },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.amber.withValues(alpha: 0.2),
+                                    backgroundColor:
+                                        Colors.amber.withValues(alpha: 0.2),
                                     foregroundColor: Colors.amber,
                                     visualDensity: VisualDensity.compact,
                                   ),
-                                  child: const Text('Redeem', style: TextStyle(fontSize: 11)),
+                                  child: const Text('Redeem',
+                                      style: TextStyle(fontSize: 11)),
                                 ),
                               ],
                             ),
@@ -544,7 +632,10 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                             // Lightning Address Sweep
                             const Text(
                               'Bitcoin Lightning Address',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textColor),
                             ),
                             const SizedBox(height: 6),
                             Row(
@@ -552,17 +643,26 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                 Expanded(
                                   child: TextField(
                                     controller: _lightningController,
-                                    style: const TextStyle(fontSize: 11, color: AppTheme.textColor),
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.textColor),
                                     decoration: InputDecoration(
-                                      hintText: 'user@getalby.com (Lightning Address)',
-                                      hintStyle: const TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                                      hintText:
+                                          'user@getalby.com (Lightning Address)',
+                                      hintStyle: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppTheme.secondaryColor),
                                       isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 8),
                                       filled: true,
-                                      fillColor: Colors.white.withValues(alpha: 0.04),
+                                      fillColor:
+                                          Colors.white.withValues(alpha: 0.04),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(6),
-                                        borderSide: const BorderSide(color: Colors.white12),
+                                        borderSide: const BorderSide(
+                                            color: Colors.white12),
                                       ),
                                     ),
                                   ),
@@ -571,42 +671,59 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                                 ElevatedButton(
                                   onPressed: creditService.balance >= 25
                                       ? () async {
-                                          final bridge = ref.read(cryptoBridgeServiceProvider);
-                                          final addr = _lightningController.text.trim();
+                                          final bridge = ref.read(
+                                              cryptoBridgeServiceProvider);
+                                          final addr =
+                                              _lightningController.text.trim();
                                           if (addr.isEmpty) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Please enter a Lightning Address')),
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      'Please enter a Lightning Address')),
                                             );
                                             return;
                                           }
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Resolving LNURL-pay and sweeping sats...')),
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                                content: Text(
+                                                    'Resolving LNURL-pay and sweeping sats...')),
                                           );
-                                          final result = await bridge.sweepToLightningAddressLive(
+                                          final result = await bridge
+                                              .sweepToLightningAddressLive(
                                             creditsToSweep: 25.0,
                                             customAddress: addr,
                                           );
                                           if (!context.mounted) return;
                                           if (result.success) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text('Confirmed! Swept ${result.sats} Sats to $addr')),
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      'Confirmed! Swept ${result.sats} Sats to $addr')),
                                             );
                                           } else {
                                             // NO simulated fallback: a failed live melt must
                                             // surface its error verbatim. Credits are never
                                             // debited for a fake success.
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text(result.error ?? 'Lightning sweep failed.')),
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(result.error ??
+                                                      'Lightning sweep failed.')),
                                             );
                                           }
                                         }
                                       : null,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.amber.withValues(alpha: 0.2),
+                                    backgroundColor:
+                                        Colors.amber.withValues(alpha: 0.2),
                                     foregroundColor: Colors.amber,
                                     visualDensity: VisualDensity.compact,
                                   ),
-                                  child: const Text('Sweep 25 ℭ (250 Sats)', style: TextStyle(fontSize: 11)),
+                                  child: const Text('Sweep 25 ℭ (250 Sats)',
+                                      style: TextStyle(fontSize: 11)),
                                 ),
                               ],
                             ),
@@ -618,14 +735,18 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                     // Transaction History
                     const Text(
                       'Recent Credit Ledger Entries',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textColor),
                     ),
                     const SizedBox(height: 8),
                     if (transactions.isEmpty)
                       const Center(
                         child: Padding(
                           padding: EdgeInsets.all(16),
-                          child: Text('No transactions recorded yet.', style: TextStyle(color: AppTheme.secondaryColor)),
+                          child: Text('No transactions recorded yet.',
+                              style: TextStyle(color: AppTheme.secondaryColor)),
                         ),
                       )
                     else
@@ -633,27 +754,37 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
                         children: [
                           for (final tx in transactions.take(6)) ...[
                             ListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               dense: true,
                               leading: Icon(
-                                tx.amount >= 0 ? Icons.arrow_downward : Icons.arrow_upward,
-                                color: tx.amount >= 0 ? Colors.greenAccent : Colors.redAccent,
+                                tx.amount >= 0
+                                    ? Icons.arrow_downward
+                                    : Icons.arrow_upward,
+                                color: tx.amount >= 0
+                                    ? Colors.greenAccent
+                                    : Colors.redAccent,
                                 size: 18,
                               ),
                               title: Text(
                                 tx.description,
-                                style: const TextStyle(fontSize: 12, color: AppTheme.textColor),
+                                style: const TextStyle(
+                                    fontSize: 12, color: AppTheme.textColor),
                               ),
                               subtitle: Text(
                                 '${tx.timestamp.toLocal().toString().substring(0, 16)} • Hash: ${tx.hash}',
-                                style: const TextStyle(fontSize: 10, color: AppTheme.secondaryColor),
+                                style: const TextStyle(
+                                    fontSize: 10,
+                                    color: AppTheme.secondaryColor),
                               ),
                               trailing: Text(
                                 '${tx.amount >= 0 ? "+" : ""}${tx.amount.toStringAsFixed(1)} ℭ',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
-                                  color: tx.amount >= 0 ? Colors.greenAccent : Colors.redAccent,
+                                  color: tx.amount >= 0
+                                      ? Colors.greenAccent
+                                      : Colors.redAccent,
                                 ),
                               ),
                             ),
@@ -690,9 +821,20 @@ class _CreditWalletDialogState extends ConsumerState<CreditWalletDialog> {
           children: [
             Icon(icon, size: 16, color: AppTheme.primaryAccent),
             const SizedBox(height: 6),
-            Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textColor)),
-            Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.secondaryColor)),
-            Text(subtitle, style: const TextStyle(fontSize: 9, color: AppTheme.secondaryColor), overflow: TextOverflow.ellipsis),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textColor)),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.secondaryColor)),
+            Text(subtitle,
+                style: const TextStyle(
+                    fontSize: 9, color: AppTheme.secondaryColor),
+                overflow: TextOverflow.ellipsis),
           ],
         ),
       ),

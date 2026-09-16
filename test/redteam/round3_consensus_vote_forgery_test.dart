@@ -78,15 +78,15 @@ void main() {
 
     expect(vote, isNotNull);
     expect(req.status, isNot(ChangeRequestStatus.approved),
-        reason:
-            'a single self-weighted vote approved the change request '
+        reason: 'a single self-weighted vote approved the change request '
             '(weight=${req.approvalWeight}) — castVote trusts the '
             'caller\'s reputation parameter instead of deriving weight '
             'from the ledger. Metadata consensus is capturable by any '
             'caller.');
   });
 
-  test('uploader fast-track must not be self-minted via a claimed '
+  test(
+      'uploader fast-track must not be self-minted via a claimed '
       'uploaderKey', () async {
     // The proposer claims THEY are the uploader of the target content —
     // uploaderKey is a free caller parameter, never checked against the
@@ -108,8 +108,7 @@ void main() {
 
     final fastTracked = await svc.fastTrackChange(req.id);
     expect(fastTracked, isFalse,
-        reason:
-            'the proposer named THEMSELF the uploader and fast-tracked '
+        reason: 'the proposer named THEMSELF the uploader and fast-tracked '
             'their own change on somebody else\'s content — uploaderKey '
             'is caller-supplied, so veto/fast-track authority is '
             'self-minted (and a mergeAccepted ledger credit was banked).');

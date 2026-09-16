@@ -82,8 +82,7 @@ void main() {
         return ipfs;
       }),
       secureStorageServiceProvider.overrideWithValue(_FakeSecureStorage()),
-      auditLogServiceProvider
-          .overrideWith((ref) => _FakeAuditLogService(ref)),
+      auditLogServiceProvider.overrideWith((ref) => _FakeAuditLogService(ref)),
     ]);
     repo = container.read(contentRepositoryProvider);
   });
@@ -93,8 +92,7 @@ void main() {
     await db.close();
   });
 
-  Uint8List payloadOf(String text) =>
-      Uint8List.fromList(utf8.encode(text));
+  Uint8List payloadOf(String text) => Uint8List.fromList(utf8.encode(text));
 
   Future<String> seedManifest() => repo.createContent(
         title: 'Integrity Test Work',
@@ -119,10 +117,14 @@ void main() {
       final cid = cidService.computeCid(data).toBase32();
       expect(cidService.verifyContent(cid, payloadOf('forged bytes')), isFalse);
       expect(cidService.verifyContent('not-a-cid', data), isFalse);
-      expect(cidService.verifyContent('QmFake0fake0fake0fake0fake0fake0fake0fake0fake0fak', data), isFalse);
+      expect(
+          cidService.verifyContent(
+              'QmFake0fake0fake0fake0fake0fake0fake0fake0fake0fak', data),
+          isFalse);
     });
 
-    test('retrieveContent throws when a peer serves mismatched bytes', () async {
+    test('retrieveContent throws when a peer serves mismatched bytes',
+        () async {
       final uuid = await seedManifest();
       final manifest = await repo.getManifestByUuid(uuid);
       final versions = await db.getVersionsForManifest(manifest!.id);
@@ -140,7 +142,8 @@ void main() {
       );
     });
 
-    test('probeContentIntegrity reports computed state for Safe Harbor', () async {
+    test('probeContentIntegrity reports computed state for Safe Harbor',
+        () async {
       await container.read(identityServiceProvider).generateIdentity();
       final uuid = await seedManifest();
       final manifest = await repo.getManifestByUuid(uuid);

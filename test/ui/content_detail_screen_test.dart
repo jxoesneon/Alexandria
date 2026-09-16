@@ -26,7 +26,8 @@ class _FakeIpfsService implements IpfsService {
 
 class _FakePreservationService implements PreservationService {
   @override
-  Future<HealthStatus> checkContentHealth(String cid) async => HealthStatus.healthy;
+  Future<HealthStatus> checkContentHealth(String cid) async =>
+      HealthStatus.healthy;
 
   @override
   Future<bool> healContent(String cid) async => true;
@@ -90,7 +91,8 @@ class _FakeContentRepository implements ContentRepository {
   }
 
   @override
-  Future<List<ContentManifest>> getContentPage({required int page, required int pageSize}) async {
+  Future<List<ContentManifest>> getContentPage(
+      {required int page, required int pageSize}) async {
     return [];
   }
 
@@ -102,7 +104,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ContentDetailScreen Tests', () {
-    testWidgets('renders manifest details, metadata, and handles View / Open in buttons', (tester) async {
+    testWidgets(
+        'renders manifest details, metadata, and handles View / Open in buttons',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -133,7 +137,8 @@ void main() {
             databaseProvider.overrideWithValue(db),
             contentRepositoryProvider.overrideWithValue(fakeRepo),
             ipfsServiceProvider.overrideWithValue(_FakeIpfsService()),
-            preservationServiceProvider.overrideWithValue(_FakePreservationService()),
+            preservationServiceProvider
+                .overrideWithValue(_FakePreservationService()),
             honorSystemProvider.overrideWithValue(fakeHonor),
           ],
           child: MaterialApp(
@@ -165,7 +170,9 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('shows version items and handles action dialog (verify, report, download, rescue)', (tester) async {
+    testWidgets(
+        'shows version items and handles action dialog (verify, report, download, rescue)',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -189,27 +196,27 @@ void main() {
 
       // Insert manifest and version into drift database
       await db.into(db.contentManifests).insert(
-        ContentManifestsCompanion(
-          id: const drift.Value(42),
-          uuid: const drift.Value('manifest-42'),
-          title: const drift.Value('Principia Mathematica'),
-          author: const drift.Value('Isaac Newton'),
-          category: const drift.Value('book'),
-          lastUpdated: drift.Value(DateTime.now()),
-        ),
-      );
+            ContentManifestsCompanion(
+              id: const drift.Value(42),
+              uuid: const drift.Value('manifest-42'),
+              title: const drift.Value('Principia Mathematica'),
+              author: const drift.Value('Isaac Newton'),
+              category: const drift.Value('book'),
+              lastUpdated: drift.Value(DateTime.now()),
+            ),
+          );
 
       await db.into(db.contentVersions).insert(
-        ContentVersionsCompanion(
-          manifestId: const drift.Value(42),
-          cid: const drift.Value('bafy_version_cid_1'),
-          format: const drift.Value('pdf'),
-          language: const drift.Value('Latin'),
-          sizeBytes: const drift.Value(2048),
-          isPinned: const drift.Value(true),
-          createdData: drift.Value(DateTime.now()),
-        ),
-      );
+            ContentVersionsCompanion(
+              manifestId: const drift.Value(42),
+              cid: const drift.Value('bafy_version_cid_1'),
+              format: const drift.Value('pdf'),
+              language: const drift.Value('Latin'),
+              sizeBytes: const drift.Value(2048),
+              isPinned: const drift.Value(true),
+              createdData: drift.Value(DateTime.now()),
+            ),
+          );
 
       final fakeHonor = _FakeHonorSystem();
       final fakeRepo = _FakeContentRepository();
@@ -220,7 +227,8 @@ void main() {
             databaseProvider.overrideWithValue(db),
             contentRepositoryProvider.overrideWithValue(fakeRepo),
             ipfsServiceProvider.overrideWithValue(_FakeIpfsService()),
-            preservationServiceProvider.overrideWithValue(_FakePreservationService()),
+            preservationServiceProvider
+                .overrideWithValue(_FakePreservationService()),
             honorSystemProvider.overrideWithValue(fakeHonor),
           ],
           child: MaterialApp(
@@ -276,7 +284,8 @@ void main() {
       expect(fakeRepo.addVersionCalled, isTrue);
     });
 
-    testWidgets('renders variants and related content sections', (tester) async {
+    testWidgets('renders variants and related content sections',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -323,9 +332,11 @@ void main() {
         ProviderScope(
           overrides: [
             databaseProvider.overrideWithValue(db),
-            contentRepositoryProvider.overrideWithValue(_FakeContentRepository()),
+            contentRepositoryProvider
+                .overrideWithValue(_FakeContentRepository()),
             ipfsServiceProvider.overrideWithValue(_FakeIpfsService()),
-            preservationServiceProvider.overrideWithValue(_FakePreservationService()),
+            preservationServiceProvider
+                .overrideWithValue(_FakePreservationService()),
             honorSystemProvider.overrideWithValue(_FakeHonorSystem()),
             siblingsProvider(manifest.title).overrideWith((ref) => [sibling]),
             relatedContentProvider('99').overrideWith((ref) => kgEntity),

@@ -30,8 +30,7 @@ void main() {
     await store.putBlock('cid_evil', Uint8List(64 * 1024));
 
     expect(store.currentUsage, lessThanOrEqualTo(1024),
-        reason:
-            'a 64 KiB block was stored in a 1 KiB store — '
+        reason: 'a 64 KiB block was stored in a 1 KiB store — '
             'currentUsage=${store.currentUsage}, all prior blocks '
             'evicted AND the oversized block retained: remote quota '
             'exhaustion');

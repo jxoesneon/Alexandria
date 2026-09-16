@@ -110,7 +110,8 @@ class DoiRecord {
     if (citationCount != null) {
       buffer.writeln('**Citations:** $citationCount  ');
     }
-    buffer.writeln('**Open Access:** ${isOpenAccess ? "Yes" : "Subscription/Paywalled"}  \n');
+    buffer.writeln(
+        '**Open Access:** ${isOpenAccess ? "Yes" : "Subscription/Paywalled"}  \n');
 
     if (abstractText != null && abstractText!.trim().isNotEmpty) {
       buffer.writeln('## Abstract\n');
@@ -123,7 +124,8 @@ class DoiRecord {
     buffer.writeln('```\n');
 
     buffer.writeln('---');
-    buffer.writeln('*Archived by Alexandria Decentralized Library & Preservation Engine.*');
+    buffer.writeln(
+        '*Archived by Alexandria Decentralized Library & Preservation Engine.*');
     return buffer.toString();
   }
 
@@ -238,7 +240,8 @@ class DoiRecord {
       abstractText: abstractText,
       subjects: subjects,
       citationCount: message['is-referenced-by-count'] as int?,
-      licenseUrl: (message['license'] is List && (message['license'] as List).isNotEmpty)
+      licenseUrl: (message['license'] is List &&
+              (message['license'] as List).isNotEmpty)
           ? message['license'][0]['URL']?.toString()
           : null,
       isOpenAccess: pdfUrl != null,
@@ -267,7 +270,8 @@ class DoiRecord {
     final primaryLoc = data['primary_location'] as Map<String, dynamic>?;
     final source = primaryLoc?['source'] as Map<String, dynamic>?;
     final journal = source?['display_name']?.toString() ??
-        (data['host_venue']?['display_name']?.toString() ?? 'Scholarly Journal');
+        (data['host_venue']?['display_name']?.toString() ??
+            'Scholarly Journal');
 
     final year = data['publication_year'] as int?;
     final biblio = data['biblio'] as Map<String, dynamic>?;
@@ -328,8 +332,10 @@ class DoiResolver {
   /// Normalizes a DOI string by removing URL prefixes and trailing punctuation.
   static String normalizeDoi(String raw) {
     var cleaned = raw.trim();
-    cleaned = cleaned.replaceFirst(RegExp(r'^https?://(dx\.)?doi\.org/', caseSensitive: false), '');
-    cleaned = cleaned.replaceFirst(RegExp(r'^doi:\s*', caseSensitive: false), '');
+    cleaned = cleaned.replaceFirst(
+        RegExp(r'^https?://(dx\.)?doi\.org/', caseSensitive: false), '');
+    cleaned =
+        cleaned.replaceFirst(RegExp(r'^doi:\s*', caseSensitive: false), '');
     cleaned = cleaned.replaceAll(RegExp(r'[\s>\)\]\.;]+$'), '');
     return cleaned;
   }
@@ -359,7 +365,8 @@ class DoiResolver {
     try {
       final uri = Uri.parse('https://api.crossref.org/works/$doi');
       final request = await client.getUrl(uri);
-      request.headers.set('User-Agent', 'Alexandria-Preservation-Engine/1.0 (mailto:archive@alexandria.pub)');
+      request.headers.set('User-Agent',
+          'Alexandria-Preservation-Engine/1.0 (mailto:archive@alexandria.pub)');
       request.headers.set('Accept', 'application/json');
 
       final response = await request.close();
@@ -367,7 +374,8 @@ class DoiResolver {
         final body = await response.transform(utf8.decoder).join();
         final json = jsonDecode(body) as Map<String, dynamic>;
         if (json['message'] is Map<String, dynamic>) {
-          return DoiRecord.fromCrossref(json['message'] as Map<String, dynamic>);
+          return DoiRecord.fromCrossref(
+              json['message'] as Map<String, dynamic>);
         }
       }
     } catch (e) {
@@ -376,9 +384,11 @@ class DoiResolver {
 
     // 2. Fallback to OpenAlex API
     try {
-      final uri = Uri.parse('https://api.openalex.org/works/https://doi.org/$doi');
+      final uri =
+          Uri.parse('https://api.openalex.org/works/https://doi.org/$doi');
       final request = await client.getUrl(uri);
-      request.headers.set('User-Agent', 'Alexandria-Preservation-Engine/1.0 (mailto:archive@alexandria.pub)');
+      request.headers.set('User-Agent',
+          'Alexandria-Preservation-Engine/1.0 (mailto:archive@alexandria.pub)');
       request.headers.set('Accept', 'application/json');
 
       final response = await request.close();
@@ -437,7 +447,8 @@ class DoiResolver {
         // (round-3 red finding) never let the transport auto-follow —
         // each Location target re-enters the SSRF gate above.
         request.followRedirects = false;
-        request.headers.set('User-Agent', 'Mozilla/5.0 (compatible; Alexandria/1.0; +https://alexandria.pub)');
+        request.headers.set('User-Agent',
+            'Mozilla/5.0 (compatible; Alexandria/1.0; +https://alexandria.pub)');
 
         final response = await request.close();
         final location = response.headers.value('location');
@@ -458,12 +469,17 @@ class DoiResolver {
             bytesBuilder.add(chunk);
           }
           if (oversized) {
-            debugPrint('PDF download aborted: exceeds $maxPdfBytes bytes ($pdfUrl)');
+            debugPrint(
+                'PDF download aborted: exceeds $maxPdfBytes bytes ($pdfUrl)');
             return null;
           }
           final data = bytesBuilder.toBytes();
           // Verify PDF magic header %PDF
-          if (data.length > 4 && data[0] == 0x25 && data[1] == 0x50 && data[2] == 0x44 && data[3] == 0x46) {
+          if (data.length > 4 &&
+              data[0] == 0x25 &&
+              data[1] == 0x50 &&
+              data[2] == 0x44 &&
+              data[3] == 0x46) {
             return data;
           }
         }
@@ -546,7 +562,8 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
         PluginActionDefinition(
           id: 'harvest_doi',
           name: 'Harvest & Ingest DOI',
-          description: 'Resolve DOI, download open-access PDF (if available), and ingest into Alexandria.',
+          description:
+              'Resolve DOI, download open-access PDF (if available), and ingest into Alexandria.',
           parameters: {
             'doi': 'string',
             'downloadPdf': 'boolean',
@@ -555,7 +572,8 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
         PluginActionDefinition(
           id: 'harvest_batch',
           name: 'Batch Harvest DOIs',
-          description: 'Extract and preserve multiple DOIs from text, list, or bibliography.',
+          description:
+              'Extract and preserve multiple DOIs from text, list, or bibliography.',
           parameters: {
             'input': 'string or list of strings',
             'downloadPdf': 'boolean',
@@ -589,7 +607,8 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
         if (record == null) {
           return PluginActionResult.error('Could not resolve DOI: $rawDoi');
         }
-        return PluginActionResult.ok('Successfully resolved DOI', record.toMap());
+        return PluginActionResult.ok(
+            'Successfully resolved DOI', record.toMap());
 
       case 'harvest_doi':
         final rawDoi = parameters['doi']?.toString() ?? '';
@@ -618,7 +637,10 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
 
         List<String> dois = [];
         if (rawInput is List) {
-          dois = rawInput.map((e) => DoiResolver.normalizeDoi(e.toString())).where((e) => e.isNotEmpty).toList();
+          dois = rawInput
+              .map((e) => DoiResolver.normalizeDoi(e.toString()))
+              .where((e) => e.isNotEmpty)
+              .toList();
         } else if (rawInput is String) {
           dois = DoiResolver.extractDoisInText(rawInput);
         }
@@ -646,16 +668,22 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
               if (res['success'] == true) successCount++;
               batchResults.add({'doi': doi, ...res});
             } else {
-              batchResults.add({'doi': doi, 'success': false, 'error': 'Resolution failed'});
+              batchResults.add(
+                  {'doi': doi, 'success': false, 'error': 'Resolution failed'});
             }
           } catch (e) {
-            batchResults.add({'doi': doi, 'success': false, 'error': e.toString()});
+            batchResults
+                .add({'doi': doi, 'success': false, 'error': e.toString()});
           }
         }
 
         return PluginActionResult.ok(
           'Batch processing complete: $successCount of ${dois.length} preserved.',
-          {'results': batchResults, 'total': dois.length, 'successCount': successCount},
+          {
+            'results': batchResults,
+            'total': dois.length,
+            'successCount': successCount
+          },
         );
 
       default:
@@ -670,7 +698,10 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
   }) async {
     final context = _context;
     if (context == null || !context.hasReader) {
-      return {'success': false, 'error': 'Plugin context not initialized with Riverpod reader.'};
+      return {
+        'success': false,
+        'error': 'Plugin context not initialized with Riverpod reader.'
+      };
     }
 
     try {
@@ -698,7 +729,8 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
           capturedPdf = true;
         } else {
           // Fallback to rich markdown dossier
-          fileBytes = Uint8List.fromList(utf8.encode(record.toMarkdownDossier()));
+          fileBytes =
+              Uint8List.fromList(utf8.encode(record.toMarkdownDossier()));
           format = 'md';
         }
       } else {
@@ -717,7 +749,8 @@ class DoiHarvesterPlugin implements AlexandriaPlugin {
       final uuid = await repository.createContent(
         title: record.title,
         author: record.formattedAuthors,
-        description: record.abstractText ?? 'Archived scientific document from DOI ${record.doi}',
+        description: record.abstractText ??
+            'Archived scientific document from DOI ${record.doi}',
         fileData: fileBytes,
         category: 'academicAndScience',
         format: format,

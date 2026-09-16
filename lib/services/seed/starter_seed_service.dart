@@ -73,7 +73,8 @@ class StarterSeedService {
         documents: [
           StarterSeedDocument(
             id: 'doi_einstein_1905',
-            title: 'Über einen die Erzeugung und Verwandlung des Lichtes betreffenden heuristischen Gesichtspunkt (Photoelectric Effect)',
+            title:
+                'Über einen die Erzeugung und Verwandlung des Lichtes betreffenden heuristischen Gesichtspunkt (Photoelectric Effect)',
             author: 'Albert Einstein',
             year: 1905,
             category: 'Physics',
@@ -86,7 +87,8 @@ class StarterSeedService {
           ),
           StarterSeedDocument(
             id: 'doi_watson_crick_1953',
-            title: 'Molecular Structure of Nucleic Acids: A Structure for Deoxyribose Nucleic Acid',
+            title:
+                'Molecular Structure of Nucleic Acids: A Structure for Deoxyribose Nucleic Acid',
             author: 'J. D. Watson, F. H. C. Crick',
             year: 1953,
             category: 'Biology',
@@ -99,7 +101,8 @@ class StarterSeedService {
           ),
           StarterSeedDocument(
             id: 'doi_turing_1936',
-            title: 'On Computable Numbers, with an Application to the Entscheidungsproblem',
+            title:
+                'On Computable Numbers, with an Application to the Entscheidungsproblem',
             author: 'Alan M. Turing',
             year: 1936,
             category: 'Computer Science',

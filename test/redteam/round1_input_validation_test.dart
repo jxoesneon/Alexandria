@@ -36,8 +36,8 @@ void main() {
     final sp = SponsorshipService(creditService: cs, initialOptIn: true);
     final slot = sp.catalog.first;
     // `dwellTimeSeconds < 5.0` is false for NaN — the check passes.
-    final receipt = sp.recordDwellImpression(
-        slot: slot, dwellTimeSeconds: double.nan);
+    final receipt =
+        sp.recordDwellImpression(slot: slot, dwellTimeSeconds: double.nan);
     expect(receipt, isNull,
         reason: 'NaN dwell passed the >=5s gate and minted a kickback');
     expect(cs.balance, 0.0);

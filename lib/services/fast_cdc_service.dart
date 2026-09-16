@@ -46,8 +46,11 @@ class FastCdcConfig {
   /// True when the configuration can drive [FastCdcService.chunk]
   /// forward — used as a release-mode guard since asserts are stripped.
   bool get isValid =>
-      minSize > 0 && avgSize > 0 && maxSize > 0 &&
-      minSize <= avgSize && avgSize <= maxSize;
+      minSize > 0 &&
+      avgSize > 0 &&
+      maxSize > 0 &&
+      minSize <= avgSize &&
+      avgSize <= maxSize;
 }
 
 class FastCdcService {

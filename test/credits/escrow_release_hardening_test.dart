@@ -13,8 +13,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/data/database.dart' hide CreditTransaction;
-import 'package:alexandria/services/agent/beacon_models.dart'
-    show bytesToHex;
+import 'package:alexandria/services/agent/beacon_models.dart' show bytesToHex;
 import 'package:alexandria/services/credits/credit_service.dart';
 import 'package:alexandria/services/identity_service.dart';
 import 'package:alexandria/services/secure_storage_service.dart';
@@ -80,9 +79,7 @@ class _ProbeGateDb extends AppDatabase {
   @override
   Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
     final id = data['id'] as String?;
-    if (holdPayoutRows &&
-        id != null &&
-        id.startsWith('tx_bounty_payout_')) {
+    if (holdPayoutRows && id != null && id.startsWith('tx_bounty_payout_')) {
       await payoutGate.future;
     }
     return super.insertCreditTransaction(data);
@@ -120,32 +117,32 @@ void main() {
 
   // ─────────────────────────────────────────────────────────────────
   group('F1: payout<->release double-dip closed both directions', () {
-    test('payout THEN release: releaseEscrow refuses an already-paid '
+    test(
+        'payout THEN release: releaseEscrow refuses an already-paid '
         'escrow (in-memory set)', () async {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
       expect(s.debitEscrow(amount: 20.0, referenceId: 'b1'), isTrue);
-      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'b1', cid: 'c'),
-          20.0);
+      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'b1', cid: 'c'), 20.0);
       expect(await s.releaseEscrow(referenceId: 'b1'), 0.0);
       expect(s.balance, 50.0);
     });
 
-    test('release THEN payout: awardBountyEscrow refuses an '
+    test(
+        'release THEN payout: awardBountyEscrow refuses an '
         'already-refunded escrow', () async {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
       s.debitEscrow(amount: 20.0, referenceId: 'b2');
       expect(await s.releaseEscrow(referenceId: 'b2'), 20.0);
-      expect(
-          s.awardBountyEscrow(amount: 20.0, bountyId: 'b2', cid: 'c'),
-          0.0);
+      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'b2', cid: 'c'), 0.0);
       expect(s.balance, 50.0);
     });
 
-    test('the guard survives a restart — hydration rebuilds '
+    test(
+        'the guard survives a restart — hydration rebuilds '
         '_paidBountyIds from the payout row', () async {
       final first = svc();
       await first.ready;
@@ -160,7 +157,8 @@ void main() {
       expect(second.balance, 50.0);
     });
 
-    test('a payout row written OUT-OF-BAND after hydration blocks the '
+    test(
+        'a payout row written OUT-OF-BAND after hydration blocks the '
         'release via the durable hasCreditTransaction probe', () async {
       final s = svc();
       await s.ready;
@@ -192,19 +190,20 @@ void main() {
 
   // ─────────────────────────────────────────────────────────────────
   group('F2: hold rows carry a non-forgeable id shape', () {
-    test('debitEscrow writes its hold under the tx_escrow_hold_ id '
+    test(
+        'debitEscrow writes its hold under the tx_escrow_hold_ id '
         'prefix', () async {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
       s.debitEscrow(amount: 10.0, referenceId: 'b_id');
-      final hold =
-          s.transactions.where((t) => t.referenceId == 'b_id').single;
+      final hold = s.transactions.where((t) => t.referenceId == 'b_id').single;
       expect(hold.id, startsWith('tx_escrow_hold_'));
       expect(hold.amount, -10.0);
     });
 
-    test('spendCredits with a crafted reason cannot mint a releasable '
+    test(
+        'spendCredits with a crafted reason cannot mint a releasable '
         '"hold"', () async {
       final s = svc();
       await s.ready;
@@ -219,7 +218,8 @@ void main() {
       expect(s.balance, 20.0);
     });
 
-    test('a spoofed spend under a REAL referenceId does not inflate the '
+    test(
+        'a spoofed spend under a REAL referenceId does not inflate the '
         'legitimate refund', () async {
       final s = svc();
       await s.ready;
@@ -236,19 +236,18 @@ void main() {
 
   // ─────────────────────────────────────────────────────────────────
   group('F4: non-finite amounts are refused at every ledger entry', () {
-    test('debitEscrow(double.nan) is refused — NaN defeats every '
+    test(
+        'debitEscrow(double.nan) is refused — NaN defeats every '
         'comparison guard', () async {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
-      expect(s.debitEscrow(amount: double.nan, referenceId: 'nan1'),
-          isFalse);
+      expect(s.debitEscrow(amount: double.nan, referenceId: 'nan1'), isFalse);
       expect(s.balance.isFinite, isTrue);
       expect(s.balance, 50.0);
     });
 
-    test('a refused NaN hold cannot cascade into unbounded spending',
-        () async {
+    test('a refused NaN hold cannot cascade into unbounded spending', () async {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
@@ -257,14 +256,12 @@ void main() {
       expect(await s.releaseEscrow(referenceId: 'nan2'), 0.0);
     });
 
-    test('spendCredits(double.nan / double.infinity) is refused',
-        () async {
+    test('spendCredits(double.nan / double.infinity) is refused', () async {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
       expect(s.spendCredits(amount: double.nan, reason: 'nan'), isFalse);
-      expect(s.spendCredits(amount: double.infinity, reason: 'inf'),
-          isFalse);
+      expect(s.spendCredits(amount: double.infinity, reason: 'inf'), isFalse);
       expect(s.balance, 50.0);
     });
 
@@ -272,9 +269,7 @@ void main() {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
-      expect(
-          s.awardBountyEscrow(
-              amount: double.nan, bountyId: 'nb', cid: 'c'),
+      expect(s.awardBountyEscrow(amount: double.nan, bountyId: 'nb', cid: 'c'),
           0.0);
       expect(s.balance, 50.0);
     });
@@ -295,8 +290,7 @@ void main() {
       expect(s.balance.isFinite, isTrue);
     });
 
-    test('a negative sponsorship gross cannot drain pools/treasury',
-        () async {
+    test('a negative sponsorship gross cannot drain pools/treasury', () async {
       final s = svc();
       await s.ready;
       final treasuryBefore = s.protocolTreasury;
@@ -311,7 +305,8 @@ void main() {
 
   // ─────────────────────────────────────────────────────────────────
   group('F5: referenceId contract symmetry + once-per-id semantics', () {
-    test('debitEscrow refuses empty/whitespace referenceIds — the ids '
+    test(
+        'debitEscrow refuses empty/whitespace referenceIds — the ids '
         'releaseEscrow refuses', () async {
       final s = svc();
       await s.ready;
@@ -322,9 +317,9 @@ void main() {
       expect(s.balance, 50.0);
     });
 
-    test('documented semantics: a hold re-posted under an '
-        'already-released referenceId is permanently unreleasable',
-        () async {
+    test(
+        'documented semantics: a hold re-posted under an '
+        'already-released referenceId is permanently unreleasable', () async {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
@@ -347,26 +342,26 @@ void main() {
     /// did — no pubkey-history append ever ran for it.
     Future<String> seedPreFeatureKey(
         _FakeSecureStorage storage, SimpleKeyPair kp) async {
-      final pubHex =
-          bytesToHex((await kp.extractPublicKey()).bytes);
-      await storage.write('alexandria_identity_private_key',
+      final pubHex = bytesToHex((await kp.extractPublicKey()).bytes);
+      await storage.write(
+          'alexandria_identity_private_key',
           (await kp.extractPrivateKeyBytes())
               .map((b) => b.toRadixString(16).padLeft(2, '0'))
               .join());
       await storage.write('alexandria_identity_public_key', pubHex);
-      await storage.write('alexandria_identity_created',
-          DateTime.now().toIso8601String());
+      await storage.write(
+          'alexandria_identity_created', DateTime.now().toIso8601String());
       return pubHex;
     }
 
-    test('a pre-feature key rotated away before ANY read is still '
+    test(
+        'a pre-feature key rotated away before ANY read is still '
         'recorded in the history', () async {
       final storage = _FakeSecureStorage();
       final keyA = await algorithm.newKeyPair();
       final keyB = await algorithm.newKeyPair();
       final pubA = await seedPreFeatureKey(storage, keyA);
-      final pubB =
-          bytesToHex((await keyB.extractPublicKey()).bytes);
+      final pubB = bytesToHex((await keyB.extractPublicKey()).bytes);
 
       final identity = IdentityService(storage);
       addTearDown(identity.dispose);
@@ -376,20 +371,17 @@ void main() {
       await identity.importIdentity(
           Uint8List.fromList(await keyB.extractPrivateKeyBytes()));
 
-      expect(await identity.knownLocalPubkeyHexes(),
-          containsAll({pubA, pubB}),
+      expect(await identity.knownLocalPubkeyHexes(), containsAll({pubA, pubB}),
           reason: 'the outgoing key must enter the history at REPLACE '
               'time — not only at serve time');
     });
 
-    test('a never-read key deleted then replaced is still recorded',
-        () async {
+    test('a never-read key deleted then replaced is still recorded', () async {
       final storage = _FakeSecureStorage();
       final keyA = await algorithm.newKeyPair();
       final keyB = await algorithm.newKeyPair();
       final pubA = await seedPreFeatureKey(storage, keyA);
-      final pubB =
-          bytesToHex((await keyB.extractPublicKey()).bytes);
+      final pubB = bytesToHex((await keyB.extractPublicKey()).bytes);
 
       final identity = IdentityService(storage);
       addTearDown(identity.dispose);
@@ -398,8 +390,7 @@ void main() {
       await identity.importIdentity(
           Uint8List.fromList(await keyB.extractPrivateKeyBytes()));
 
-      expect(await identity.knownLocalPubkeyHexes(),
-          containsAll({pubA, pubB}));
+      expect(await identity.knownLocalPubkeyHexes(), containsAll({pubA, pubB}));
     });
 
     test('a failing history store never blocks the identity mutation',
@@ -410,8 +401,7 @@ void main() {
       await seedPreFeatureKey(storage, keyA);
 
       // Corrupt the history blob so every append read chokes.
-      await storage.write('alexandria_identity_pubkey_history',
-          '{not json');
+      await storage.write('alexandria_identity_pubkey_history', '{not json');
 
       final identity = IdentityService(storage);
       addTearDown(identity.dispose);
@@ -425,7 +415,8 @@ void main() {
 
   // ─────────────────────────────────────────────────────────────────
   group('REV4 re-eval fixes (RE-A / RE-B1 / RE-B2 / RE-W)', () {
-    test('RE-A: an awardBountyEscrow landing DURING the payout-probe '
+    test(
+        'RE-A: an awardBountyEscrow landing DURING the payout-probe '
         'await is observed by the post-await _paidBountyIds re-check — '
         'the release refuses instead of refunding on top of the mint',
         () async {
@@ -447,8 +438,7 @@ void main() {
       // The interleaved claim-settlement mints and records 'v' in
       // _paidBountyIds while its payout row stays parked — invisible
       // to the durable probe.
-      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'v', cid: 'c'),
-          20.0);
+      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'v', cid: 'c'), 20.0);
       expect(s.balance, 50.0);
 
       gdb.probeGate.complete();
@@ -466,7 +456,8 @@ void main() {
       expect(s2.balance, 50.0);
     });
 
-    test('RE-B1: hold ids carry wall-clock micros — a recycled '
+    test(
+        'RE-B1: hold ids carry wall-clock micros — a recycled '
         '<ref>_<seq> id cannot drop the re-posted debit after restart',
         () async {
       final s1 = svc();
@@ -495,12 +486,11 @@ void main() {
       await s2.ready;
       expect(s2.balance, 79.0); // 100 - 1 probe - 20 seeded hold
 
-      expect(s2.debitEscrow(amount: 20.0, referenceId: 'shared'),
-          isTrue);
+      expect(s2.debitEscrow(amount: 20.0, referenceId: 'shared'), isTrue);
       await s2.settled;
       final holdRows = (await db.getCreditTransactions())
-          .where((r) =>
-              (r['id'] as String).startsWith('tx_escrow_hold_shared_'))
+          .where(
+              (r) => (r['id'] as String).startsWith('tx_escrow_hold_shared_'))
           .toList();
       expect(holdRows.length, 2,
           reason: 'the wall-clock id component must keep the re-posted '
@@ -514,7 +504,8 @@ void main() {
       expect(s3.balance, 99.0); // 100 - 1 - 20 - 20 + 40
     });
 
-    test('RE-B2: a pre-REV4a legacy hold row (auto id + exact marker '
+    test(
+        'RE-B2: a pre-REV4a legacy hold row (auto id + exact marker '
         'description) is releasable after upgrade', () async {
       await db.insertCreditTransaction(_txRow(
         id: 'tx_1700000000000000_7',
@@ -529,7 +520,8 @@ void main() {
       expect(s.balance, 20.0); // -20 hold + 20 release
     });
 
-    test('RE-B2: the legacy fallback is EXACT-match — a spendCredits '
+    test(
+        'RE-B2: the legacy fallback is EXACT-match — a spendCredits '
         'debit can never wear the marker description', () async {
       final s = svc();
       await s.ready;
@@ -546,7 +538,8 @@ void main() {
       expect(s.balance, 20.0);
     });
 
-    test('RE-D: a hydrated hold row with a non-finite amount is '
+    test(
+        'RE-D: a hydrated hold row with a non-finite amount is '
         'refused', () async {
       await db.insertCreditTransaction(_txRow(
         id: 'tx_escrow_hold_inf_0',
@@ -561,7 +554,8 @@ void main() {
       expect(s.balance.isFinite, isTrue);
     });
 
-    test('RE-W: dedup rebuild reads the id-prefix listings, not the '
+    test(
+        'RE-W: dedup rebuild reads the id-prefix listings, not the '
         'replay window — sets stay complete when the window truncates',
         () async {
       final edb = _EmptyReplayDb();
@@ -586,15 +580,14 @@ void main() {
       // sets must still know these ids.
       expect(s.isBountyPayoutRecorded('w1'), isTrue);
       expect(s.isEscrowReleased('w2'), isTrue);
-      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'w1', cid: 'c'),
-          0.0);
+      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'w1', cid: 'c'), 0.0);
       expect(await s.releaseEscrow(referenceId: 'w2'), 0.0);
     });
 
-    test('RE-W bound CLOSED: a hold beyond the replay window IS '
+    test(
+        'RE-W bound CLOSED: a hold beyond the replay window IS '
         'released via the durable hold listing — and a PAID '
-        'beyond-window escrow still refuses via dedup',
-        () async {
+        'beyond-window escrow still refuses via dedup', () async {
       final edb = _EmptyReplayDb();
       addTearDown(edb.close);
       await edb.insertCreditTransaction(_txRow(

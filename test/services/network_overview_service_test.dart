@@ -68,8 +68,8 @@ void main() {
     });
 
     test('watchPeers maps mesh peers to Peer list', () async {
-      final mesh =
-          container.read(meshTransportServiceProvider) as FakeMeshTransportService;
+      final mesh = container.read(meshTransportServiceProvider)
+          as FakeMeshTransportService;
       mesh.addPeer(
         MeshPeer(
           peerId: 'peer-1',
@@ -94,7 +94,11 @@ void main() {
       expect(transports, hasLength(3));
       expect(
         transports.map((t) => t.protocol).toList(),
-        equals([TransportProtocol.ipfs, TransportProtocol.webrtc, TransportProtocol.tor]),
+        equals([
+          TransportProtocol.ipfs,
+          TransportProtocol.webrtc,
+          TransportProtocol.tor
+        ]),
       );
       expect(transports.first.port, equals(4001));
     });
@@ -110,8 +114,8 @@ void main() {
 
       await service.updateTransport(config);
       expect(ipfs.isStarted, isTrue);
-      final storage =
-          container.read(secureStorageServiceProvider) as FakeSecureStorageService;
+      final storage = container.read(secureStorageServiceProvider)
+          as FakeSecureStorageService;
       expect(await storage.read('transport_ipfs_port'), equals('4001'));
     });
 

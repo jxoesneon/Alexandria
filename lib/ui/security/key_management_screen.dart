@@ -78,8 +78,7 @@ class KeyManagementScreen extends ConsumerWidget {
     if (!hasExisting) {
       // Provider cache may be cold; fall back to the storage truth.
       try {
-        hasExisting =
-            await ref.read(identityServiceProvider).hasIdentity();
+        hasExisting = await ref.read(identityServiceProvider).hasIdentity();
       } catch (_) {
         hasExisting = false;
       }

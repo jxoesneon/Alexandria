@@ -176,8 +176,8 @@ void main() {
           throwsA(isA<FormatException>()));
       final bad = Uint8List(42);
       bad[0] = 0x00;
-      expect(() => service.parseFlacHeader(bad),
-          throwsA(isA<FormatException>()));
+      expect(
+          () => service.parseFlacHeader(bad), throwsA(isA<FormatException>()));
     });
   });
 
@@ -193,8 +193,7 @@ void main() {
       await runZonedGuarded(() async {
         final theme = AppTheme.darkTheme;
         final nav = theme.navigationBarTheme;
-        final label = nav.labelTextStyle!
-            .resolve({WidgetState.selected});
+        final label = nav.labelTextStyle!.resolve({WidgetState.selected});
         final labelUnsel = nav.labelTextStyle!.resolve(<WidgetState>{});
         expect(label?.color, isNotNull);
         expect(labelUnsel?.color, isNotNull);
@@ -216,7 +215,8 @@ void main() {
           isA<HonorBandwidthService>());
     });
 
-    test('enqueueRequest without resolver completes with zero weight', () async {
+    test('enqueueRequest without resolver completes with zero weight',
+        () async {
       final service = HonorBandwidthService();
       final result = await service.enqueueRequest<int>(
         requestId: 'r1',

@@ -39,7 +39,8 @@ class _WorkspaceDashboardScreenState
 
   bool _isDoi(String text) {
     final trimmed = text.trim();
-    return trimmed.startsWith('10.') || trimmed.toLowerCase().startsWith('doi:10.');
+    return trimmed.startsWith('10.') ||
+        trimmed.toLowerCase().startsWith('doi:10.');
   }
 
   @override
@@ -70,7 +71,8 @@ class _WorkspaceDashboardScreenState
         actions: [
           // Onboarding Tour Action
           IconButton(
-            icon: const Icon(Icons.auto_stories_outlined, color: AppTheme.primaryAccent),
+            icon: const Icon(Icons.auto_stories_outlined,
+                color: AppTheme.primaryAccent),
             tooltip: 'Launch Onboarding & Alexandria Core Team Tour',
             onPressed: () => FirstRunWizardDialog.show(context),
           ),
@@ -89,11 +91,13 @@ class _WorkspaceDashboardScreenState
               decoration: BoxDecoration(
                 color: AppTheme.primaryAccent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.primaryAccent.withValues(alpha: 0.4)),
+                border: Border.all(
+                    color: AppTheme.primaryAccent.withValues(alpha: 0.4)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.account_balance_wallet, size: 15, color: AppTheme.primaryAccent),
+                  const Icon(Icons.account_balance_wallet,
+                      size: 15, color: AppTheme.primaryAccent),
                   const SizedBox(width: 6),
                   Text(
                     '${creditBalance.toStringAsFixed(0)} ℭ',
@@ -134,11 +138,14 @@ class _WorkspaceDashboardScreenState
                         width: _isDoi(_searchQuery) ? 1.5 : 1.0,
                       ),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                     child: Row(
                       children: [
                         Icon(
-                          _isDoi(_searchQuery) ? Icons.science_outlined : Icons.search,
+                          _isDoi(_searchQuery)
+                              ? Icons.science_outlined
+                              : Icons.search,
                           color: _isDoi(_searchQuery)
                               ? AppTheme.primaryAccent
                               : AppTheme.secondaryColor,
@@ -148,12 +155,15 @@ class _WorkspaceDashboardScreenState
                         Expanded(
                           child: TextField(
                             controller: _searchController,
-                            onChanged: (val) => setState(() => _searchQuery = val),
-                            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textColor),
+                            onChanged: (val) =>
+                                setState(() => _searchQuery = val),
+                            style: GoogleFonts.inter(
+                                fontSize: 13, color: AppTheme.textColor),
                             decoration: const InputDecoration(
                               hintText:
                                   'Search library by title, CID, or paste scientific DOI (e.g. 10.1038/s41586-020-2012-7)...',
-                              hintStyle: TextStyle(fontSize: 12, color: AppTheme.secondaryColor),
+                              hintStyle: TextStyle(
+                                  fontSize: 12, color: AppTheme.secondaryColor),
                               border: InputBorder.none,
                               isDense: true,
                             ),
@@ -161,7 +171,8 @@ class _WorkspaceDashboardScreenState
                         ),
                         if (_searchQuery.isNotEmpty)
                           IconButton(
-                            icon: const Icon(Icons.clear, size: 16, color: AppTheme.secondaryColor),
+                            icon: const Icon(Icons.clear,
+                                size: 16, color: AppTheme.secondaryColor),
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _searchQuery = '');
@@ -173,11 +184,13 @@ class _WorkspaceDashboardScreenState
                               final doi = _searchController.text.trim();
                               showDialog(
                                 context: context,
-                                builder: (context) => DoiHarvesterDialog(initialDoi: doi),
+                                builder: (context) =>
+                                    DoiHarvesterDialog(initialDoi: doi),
                               );
                             },
                             icon: const Icon(Icons.download, size: 14),
-                            label: const Text('Harvest DOI (+20 ℭ)', style: TextStyle(fontSize: 11)),
+                            label: const Text('Harvest DOI (+20 ℭ)',
+                                style: TextStyle(fontSize: 11)),
                             style: FilledButton.styleFrom(
                               backgroundColor: AppTheme.primaryAccent,
                               foregroundColor: AppTheme.canvasColor,
@@ -218,7 +231,8 @@ class _WorkspaceDashboardScreenState
                             },
                             icon: const Icon(Icons.cloud_upload_outlined,
                                 size: 16),
-                            label: const Text('New Import', style: TextStyle(fontSize: 12)),
+                            label: const Text('New Import',
+                                style: TextStyle(fontSize: 12)),
                           ),
                           OutlinedButton.icon(
                             onPressed: () {
@@ -232,7 +246,8 @@ class _WorkspaceDashboardScreenState
                             },
                             icon:
                                 const Icon(Icons.edit_note_outlined, size: 16),
-                            label: const Text('New Note', style: TextStyle(fontSize: 12)),
+                            label: const Text('New Note',
+                                style: TextStyle(fontSize: 12)),
                           ),
                           OutlinedButton.icon(
                             onPressed: () {
@@ -245,7 +260,8 @@ class _WorkspaceDashboardScreenState
                               );
                             },
                             icon: const Icon(Icons.edit_document, size: 16),
-                            label: const Text('Metadata', style: TextStyle(fontSize: 12)),
+                            label: const Text('Metadata',
+                                style: TextStyle(fontSize: 12)),
                           ),
                           OutlinedButton.icon(
                             onPressed: () {
@@ -256,7 +272,8 @@ class _WorkspaceDashboardScreenState
                               );
                             },
                             icon: const Icon(Icons.science_outlined, size: 16),
-                            label: const Text('Harvest DOI', style: TextStyle(fontSize: 12)),
+                            label: const Text('Harvest DOI',
+                                style: TextStyle(fontSize: 12)),
                           ),
                           OutlinedButton.icon(
                             onPressed: () {
@@ -266,13 +283,18 @@ class _WorkspaceDashboardScreenState
                                     const CreditWalletDialog(),
                               );
                             },
-                            icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),
-                            label: const Text('Wallet', style: TextStyle(fontSize: 12)),
+                            icon: const Icon(
+                                Icons.account_balance_wallet_outlined,
+                                size: 16),
+                            label: const Text('Wallet',
+                                style: TextStyle(fontSize: 12)),
                           ),
                           OutlinedButton.icon(
                             onPressed: () => AgentNetworkDialog.show(context),
-                            icon: const Icon(Icons.smart_toy_outlined, size: 16),
-                            label: const Text('AI Agents', style: TextStyle(fontSize: 12)),
+                            icon:
+                                const Icon(Icons.smart_toy_outlined, size: 16),
+                            label: const Text('AI Agents',
+                                style: TextStyle(fontSize: 12)),
                           ),
                         ],
                       ),
@@ -281,7 +303,8 @@ class _WorkspaceDashboardScreenState
                   const SizedBox(height: 12),
 
                   // First-Run Preservation Quest Card (dismissible)
-                  if (_showQuestCard) _buildQuestChecklistCard(pochMetrics.isCompliant),
+                  if (_showQuestCard)
+                    _buildQuestChecklistCard(pochMetrics.isCompliant),
 
                   const SponsorshipCard(
                     category: 'technology',
@@ -296,11 +319,14 @@ class _WorkspaceDashboardScreenState
                         final filtered = _searchQuery.isEmpty
                             ? workspaces
                             : workspaces.where((w) {
-                                return w.name.toLowerCase().contains(_searchQuery.toLowerCase());
+                                return w.name
+                                    .toLowerCase()
+                                    .contains(_searchQuery.toLowerCase());
                               }).toList();
 
                         if (filtered.isEmpty) {
-                          return _buildEmptyStateOrNoResults(workspaces.isEmpty);
+                          return _buildEmptyStateOrNoResults(
+                              workspaces.isEmpty);
                         }
                         return ListView.builder(
                           itemCount: filtered.length,
@@ -407,7 +433,8 @@ class _WorkspaceDashboardScreenState
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: AppTheme.honorColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
@@ -436,13 +463,23 @@ class _WorkspaceDashboardScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildTelemetryRow('PoCH Compliance', pochMetrics.isCompliant ? '100% (1.0x)' : 'Pending', AppTheme.honorColor),
+                        _buildTelemetryRow(
+                            'PoCH Compliance',
+                            pochMetrics.isCompliant ? '100% (1.0x)' : 'Pending',
+                            AppTheme.honorColor),
                         const SizedBox(height: 6),
-                        _buildTelemetryRow('Cached Storage', '${(pochMetrics.allocatedStorageBytes / (1024 * 1024)).toStringAsFixed(1)} MB', AppTheme.textColor),
+                        _buildTelemetryRow(
+                            'Cached Storage',
+                            '${(pochMetrics.allocatedStorageBytes / (1024 * 1024)).toStringAsFixed(1)} MB',
+                            AppTheme.textColor),
                         const SizedBox(height: 6),
-                        _buildTelemetryRow('Swarm Peers', '12 Connected', AppTheme.primaryAccent),
+                        _buildTelemetryRow('Swarm Peers', '12 Connected',
+                            AppTheme.primaryAccent),
                         const SizedBox(height: 6),
-                        _buildTelemetryRow('MCP Tools Active', '${ref.watch(alexandriaMcpServerProvider).listTools().length} Registered', const Color(0xFFA78BFA)),
+                        _buildTelemetryRow(
+                            'MCP Tools Active',
+                            '${ref.watch(alexandriaMcpServerProvider).listTools().length} Registered',
+                            const Color(0xFFA78BFA)),
                       ],
                     ),
                   ),
@@ -462,7 +499,11 @@ class _WorkspaceDashboardScreenState
                   child: activityFeedAsync.when(
                     data: (activityFeed) {
                       if (activityFeed.isEmpty) {
-                        return const Center(child: Text('No recent activity.', style: TextStyle(fontSize: 12, color: AppTheme.secondaryColor)));
+                        return const Center(
+                            child: Text('No recent activity.',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.secondaryColor)));
                       }
                       return ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -557,14 +598,16 @@ class _WorkspaceDashboardScreenState
         Expanded(
           child: Text(
             label,
-            style: GoogleFonts.inter(fontSize: 11, color: AppTheme.secondaryColor),
+            style:
+                GoogleFonts.inter(fontSize: 11, color: AppTheme.secondaryColor),
             overflow: TextOverflow.ellipsis,
           ),
         ),
         const SizedBox(width: 8),
         Text(
           value,
-          style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: valueColor),
+          style: GoogleFonts.jetBrainsMono(
+              fontSize: 11, fontWeight: FontWeight.bold, color: valueColor),
         ),
       ],
     );
@@ -577,7 +620,8 @@ class _WorkspaceDashboardScreenState
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryAccent.withValues(alpha: 0.3)),
+        border:
+            Border.all(color: AppTheme.primaryAccent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -588,12 +632,16 @@ class _WorkspaceDashboardScreenState
               Expanded(
                 child: Row(
                   children: [
-                    const Icon(Icons.stars, color: AppTheme.primaryAccent, size: 18),
+                    const Icon(Icons.stars,
+                        color: AppTheme.primaryAccent, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'First-Run Preservation Quests',
-                        style: GoogleFonts.newsreader(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                        style: GoogleFonts.newsreader(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textColor),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -601,7 +649,8 @@ class _WorkspaceDashboardScreenState
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, size: 16, color: AppTheme.secondaryColor),
+                icon: const Icon(Icons.close,
+                    size: 16, color: AppTheme.secondaryColor),
                 onPressed: () => setState(() => _showQuestCard = false),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -609,10 +658,18 @@ class _WorkspaceDashboardScreenState
             ],
           ),
           const SizedBox(height: 8),
-          _buildQuestItem(true, 'Claim 100 ℭ Genesis Grant', 'Active in wallet balance'),
-          _buildQuestItem(isCompliant, 'Allocate 1GB Storage Baseline', isCompliant ? 'PoCH baseline verified' : 'Slide allocation to 1GB in Onboarding'),
-          _buildQuestItem(false, 'Harvest a scientific paper via DOI', 'Earn +20 ℭ verification reward'),
-          _buildQuestItem(false, 'Connect an AI Agent or turn on Steward', 'Earn +25 ℭ autonomous stewardship'),
+          _buildQuestItem(
+              true, 'Claim 100 ℭ Genesis Grant', 'Active in wallet balance'),
+          _buildQuestItem(
+              isCompliant,
+              'Allocate 1GB Storage Baseline',
+              isCompliant
+                  ? 'PoCH baseline verified'
+                  : 'Slide allocation to 1GB in Onboarding'),
+          _buildQuestItem(false, 'Harvest a scientific paper via DOI',
+              'Earn +20 ℭ verification reward'),
+          _buildQuestItem(false, 'Connect an AI Agent or turn on Steward',
+              'Earn +25 ℭ autonomous stewardship'),
         ],
       ),
     );
@@ -632,7 +689,8 @@ class _WorkspaceDashboardScreenState
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textColor),
+                style:
+                    GoogleFonts.inter(fontSize: 11, color: AppTheme.textColor),
                 children: [
                   TextSpan(
                     text: '$title — ',
@@ -643,7 +701,10 @@ class _WorkspaceDashboardScreenState
                   ),
                   TextSpan(
                     text: subtitle,
-                    style: TextStyle(color: done ? AppTheme.secondaryColor : AppTheme.primaryAccent),
+                    style: TextStyle(
+                        color: done
+                            ? AppTheme.secondaryColor
+                            : AppTheme.primaryAccent),
                   ),
                 ],
               ),
@@ -667,7 +728,8 @@ class _WorkspaceDashboardScreenState
           decoration: BoxDecoration(
             color: AppTheme.surfaceColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.primaryAccent.withValues(alpha: 0.3)),
+            border: Border.all(
+                color: AppTheme.primaryAccent.withValues(alpha: 0.3)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -678,18 +740,23 @@ class _WorkspaceDashboardScreenState
                   color: AppTheme.primaryAccent.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.auto_stories, color: AppTheme.primaryAccent, size: 32),
+                child: const Icon(Icons.auto_stories,
+                    color: AppTheme.primaryAccent, size: 32),
               ),
               const SizedBox(height: 14),
               Text(
                 'No workspaces yet.',
-                style: GoogleFonts.newsreader(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+                style: GoogleFonts.newsreader(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textColor),
               ),
               const SizedBox(height: 8),
               Text(
                 'Welcome to Alexandria Commons. Your node is initialized and ready to preserve human knowledge under US §108 statutory safe harbor.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(fontSize: 13, height: 1.5, color: AppTheme.secondaryColor),
+                style: GoogleFonts.inter(
+                    fontSize: 13, height: 1.5, color: AppTheme.secondaryColor),
               ),
               const SizedBox(height: 20),
               Wrap(
@@ -709,11 +776,13 @@ class _WorkspaceDashboardScreenState
                   OutlinedButton.icon(
                     onPressed: () async {
                       final seedService = ref.read(starterSeedServiceProvider);
-                      await seedService.ingestSeedPack('open-science-landmarks');
+                      await seedService
+                          .ingestSeedPack('open-science-landmarks');
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Ingested Landmark Open Science collection!'),
+                            content: Text(
+                                'Ingested Landmark Open Science collection!'),
                             backgroundColor: AppTheme.honorColor,
                           ),
                         );

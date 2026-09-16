@@ -64,7 +64,8 @@ void main() {
     if (await tmp.exists()) await tmp.delete(recursive: true);
   });
 
-  test('tampering actor/status columns of a signed line must not pass '
+  test(
+      'tampering actor/status columns of a signed line must not pass '
       'the MAC check', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -72,7 +73,8 @@ void main() {
 
     // One genuine SIGNED entry — a denied access attempt by the attacker.
     await svc.log('grant_access',
-        details: 'CID: bafySecret', actor: 'did:alex:attacker',
+        details: 'CID: bafySecret',
+        actor: 'did:alex:attacker',
         status: 'Denied');
 
     final file = File('${tmp.path}/audit_trail.log');
@@ -86,8 +88,7 @@ void main() {
     // keep timestamp|event|details|hmac intact, flip actor→victim and
     // status→Success. The signed prefix is untouched, so the MAC still
     // verifies — the forged attribution surfaces as trusted.
-    final forged =
-        '${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}'
+    final forged = '${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}'
         '|did:alex:victim|Success\n';
     await file.writeAsString(forged);
 
@@ -96,16 +97,14 @@ void main() {
     expect(entry, isNotEmpty);
 
     expect(entry.first.status, isNot('Success'),
-        reason:
-            'a signed line with tampered actor/status surfaced as a '
+        reason: 'a signed line with tampered actor/status surfaced as a '
             'TRUSTED "Success" — the HMAC covers only '
             'timestamp|event|details, so parts[4]/parts[5] are freely '
             'rewritable. An attacker re-attributed a denied grant to '
             'the victim and flipped it to Success without ever touching '
             'the signed prefix.');
     expect(entry.first.actor, isNot('did:alex:victim'),
-        reason:
-            'the actor column is unauthenticated — a forged identity '
+        reason: 'the actor column is unauthenticated — a forged identity '
             'survived the MAC check verbatim.');
   });
 
@@ -130,8 +129,7 @@ void main() {
     // There is no API that reports truncation — the only signal would be
     // a chain/sequence field on surviving lines, which does not exist.
     expect(logs.length, equals(2),
-        reason:
-            'the log silently lost its tail — entries carry no sequence '
+        reason: 'the log silently lost its tail — entries carry no sequence '
             'number or hash link, so deleting the last N lines is '
             'undetectable. The HMAC authenticates surviving lines but '
             'says nothing about ABSENT ones.');

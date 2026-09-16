@@ -34,7 +34,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('DoiHarvesterDialog Tests', () {
-    testWidgets('renders DOI harvester dialog, loads sample, and executes harvest', (tester) async {
+    testWidgets(
+        'renders DOI harvester dialog, loads sample, and executes harvest',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -77,7 +79,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Harvested Scientific Documents:'), findsOneWidget);
-      expect(find.text('An ultra-rare genetic variation in humans'), findsOneWidget);
+      expect(find.text('An ultra-rare genetic variation in humans'),
+          findsOneWidget);
       expect(find.text('OPEN ACCESS PDF'), findsOneWidget);
     });
   });

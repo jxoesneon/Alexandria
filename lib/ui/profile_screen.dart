@@ -237,7 +237,8 @@ class ProfileScreen extends ConsumerWidget {
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: AppTheme.primaryAccent,
                                       side: BorderSide(
-                                        color: AppTheme.primaryAccent.withValues(
+                                        color:
+                                            AppTheme.primaryAccent.withValues(
                                           alpha: 0.5,
                                         ),
                                       ),
@@ -441,8 +442,7 @@ class ProfileScreen extends ConsumerWidget {
     // exists, even if the UI currently shows none (stale cache).
     var identityExists = false;
     try {
-      identityExists =
-          await ref.read(identityServiceProvider).hasIdentity();
+      identityExists = await ref.read(identityServiceProvider).hasIdentity();
     } catch (_) {
       // Cannot determine — proceed; recovery is user-initiated and the
       // write itself is verified by IdentityService.

@@ -26,8 +26,8 @@ void main() {
 
   setUp(() async {
     tmp = await Directory.systemTemp.createTemp('audit_rt');
-    final messenger = TestDefaultBinaryMessengerBinding
-        .instance.defaultBinaryMessenger;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (call) async => tmp.path,
@@ -39,8 +39,8 @@ void main() {
   });
 
   tearDown(() async {
-    final messenger = TestDefaultBinaryMessengerBinding
-        .instance.defaultBinaryMessenger;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(
         const MethodChannel('plugins.flutter.io/path_provider'), null);
     messenger.setMockMethodCallHandler(
@@ -70,8 +70,7 @@ void main() {
     final logs = await svc.getRecentLogs(10);
     final forged = logs.where((l) => l.event == 'grant_access');
     expect(forged.isEmpty, isTrue,
-        reason:
-            'a forged line (invalid signature, invented actor) surfaced '
+        reason: 'a forged line (invalid signature, invented actor) surfaced '
             'in getRecentLogs as a normal entry — the write-side HMAC '
             'is never verified on read, so audit entries provide zero '
             'tamper-evidence. Logs with unverifiable signatures must be '

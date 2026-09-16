@@ -215,8 +215,7 @@ class BiometricService {
   /// `alexandria:vote-attestation:v1|voterKey|changeId|choice|issuedAt|nonce`.
   static String _tokenMac(Uint8List key, Uint8List voterKey, String changeId,
       bool approve, int issuedAt, String nonce) {
-    final preimage =
-        'alexandria:vote-attestation:v1|${base64Encode(voterKey)}|'
+    final preimage = 'alexandria:vote-attestation:v1|${base64Encode(voterKey)}|'
         '$changeId|$approve|$issuedAt|$nonce';
     return Hmac(sha256, key).convert(utf8.encode(preimage)).toString();
   }

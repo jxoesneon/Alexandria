@@ -22,22 +22,40 @@ class AppTheme {
         error: dangerColor,
       ),
       textTheme: TextTheme(
-        displayLarge: GoogleFonts.newsreader(fontSize: 40, fontWeight: FontWeight.w500, letterSpacing: -0.5, color: textColor),
-        displayMedium: GoogleFonts.newsreader(fontSize: 28, fontWeight: FontWeight.w500, letterSpacing: -0.5, color: textColor),
-        bodyLarge: GoogleFonts.inter(fontSize: 16, height: 1.6, color: textColor),
-        bodyMedium: GoogleFonts.inter(fontSize: 14, height: 1.5, color: textColor),
-        labelSmall: GoogleFonts.jetBrainsMono(fontSize: 11, letterSpacing: 0.5, color: secondaryColor),
+        displayLarge: GoogleFonts.newsreader(
+            fontSize: 40,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -0.5,
+            color: textColor),
+        displayMedium: GoogleFonts.newsreader(
+            fontSize: 28,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -0.5,
+            color: textColor),
+        bodyLarge:
+            GoogleFonts.inter(fontSize: 16, height: 1.6, color: textColor),
+        bodyMedium:
+            GoogleFonts.inter(fontSize: 14, height: 1.5, color: textColor),
+        labelSmall: GoogleFonts.jetBrainsMono(
+            fontSize: 11, letterSpacing: 0.5, color: secondaryColor),
       ),
       navigationBarTheme: NavigationBarThemeData(
         indicatorColor: Colors.transparent,
         backgroundColor: surfaceColor,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((Set<WidgetState> states) {
-          final color = states.contains(WidgetState.selected) ? primaryAccent : secondaryColor;
-          return GoogleFonts.jetBrainsMono(fontSize: 11, color: color, fontWeight: FontWeight.w500);
+        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
+            (Set<WidgetState> states) {
+          final color = states.contains(WidgetState.selected)
+              ? primaryAccent
+              : secondaryColor;
+          return GoogleFonts.jetBrainsMono(
+              fontSize: 11, color: color, fontWeight: FontWeight.w500);
         }),
-        iconTheme: WidgetStateProperty.resolveWith<IconThemeData>((Set<WidgetState> states) {
-          final color = states.contains(WidgetState.selected) ? primaryAccent : secondaryColor;
+        iconTheme: WidgetStateProperty.resolveWith<IconThemeData>(
+            (Set<WidgetState> states) {
+          final color = states.contains(WidgetState.selected)
+              ? primaryAccent
+              : secondaryColor;
           return IconThemeData(color: color, size: 24);
         }),
       ),
@@ -55,22 +73,40 @@ class AppTheme {
         onSurface: Color(0xFF141518),
       ),
       textTheme: TextTheme(
-        displayLarge: GoogleFonts.newsreader(fontSize: 40, fontWeight: FontWeight.w500, letterSpacing: -0.5, color: canvasColor),
-        displayMedium: GoogleFonts.newsreader(fontSize: 28, fontWeight: FontWeight.w500, letterSpacing: -0.5, color: canvasColor),
-        bodyLarge: GoogleFonts.inter(fontSize: 16, height: 1.6, color: canvasColor),
-        bodyMedium: GoogleFonts.inter(fontSize: 14, height: 1.5, color: canvasColor),
-        labelSmall: GoogleFonts.jetBrainsMono(fontSize: 11, letterSpacing: 0.5, color: secondaryColor),
+        displayLarge: GoogleFonts.newsreader(
+            fontSize: 40,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -0.5,
+            color: canvasColor),
+        displayMedium: GoogleFonts.newsreader(
+            fontSize: 28,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -0.5,
+            color: canvasColor),
+        bodyLarge:
+            GoogleFonts.inter(fontSize: 16, height: 1.6, color: canvasColor),
+        bodyMedium:
+            GoogleFonts.inter(fontSize: 14, height: 1.5, color: canvasColor),
+        labelSmall: GoogleFonts.jetBrainsMono(
+            fontSize: 11, letterSpacing: 0.5, color: secondaryColor),
       ),
       navigationBarTheme: NavigationBarThemeData(
         indicatorColor: Colors.transparent,
         backgroundColor: const Color(0xFFF3F1ED),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((Set<WidgetState> states) {
-          final color = states.contains(WidgetState.selected) ? primaryAccent : secondaryColor;
-          return GoogleFonts.jetBrainsMono(fontSize: 11, color: color, fontWeight: FontWeight.w500);
+        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
+            (Set<WidgetState> states) {
+          final color = states.contains(WidgetState.selected)
+              ? primaryAccent
+              : secondaryColor;
+          return GoogleFonts.jetBrainsMono(
+              fontSize: 11, color: color, fontWeight: FontWeight.w500);
         }),
-        iconTheme: WidgetStateProperty.resolveWith<IconThemeData>((Set<WidgetState> states) {
-          final color = states.contains(WidgetState.selected) ? primaryAccent : secondaryColor;
+        iconTheme: WidgetStateProperty.resolveWith<IconThemeData>(
+            (Set<WidgetState> states) {
+          final color = states.contains(WidgetState.selected)
+              ? primaryAccent
+              : secondaryColor;
           return IconThemeData(color: color, size: 24);
         }),
       ),

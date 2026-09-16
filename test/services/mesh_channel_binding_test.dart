@@ -18,8 +18,8 @@ import 'package:alexandria/services/mesh_transport_service.dart';
 /// self-certifying peerId the multiaddr carries.
 Future<({String peerId, Future<Uint8List> Function(Uint8List) signer})>
     _responderIdentity() async {
-  final keyPair = await Ed25519()
-      .newKeyPairFromSeed(List<int>.generate(32, (i) => i + 7));
+  final keyPair =
+      await Ed25519().newKeyPairFromSeed(List<int>.generate(32, (i) => i + 7));
   final pub = (await keyPair.extractPublicKey()).bytes;
   final identity = AlexandriaIdentity(
     publicKey: Uint8List.fromList(pub),
@@ -45,8 +45,7 @@ MeshHandshakeTicket _ticket({
       peerId: peerId,
       multiaddr: multiaddr,
       nonce: nonce,
-      responderSignature:
-          Uint8List.fromList(List<int>.generate(64, (i) => i)),
+      responderSignature: Uint8List.fromList(List<int>.generate(64, (i) => i)),
       dialerEphemeral: 'ZGlhbGVyLWVwaA',
       responderEphemeral: 'cmVzcG9uZGVyLWVwaA',
       sharedSecret: Uint8List.fromList(List<int>.filled(32, secretByte)),
@@ -54,8 +53,7 @@ MeshHandshakeTicket _ticket({
 
 void main() {
   group('mesh channel binding (round-5 residual closure)', () {
-    test('real socket handshake binds the same key on both ends',
-        () async {
+    test('real socket handshake binds the same key on both ends', () async {
       final id = await _responderIdentity();
       MeshHandshakeTicket? responderTicket;
       final server = await ServerSocket.bind('127.0.0.1', 0);
@@ -77,8 +75,7 @@ void main() {
       );
       addTearDown(dialer.dispose);
 
-      final multiaddr =
-          '/ip4/127.0.0.1/tcp/${server.port}/p2p/${id.peerId}';
+      final multiaddr = '/ip4/127.0.0.1/tcp/${server.port}/p2p/${id.peerId}';
       expect(await dialer.connectToPeer(multiaddr), isTrue);
       expect(dialer.hasChannelBinding(id.peerId), isTrue);
       expect(responderTicket, isNotNull,
@@ -113,11 +110,11 @@ void main() {
       expect(sent, hasLength(1));
       // seq(8) ‖ payload ‖ mac(32)
       expect(sent.first.length, equals(8 + outboundPayload.length + 32));
-      expect(
-          await responder.receiveFrame(id.peerId, sent.first), isTrue);
+      expect(await responder.receiveFrame(id.peerId, sent.first), isTrue);
     });
 
-    test('peers without a completed handshake cannot send or receive '
+    test(
+        'peers without a completed handshake cannot send or receive '
         'frames', () async {
       final svc = MeshTransportService();
       addTearDown(svc.dispose);
@@ -128,10 +125,8 @@ void main() {
         latencyMs: 0,
       ));
       expect(svc.hasChannelBinding('unproven'), isFalse);
-      expect(
-          await svc.sendPayload('unproven', Uint8List(4)), isFalse);
-      expect(await svc.receiveFrame('unproven', Uint8List(64)),
-          isFalse);
+      expect(await svc.sendPayload('unproven', Uint8List(4)), isFalse);
+      expect(await svc.receiveFrame('unproven', Uint8List(64)), isFalse);
     });
 
     test('frames carry a sequence-verified MAC — tampering is rejected',
@@ -156,13 +151,11 @@ void main() {
       final tampered = Uint8List.fromList(frame)..[10] ^= 0x01;
       expect(await svc.receiveFrame('peer-A', tampered), isFalse);
       // Bit-flip in the MAC region.
-      final badMac = Uint8List.fromList(frame)
-        ..[frame.length - 1] ^= 0x01;
+      final badMac = Uint8List.fromList(frame)..[frame.length - 1] ^= 0x01;
       expect(await svc.receiveFrame('peer-A', badMac), isFalse);
       // Truncated frame.
       expect(
-          await svc.receiveFrame(
-              'peer-A', frame.sublist(0, frame.length - 10)),
+          await svc.receiveFrame('peer-A', frame.sublist(0, frame.length - 10)),
           isFalse);
       expect(received, hasLength(1),
           reason: 'forged frames must not reach onPayloadReceived');
@@ -188,12 +181,12 @@ void main() {
       // Gap ahead is fine — seq only needs to be ahead.
       expect(
           await svc.receiveFrame(
-              'peer-A',
-              MeshTransportService.encodeFrame(key, 9, Uint8List(4))),
+              'peer-A', MeshTransportService.encodeFrame(key, 9, Uint8List(4))),
           isTrue);
     });
 
-    test('a forward-only relay cannot forge frames — the transcript '
+    test(
+        'a forward-only relay cannot forge frames — the transcript '
         'alone does not yield the channel key', () async {
       final ticket = _ticket();
       final sent = <Uint8List>[];
@@ -212,8 +205,8 @@ void main() {
       // but NOT the ephemeral DH secret. A transcript-only derivation
       // — what a transcript-binding-only design would produce — must
       // not verify.
-      final eavesdropperKey = MeshTransportService.deriveSessionKey(
-          MeshHandshakeTicket(
+      final eavesdropperKey =
+          MeshTransportService.deriveSessionKey(MeshHandshakeTicket(
         peerId: ticket.peerId,
         multiaddr: ticket.multiaddr,
         nonce: ticket.nonce,
@@ -225,12 +218,12 @@ void main() {
       final forged = MeshTransportService.encodeFrame(
           eavesdropperKey, 99, Uint8List.fromList([9, 9, 9]));
       expect(await svc.receiveFrame('peer-A', forged), isFalse,
-          reason:
-              'a relay that observed the handshake must not be able to '
+          reason: 'a relay that observed the handshake must not be able to '
               'MAC frames — the key needs the ephemeral DH secret');
     });
 
-    test('channel is dropped on disconnect, unregister, and address '
+    test(
+        'channel is dropped on disconnect, unregister, and address '
         're-registration', () async {
       final ticket = _ticket();
       final svc = MeshTransportService(
@@ -277,32 +270,28 @@ void main() {
       expect(await svc2.sendPayload('peer-A', Uint8List(3)), isFalse);
     });
 
-    test('a failed probe of a different address keeps the bound '
+    test(
+        'a failed probe of a different address keeps the bound '
         'channel', () async {
       final ticket = _ticket();
       final svc = MeshTransportService(
-        sessionProbe: (addr) async =>
-            addr.contains('1.2.3.4') ? ticket : null,
+        sessionProbe: (addr) async => addr.contains('1.2.3.4') ? ticket : null,
         frameTransport: (_, __) async => true,
       );
       addTearDown(svc.dispose);
       await svc.connectToPeer(ticket.multiaddr);
       // Failed dial of a NEW address must not strip the proven channel.
       expect(
-          await svc
-              .connectToPeer('/ip4/8.8.8.8/tcp/4001/p2p/peer-A'),
-          isFalse);
+          await svc.connectToPeer('/ip4/8.8.8.8/tcp/4001/p2p/peer-A'), isFalse);
       expect(svc.hasChannelBinding('peer-A'), isTrue);
       final key = MeshTransportService.deriveSessionKey(ticket);
       expect(
           await svc.receiveFrame(
-              'peer-A',
-              MeshTransportService.encodeFrame(key, 0, Uint8List(2))),
+              'peer-A', MeshTransportService.encodeFrame(key, 0, Uint8List(2))),
           isTrue);
     });
 
-    test('legacy bool probe produces a working local-only channel',
-        () async {
+    test('legacy bool probe produces a working local-only channel', () async {
       final sent = <Uint8List>[];
       final svc = MeshTransportService(
         handshakeProbe: (_) async => true,
@@ -315,16 +304,15 @@ void main() {
       const addr = '/ip4/1.2.3.4/tcp/4001/p2p/legacy-peer';
       expect(await svc.connectToPeer(addr), isTrue);
       expect(svc.hasChannelBinding('legacy-peer'), isTrue);
-      expect(
-          await svc.sendPayload('legacy-peer', Uint8List.fromList([7])),
+      expect(await svc.sendPayload('legacy-peer', Uint8List.fromList([7])),
           isTrue);
       // Synthetic tickets still produce framed traffic: seq 0.
       expect(sent.single.length, equals(8 + 1 + 32));
-      expect(
-          ByteData.sublistView(sent.single).getUint64(0), equals(0));
+      expect(ByteData.sublistView(sent.single).getUint64(0), equals(0));
     });
 
-    test('legacy 3-field HELLO gets an identity ACK but binds no '
+    test(
+        'legacy 3-field HELLO gets an identity ACK but binds no '
         'channel', () async {
       final id = await _responderIdentity();
       MeshHandshakeTicket? bound;
@@ -332,12 +320,10 @@ void main() {
       addTearDown(server.close);
       server.listen((socket) {
         MeshTransportService.serveHandshake(socket, id.peerId,
-            identitySigner: id.signer,
-            onSessionBound: (t) => bound = t);
+            identitySigner: id.signer, onSessionBound: (t) => bound = t);
       });
 
-      final socket =
-          await Socket.connect('127.0.0.1', server.port);
+      final socket = await Socket.connect('127.0.0.1', server.port);
       addTearDown(socket.destroy);
       const nonce = 'aabbccddeeff0011';
       const addr = '/ip4/127.0.0.1/tcp/1/p2p/x';
@@ -368,8 +354,8 @@ void main() {
       });
       final svc = MeshTransportService();
       addTearDown(svc.dispose);
-      final ok = await svc.connectToPeer(
-          '/ip4/127.0.0.1/tcp/${server.port}/p2p/${id.peerId}');
+      final ok = await svc
+          .connectToPeer('/ip4/127.0.0.1/tcp/${server.port}/p2p/${id.peerId}');
       expect(ok, isFalse);
       expect(svc.hasChannelBinding(id.peerId), isFalse);
     });

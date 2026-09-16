@@ -31,8 +31,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/mesh_transport_service.dart';
 
 void main() {
-  test('a bare TCP listener must NOT satisfy the peer handshake',
-      () async {
+  test('a bare TCP listener must NOT satisfy the peer handshake', () async {
     // A listening socket that accepts and speaks NOTHING — no libp2p,
     // no Alexandria protocol, just a TCP accept. If this counts as a
     // handshake, any open port on the internet can impersonate a peer.
@@ -48,8 +47,7 @@ void main() {
         '/ip4/127.0.0.1/tcp/${server.port}/p2p/QmSpoofedVictimIdentity');
 
     expect(ok, isFalse,
-        reason:
-            'connectToPeer returned true for a socket that never '
+        reason: 'connectToPeer returned true for a socket that never '
             'answered a single protocol byte — the "handshake" is a '
             'bare TCP connect, so any listener satisfies it and the '
             'claimed /p2p/ id is unbound. A peer must only become '
@@ -73,11 +71,8 @@ void main() {
       latencyMs: 0,
     ));
 
-    expect(
-        svc.activePeers.any((p) => p.peerId == 'QmNeverHandshaken'),
-        isFalse,
-        reason:
-            'registerPeer admitted a peer that was never probed — '
+    expect(svc.activePeers.any((p) => p.peerId == 'QmNeverHandshaken'), isFalse,
+        reason: 'registerPeer admitted a peer that was never probed — '
             'MeshPeer.isReachable defaults to true, so the round-2 '
             'handshake gate is trivially bypassed on this path.');
     expect(

@@ -139,8 +139,7 @@ class AuditLogService {
             .where((l) => l.trim().isNotEmpty)
             .toList();
         _nextSeq = lines.length;
-        _prevDigest =
-            lines.isEmpty ? _genesisDigest : _lineDigest(lines.last);
+        _prevDigest = lines.isEmpty ? _genesisDigest : _lineDigest(lines.last);
       }
     } catch (_) {
       // Unreadable file — start a fresh chain.
@@ -265,15 +264,13 @@ class AuditLogService {
   /// recorded predecessor head — returning `(seq, lineDigest)` of the
   /// checkpoint itself. Used only when both external anchors are
   /// absent (campaign-2 hardening).
-  Future<(int, String)?> _recoverCheckpointHead(
-      Uint8List? keyBytes) async {
+  Future<(int, String)?> _recoverCheckpointHead(Uint8List? keyBytes) async {
     if (keyBytes == null) return null;
     try {
       final file = _logFile;
       if (file == null || !await file.exists()) return null;
-      final lines = (await file.readAsLines())
-          .where((l) => l.trim().isNotEmpty)
-          .toList();
+      final lines =
+          (await file.readAsLines()).where((l) => l.trim().isNotEmpty).toList();
       for (var i = lines.length - 1; i >= 0; i--) {
         final parts = _splitEscaped(lines[i]);
         if (parts.length < 6 || _unesc(parts[1]) != _checkpointEvent) {
@@ -311,9 +308,8 @@ class AuditLogService {
   /// MAC'd sidecar file. Best-effort — an unwritable anchor degrades
   /// to the other, never to no anchor silently (the missing-anchor
   /// read marker covers total absence).
-  Future<void> _writeHeadAnchors(
-      SecureStorageService storage, Uint8List keyBytes,
-      int seq, String digest) async {
+  Future<void> _writeHeadAnchors(SecureStorageService storage,
+      Uint8List keyBytes, int seq, String digest) async {
     try {
       await storage.write(_chainHeadKey, '$seq:$digest');
     } catch (_) {}
@@ -364,8 +360,8 @@ class AuditLogService {
     if (keyBase64 != null) {
       final keyBytes = base64Decode(keyBase64);
       final mac = Hmac(sha256, keyBytes)
-          .convert(utf8.encode(
-              _v2MacInput(seq, _prevDigest, timestamp, p1, p2, p4, p5)))
+          .convert(utf8
+              .encode(_v2MacInput(seq, _prevDigest, timestamp, p1, p2, p4, p5)))
           .toString();
       signature = 'v2:$seq:$_prevDigest:$mac';
     }
@@ -570,11 +566,10 @@ class AuditLogService {
       final lastDigest =
           nonEmpty.isEmpty ? _genesisDigest : _lineDigest(nonEmpty.last);
       final missing = expectedSeq - lastIndex;
-      if (missing > 0 &&
-          lastDigest != expectedDigest) {
-        final count =
-            missing > _maxGapMarkers ? _maxGapMarkers : missing;
-        final markerTs = verified.isEmpty ? DateTime.now() : verified.last.timestamp;
+      if (missing > 0 && lastDigest != expectedDigest) {
+        final count = missing > _maxGapMarkers ? _maxGapMarkers : missing;
+        final markerTs =
+            verified.isEmpty ? DateTime.now() : verified.last.timestamp;
         for (var k = 0; k < count; k++) {
           gapMarkers.add(AuditLog(
             event: 'audit_log_tail_gap',

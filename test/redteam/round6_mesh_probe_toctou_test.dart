@@ -30,7 +30,8 @@ const _addr = '/ip4/127.0.0.1/tcp/4001/p2p/victim-peer';
 const _peerId = 'victim-peer';
 
 void main() {
-  test('a probe completing after unregisterPeer resurrects the peer '
+  test(
+      'a probe completing after unregisterPeer resurrects the peer '
       'as reachable', () async {
     final probe = Completer<bool>();
     final svc = MeshTransportService(handshakeProbe: (_) => probe.future);
@@ -45,21 +46,19 @@ void main() {
     probe.complete(true); // endpoint finally answers
     expect(await dial, isTrue);
 
-    final resurrected =
-        svc.peers.where((p) => p.peerId == _peerId).toList();
+    final resurrected = svc.peers.where((p) => p.peerId == _peerId).toList();
     expect(resurrected, isEmpty,
-        reason:
-            'connectToPeer wrote back its pre-probe snapshot after an '
+        reason: 'connectToPeer wrote back its pre-probe snapshot after an '
             'unregisterPeer — the removed peer is present again AND '
             'marked isReachable, so sendPayload/selectBestTransport '
             'route to a peer the operator revoked.');
     expect(await svc.sendPayload(_peerId, Uint8List(4)), isFalse,
-        reason:
-            'a resurrected peer must not be dispatchable, but the '
+        reason: 'a resurrected peer must not be dispatchable, but the '
             'stale-snapshot write marked it isReachable.');
   });
 
-  test('a probe completing after disconnectPeer re-marks the peer '
+  test(
+      'a probe completing after disconnectPeer re-marks the peer '
       'reachable', () async {
     final probe = Completer<bool>();
     final svc = MeshTransportService(handshakeProbe: (_) => probe.future);
@@ -73,8 +72,7 @@ void main() {
 
     final peer = svc.peers.firstWhere((p) => p.peerId == _peerId);
     expect(peer.isReachable, isFalse,
-        reason:
-            'disconnectPeer during an in-flight probe is undone by the '
+        reason: 'disconnectPeer during an in-flight probe is undone by the '
             'stale write-back — the peer is reachable again without any '
             'new handshake, and sendPayload will dispatch to it.');
   });
@@ -103,8 +101,7 @@ void main() {
     // The T0 snapshot had webrtcDirect/address=_addr; the write-back
     // stomps the registered record's tier.
     expect(peer.tier, equals(TransportTier.bleProximity),
-        reason:
-            'connectToPeer’s stale-snapshot write clobbered the tier of '
+        reason: 'connectToPeer’s stale-snapshot write clobbered the tier of '
             'a peer record that was re-registered mid-probe.');
   });
 }

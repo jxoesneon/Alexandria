@@ -84,7 +84,8 @@ Future<void> _settle() =>
     Future<void>.delayed(const Duration(milliseconds: 50));
 
 void main() {
-  test('envelopes flow over the MAC\'d mesh channel: publish → parse → '
+  test(
+      'envelopes flow over the MAC\'d mesh channel: publish → parse → '
       'ingest', () async {
     final pair = _MeshPair();
     await pair.connect();
@@ -110,10 +111,12 @@ void main() {
     expect(received.single.pubkey, await _pubHex(kp));
   });
 
-  test('publish with no proven peers completes best-effort with zero '
+  test(
+      'publish with no proven peers completes best-effort with zero '
       'fanout', () async {
     final mesh = MeshTransportService(
-        sessionProbe: (_) async => null, frameTransport: (_, __) async => false);
+        sessionProbe: (_) async => null,
+        frameTransport: (_, __) async => false);
     final transport = MeshBountyTransport(mesh);
     final env = await BeaconEnvelope.create(
         kind: 'moltbook_post', keyPair: await _newKey(), payload: {});
@@ -122,7 +125,8 @@ void main() {
     mesh.dispose();
   });
 
-  test('malformed inbound payloads are dropped before the envelope '
+  test(
+      'malformed inbound payloads are dropped before the envelope '
       'stream', () async {
     final pair = _MeshPair();
     await pair.connect();
@@ -139,14 +143,14 @@ void main() {
     // verifies but fails envelope parse and must be dropped.
     final key = MeshTransportService.deriveSessionKey(_sharedTicket());
     final junk = MeshTransportService.encodeFrame(
-        key, 0, Uint8List.fromList(utf8.encode('not a beacon envelope')),
-        0);
+        key, 0, Uint8List.fromList(utf8.encode('not a beacon envelope')), 0);
     expect(await pair.b.receiveFrame(pair.aId, junk), isTrue);
     await _settle();
     expect(received, isEmpty);
   });
 
-  test('end-to-end over real mesh channels: bounty announce → verified '
+  test(
+      'end-to-end over real mesh channels: bounty announce → verified '
       'claim → poster-side settlement evidence', () async {
     final pair = _MeshPair();
     await pair.connect();
@@ -176,12 +180,13 @@ void main() {
 
     // 1. Announce over the mesh — lands attributed but unfunded.
     final posted = await svcA.postPreservationBounty(
-        cid: 'bafk_mesh', title: 'mesh bounty', offeredCredits: 20.0,
+        cid: 'bafk_mesh',
+        title: 'mesh bounty',
+        offeredCredits: 20.0,
         force: true);
     await _settle();
     expect(svcB.isOriginVerified(posted.id), isTrue);
-    var stored =
-        svcB.activeBounties.firstWhere((b) => b.id == posted.id);
+    var stored = svcB.activeBounties.firstWhere((b) => b.id == posted.id);
     expect(stored.funded, isFalse);
 
     // 2. Attestor-signed funding upgrade (envelope-carried attestation).

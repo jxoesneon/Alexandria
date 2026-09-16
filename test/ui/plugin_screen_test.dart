@@ -9,7 +9,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('PluginScreen Tests', () {
-    testWidgets('renders plugins and themes tabs, and opens install dialog', (tester) async {
+    testWidgets('renders plugins and themes tabs, and opens install dialog',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -48,7 +49,8 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('plugin toggle switch and quick template insertion', (tester) async {
+    testWidgets('plugin toggle switch and quick template insertion',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -89,10 +91,12 @@ void main() {
       await tester.tap(find.text('Install'));
       await tester.pumpAndSettle();
 
-      expect(service.plugins.any((p) => p.manifest.name == 'Calibre Connector'), isTrue);
+      expect(service.plugins.any((p) => p.manifest.name == 'Calibre Connector'),
+          isTrue);
     });
 
-    testWidgets('theme selection and template install in themes tab', (tester) async {
+    testWidgets('theme selection and template install in themes tab',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);

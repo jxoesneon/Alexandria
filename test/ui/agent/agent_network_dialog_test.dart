@@ -11,7 +11,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AgentNetworkDialog Tests', () {
-    testWidgets('renders dialog header, steward status, and controls', (tester) async {
+    testWidgets('renders dialog header, steward status, and controls',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -66,7 +67,8 @@ void main() {
       expect(steward.isRunning, isFalse);
     });
 
-    testWidgets('supports static AgentNetworkDialog.show and close button', (tester) async {
+    testWidgets('supports static AgentNetworkDialog.show and close button',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -129,8 +131,10 @@ void main() {
       await tester.tap(postBountyBtn);
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextField, 'Title / Paper Name'), 'Test Paper');
-      await tester.enterText(find.widgetWithText(TextField, 'Endangered CIDv1'), 'bafytestcid123456');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Title / Paper Name'), 'Test Paper');
+      await tester.enterText(find.widgetWithText(TextField, 'Endangered CIDv1'),
+          'bafytestcid123456');
       await tester.tap(find.text('Publish Bounty'));
       await tester.pumpAndSettle();
 

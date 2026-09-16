@@ -18,7 +18,8 @@ void main() {
       expect(normalized[yestKey], equals(1));
     });
 
-    testWidgets('renders grid cells with various intensity levels', (tester) async {
+    testWidgets('renders grid cells with various intensity levels',
+        (tester) async {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final d1 = today.subtract(const Duration(days: 2));
@@ -26,8 +27,8 @@ void main() {
 
       final data = {
         today: 10, // high intensity
-        d1: 3,     // medium intensity
-        d2: 1,     // low intensity
+        d1: 3, // medium intensity
+        d2: 1, // low intensity
       };
 
       await tester.pumpWidget(

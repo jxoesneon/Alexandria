@@ -4,7 +4,8 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:alexandria/data/database.dart' show AppDatabase, databaseProvider;
+import 'package:alexandria/data/database.dart'
+    show AppDatabase, databaseProvider;
 import 'package:alexandria/logic/honor_system.dart';
 import 'package:alexandria/services/agent/beacon_models.dart';
 import 'package:alexandria/services/credits/credit_service.dart';
@@ -83,9 +84,9 @@ void main() {
       expect(challenge.challengerPubkey, equals('verifier_hex_key'));
     });
 
-    test('verifyProof accepts an authentic generated proof and records honor', () {
-      final chunk =
-          Uint8List.fromList('Authentic retrievable chunk'.codeUnits);
+    test('verifyProof accepts an authentic generated proof and records honor',
+        () {
+      final chunk = Uint8List.fromList('Authentic retrievable chunk'.codeUnits);
       final challenge =
           service.createChallenge(cid: 'bafy_auth', totalChunks: 10);
 
@@ -107,10 +108,8 @@ void main() {
     });
 
     test('verifyProof rejects a forged proof with tampered chunk data', () {
-      final realChunk =
-          Uint8List.fromList('Real chunk bytes'.codeUnits);
-      final forgedChunk =
-          Uint8List.fromList('Forged chunk bytes'.codeUnits);
+      final realChunk = Uint8List.fromList('Real chunk bytes'.codeUnits);
+      final forgedChunk = Uint8List.fromList('Forged chunk bytes'.codeUnits);
 
       final challenge =
           service.createChallenge(cid: 'bafy_forged', totalChunks: 20);
@@ -141,7 +140,8 @@ void main() {
       expect(valid, isFalse);
     });
 
-    test('pending challenges are bounded: expired purged first, then '
+    test(
+        'pending challenges are bounded: expired purged first, then '
         'oldest evicted (REV4 Safety 5)', () {
       var now = DateTime(2026, 1, 1);
       final c = ProviderContainer(overrides: [
@@ -257,8 +257,8 @@ void main() {
       expect(receipt.amount, greaterThan(0));
 
       // Signature really verifies under the verifier key.
-      final ok = await receipt.verifyVerifierSignature(
-          (message, sig, publicKey) async {
+      final ok = await receipt
+          .verifyVerifierSignature((message, sig, publicKey) async {
         final pk =
             SimplePublicKey(hexToBytes(publicKey), type: KeyPairType.ed25519);
         return Ed25519()
@@ -416,7 +416,8 @@ void main() {
       expect(row!['spent'], isTrue);
     });
 
-    test('case-variant prover_pubkey spelling the local key still mints '
+    test(
+        'case-variant prover_pubkey spelling the local key still mints '
         'the local reward (canonical compare, not stranded)', () async {
       // The MCP tool surface can deliver prover_pubkey in any hex case —
       // a syntactic `==` against the node identity would strand the
@@ -481,8 +482,8 @@ void main() {
     test('unknown and consumed challenges are rejected by issuance path',
         () async {
       final unknown = await service.verifyAndIssueReceipt(
-        proof: PoRProof(
-            challengeId: 'nope', tag: 'x', timestamp: DateTime.now()),
+        proof:
+            PoRProof(challengeId: 'nope', tag: 'x', timestamp: DateTime.now()),
         expectedChunkData: chunkOf('x'),
         proverPeerId: 'peer',
       );

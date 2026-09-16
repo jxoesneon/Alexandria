@@ -50,8 +50,7 @@ void main() {
       await tempDir.delete(recursive: true);
     });
 
-    test('second service instance restores persisted chain head',
-        () async {
+    test('second service instance restores persisted chain head', () async {
       final storage = _FakeSecureStorage();
       // A signing key must exist for the checkpoint to be written.
       storage.data['master_key_v1'] = base64Encode(List.filled(32, 7));

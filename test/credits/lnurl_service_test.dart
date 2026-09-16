@@ -13,14 +13,15 @@ void main() {
             jsonEncode({
               'tag': 'payRequest',
               'callback': 'https://stacker.news/api/lnurlp/callback/alice',
-              'minSendable': 1000,      // 1 sat
+              'minSendable': 1000, // 1 sat
               'maxSendable': 100000000, // 100,000 sats
               'metadata': '[["text/plain", "Pay to Alice"]]',
             }),
             200,
           );
         } else if (request.url.path == '/api/lnurlp/callback/alice') {
-          expect(request.url.queryParameters['amount'], '250000'); // 250 sats in msats
+          expect(request.url.queryParameters['amount'],
+              '250000'); // 250 sats in msats
           return http.Response(
             jsonEncode({
               'pr': 'lnbc2500n1p3xxxx...',
@@ -32,7 +33,8 @@ void main() {
         return http.Response('Not Found', 404);
       });
 
-      final lnurlService = LnurlService(client: mockClient, callbackTransport: mockClient.get);
+      final lnurlService =
+          LnurlService(client: mockClient, callbackTransport: mockClient.get);
       final invoice = await lnurlService.resolveAddressToInvoice(
         lightningAddress: 'alice@stacker.news',
         amountSats: 250,
@@ -56,7 +58,8 @@ void main() {
         );
       });
 
-      final service = LnurlService(client: mockClient, callbackTransport: mockClient.get);
+      final service =
+          LnurlService(client: mockClient, callbackTransport: mockClient.get);
 
       // 5 sats is below 10 sats minSendable
       expect(

@@ -24,7 +24,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/mesh_transport_service.dart';
 
 void main() {
-  test('an arbitrary endpoint can claim a victim peerId and become '
+  test(
+      'an arbitrary endpoint can claim a victim peerId and become '
       'reachable (no cryptographic binding)', () async {
     // Stand up a hostile endpoint that answers ANY HELLO with an ACK
     // claiming the VICTIM's peerId — exactly what serveHandshake does
@@ -37,12 +38,11 @@ void main() {
     });
 
     final svc = MeshTransportService();
-    final ok = await svc.connectToPeer(
-        '/ip4/127.0.0.1/tcp/${server.port}/p2p/$victimPeerId');
+    final ok = await svc
+        .connectToPeer('/ip4/127.0.0.1/tcp/${server.port}/p2p/$victimPeerId');
 
     expect(ok, isFalse,
-        reason:
-            'connectToPeer returned TRUE for an endpoint that holds no '
+        reason: 'connectToPeer returned TRUE for an endpoint that holds no '
             'credentials for $victimPeerId — the ACK\'s peerId is '
             'self-asserted plaintext, so the "binding" verifies only '
             'that the endpoint can echo the peerId it was dialed with. '
@@ -72,8 +72,7 @@ void main() {
     // failure of a new endpoint says nothing about the old one.
     final peer = svc.peers.firstWhere((p) => p.peerId == 'QmProvenPeer');
     expect(peer.isReachable, isTrue,
-        reason:
-            'a failed handshake to a DIFFERENT address demoted the '
+        reason: 'a failed handshake to a DIFFERENT address demoted the '
             'proven peer (isReachable=${peer.isReachable}, '
             'address=${peer.address}) — connectToPeer overwrites '
             'reachability unconditionally on probe failure. Any caller '

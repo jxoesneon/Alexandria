@@ -47,7 +47,8 @@ Map<String, dynamic> _forgedEntry(
 }
 
 void main() {
-  test('imported ledger entries are accepted without signature '
+  test(
+      'imported ledger entries are accepted without signature '
       'verification → forged reputation', () async {
     final svc = LedgerService(_FakeIdentityService(AlexandriaIdentity(
       publicKey: Uint8List(32),
@@ -71,14 +72,12 @@ void main() {
 
     final imported = await svc.importFromJson(jsonEncode(entries));
     expect(imported, isFalse,
-        reason:
-            'a fully forged ledger (zero-filled signatures, no known '
+        reason: 'a fully forged ledger (zero-filled signatures, no known '
             'signer) imported successfully — only hash linkage is '
             'checked, so any crafted chain accrues real reputation '
             'that gates governance voting.');
     expect(svc.totalReputation, 0.0,
-        reason:
-            'forged chain credited ${svc.totalReputation} reputation — '
+        reason: 'forged chain credited ${svc.totalReputation} reputation — '
             'enough to pass GovernanceConstants.minReputationToVote '
             '(10) and cast heavyweight votes');
   });
@@ -98,8 +97,7 @@ void main() {
     final today =
         svc.getTodayActionCounts()[LedgerActionType.validateHash] ?? 0;
     expect(today, lessThanOrEqualTo(50),
-        reason:
-            'recordAction wrote $today validateHash entries today — '
+        reason: 'recordAction wrote $today validateHash entries today — '
             'ReputationWeights.dailyLimits[validateHash]=50 is defined '
             'but never enforced on the write path (isWithinDailyLimit '
             'is never consulted). Reputation inflates without bound.');

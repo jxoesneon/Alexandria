@@ -36,7 +36,8 @@ String _hex(Uint8List b) =>
 void main() {
   final enc = EncryptionService();
 
-  test('every advertised X25519 u-coordinate round-trips through '
+  test(
+      'every advertised X25519 u-coordinate round-trips through '
       'encryptForPeer/decryptFromPeer', () async {
     final ed = Ed25519();
     final x = X25519();
@@ -49,8 +50,7 @@ void main() {
       // x25519PublicKeyBytes.
       final seed = Uint8List(32)..[0] = i;
       final kp = await ed.newKeyPairFromSeed(seed);
-      final edPub =
-          Uint8List.fromList((await kp.extractPublicKey()).bytes);
+      final edPub = Uint8List.fromList((await kp.extractPublicKey()).bytes);
       final xPriv = EncryptionService.ed25519SeedToX25519Seed(seed);
       // This u-coordinate IS IdentityService.x25519PublicKeyBytes()
       // output: the birational image of the Ed25519 identity key.
@@ -76,8 +76,7 @@ void main() {
     }
 
     expect(ambiguous, isEmpty,
-        reason:
-            'seeds $ambiguous produced X25519 u-coordinates that satisfy '
+        reason: 'seeds $ambiguous produced X25519 u-coordinates that satisfy '
             '_isCanonicalEd25519Key, so _resolvePeerAgreementKey '
             're-mapped them as Ed25519 keys and sealed the envelope to '
             'the wrong curve point — undecryptable by the advertised '

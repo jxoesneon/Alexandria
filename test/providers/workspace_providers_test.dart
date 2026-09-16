@@ -329,7 +329,8 @@ void main() {
       expect(state.queue.first.conflictMessage, contains('Ingestion error'));
     });
 
-    test('refuses a file whose declared size exceeds the ingest '
+    test(
+        'refuses a file whose declared size exceeds the ingest '
         'ceiling (campaign-2 service-side bound)', () async {
       final container = _makeContainer();
       addTearDown(container.dispose);
@@ -348,7 +349,8 @@ void main() {
       expect(state.queue.first.conflictMessage, contains('ingest limit'));
     });
 
-    test('a file with neither bytes nor path errors out instead of '
+    test(
+        'a file with neither bytes nor path errors out instead of '
         'ingesting a phantom zero-byte manifest', () async {
       final container = _makeContainer();
       addTearDown(container.dispose);
@@ -363,8 +365,7 @@ void main() {
 
       final state = container.read(ingestionManagerProvider);
       expect(state.queue.first.status, IngestionStatus.error);
-      expect(
-          state.queue.first.conflictMessage, contains('No file data'));
+      expect(state.queue.first.conflictMessage, contains('No file data'));
     });
 
     test('addFiles does nothing when the file list is empty', () async {

@@ -67,7 +67,9 @@ int _countParseableApp1(Uint8List bytes) {
     final marker = bytes[i + 1];
     if (marker == 0xD9) return count; // EOI
     if (marker == 0x00) return count;
-    if (marker == 0x01 || marker == 0xD8 || (marker >= 0xD0 && marker <= 0xD7)) {
+    if (marker == 0x01 ||
+        marker == 0xD8 ||
+        (marker >= 0xD0 && marker <= 0xD7)) {
       i += 2;
       continue;
     }
@@ -82,21 +84,51 @@ int _countParseableApp1(Uint8List bytes) {
 }
 
 const _jfifApp0 = <int>[
-  0xFF, 0xE0, 0x00, 0x10,
-  0x4A, 0x46, 0x49, 0x46, 0x00,
-  0x01, 0x02, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+  0xFF,
+  0xE0,
+  0x00,
+  0x10,
+  0x4A,
+  0x46,
+  0x49,
+  0x46,
+  0x00,
+  0x01,
+  0x02,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
 ];
 
 const _sosAndScan = <int>[
-  0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00,
-  0x11, 0x22, 0xFF, 0x00, 0x33,
-  0xFF, 0xD9,
+  0xFF,
+  0xDA,
+  0x00,
+  0x08,
+  0x01,
+  0x01,
+  0x00,
+  0x00,
+  0x3F,
+  0x00,
+  0x11,
+  0x22,
+  0xFF,
+  0x00,
+  0x33,
+  0xFF,
+  0xD9,
 ];
 
 void main() {
   final svc = MetadataScrubbingService(CidService());
 
-  test('APP1 whose marker bytes are consumed as a corrupt length word '
+  test(
+      'APP1 whose marker bytes are consumed as a corrupt length word '
       'still gets stripped at the NEXT boundary', () async {
     final app1 = _exifApp1Segment();
     // 'FF DB' + length bytes 'FF E1' → segLen 0xFFE1 (huge, malformed).
@@ -130,7 +162,8 @@ void main() {
     expect(_countExifSignatures(result.scrubbedBytes), 0);
   });
 
-  test('APP1 reached through 0xFF fill bytes inside a corrupt region is '
+  test(
+      'APP1 reached through 0xFF fill bytes inside a corrupt region is '
       'stripped', () async {
     final app1 = _exifApp1Segment();
     final jpeg = Uint8List.fromList([
@@ -145,7 +178,8 @@ void main() {
     expect(_countExifSignatures(result.scrubbedBytes), 0);
   });
 
-  test('APP1 placed mid-scan (inside entropy-coded data after SOS) is '
+  test(
+      'APP1 placed mid-scan (inside entropy-coded data after SOS) is '
       'treated as a marker boundary and stripped', () async {
     final app1 = _exifApp1Segment();
     final jpeg = Uint8List.fromList([
@@ -164,7 +198,8 @@ void main() {
     expect(_countParseableApp1(result.scrubbedBytes), 0);
   });
 
-  test('double-fault: corrupt length, then stray 0xFF00, then APP1 — '
+  test(
+      'double-fault: corrupt length, then stray 0xFF00, then APP1 — '
       'resync chains until the APP1 marker', () async {
     final app1 = _exifApp1Segment();
     final jpeg = Uint8List.fromList([
@@ -179,7 +214,8 @@ void main() {
     expect(_countExifSignatures(result.scrubbedBytes), 0);
   });
 
-  test('a forged EOI inside a corrupt region truncates the stream — '
+  test(
+      'a forged EOI inside a corrupt region truncates the stream — '
       'nothing after it ships', () async {
     final app1 = _exifApp1Segment();
     final jpeg = Uint8List.fromList([
@@ -205,7 +241,8 @@ void main() {
     expect(_countExifSignatures(result.scrubbedBytes), 0);
   });
 
-  test('APP1 bytes embedded inside a copied DQT payload are not '
+  test(
+      'APP1 bytes embedded inside a copied DQT payload are not '
       'parseable as a segment (honesty bound — payload carriage only)',
       () async {
     final app1 = _exifApp1Segment();

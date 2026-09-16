@@ -187,8 +187,8 @@ class PluggableTransportService {
     final subkey = _ssSubkey(salt);
 
     final ciphertext = _ssXorKeystream(data, subkey, nonce);
-    final tag = _hmacSha256(subkey,
-        [...'mac'.codeUnits, ...salt, ...nonce, ...ciphertext]);
+    final tag = _hmacSha256(
+        subkey, [...'mac'.codeUnits, ...salt, ...nonce, ...ciphertext]);
 
     // Inner frame (binary): nonce ‖ ciphertext ‖ tag. Armored as base64
     // so the frame is transport-safe, then masked by the salt so the
@@ -214,8 +214,8 @@ class PluggableTransportService {
       throw const FormatException('Truncated Shadowsocks AEAD payload');
     }
     final salt = Uint8List.fromList(data.sublist(0, _ssSaltLen));
-    final armor = _ssXorRepeat(
-        Uint8List.fromList(data.sublist(_ssSaltLen)), salt);
+    final armor =
+        _ssXorRepeat(Uint8List.fromList(data.sublist(_ssSaltLen)), salt);
 
     // The armor must be strict base64 and the frame must be long enough
     // to hold nonce‖tag — anything else is forged input (both decode
@@ -230,8 +230,8 @@ class PluggableTransportService {
     final tag = frame.sublist(frame.length - _ssTagLen);
 
     final subkey = _ssSubkey(salt);
-    final expected = _hmacSha256(subkey,
-        [...'mac'.codeUnits, ...salt, ...nonce, ...ciphertext]);
+    final expected = _hmacSha256(
+        subkey, [...'mac'.codeUnits, ...salt, ...nonce, ...ciphertext]);
 
     // Constant-time tag comparison: a mismatch means tampered (or
     // wrong-key) input and MUST be rejected before releasing plaintext.

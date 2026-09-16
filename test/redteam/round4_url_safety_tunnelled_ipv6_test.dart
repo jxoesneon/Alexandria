@@ -83,8 +83,7 @@ void main() {
   });
 
   group('round-3 IPv6 controls still hold (verification)', () {
-    test('v4-mapped ::ffff:a.b.c.d is refused for private embeds',
-        () async {
+    test('v4-mapped ::ffff:a.b.c.d is refused for private embeds', () async {
       Object? threw;
       try {
         await UrlSafety.requirePublicFetchUri(
@@ -98,8 +97,7 @@ void main() {
     test('isPublicAddress agrees for a NAT64 literal', () {
       final addr = InternetAddress.tryParse('64:ff9b::a9fe:a9fe')!;
       expect(UrlSafety.isPublicAddress(addr), isFalse,
-          reason:
-              'isPublicAddress (exported for socket-level callers) also '
+          reason: 'isPublicAddress (exported for socket-level callers) also '
               'treats the NAT64-embedded link-local address as public.');
     });
   });

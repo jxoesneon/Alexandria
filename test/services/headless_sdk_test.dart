@@ -203,8 +203,8 @@ void main() {
         // Flip the final character — a short-circuiting == would have
         // differed only in timing; the gate must simply reject.
         final last = token[token.length - 1];
-        final wrong = token.substring(0, token.length - 1) +
-            (last == '0' ? '1' : '0');
+        final wrong =
+            token.substring(0, token.length - 1) + (last == '0' ? '1' : '0');
         final res = await sdk.executeRpc(jsonEncode({
           'jsonrpc': '2.0',
           'method': 'alexandria.pin',
@@ -234,7 +234,8 @@ void main() {
         }
       });
 
-      test('top-level authToken field is also accepted and compared '
+      test(
+          'top-level authToken field is also accepted and compared '
           'constant-time', () async {
         await sdk.startDaemon();
         final ok = await sdk.executeRpc(jsonEncode({

@@ -44,8 +44,7 @@ void main() {
     }
 
     expect(thrown, isNotNull,
-        reason:
-            'bit-flipped "AEAD" ciphertext deobfuscated WITHOUT error to '
+        reason: 'bit-flipped "AEAD" ciphertext deobfuscated WITHOUT error to '
             '"${out == null ? null : utf8.decode(out)}" — no MAC means '
             'silent tampering on everything carried by this profile');
   });
@@ -66,8 +65,7 @@ void main() {
     }
 
     expect(utf8.decode(recovered), isNot(utf8.decode(secret)),
-        reason:
-            'the salt is prepended in cleartext and there is no key — '
+        reason: 'the salt is prepended in cleartext and there is no key — '
             'anyone holding the ciphertext recovers the plaintext '
             'exactly. This profile provides zero confidentiality.');
   });
@@ -89,8 +87,7 @@ void main() {
       thrown = e;
     }
     expect(thrown, isNotNull,
-        reason:
-            'trailing bytes beyond the declared length are silently '
+        reason: 'trailing bytes beyond the declared length are silently '
             'discarded — a MITM can splice extra data into the stream '
             'with no detectable difference at the receiver');
   });

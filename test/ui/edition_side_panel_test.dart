@@ -7,7 +7,8 @@ import 'package:alexandria/providers/library_providers.dart';
 import 'package:alexandria/ui/library/content_viewer_screen.dart';
 
 void main() {
-  testWidgets('Edition indicator and side panel search/filter interaction', (tester) async {
+  testWidgets('Edition indicator and side panel search/filter interaction',
+      (tester) async {
     tester.view.physicalSize = const Size(1280, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -67,9 +68,9 @@ void main() {
             return docStreamUnabridged;
           }),
           documentVersionsProvider(docUuid).overrideWith((ref) async => [
-            unabridgedVersion,
-            briefVersion,
-          ]),
+                unabridgedVersion,
+                briefVersion,
+              ]),
         ],
         child: const MaterialApp(
           home: ContentViewerScreen(documentCid: docUuid),

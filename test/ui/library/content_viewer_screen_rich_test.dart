@@ -162,7 +162,8 @@ A paragraph with [an external link](https://alexandria.org) and some bold **text
       expect(find.textContaining('AUTHENTIC EXECUTIVE BRIEF'), findsOneWidget);
     });
 
-    testWidgets('sidebar displays TOC headings and allows clicking', (tester) async {
+    testWidgets('sidebar displays TOC headings and allows clicking',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);

@@ -75,7 +75,8 @@ const _sosAndScan = <int>[
 void main() {
   final svc = MetadataScrubbingService(CidService());
 
-  test('APP1 placed after a segment with a corrupt length survives '
+  test(
+      'APP1 placed after a segment with a corrupt length survives '
       'scrubbing verbatim', () async {
     final app1 = _exifApp1Segment();
     final jpeg = Uint8List.fromList([
@@ -95,15 +96,15 @@ void main() {
 
     final result = await svc.scrubMetadata(jpeg);
     expect(_countExifMarkers(result.scrubbedBytes), 0,
-        reason:
-            'an Exif APP1 placed behind a corrupt-length segment rode '
+        reason: 'an Exif APP1 placed behind a corrupt-length segment rode '
             'through the scrubber untouched: the bail-out branch copies '
             'the tail verbatim, and the ≤4 KiB exif reader never sees '
             'the survivor, so removedFields can still report the GPS/'
             'device fields as "removed" while they ship in the file.');
   });
 
-  test('APP1 placed after a stray 0xFF00 byte at a marker boundary '
+  test(
+      'APP1 placed after a stray 0xFF00 byte at a marker boundary '
       'survives scrubbing verbatim', () async {
     final app1 = _exifApp1Segment();
     final jpeg = Uint8List.fromList([
@@ -119,12 +120,12 @@ void main() {
 
     final result = await svc.scrubMetadata(jpeg);
     expect(_countExifMarkers(result.scrubbedBytes), 0,
-        reason:
-            'marker==0x00 bail-out copies the remainder verbatim — a '
+        reason: 'marker==0x00 bail-out copies the remainder verbatim — a '
             'complete Exif APP1 survives in "scrubbed" output.');
   });
 
-  test('APP1 placed after a non-marker byte at a segment boundary '
+  test(
+      'APP1 placed after a non-marker byte at a segment boundary '
       'survives scrubbing verbatim', () async {
     final app1 = _exifApp1Segment();
     final jpeg = Uint8List.fromList([
@@ -138,8 +139,7 @@ void main() {
 
     final result = await svc.scrubMetadata(jpeg);
     expect(_countExifMarkers(result.scrubbedBytes), 0,
-        reason:
-            'the not-at-marker bail-out copies the remainder verbatim — '
+        reason: 'the not-at-marker bail-out copies the remainder verbatim — '
             'Exif metadata after any single corrupt byte survives.');
   });
 }

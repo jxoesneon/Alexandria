@@ -61,7 +61,8 @@ Future<BeaconEnvelope> _claimEnvelope(
 
 void main() {
   group('verified remote claim → poster-side settlement', () {
-    test('a verified claim event settles the local escrow durably: '
+    test(
+        'a verified claim event settles the local escrow durably: '
         'tombstone row, locked hold, dead id', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -72,13 +73,15 @@ void main() {
       await svc.setKeyPair(await _newKey());
 
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_settle', title: 'settle me', offeredCredits: 20.0,
+          cid: 'bafk_settle',
+          title: 'settle me',
+          offeredCredits: 20.0,
           force: true);
       expect(cs.balance, 80.0);
 
       final claimant = await _newKey();
-      final env = await _claimEnvelope(claimant,
-          bountyId: posted.id, cid: posted.cid);
+      final env =
+          await _claimEnvelope(claimant, bountyId: posted.id, cid: posted.cid);
       expect(await svc.ingestBountyClaimEnvelope(env), isTrue);
 
       // Settlement evidence recorded + record marked claimed.
@@ -107,10 +110,9 @@ void main() {
       final svc = MoltbookService(creditService: cs, db: db);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_restart', title: 't', offeredCredits: 20.0,
-          force: true);
-      await svc.ingestBountyClaimEnvelope(await _claimEnvelope(
-          await _newKey(), bountyId: posted.id, cid: posted.cid));
+          cid: 'bafk_restart', title: 't', offeredCredits: 20.0, force: true);
+      await svc.ingestBountyClaimEnvelope(await _claimEnvelope(await _newKey(),
+          bountyId: posted.id, cid: posted.cid));
       expect(await db.hasCreditTransaction('tx_escrow_release_${posted.id}'),
           isTrue);
       svc.dispose();
@@ -129,7 +131,8 @@ void main() {
       expect(await svc2.cancelBounty(posted.id), isFalse);
     });
 
-    test('replayed/duplicate claim events settle idempotently — one '
+    test(
+        'replayed/duplicate claim events settle idempotently — one '
         'tombstone, no extra effect', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -139,8 +142,7 @@ void main() {
       addTearDown(svc.dispose);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_dup', title: 't', offeredCredits: 20.0,
-          force: true);
+          cid: 'bafk_dup', title: 't', offeredCredits: 20.0, force: true);
       final env = await _claimEnvelope(await _newKey(),
           bountyId: posted.id, cid: posted.cid);
       expect(await svc.ingestBountyClaimEnvelope(env), isTrue);
@@ -165,8 +167,7 @@ void main() {
       addTearDown(svc.dispose);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_real', title: 't', offeredCredits: 20.0,
-          force: true);
+          cid: 'bafk_real', title: 't', offeredCredits: 20.0, force: true);
 
       final env = await _claimEnvelope(await _newKey(),
           bountyId: posted.id, cid: 'bafk_DIFFERENT');
@@ -176,7 +177,8 @@ void main() {
       expect(svc.isRemotelyClaimed(posted.id), isFalse);
     });
 
-    test('a claim whose envelope signer is NOT the claimant drops '
+    test(
+        'a claim whose envelope signer is NOT the claimant drops '
         '(transport binding enforced)', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -186,8 +188,7 @@ void main() {
       addTearDown(svc.dispose);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_binding', title: 't', offeredCredits: 20.0,
-          force: true);
+          cid: 'bafk_binding', title: 't', offeredCredits: 20.0, force: true);
 
       // Claimant A signs the event; impostor B wraps it — the
       // envelope-signer/claimant binding must refuse it.
@@ -202,7 +203,8 @@ void main() {
       expect(cs.balance, 80.0);
     });
 
-    test('a claim for a foreign bounty id is evidence but settles '
+    test(
+        'a claim for a foreign bounty id is evidence but settles '
         'nothing local', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -212,8 +214,7 @@ void main() {
       addTearDown(svc.dispose);
       await svc.setKeyPair(await _newKey());
       await svc.postPreservationBounty(
-          cid: 'bafk_ours', title: 't', offeredCredits: 20.0,
-          force: true);
+          cid: 'bafk_ours', title: 't', offeredCredits: 20.0, force: true);
 
       final env = await _claimEnvelope(await _newKey(),
           bountyId: 'bounty_foreign_999', cid: 'bafk_theirs');
@@ -221,8 +222,7 @@ void main() {
       expect(svc.isRemotelyClaimed('bounty_foreign_999'), isTrue);
       // No hold exists for that id on this ledger — nothing released.
       expect(
-          await db.hasCreditTransaction(
-              'tx_escrow_release_bounty_foreign_999'),
+          await db.hasCreditTransaction('tx_escrow_release_bounty_foreign_999'),
           isFalse);
       expect(await svc.releaseBountyEscrow('bounty_foreign_999'),
           BountyEscrowRelease.refused);
@@ -230,8 +230,7 @@ void main() {
   });
 
   group('releaseBountyEscrow evidence gate', () {
-    test('no verified evidence → refusedUnproven, hold untouched',
-        () async {
+    test('no verified evidence → refusedUnproven, hold untouched', () async {
       final db = AppDatabase();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
@@ -240,8 +239,7 @@ void main() {
       addTearDown(svc.dispose);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_unproven', title: 't', offeredCredits: 25.0,
-          force: true);
+          cid: 'bafk_unproven', title: 't', offeredCredits: 25.0, force: true);
       expect(cs.balance, 75.0);
 
       expect(await svc.releaseBountyEscrow(posted.id),
@@ -251,7 +249,8 @@ void main() {
           isFalse);
     });
 
-    test('explicit operator reconciliation refunds through the public '
+    test(
+        'explicit operator reconciliation refunds through the public '
         'CreditService API — and only once', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -261,8 +260,7 @@ void main() {
       addTearDown(svc.dispose);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_operator', title: 't', offeredCredits: 25.0,
-          force: true);
+          cid: 'bafk_operator', title: 't', offeredCredits: 25.0, force: true);
       expect(cs.balance, 75.0);
 
       expect(
@@ -278,7 +276,8 @@ void main() {
       expect(cs.balance, 100.0);
     });
 
-    test('a verified claim beats the operator flag — settlement, '
+    test(
+        'a verified claim beats the operator flag — settlement, '
         'never refund', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -288,10 +287,9 @@ void main() {
       addTearDown(svc.dispose);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_flag', title: 't', offeredCredits: 25.0,
-          force: true);
-      await svc.ingestBountyClaimEnvelope(await _claimEnvelope(
-          await _newKey(), bountyId: posted.id, cid: posted.cid));
+          cid: 'bafk_flag', title: 't', offeredCredits: 25.0, force: true);
+      await svc.ingestBountyClaimEnvelope(await _claimEnvelope(await _newKey(),
+          bountyId: posted.id, cid: posted.cid));
 
       expect(
           await svc.releaseBountyEscrow(posted.id,
@@ -300,7 +298,8 @@ void main() {
       expect(cs.balance, 75.0); // consumed — NOT refunded to the poster
     });
 
-    test('durable claim/payout evidence settles even with no claim '
+    test(
+        'durable claim/payout evidence settles even with no claim '
         'event in memory', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -310,7 +309,9 @@ void main() {
       addTearDown(svc.dispose);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_durable_ev', title: 't', offeredCredits: 25.0,
+          cid: 'bafk_durable_ev',
+          title: 't',
+          offeredCredits: 25.0,
           force: true);
 
       // Settlement evidence that outlives process memory: a durable
@@ -327,7 +328,8 @@ void main() {
   });
 
   group('end-to-end over BountyTransport', () {
-    test('claim event published by the claimant settles the poster '
+    test(
+        'claim event published by the claimant settles the poster '
         'escrow automatically — supply conserved', () async {
       final bus = InMemoryBountyTransport();
       final db = AppDatabase();
@@ -341,8 +343,7 @@ void main() {
       addTearDown(svcP.dispose);
       await svcP.setKeyPair(await _newKey());
       final posted = await svcP.postPreservationBounty(
-          cid: 'bafk_e2e', title: 'e2e', offeredCredits: 30.0,
-          force: true);
+          cid: 'bafk_e2e', title: 'e2e', offeredCredits: 30.0, force: true);
       expect(csP.balance, 70.0);
 
       // Claimant side: holds the poster's record backed by a FOREIGN

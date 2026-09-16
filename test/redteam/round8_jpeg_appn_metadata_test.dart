@@ -37,7 +37,15 @@ List<int> _seg(int marker, List<int> payload) {
 
 final _jfif = _seg(0xE0, [
   ...'JFIF\x00'.codeUnits,
-  0x01, 0x02, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+  0x01,
+  0x02,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
 ]);
 
 bool _containsAscii(Uint8List bytes, String needle) {
@@ -55,7 +63,8 @@ bool _containsAscii(Uint8List bytes, String needle) {
 void main() {
   final svc = MetadataScrubbingService(CidService());
 
-  test('an APP2 ICC_PROFILE segment (desc/cprt strings) survives '
+  test(
+      'an APP2 ICC_PROFILE segment (desc/cprt strings) survives '
       'scrubbing verbatim', () async {
     final icc = [
       ...'ICC_PROFILE\x00'.codeUnits,
@@ -81,11 +90,11 @@ void main() {
         reason: 'APP2 is absent from _jpegStrippedMarkers — the ICC '
             'profile (with cprt/desc strings) is copied verbatim.');
     expect(
-        _containsAscii(result.scrubbedBytes, 'Copyright Eve Private'),
-        isFalse);
+        _containsAscii(result.scrubbedBytes, 'Copyright Eve Private'), isFalse);
   });
 
-  test('an APP2 ICC behind a corrupt segment still survives via the '
+  test(
+      'an APP2 ICC behind a corrupt segment still survives via the '
       'round-6 resync path', () async {
     // The resync walker DROPS corrupt regions but then re-parses the
     // next marker — APP2 arrives cleanly at a segment boundary and is
@@ -93,7 +102,8 @@ void main() {
     // absent from the strip set.
     final icc = [
       ...'ICC_PROFILE\x00'.codeUnits,
-      0x01, 0x01,
+      0x01,
+      0x01,
       ...'cprtStudioOwner'.codeUnits,
     ];
     final jpeg = Uint8List.fromList([
@@ -111,7 +121,8 @@ void main() {
             'verbatim because 0xE2 is not stripped.');
   });
 
-  test('an APP12 Ducky/PictureInfo block (Save-for-Web copyright) '
+  test(
+      'an APP12 Ducky/PictureInfo block (Save-for-Web copyright) '
       'survives verbatim', () async {
     final ducky = [
       ...'Ducky\x00'.codeUnits,
@@ -121,15 +132,16 @@ void main() {
       0x00, 0x00,
     ];
     final jpeg = Uint8List.fromList([
-      0xFF, 0xD8,
+      0xFF,
+      0xD8,
       ..._jfif,
       ..._seg(0xEC, ducky),
-      0xFF, 0xD9,
+      0xFF,
+      0xD9,
     ]);
 
     final result = await svc.scrubMetadata(jpeg);
-    expect(_containsAscii(result.scrubbedBytes, 'PrivateOwner!'),
-        isFalse,
+    expect(_containsAscii(result.scrubbedBytes, 'PrivateOwner!'), isFalse,
         reason: 'APP12 (Ducky/PictureInfo copyright carrier) is not '
             'stripped — same class as APP2.');
   });

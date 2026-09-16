@@ -54,29 +54,27 @@ void main() {
       expect(ExternalPlayerService.isSafeExternalTarget('a\nb'), isFalse);
       expect(ExternalPlayerService.isSafeExternalTarget('-rf'), isFalse);
       expect(ExternalPlayerService.isSafeExternalTarget('--foo'), isFalse);
+      expect(ExternalPlayerService.isSafeExternalTarget('file:///etc/passwd'),
+          isFalse);
       expect(
-          ExternalPlayerService.isSafeExternalTarget('file:///etc/passwd'),
-          isFalse);
-      expect(ExternalPlayerService.isSafeExternalTarget('javascript:x'),
-          isFalse);
+          ExternalPlayerService.isSafeExternalTarget('javascript:x'), isFalse);
       expect(ExternalPlayerService.isSafeExternalTarget('data:abc'), isFalse);
       // Backslash-laden drive paths are excluded by the metachar ban.
       expect(ExternalPlayerService.isSafeExternalTarget(r'C:\temp\f'), isFalse);
     });
 
     test('isSafeExternalTarget accepts http(s) and plain paths', () {
-      expect(ExternalPlayerService.isSafeExternalTarget('https://x.io/f'),
-          isTrue);
+      expect(
+          ExternalPlayerService.isSafeExternalTarget('https://x.io/f'), isTrue);
       expect(ExternalPlayerService.isSafeExternalTarget('http://x.io'), isTrue);
-      expect(ExternalPlayerService.isSafeExternalTarget('/tmp/file.epub'),
-          isTrue);
+      expect(
+          ExternalPlayerService.isSafeExternalTarget('/tmp/file.epub'), isTrue);
       expect(ExternalPlayerService.isSafeExternalTarget('relative/doc.pdf'),
           isTrue);
     });
 
     test('buildVlcCommand validates target and applies options', () {
-      expect(() => service.buildVlcCommand('bad;target'),
-          throwsArgumentError);
+      expect(() => service.buildVlcCommand('bad;target'), throwsArgumentError);
       final args = service.buildVlcCommand(
         '/tmp/movie.mp4',
         options: const VlcPlaybackOptions(
@@ -185,7 +183,7 @@ void main() {
       // Forge an extra signed-looking line with a bad MAC.
       final forged =
           '${DateTime.now().toIso8601String()}|forged|x|v2:1:genesis:deadbeef|attacker|Success\n';
-        await logFile().writeAsString(forged, mode: FileMode.append);
+      await logFile().writeAsString(forged, mode: FileMode.append);
       final logs = await service.getRecentLogs(10);
       final forgedEntry = logs.firstWhere((l) => l.event == 'forged');
       expect(forgedEntry.status, 'Tampered');
@@ -202,10 +200,10 @@ void main() {
       await logFile()
           .writeAsString('$ts|evt2|det2|bogusmac\n', mode: FileMode.append);
       final logs = await service.getRecentLogs(10);
-      expect(logs.any((l) => l.event == 'evt' && l.status == 'Success'),
-          isTrue);
-      expect(logs.any((l) => l.event == 'evt2' && l.status == 'Tampered'),
-          isTrue);
+      expect(
+          logs.any((l) => l.event == 'evt' && l.status == 'Success'), isTrue);
+      expect(
+          logs.any((l) => l.event == 'evt2' && l.status == 'Tampered'), isTrue);
     });
 
     test('malformed lines are skipped', () async {
@@ -264,8 +262,7 @@ void main() {
     });
 
     test('createIdentityProof requires identity', () async {
-      await expectLater(
-          () => service.createIdentityProof(), throwsStateError);
+      await expectLater(() => service.createIdentityProof(), throwsStateError);
       await service.generateIdentity();
       final proof = await service.createIdentityProof();
       expect(proof.signatureBase64, isNotEmpty);
@@ -344,14 +341,13 @@ void main() {
       final versions = await db.getVersionsForManifest(manifest!.id);
       final cid = versions.first.cid;
 
-      final byCid =
-          await container.read(documentVersionsProvider(cid).future);
+      final byCid = await container.read(documentVersionsProvider(cid).future);
       expect(byCid, hasLength(1));
       final byUuid =
           await container.read(documentVersionsProvider(uuid).future);
       expect(byUuid, hasLength(1));
-      final miss = await container
-          .read(documentVersionsProvider('nope').future);
+      final miss =
+          await container.read(documentVersionsProvider('nope').future);
       expect(miss, isEmpty);
     });
 
@@ -361,8 +357,7 @@ void main() {
           title: 'DocTitle',
           fileData: utf8.encode('document body text ' * 5),
           format: 'txt');
-      final doc =
-          await container.read(currentDocumentProvider(uuid).future);
+      final doc = await container.read(currentDocumentProvider(uuid).future);
       expect(doc.title, 'DocTitle');
       expect(doc.content, contains('document body text'));
 
@@ -371,11 +366,10 @@ void main() {
       final db = container.read(databaseProvider);
       final versions = await db.getVersionsForManifest(manifest!.id);
       final cid = versions.first.cid;
-      final sub = container.listen(
-          activeVersionCidProvider(uuid).notifier, (_, __) {});
+      final sub =
+          container.listen(activeVersionCidProvider(uuid).notifier, (_, __) {});
       container.read(activeVersionCidProvider(uuid).notifier).state = cid;
-      final doc2 =
-          await container.read(currentDocumentProvider(uuid).future);
+      final doc2 = await container.read(currentDocumentProvider(uuid).future);
       expect(doc2.cid, cid);
       sub.close();
 

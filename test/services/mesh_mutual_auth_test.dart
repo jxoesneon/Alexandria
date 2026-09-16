@@ -41,7 +41,8 @@ Future<({String peerId, Future<Uint8List> Function(Uint8List) signer})>
 
 void main() {
   group('mutual handshake auth (dialer-auth residual closure)', () {
-    test('mutual HELLO is verified end-to-end and both signatures feed '
+    test(
+        'mutual HELLO is verified end-to-end and both signatures feed '
         'the channel key', () async {
       final responder = await _identity(7);
       final dialer = await _identity(90);
@@ -81,20 +82,17 @@ void main() {
       final transcript = utf8.decode(ticket.transcriptBytes);
       expect(transcript, contains(dialer.peerId));
       expect(transcript, contains(base64Encode(ticket.dialerSignature)));
-      expect(transcript,
-          contains(base64Encode(ticket.responderSignature)));
+      expect(transcript, contains(base64Encode(ticket.responderSignature)));
 
       // The responder-derived key verifies frames on the dialer's
       // channel — proving both ends derived the same key from the
       // mutual transcript.
       final key = MeshTransportService.deriveSessionKey(ticket);
-      final inbound =
-          MeshTransportService.encodeFrame(key, 0, Uint8List(3));
+      final inbound = MeshTransportService.encodeFrame(key, 0, Uint8List(3));
       expect(await svc.receiveFrame(responder.peerId, inbound), isTrue);
     });
 
-    test('a forged dialer signature is refused before key exchange',
-        () async {
+    test('a forged dialer signature is refused before key exchange', () async {
       final responder = await _identity(7);
       final victim = await _identity(90); // claimed, not owned
       final attacker = await _identity(150); // signs with the WRONG key
@@ -117,9 +115,9 @@ void main() {
       final forgedSig = await attacker.signer(
           MeshTransportService.dialerHelloSignBytes(
               nonce, victim.peerId, addr, eph));
-      socket.add(utf8.encode(
-          'ALX-MESH/1 HELLO $nonce $addr $eph ${victim.peerId} '
-          '${base64Encode(forgedSig)}\n'));
+      socket.add(
+          utf8.encode('ALX-MESH/1 HELLO $nonce $addr $eph ${victim.peerId} '
+              '${base64Encode(forgedSig)}\n'));
       await socket.flush();
 
       expect(await served.future, isFalse,
@@ -128,8 +126,7 @@ void main() {
               'against the key the claimed peerId encodes');
     });
 
-    test('a 6-field HELLO (claimed identity, no proof) is malformed',
-        () async {
+    test('a 6-field HELLO (claimed identity, no proof) is malformed', () async {
       final responder = await _identity(7);
       final victim = await _identity(90);
       final served = Completer<bool>();
@@ -146,13 +143,14 @@ void main() {
       const nonce = 'aabbccddeeff0011';
       const addr = '/ip4/127.0.0.1/tcp/1/p2p/x';
       const eph = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
-      socket.add(utf8.encode(
-          'ALX-MESH/1 HELLO $nonce $addr $eph ${victim.peerId}\n'));
+      socket.add(
+          utf8.encode('ALX-MESH/1 HELLO $nonce $addr $eph ${victim.peerId}\n'));
       await socket.flush();
       expect(await served.future, isFalse);
     });
 
-    test('an ACK signed without the dialer-identity binding is '
+    test(
+        'an ACK signed without the dialer-identity binding is '
         'rejected by a mutual dialer', () async {
       // A responder that signs the PRE-mutual form (no dialerPeerId in
       // the signature) — e.g. a relay replaying responder material or
@@ -173,14 +171,13 @@ void main() {
         final addr = parts[3];
         final dialerEph = parts[4];
         final responderPair = await X25519().newKeyPair();
-        final responderEph = base64Encode(
-            (await responderPair.extractPublicKey()).bytes);
+        final responderEph =
+            base64Encode((await responderPair.extractPublicKey()).bytes);
         // Sign WITHOUT the dialerPeerId — the stale form.
         final sig = await responder.signer(
             MeshTransportService.handshakeSignBytes(
                 nonce, responder.peerId, addr, dialerEph, responderEph));
-        socket.add(utf8.encode(
-            'ALX-MESH/1 ACK $nonce ${responder.peerId} '
+        socket.add(utf8.encode('ALX-MESH/1 ACK $nonce ${responder.peerId} '
             '${base64Encode(sig)} $responderEph\n'));
         await socket.flush();
       });
@@ -198,7 +195,8 @@ void main() {
               'be re-attributed across sessions');
     });
 
-    test('a MITM cannot complete a handshake toward the responder '
+    test(
+        'a MITM cannot complete a handshake toward the responder '
         'while claiming an identity it does not own', () async {
       // The MITM dials the responder presenting the VICTIM's peerId —
       // it holds no matching private key, so the responder refuses
@@ -228,14 +226,14 @@ void main() {
       // no channel it can attribute to the victim identity.
       final ok = await mitm.connectToPeer(
           '/ip4/127.0.0.1/tcp/${server.port}/p2p/${responder.peerId}');
-      expect(ok, isTrue, reason: 'anonymous dials remain allowed — '
-          'but the MITM is anonymous, not the victim');
+      expect(ok, isTrue,
+          reason: 'anonymous dials remain allowed — '
+              'but the MITM is anonymous, not the victim');
       expect(await served.future, isTrue);
       // The bound session must record NO dialer identity.
     });
 
-    test('anonymous dialer handshakes remain backward compatible',
-        () async {
+    test('anonymous dialer handshakes remain backward compatible', () async {
       final responder = await _identity(7);
       MeshHandshakeTicket? responderTicket;
       final server = await ServerSocket.bind('127.0.0.1', 0);
@@ -256,8 +254,7 @@ void main() {
       expect(responderTicket!.dialerSignature, isEmpty);
     });
 
-    test('a mutual dialer rejects an unsigned (no-signer) endpoint',
-        () async {
+    test('a mutual dialer rejects an unsigned (no-signer) endpoint', () async {
       final responder = await _identity(7);
       final dialer = await _identity(90);
       final server = await ServerSocket.bind('127.0.0.1', 0);
@@ -277,7 +274,8 @@ void main() {
       expect(svc.hasChannelBinding(responder.peerId), isFalse);
     });
 
-    test('a broken signer fails the dial closed instead of '
+    test(
+        'a broken signer fails the dial closed instead of '
         'downgrading to anonymous', () async {
       final responder = await _identity(7);
       final dialer = await _identity(90);
@@ -301,7 +299,8 @@ void main() {
       expect(svc.hasChannelBinding(responder.peerId), isFalse);
     });
 
-    test('a reflected outbound frame fails the inbound MAC '
+    test(
+        'a reflected outbound frame fails the inbound MAC '
         '(direction binding)', () async {
       // A relay that copies our own outbound frame back at us must not
       // get it accepted as peer traffic — the direction byte inside

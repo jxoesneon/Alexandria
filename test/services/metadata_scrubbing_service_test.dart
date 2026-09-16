@@ -29,23 +29,29 @@ void main() {
       expect(scrubbingService.detectFileType(Uint8List(5)), isNull);
 
       // JPEG magic: 0xFF, 0xD8, 0xFF
-      final jpegBytes = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0, ...List.filled(10, 0)]);
+      final jpegBytes =
+          Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0, ...List.filled(10, 0)]);
       expect(scrubbingService.detectFileType(jpegBytes), equals('image/jpeg'));
 
       // PNG magic: 0x89, 0x50, 0x4E, 0x47
-      final pngBytes = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, ...List.filled(10, 0)]);
+      final pngBytes =
+          Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, ...List.filled(10, 0)]);
       expect(scrubbingService.detectFileType(pngBytes), equals('image/png'));
 
       // PDF magic: 0x25, 0x50, 0x44, 0x46 (%PDF)
-      final pdfBytes = Uint8List.fromList([0x25, 0x50, 0x44, 0x46, ...List.filled(10, 0)]);
-      expect(scrubbingService.detectFileType(pdfBytes), equals('application/pdf'));
+      final pdfBytes =
+          Uint8List.fromList([0x25, 0x50, 0x44, 0x46, ...List.filled(10, 0)]);
+      expect(
+          scrubbingService.detectFileType(pdfBytes), equals('application/pdf'));
 
       // MP4: ftyp in 4..8
-      final mp4Bytes = Uint8List.fromList([0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, ...List.filled(10, 0)]);
+      final mp4Bytes = Uint8List.fromList(
+          [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, ...List.filled(10, 0)]);
       expect(scrubbingService.detectFileType(mp4Bytes), equals('video/mp4'));
 
       // HEIC: ftyp + heic in 4..12
-      final heicBytes = Uint8List.fromList([0, 0, 0, 0, ...'ftypheic'.codeUnits, ...List.filled(5, 0)]);
+      final heicBytes = Uint8List.fromList(
+          [0, 0, 0, 0, ...'ftypheic'.codeUnits, ...List.filled(5, 0)]);
       expect(scrubbingService.detectFileType(heicBytes), equals('image/heic'));
 
       // Unknown
@@ -68,18 +74,24 @@ void main() {
       expect(scrubbingService.isSupportedType('text/plain'), isFalse);
     });
 
-    test('extractMetadata and detectSensitiveFields on plain bytes return null/empty gracefully', () async {
-      final plainBytes = Uint8List.fromList('Just some random text without EXIF'.codeUnits);
+    test(
+        'extractMetadata and detectSensitiveFields on plain bytes return null/empty gracefully',
+        () async {
+      final plainBytes =
+          Uint8List.fromList('Just some random text without EXIF'.codeUnits);
 
       final metadata = await scrubbingService.extractMetadata(plainBytes);
       expect(metadata, isNull);
 
-      final sensitive = await scrubbingService.detectSensitiveFields(plainBytes);
+      final sensitive =
+          await scrubbingService.detectSensitiveFields(plainBytes);
       expect(sensitive, isEmpty);
     });
 
-    test('scrubMetadata returns ScrubbingResult with recalculated CID', () async {
-      final sampleBytes = Uint8List.fromList('Simple media byte sequence'.codeUnits);
+    test('scrubMetadata returns ScrubbingResult with recalculated CID',
+        () async {
+      final sampleBytes =
+          Uint8List.fromList('Simple media byte sequence'.codeUnits);
 
       final result = await scrubbingService.scrubMetadata(
         sampleBytes,
@@ -99,7 +111,8 @@ void main() {
       expect(ScrubbableFields.deviceFields, isNotEmpty);
       expect(ScrubbableFields.authorFields, isNotEmpty);
       expect(ScrubbableFields.timestampFields, isNotEmpty);
-      expect(ScrubbableFields.allFields.length,
+      expect(
+          ScrubbableFields.allFields.length,
           equals(ScrubbableFields.gpsFields.length +
               ScrubbableFields.deviceFields.length +
               ScrubbableFields.authorFields.length +
@@ -110,7 +123,8 @@ void main() {
       expect(fullOpts.removeDevice, isTrue);
       expect(fullOpts.removeAuthor, isTrue);
       expect(fullOpts.removeTimestamps, isTrue);
-      expect(fullOpts.fieldsToRemove.length, equals(ScrubbableFields.allFields.length));
+      expect(fullOpts.fieldsToRemove.length,
+          equals(ScrubbableFields.allFields.length));
 
       const privacyOpts = ScrubbingOptions.privacy;
       expect(privacyOpts.removeTimestamps, isFalse);
@@ -134,7 +148,8 @@ void main() {
       expect(meta.exif['Image Make'], equals('Nikon'));
     });
 
-    test('extractMetadata correctly parses EXIF tags from real EXIF JPEG', () async {
+    test('extractMetadata correctly parses EXIF tags from real EXIF JPEG',
+        () async {
       final jpegBytes = buildSampleExifJpeg(useExifDateTime: true);
       final meta = await scrubbingService.extractMetadata(jpegBytes);
 
@@ -149,7 +164,9 @@ void main() {
       expect(meta.dateTime, equals(DateTime(2023, 5, 1, 12, 0, 0)));
     });
 
-    test('detectSensitiveFields and scrubMetadata detect and record scrubbed fields', () async {
+    test(
+        'detectSensitiveFields and scrubMetadata detect and record scrubbed fields',
+        () async {
       final jpegBytes = buildSampleExifJpeg();
       final sensitive = await scrubbingService.detectSensitiveFields(jpegBytes);
 
@@ -167,7 +184,9 @@ void main() {
       expect(scrubResult.wasModified, isTrue);
     });
 
-    test('ExtractedMetadata.fromExifData handles invalid date strings gracefully', () {
+    test(
+        'ExtractedMetadata.fromExifData handles invalid date strings gracefully',
+        () {
       final meta1 = ExtractedMetadata.fromExifData({
         'EXIF DateTimeOriginal': null,
       });
@@ -197,8 +216,7 @@ void main() {
 
   group('scrubMetadata input ceiling (campaign-2 service-side bound)', () {
     test('refuses input over the ceiling explicitly', () async {
-      final bounded =
-          MetadataScrubbingService(CidService(), maxInputBytes: 64);
+      final bounded = MetadataScrubbingService(CidService(), maxInputBytes: 64);
       final oversized = Uint8List(65); // valid PNG-signature head below
       oversized.setRange(
           0, 8, const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
@@ -209,8 +227,7 @@ void main() {
     });
 
     test('accepts input at exactly the ceiling', () async {
-      final bounded =
-          MetadataScrubbingService(CidService(), maxInputBytes: 64);
+      final bounded = MetadataScrubbingService(CidService(), maxInputBytes: 64);
       final atCeiling = Uint8List(64);
       atCeiling.setRange(
           0, 8, const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);

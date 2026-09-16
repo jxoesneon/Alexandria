@@ -83,16 +83,15 @@ void main() {
           'closed gracefully');
     }
     expect(_containsAscii(result.scrubbedBytes, 'eXIf'), isFalse,
-        reason:
-            'malformed-chunk bail-out copies the tail verbatim — a '
+        reason: 'malformed-chunk bail-out copies the tail verbatim — a '
             'complete eXIf chunk survives in "scrubbed" output.');
     expect(_containsAscii(result.scrubbedBytes, 'tEXt'), isFalse,
-        reason:
-            'a tEXt chunk behind the malformed chunk survives too.');
+        reason: 'a tEXt chunk behind the malformed chunk survives too.');
     expect(_containsAscii(result.scrubbedBytes, 'Eve Private'), isFalse);
   });
 
-  test('an iCCP chunk (ICC profile carrying author/copyright strings) '
+  test(
+      'an iCCP chunk (ICC profile carrying author/copyright strings) '
       'is retained by the scrubber', () async {
     // ICC profiles embed 'desc' (profile description — routinely a
     // tool/author string) and 'cprt' (copyright) tags; exiftool-class
@@ -101,7 +100,8 @@ void main() {
     final png = Uint8List.fromList([
       ..._pngSig,
       ..._chunk('IHDR', List.filled(13, 1)),
-      ..._chunk('iCCP',
+      ..._chunk(
+          'iCCP',
           'Personal Profile\x00\x00cprtCopyright Eve Private descHome studio'
               .codeUnits),
       ..._chunk('IDAT', List.filled(16, 0x42)),
@@ -109,10 +109,9 @@ void main() {
     ]);
 
     final result = await svc.scrubMetadata(png);
-    expect(_containsAscii(result.scrubbedBytes, 'Copyright Eve Private'),
-        isFalse,
-        reason:
-            'iCCP is not in _pngStrippedChunks — embedded author/'
+    expect(
+        _containsAscii(result.scrubbedBytes, 'Copyright Eve Private'), isFalse,
+        reason: 'iCCP is not in _pngStrippedChunks — embedded author/'
             'copyright strings survive every scrub.');
   });
 }

@@ -40,8 +40,7 @@ final releaseKeyRegistryProvider = Provider<ReleaseKeyRegistry>(
 /// wiring it in anyway keeps the production ingest path (envelope →
 /// quorum-signer gate → threshold chain) exercised in its real shape,
 /// so enabling a quorum later is a pure configuration change.
-final releaseManifestAuthorityProvider =
-    Provider<ReleaseManifestAuthority>(
+final releaseManifestAuthorityProvider = Provider<ReleaseManifestAuthority>(
   (ref) => ReleaseManifestAuthority(
     registry: ref.read(releaseKeyRegistryProvider),
     baselineFloor: CreditService.minClaimableWireVersion,

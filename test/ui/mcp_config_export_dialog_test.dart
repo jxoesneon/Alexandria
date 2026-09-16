@@ -4,7 +4,8 @@ import 'package:alexandria/ui/agent/mcp_config_export_dialog.dart';
 import 'package:alexandria/ui/theme/app_theme.dart';
 
 void main() {
-  testWidgets('McpConfigExportDialog renders tabs, Alexandria quorum, and config content',
+  testWidgets(
+      'McpConfigExportDialog renders tabs, Alexandria quorum, and config content',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));

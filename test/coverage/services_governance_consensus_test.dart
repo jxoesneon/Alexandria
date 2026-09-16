@@ -53,8 +53,7 @@ class _FakeBiometricService implements BiometricService {
 Future<(_FakeIdentityService, LedgerService)> _identityAndLedger() async {
   final kp = await Ed25519().newKeyPair();
   final pub = await kp.extractPublicKey();
-  final identity =
-      _FakeIdentityService(kp, Uint8List.fromList(pub.bytes));
+  final identity = _FakeIdentityService(kp, Uint8List.fromList(pub.bytes));
   return (identity, LedgerService(identity));
 }
 
@@ -80,8 +79,8 @@ void main() {
         ledgerServiceProvider.overrideWithValue(ledger),
       ]);
       addTearDown(container.dispose);
-      expect(container.read(governanceServiceProvider),
-          isA<GovernanceService>());
+      expect(
+          container.read(governanceServiceProvider), isA<GovernanceService>());
     });
 
     test('attested tally getters, quorum and pass checks', () async {
@@ -110,12 +109,10 @@ void main() {
       // Now the attested getters see the ledger-derived ballot.
       expect(proposal.attestedApprovalWeight, greaterThan(0));
       expect(proposal.attestedRejectionWeight, 0.0);
-      expect(proposal.attestedTotalVoteWeight,
-          proposal.attestedApprovalWeight);
+      expect(proposal.attestedTotalVoteWeight, proposal.attestedApprovalWeight);
       expect(proposal.hasQuorum(1.0), isA<bool>());
       expect(
-          proposal.hasAttestedQuorum(proposal.attestedTotalVoteWeight),
-          isTrue);
+          proposal.hasAttestedQuorum(proposal.attestedTotalVoteWeight), isTrue);
       expect(proposal.attestedPasses(), isTrue);
     });
 
@@ -154,8 +151,7 @@ void main() {
       final stored =
           service.proposals.firstWhere((p) => p.id == 'prop_expired');
 
-      final ok = await service.vote(proposalId: 'prop_expired',
-          approve: true);
+      final ok = await service.vote(proposalId: 'prop_expired', approve: true);
       expect(ok, isTrue);
       // Quorum met (single attested vote IS the whole eligible base) and
       // it passed → executed.
@@ -185,14 +181,13 @@ void main() {
       final stored =
           service.proposals.firstWhere((p) => p.id == 'prop_expired_rej');
 
-      final ok = await service.vote(
-          proposalId: 'prop_expired_rej', approve: false);
+      final ok =
+          await service.vote(proposalId: 'prop_expired_rej', approve: false);
       expect(ok, isTrue);
       expect(stored.status, ProposalStatus.rejected);
     });
 
-    test('Proposal.fromJson without votes key yields empty votes/draft',
-        () {
+    test('Proposal.fromJson without votes key yields empty votes/draft', () {
       final json = {
         'id': 'p1',
         'type': 'schemaChange',
@@ -217,8 +212,8 @@ void main() {
       final container = ProviderContainer(overrides: [
         identityServiceProvider.overrideWithValue(identity),
         ledgerServiceProvider.overrideWithValue(ledger),
-        biometricServiceProvider.overrideWithValue(
-            _FakeBiometricService(DateTime.now())),
+        biometricServiceProvider
+            .overrideWithValue(_FakeBiometricService(DateTime.now())),
       ]);
       addTearDown(container.dispose);
       final service = container.read(consensusServiceProvider);
@@ -324,22 +319,18 @@ void main() {
       expect(req.uploaderKey, resolved);
     });
 
-    test('castVote/veto/fastTrack on unknown id throw StateError',
-        () async {
+    test('castVote/veto/fastTrack on unknown id throw StateError', () async {
       final (identity, ledger) = await _identityAndLedger();
       final service = ConsensusService(identity, ledger);
       await expectLater(
         service.castVote(
-            requestId: 'missing',
-            approve: true,
-            reputation: 1,
-            daysActive: 1),
+            requestId: 'missing', approve: true, reputation: 1, daysActive: 1),
         throwsA(isA<StateError>()),
       );
-      await expectLater(service.vetoChange('missing'),
-          throwsA(isA<StateError>()));
-      await expectLater(service.fastTrackChange('missing'),
-          throwsA(isA<StateError>()));
+      await expectLater(
+          service.vetoChange('missing'), throwsA(isA<StateError>()));
+      await expectLater(
+          service.fastTrackChange('missing'), throwsA(isA<StateError>()));
     });
 
     test('castVote throws without identity', () async {
@@ -356,10 +347,7 @@ void main() {
       identity.returnNullIdentity = true;
       await expectLater(
         service.castVote(
-            requestId: req.id,
-            approve: true,
-            reputation: 1,
-            daysActive: 1),
+            requestId: req.id, approve: true, reputation: 1, daysActive: 1),
         throwsA(isA<StateError>()),
       );
     });

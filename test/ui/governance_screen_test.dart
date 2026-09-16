@@ -99,7 +99,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('GovernanceScreen Tests', () {
-    testWidgets('renders Parliament header, proposals, creates proposal, and votes', (tester) async {
+    testWidgets(
+        'renders Parliament header, proposals, creates proposal, and votes',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -150,7 +152,8 @@ void main() {
       expect(find.text('Create Proposal'), findsOneWidget);
       final textFields = find.byType(TextField);
       await tester.enterText(textFields.at(0), 'Emergency Cache Replication');
-      await tester.enterText(textFields.at(1), 'Immediate replication of rare texts');
+      await tester.enterText(
+          textFields.at(1), 'Immediate replication of rare texts');
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 

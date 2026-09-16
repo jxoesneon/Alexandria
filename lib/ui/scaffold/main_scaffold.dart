@@ -31,8 +31,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       body: _screens[_currentIndex],
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          border: Border(
-              top: BorderSide(color: AppTheme.surfaceColor, width: 1.0)),
+          border:
+              Border(top: BorderSide(color: AppTheme.surfaceColor, width: 1.0)),
         ),
         child: NavigationBar(
           selectedIndex: _currentIndex,

@@ -9,8 +9,7 @@ import 'package:alexandria/data/database.dart' hide CreditTransaction;
 import 'package:alexandria/services/credits/credit_service.dart';
 
 void main() {
-  group('releaseEscrow (Safety 6c — escrow is no longer a one-way burn)',
-      () {
+  group('releaseEscrow (Safety 6c — escrow is no longer a one-way burn)', () {
     late AppDatabase db;
 
     setUp(() {
@@ -26,11 +25,11 @@ void main() {
     /// Seed the wallet with self-certified value so an escrow hold has
     /// something to draw on.
     void fund(CreditService s, double amount) {
-      s.awardVerificationCredits(
-          action: 'seed', targetId: 't', amount: amount);
+      s.awardVerificationCredits(action: 'seed', targetId: 't', amount: amount);
     }
 
-    test('refunds the ORIGINAL debited amount exactly once — replay '
+    test(
+        'refunds the ORIGINAL debited amount exactly once — replay '
         'refused', () async {
       final s = svc();
       await s.ready;
@@ -49,16 +48,16 @@ void main() {
       // durable "already released" record.
       await s.settled;
       final rows = await db.getCreditTransactions();
-      final release = rows.singleWhere(
-          (r) => r['id'] == 'tx_escrow_release_bounty_1');
+      final release =
+          rows.singleWhere((r) => r['id'] == 'tx_escrow_release_bounty_1');
       expect(release['amount'], 20.0);
       expect(release['referenceId'], 'bounty_1');
       expect(release['isAttested'], isFalse);
-      expect(
-          release['description'], contains('Escrow Release (bounty_1)'));
+      expect(release['description'], contains('Escrow Release (bounty_1)'));
     });
 
-    test('restart durability: a fresh CreditService on the same db '
+    test(
+        'restart durability: a fresh CreditService on the same db '
         'refuses a re-release (deterministic row id)', () async {
       final first = svc();
       await first.ready;
@@ -79,8 +78,7 @@ void main() {
       expect(second.balance, 50.0);
     });
 
-    test('a persisted hold survives restart and remains releasable',
-        () async {
+    test('a persisted hold survives restart and remains releasable', () async {
       final first = svc();
       await first.ready;
       fund(first, 50.0);
@@ -94,7 +92,8 @@ void main() {
       expect(second.balance, 50.0);
     });
 
-    test('refuses an unknown referenceId — and the refused probe does '
+    test(
+        'refuses an unknown referenceId — and the refused probe does '
         'NOT consume the id (a later real hold still releases)', () async {
       final s = svc();
       await s.ready;
@@ -103,8 +102,7 @@ void main() {
       // The escrow is posted AFTER the probe — refusal gates run before
       // the dedup set-add, so the probe did not burn the id.
       fund(s, 50.0);
-      expect(
-          s.debitEscrow(amount: 10.0, referenceId: 'bounty_late'), isTrue);
+      expect(s.debitEscrow(amount: 10.0, referenceId: 'bounty_late'), isTrue);
       expect(await s.releaseEscrow(referenceId: 'bounty_late'), 10.0);
       expect(await s.releaseEscrow(referenceId: 'bounty_late'), 0.0);
     });
@@ -115,23 +113,21 @@ void main() {
       expect(await s.releaseEscrow(referenceId: ''), 0.0);
     });
 
-    test('a plain spendCredits debit under the same referenceId is not '
+    test(
+        'a plain spendCredits debit under the same referenceId is not '
         'an escrow hold and is not releasable', () async {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
       expect(
           s.spendCredits(
-              amount: 15.0,
-              reason: 'priority pin',
-              referenceId: 'bounty_4'),
+              amount: 15.0, reason: 'priority pin', referenceId: 'bounty_4'),
           isTrue);
       expect(await s.releaseEscrow(referenceId: 'bounty_4'), 0.0);
       expect(s.balance, 35.0);
     });
 
-    test('two holds under one referenceId release their sum once',
-        () async {
+    test('two holds under one referenceId release their sum once', () async {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
@@ -154,7 +150,8 @@ void main() {
       expect(await s.releaseEscrow(referenceId: 'nope'), 0.0);
     });
 
-    test('release call racing hydration still lands correctly — it '
+    test(
+        'release call racing hydration still lands correctly — it '
         'awaits hydration internally', () async {
       // Seed a hold, settle, then release from a FRESH service without
       // awaiting ready first — releaseEscrow awaits _hydrated itself.
@@ -188,7 +185,8 @@ void main() {
       expect(ids.every((id) => id.startsWith('tx_')), isTrue);
     });
 
-    test('ids stay distinct ACROSS service instances in one process — '
+    test(
+        'ids stay distinct ACROSS service instances in one process — '
         'the seq never resets to a known value', () async {
       final a = CreditService(initialBalance: 0.0);
       final b = CreditService(initialBalance: 0.0);

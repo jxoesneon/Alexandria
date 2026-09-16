@@ -335,8 +335,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
     // non-http(s) schemes) — and there is no shell in the launch path.
     final String targetPath;
     try {
-      final versions =
-          await ref.read(versionsProvider(manifest.id).future);
+      final versions = await ref.read(versionsProvider(manifest.id).future);
       final cid = versions.isEmpty ? null : versions.first.cid;
       if (cid == null || !CidService().isValidCid(cid)) {
         throw StateError('No externally-openable content CID');
@@ -417,7 +416,8 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryAccent.withValues(alpha: 0.3),
+                            color:
+                                AppTheme.primaryAccent.withValues(alpha: 0.3),
                             blurRadius: 20,
                           ),
                         ],
@@ -526,13 +526,15 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                             Text(
                               'Last verified: ${_formatTime(_lastVerified!)}',
                               overflow: TextOverflow.ellipsis,
-                              style:
-                                  Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppTheme.honorColor.withValues(
-                                          alpha: 0.8,
-                                        ),
-                                        fontSize: 11,
-                                      ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppTheme.honorColor.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                    fontSize: 11,
+                                  ),
                             ),
                           ],
                         ],
@@ -1263,7 +1265,8 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                           Icon(
                             Icons.hub,
                             size: 18,
-                            color: AppTheme.primaryAccent.withValues(alpha: 0.6),
+                            color:
+                                AppTheme.primaryAccent.withValues(alpha: 0.6),
                           ),
                         ],
                       ),

@@ -102,13 +102,14 @@ const _jfifApp0 = <int>[
 void main() {
   final svc = MetadataScrubbingService(CidService());
 
-  test('JFXX APP0 embeds a complete JPEG thumbnail whose own EXIF/GPS '
+  test(
+      'JFXX APP0 embeds a complete JPEG thumbnail whose own EXIF/GPS '
       'rides through the scrubber — and is claimed removed', () async {
     final innerApp1 = _exifApp1Segment();
     // Inner thumbnail: a complete JPEG stream (JFIF-spec extension
     // 0x10 = "thumbnail coded using JPEG") carrying its own Exif APP1.
-    final innerJpeg = Uint8List.fromList(
-        [0xFF, 0xD8, ...innerApp1, 0xFF, 0xD9]);
+    final innerJpeg =
+        Uint8List.fromList([0xFF, 0xD8, ...innerApp1, 0xFF, 0xD9]);
     final jfxxApp0 = _seg(0xE0, [
       ...'JFXX\x00'.codeUnits,
       0x10, // extension code: JPEG-encoded thumbnail
@@ -125,8 +126,8 @@ void main() {
     // Sanity: the scrub actually runs and claims fields.
     expect(await svc.detectSensitiveFields(outer), isNotEmpty);
 
-    final result = await svc.scrubMetadata(outer,
-        options: ScrubbingOptions.full);
+    final result =
+        await svc.scrubMetadata(outer, options: ScrubbingOptions.full);
 
     expect(_countExifMarkers(result.scrubbedBytes), 0,
         reason: 'the JFXX APP0 marker byte (0xE0) is in the keep set, '
@@ -145,7 +146,8 @@ void main() {
     }
   });
 
-  test('APP14 keep is unbounded: non-Adobe / oversized APP14 payload '
+  test(
+      'APP14 keep is unbounded: non-Adobe / oversized APP14 payload '
       'carries an EXIF block verbatim', () async {
     final app14 = _seg(0xEE, [
       // Bogus signature — not 'Adobe'. Even with a valid Adobe prefix,
@@ -163,17 +165,17 @@ void main() {
       0xFF, 0xD9,
     ]);
 
-    final result = await svc.scrubMetadata(jpeg,
-        options: ScrubbingOptions.full);
+    final result =
+        await svc.scrubMetadata(jpeg, options: ScrubbingOptions.full);
     expect(_countExifMarkers(result.scrubbedBytes), 0,
         reason: '0xEE is kept without checking the Adobe signature or '
             'bounding the segment to its canonical length — arbitrary '
             'APP14 payload is a verbatim metadata channel.');
   });
 
-  test('reserved JPGn marker (0xF0) payload carries EXIF verbatim — '
-      'the dispatch is a denylist, not a decode-relevant allowlist',
-      () async {
+  test(
+      'reserved JPGn marker (0xF0) payload carries EXIF verbatim — '
+      'the dispatch is a denylist, not a decode-relevant allowlist', () async {
     final reserved = _seg(0xF0, _exifApp1Segment());
     final jpeg = Uint8List.fromList([
       0xFF, 0xD8,
@@ -183,8 +185,8 @@ void main() {
       0xFF, 0xD9,
     ]);
 
-    final result = await svc.scrubMetadata(jpeg,
-        options: ScrubbingOptions.full);
+    final result =
+        await svc.scrubMetadata(jpeg, options: ScrubbingOptions.full);
     expect(_countExifMarkers(result.scrubbedBytes), 0,
         reason: '0xF0 (JPGn/reserved) is not in _jpegStrippedMarkers '
             'and not a standalone marker, so its declared-length '
@@ -193,7 +195,8 @@ void main() {
             'marker payload.');
   });
 
-  test('resync path: a fake kept-marker behind a corrupt segment is '
+  test(
+      'resync path: a fake kept-marker behind a corrupt segment is '
       'resynced onto and its EXIF payload emitted verbatim', () async {
     final jpeg = Uint8List.fromList([
       0xFF, 0xD8,
@@ -207,8 +210,8 @@ void main() {
       0xFF, 0xD9,
     ]);
 
-    final result = await svc.scrubMetadata(jpeg,
-        options: ScrubbingOptions.full);
+    final result =
+        await svc.scrubMetadata(jpeg, options: ScrubbingOptions.full);
     expect(_countExifMarkers(result.scrubbedBytes), 0,
         reason: '_nextJpegMarker repositions onto the attacker-placed '
             'FF F0; the normal dispatch then emits its payload '

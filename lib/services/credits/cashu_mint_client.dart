@@ -113,7 +113,8 @@ class CashuMintClient {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw StateError('Failed to get melt quote from mint (HTTP ${res.statusCode}: ${res.body})');
+      throw StateError(
+          'Failed to get melt quote from mint (HTTP ${res.statusCode}: ${res.body})');
     }
 
     final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
@@ -144,7 +145,8 @@ class CashuMintClient {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw StateError('Melt execution failed at mint (HTTP ${res.statusCode}: ${res.body})');
+      throw StateError(
+          'Melt execution failed at mint (HTTP ${res.statusCode}: ${res.body})');
     }
 
     final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;

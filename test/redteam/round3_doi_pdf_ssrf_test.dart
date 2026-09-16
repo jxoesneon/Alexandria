@@ -59,8 +59,7 @@ void main() {
       spy.attempted.clear();
       final bytes = await resolver.downloadPdf(url);
       expect(spy.attempted, isEmpty,
-          reason:
-              'downloadPdf opened a connection to $url — pdfUrl is '
+          reason: 'downloadPdf opened a connection to $url — pdfUrl is '
               'publisher-controlled upstream metadata, so this is a live '
               'SSRF primitive (blind at minimum; internal bodies '
               'beginning with %PDF are ingested as library content).');

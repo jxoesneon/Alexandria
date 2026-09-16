@@ -60,8 +60,7 @@ void main() {
     expect(eoiIndex, isNonNegative,
         reason: 'the scrubbed JPEG must retain its EOI terminator');
     expect(scrubbed.length, eoiIndex + 2,
-        reason:
-            'bytes appended after JPEG EOI survived scrubbing: the SOS '
+        reason: 'bytes appended after JPEG EOI survived scrubbing: the SOS '
             'branch copies sublist(segStart) → EOF verbatim, so the '
             'round-4 EOI fix never runs for any JPEG that actually has '
             'a scan — the post-EOI covert channel is still open.');
@@ -73,7 +72,9 @@ void main() {
     // between scans — so APPn/COM after the first SOS is *in-stream*
     // metadata, not trailing garbage. It must be dropped too.
     final exif = Uint8List.fromList([
-      ...'Exif'.codeUnits, 0x00, 0x00,
+      ...'Exif'.codeUnits,
+      0x00,
+      0x00,
       ...'GPS-COVER-T-42.0,-71.0'.codeUnits,
     ]);
     final jpeg = Uint8List.fromList([
@@ -101,8 +102,7 @@ void main() {
       }
     }
     expect(app1Present, isFalse,
-        reason:
-            'an APP1/Exif segment placed after the first SOS marker '
+        reason: 'an APP1/Exif segment placed after the first SOS marker '
             'survived scrubbing — the verbatim sublist(segStart)→EOF '
             'copy preserves every post-SOS metadata segment, so '
             'multi-scan JPEGs smuggle EXIF/GPS through the "scrubbed" '

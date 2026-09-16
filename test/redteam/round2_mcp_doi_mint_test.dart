@@ -19,7 +19,8 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:alexandria/data/database.dart' show AppDatabase, databaseProvider;
+import 'package:alexandria/data/database.dart'
+    show AppDatabase, databaseProvider;
 import 'package:alexandria/services/agent/alexandria_mcp_server.dart';
 import 'package:alexandria/services/agent/moltbook_service.dart';
 import 'package:alexandria/services/credits/credit_service.dart';
@@ -65,15 +66,13 @@ void main() {
         'doi': '10.0000/fabricated-paper-$i',
       });
       expect(res['isError'], isFalse);
-      final data =
-          jsonDecode((res['content'] as List).first['text'] as String);
+      final data = jsonDecode((res['content'] as List).first['text'] as String);
       claimed += (data['credits_earned'] as num).toDouble();
     }
     await credits.settled;
 
     expect(credits.balance, 0.0,
-        reason:
-            'ten fabricated DOIs minted ${credits.balance} ℭ of real '
+        reason: 'ten fabricated DOIs minted ${credits.balance} ℭ of real '
             'spendable balance (API claimed $claimed) — _ingestDoi '
             'awards a "verification" bounty for input that was never '
             'resolved or verified; the only bound is the 100 ℭ/day '

@@ -4,7 +4,8 @@ import 'package:alexandria/services/credits/credit_service.dart';
 import 'package:alexandria/services/credits/poch_service.dart';
 
 void main() {
-  group('CreditService Economic & Multi-Resource Accounting Tests (ALX-005)', () {
+  group('CreditService Economic & Multi-Resource Accounting Tests (ALX-005)',
+      () {
     late PoCHService pochService;
     late CreditService creditService;
 
@@ -21,10 +22,12 @@ void main() {
       expect(creditService.protocolTreasury, 50.0);
       expect(creditService.archivalCommonsPool, 250.0);
       expect(creditService.transactions.length, 1);
-      expect(creditService.transactions.first.type, CreditType.verificationReward);
+      expect(
+          creditService.transactions.first.type, CreditType.verificationReward);
     });
 
-    test('genesis grant is unattested; attested/unattested split is coherent', () {
+    test('genesis grant is unattested; attested/unattested split is coherent',
+        () {
       expect(creditService.transactions.first.isAttested, isFalse);
       expect(creditService.attestedBalance, 0.0);
       expect(creditService.unattestedBalance, creditService.balance);
@@ -82,12 +85,13 @@ void main() {
       expect(creditService.balance, initialBalance - 5.0);
     });
 
-    test('awards compute credits for Cauchy RS encoding and OCR extraction', () {
+    test('awards compute credits for Cauchy RS encoding and OCR extraction',
+        () {
       final initialBalance = creditService.balance;
       final earned = creditService.awardComputeCredits(
-        cauchyMb: 10.0,  // 10 * 2.0 = 20.0
+        cauchyMb: 10.0, // 10 * 2.0 = 20.0
         fastCdcMb: 20.0, // 20 * 0.5 = 10.0
-        ocrPages: 2,     // 2 * 5.0 = 10.0
+        ocrPages: 2, // 2 * 5.0 = 10.0
         description: 'Parity Shard Computation',
       );
 

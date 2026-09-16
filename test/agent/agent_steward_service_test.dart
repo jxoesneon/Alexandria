@@ -18,9 +18,8 @@ Future<EscrowAttestation?> _attestBounty(
   SimpleKeyPair attestor,
   PreservationBounty bounty,
 ) async {
-  final expiresAt = DateTime.now()
-      .add(const Duration(hours: 1))
-      .millisecondsSinceEpoch;
+  final expiresAt =
+      DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch;
   final amountMilli = (bounty.offeredCredits * 1000).round();
   final preimage = EscrowAttestation.signingPreimage(
     bountyId: bounty.id,
@@ -84,7 +83,8 @@ void main() {
       expect(stewardService.activityLog.first, contains('stopped'));
     });
 
-    test('autonomously restores PoCH compliance without self-minting credits', () async {
+    test('autonomously restores PoCH compliance without self-minting credits',
+        () async {
       // Initially node has 0 storage / 0 seeding -> PoCH < 1.0
       expect(pochService.metrics.score, lessThan(1.0));
 
@@ -93,7 +93,8 @@ void main() {
 
       // Verify compute executed and PoCH maintenance recorded
       expect(stewardService.totalComputeCyclesExecuted, 1);
-      expect(stewardService.activityLog.any((l) => l.contains('Cauchy RS')), isTrue);
+      expect(stewardService.activityLog.any((l) => l.contains('Cauchy RS')),
+          isTrue);
 
       // ALX-010: self-reported steward compute must NOT mint credits —
       // no transaction may carry the steward compute description.
@@ -108,7 +109,8 @@ void main() {
       );
     });
 
-    test('skips unfunded seeded bounties (announcements carry no escrow)', () async {
+    test('skips unfunded seeded bounties (announcements carry no escrow)',
+        () async {
       expect(moltbookService.activeBounties.isNotEmpty, isTrue);
       expect(moltbookService.activeBounties.every((b) => !b.funded), isTrue);
       final initialBountiesCount = moltbookService.activeBounties.length;
@@ -120,10 +122,15 @@ void main() {
       expect(stewardService.totalBountiesClaimed, 0);
       expect(moltbookService.activeBounties.length, initialBountiesCount);
       expect(creditService.balance, initialBalance);
-      expect(stewardService.activityLog.any((l) => l.contains('Claimed & fulfilled')), isFalse);
+      expect(
+          stewardService.activityLog
+              .any((l) => l.contains('Claimed & fulfilled')),
+          isFalse);
     });
 
-    test('autonomously fulfills funded FOREIGN bounty when CID is replicated locally', () async {
+    test(
+        'autonomously fulfills funded FOREIGN bounty when CID is replicated locally',
+        () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final ipfsService = container.read(ipfsServiceProvider);
@@ -190,10 +197,13 @@ void main() {
       );
       expect(creditService.balance, 100.0); // Net-zero: escrow paid out
       expect(creditService.protocolTreasury, treasuryBefore); // +0 fee
-      expect(ipfsSteward.activityLog.any((l) => l.contains('Claimed & fulfilled')), isTrue);
+      expect(
+          ipfsSteward.activityLog.any((l) => l.contains('Claimed & fulfilled')),
+          isTrue);
     });
 
-    test('steward cannot claim a locally posted bounty even after key rotation', () async {
+    test('steward cannot claim a locally posted bounty even after key rotation',
+        () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final ipfsService = container.read(ipfsServiceProvider);
@@ -228,7 +238,9 @@ void main() {
       expect(ipfsSteward.totalBountiesClaimed, 0);
       expect(bounty.isClaimed, isFalse);
       expect(creditService.balance, 75.0);
-      expect(ipfsSteward.activityLog.any((l) => l.contains('Claimed & fulfilled')), isFalse);
+      expect(
+          ipfsSteward.activityLog.any((l) => l.contains('Claimed & fulfilled')),
+          isFalse);
     });
   });
 }

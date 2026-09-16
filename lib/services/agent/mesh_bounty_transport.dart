@@ -81,8 +81,8 @@ class MeshBountyTransport implements BountyTransport {
     final bytes = utf8.encode(jsonEncode(envelope.toJson()));
     if (bytes.length > maxEnvelopeBytes) return; // refuse to emit junk
     var delivered = 0;
-    final targets = _mesh.peers.where(
-        (p) => p.isReachable && _mesh.hasChannelBinding(p.peerId));
+    final targets = _mesh.peers
+        .where((p) => p.isReachable && _mesh.hasChannelBinding(p.peerId));
     for (final peer in targets) {
       try {
         if (await _mesh.sendPayload(peer.peerId, bytes)) delivered++;

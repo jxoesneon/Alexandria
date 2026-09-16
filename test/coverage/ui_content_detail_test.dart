@@ -28,7 +28,8 @@ class _FakeIpfs implements IpfsService {
 }
 
 class _FakePreservation implements PreservationService {
-  _FakePreservation({this.health = HealthStatus.healthy, this.healResult = true});
+  _FakePreservation(
+      {this.health = HealthStatus.healthy, this.healResult = true});
 
   HealthStatus health;
   bool healResult;
@@ -73,7 +74,7 @@ class _FakeRepo implements ContentRepository {
 
   @override
   Future<List<ContentManifest>> getContentPage(
-      {required int page, required int pageSize}) async =>
+          {required int page, required int pageSize}) async =>
       this.page;
 
   bool retrieveCalled = false;
@@ -134,7 +135,8 @@ void main() {
       ]);
       addTearDown(container.dispose);
 
-      final siblings = await container.read(siblingsProvider('Test Work').future);
+      final siblings =
+          await container.read(siblingsProvider('Test Work').future);
       expect(siblings, isNotEmpty);
       expect(siblings.first.title, 'Test Work (2nd Edition)');
     });
@@ -164,7 +166,8 @@ void main() {
       expect(entity, isNotNull);
       expect(entity!.canonicalTitle, 'Known Entity');
 
-      final missing = await container.read(relatedContentProvider('nope').future);
+      final missing =
+          await container.read(relatedContentProvider('nope').future);
       expect(missing, isNull);
     });
 
@@ -215,10 +218,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            contentRepositoryProvider
-                .overrideWithValue(repo ?? _FakeRepo()),
-            ipfsServiceProvider
-                .overrideWithValue(ipfs ?? _FakeIpfs(bytes: const [1, 2, 3, 4])),
+            contentRepositoryProvider.overrideWithValue(repo ?? _FakeRepo()),
+            ipfsServiceProvider.overrideWithValue(
+                ipfs ?? _FakeIpfs(bytes: const [1, 2, 3, 4])),
             preservationServiceProvider
                 .overrideWithValue(preservation ?? _FakePreservation()),
             honorSystemProvider.overrideWithValue(_FakeHonor()),
@@ -231,8 +233,8 @@ void main() {
             if (knowledgeGraph != null)
               knowledgeGraphServiceProvider.overrideWithValue(knowledgeGraph),
             if (integrity != null)
-              integrityVerificationProvider.overrideWith(
-                  (ref, cid) => integrity(cid)),
+              integrityVerificationProvider
+                  .overrideWith((ref, cid) => integrity(cid)),
           ],
           child: MaterialApp(
             theme: AppTheme.darkTheme,
@@ -254,8 +256,8 @@ void main() {
       await pumpScreen(tester, manifest: _manifest(category: 'blend'));
       await tester.tap(find.widgetWithText(OutlinedButton, 'View'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('requires an external viewer'),
-          findsOneWidget);
+      expect(
+          find.textContaining('requires an external viewer'), findsOneWidget);
     });
 
     testWidgets('Open in… fails cleanly when no valid CID exists',

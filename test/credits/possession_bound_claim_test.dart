@@ -38,8 +38,8 @@ void main() {
   Future<bool> receiptVerifier(
       Uint8List message, Uint8List sig, String publicKeyHex) async {
     try {
-      final pk = SimplePublicKey(hexToBytes(publicKeyHex),
-          type: KeyPairType.ed25519);
+      final pk =
+          SimplePublicKey(hexToBytes(publicKeyHex), type: KeyPairType.ed25519);
       return await algorithm.verify(message,
           signature: Signature(sig, publicKey: pk));
     } catch (_) {
@@ -49,8 +49,8 @@ void main() {
 
   /// Signs the REV3 claim preimage under [keyPair] (default: prover key).
   Future<String> claimSig(WorkReceipt r, {SimpleKeyPair? keyPair}) async {
-    final preimage = Uint8List.fromList(utf8
-        .encode('alexandria:receipt-claim:v${r.v}:${r.receiptId}'));
+    final preimage = Uint8List.fromList(
+        utf8.encode('alexandria:receipt-claim:v${r.v}:${r.receiptId}'));
     final sig =
         await algorithm.sign(preimage, keyPair: keyPair ?? proverKeyPair);
     return base64Encode(sig.bytes);
@@ -129,8 +129,7 @@ void main() {
     verifierPubHex =
         bytesToHex((await verifierKeyPair.extractPublicKey()).bytes);
     proverKeyPair = await algorithm.newKeyPair();
-    proverPubHex =
-        bytesToHex((await proverKeyPair.extractPublicKey()).bytes);
+    proverPubHex = bytesToHex((await proverKeyPair.extractPublicKey()).bytes);
     otherKeyPair = await algorithm.newKeyPair();
     otherPubHex = bytesToHex((await otherKeyPair.extractPublicKey()).bytes);
     db = AppDatabase();
@@ -145,8 +144,7 @@ void main() {
     return r;
   }
 
-  group('E1: copied foreign receipt under a DIFFERENT resolved identity',
-      () {
+  group('E1: copied foreign receipt under a DIFFERENT resolved identity', () {
     test('resolver=key Q, sig by Q — refused at the prover binding', () async {
       final r = await persist(await signedReceipt(amount: 25.0));
       final thief = svcWith(fixedLocal: otherPubHex);
@@ -160,23 +158,22 @@ void main() {
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
-    test('resolver=key Q with the VALID prover sig bundled — still refused '
+    test(
+        'resolver=key Q with the VALID prover sig bundled — still refused '
         '(possession binding, not bearer)', () async {
       final r = await persist(await signedReceipt(amount: 25.0));
       final stolenBundle = await claimSig(r); // valid sig under prover key
       final thief = svcWith(fixedLocal: otherPubHex);
       await thief.ready;
       expect(
-          await thief.claimVerifiedReceipt(r,
-              claimSignatureB64: stolenBundle),
+          await thief.claimVerifiedReceipt(r, claimSignatureB64: stolenBundle),
           0.0);
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
       // The true prover's node can still claim afterwards.
       final honest = svcWith();
       await honest.ready;
       expect(
-          await honest.claimVerifiedReceipt(r,
-              claimSignatureB64: stolenBundle),
+          await honest.claimVerifiedReceipt(r, claimSignatureB64: stolenBundle),
           25.0);
     });
   });
@@ -186,16 +183,15 @@ void main() {
       final r = await persist(await signedReceipt());
       expect(
           await svcWith().claimVerifiedReceipt(r,
-              claimSignatureB64:
-                  await claimSig(r, keyPair: verifierKeyPair)),
+              claimSignatureB64: await claimSig(r, keyPair: verifierKeyPair)),
           0.0);
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
-    test('sig by local key while proverPubkey names a foreign key — '
+    test(
+        'sig by local key while proverPubkey names a foreign key — '
         'binding refuses before the sig check', () async {
-      final r = await persist(
-          await signedReceipt(proverPubkey: otherPubHex));
+      final r = await persist(await signedReceipt(proverPubkey: otherPubHex));
       // Sign with the key the receipt DOES name (other) and with the
       // local key — both must refuse because the artifact is not ours.
       expect(
@@ -203,13 +199,14 @@ void main() {
               claimSignatureB64: await claimSig(r, keyPair: otherKeyPair)),
           0.0);
       expect(
-          await svcWith().claimVerifiedReceipt(r,
-              claimSignatureB64: await claimSig(r)),
+          await svcWith()
+              .claimVerifiedReceipt(r, claimSignatureB64: await claimSig(r)),
           0.0);
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
-    test('empty / whitespace / malformed / wrong-length sigs refuse '
+    test(
+        'empty / whitespace / malformed / wrong-length sigs refuse '
         'unspent', () async {
       for (final bad in [
         '',
@@ -229,7 +226,8 @@ void main() {
       }
     });
 
-    test('the verifierSig field replayed as claimSignature — refused '
+    test(
+        'the verifierSig field replayed as claimSignature — refused '
         '(wrong preimage, wrong key)', () async {
       final r = await persist(await signedReceipt());
       expect(
@@ -242,8 +240,7 @@ void main() {
     test('sigs over WRONG preimages refuse unspent', () async {
       final r = await persist(await signedReceipt());
       Future<String> signRaw(String s) async {
-        final sig = await algorithm.sign(
-            Uint8List.fromList(utf8.encode(s)),
+        final sig = await algorithm.sign(Uint8List.fromList(utf8.encode(s)),
             keyPair: proverKeyPair);
         return base64Encode(sig.bytes);
       }
@@ -258,20 +255,21 @@ void main() {
         // entirely different domain
         await signRaw('alexandria:claim:v${r.v}:${r.receiptId}'),
         // the receipt signing payload itself (a verifier-domain object)
-        base64Encode((await algorithm.sign(r.signingPayload,
-                keyPair: proverKeyPair))
-            .bytes),
+        base64Encode(
+            (await algorithm.sign(r.signingPayload, keyPair: proverKeyPair))
+                .bytes),
       ];
       for (final w in wrongs) {
-        expect(await svcWith().claimVerifiedReceipt(r, claimSignatureB64: w),
-            0.0);
+        expect(
+            await svcWith().claimVerifiedReceipt(r, claimSignatureB64: w), 0.0);
       }
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
   });
 
   group('E3: resolver abuse', () {
-    test('UPPERCASE resolver spelling still binds (same key — canonical '
+    test(
+        'UPPERCASE resolver spelling still binds (same key — canonical '
         'compare is correct, not a bypass)', () async {
       final r = await persist(await signedReceipt());
       final svc = svcWith(fixedLocal: proverPubHex.toUpperCase());
@@ -282,7 +280,8 @@ void main() {
           25.0);
     });
 
-    test('interior/edge whitespace-padded resolver spelling binds the '
+    test(
+        'interior/edge whitespace-padded resolver spelling binds the '
         'same key', () async {
       final r = await persist(await signedReceipt());
       final padded =
@@ -355,7 +354,8 @@ void main() {
       }
     });
 
-    test('TOCTOU: resolver is invoked EXACTLY ONCE per claim — no '
+    test(
+        'TOCTOU: resolver is invoked EXACTLY ONCE per claim — no '
         're-resolution window inside the guard chain', () async {
       var calls = 0;
       final svc = svcWith(resolver: () async {
@@ -373,18 +373,16 @@ void main() {
       expect(calls, 1);
     });
 
-    test('non-hex resolver value matching a non-hex proverPubkey '
+    test(
+        'non-hex resolver value matching a non-hex proverPubkey '
         '(tier-1 string equality) still dies at the oracle — a real '
         'decodable key is forced by the sig check', () async {
       // proverPubkey='zztop' == resolver 'zztop' satisfies tier-1
       // equality, but no Ed25519 key can back it.
-      final r = await persist(
-          await signedReceipt(proverPubkey: 'zztop'));
+      final r = await persist(await signedReceipt(proverPubkey: 'zztop'));
       final svc = svcWith(fixedLocal: 'zztop');
       await svc.ready;
-      expect(
-          await svc.claimVerifiedReceipt(r, claimSignatureB64: ''),
-          0.0);
+      expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: ''), 0.0);
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
   });
@@ -404,7 +402,8 @@ void main() {
       expect(svc.attestedBalance, 25.0);
     });
 
-    test('concurrent claims from TWO service instances on one db — CAS '
+    test(
+        'concurrent claims from TWO service instances on one db — CAS '
         'still elects exactly one winner', () async {
       final r = await persist(await signedReceipt());
       final sig = await claimSig(r);
@@ -419,8 +418,7 @@ void main() {
       expect(results.where((m) => m > 0).length, 1);
     });
 
-    test('claim sig minted for receipt A does not unlock receipt B',
-        () async {
+    test('claim sig minted for receipt A does not unlock receipt B', () async {
       final a = await persist(await signedReceipt(amount: 11.0));
       final b = await persist(await signedReceipt(amount: 22.0));
       final svc = svcWith();
@@ -442,21 +440,20 @@ void main() {
     test('same bountyId pays once per process; empty id refuses', () async {
       final svc = svcWith();
       await svc.ready;
-      expect(svc.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c'),
-          10.0);
-      expect(svc.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c'),
-          0.0);
-      expect(svc.awardBountyEscrow(amount: 10.0, bountyId: '', cid: 'c'),
-          0.0);
+      expect(
+          svc.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c'), 10.0);
+      expect(
+          svc.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c'), 0.0);
+      expect(svc.awardBountyEscrow(amount: 10.0, bountyId: '', cid: 'c'), 0.0);
       expect(svc.balance, 10.0);
     });
 
-    test('dedup is durable — a new CreditService on the same db refuses '
+    test(
+        'dedup is durable — a new CreditService on the same db refuses '
         'the same bountyId (deterministic payout tx id)', () async {
       final first = svcWith();
       await first.ready;
-      expect(
-          first.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c'),
+      expect(first.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c'),
           10.0);
       await first.settled;
 
@@ -465,8 +462,8 @@ void main() {
       // row, so a direct second payout is refused.
       final second = svcWith();
       await second.ready;
-      final minted = second.awardBountyEscrow(
-          amount: 10.0, bountyId: 'b1', cid: 'c');
+      final minted =
+          second.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c');
       expect(minted, 0.0,
           reason: 'restart must not re-pay: the payout row id '
               'tx_bounty_payout_b1 is the durable dedup record');
@@ -479,22 +476,21 @@ void main() {
       expect(payout['referenceId'], 'c');
     });
 
-    test('a refused call does NOT consume the bountyId — probes and '
-        'unhydrated calls cannot burn a legit payout (E-REV4-B F3)',
-        () async {
+    test(
+        'a refused call does NOT consume the bountyId — probes and '
+        'unhydrated calls cannot burn a legit payout (E-REV4-B F3)', () async {
       final svc = svcWith();
       await svc.ready;
       // Attacker/bug calls with a non-positive amount first.
-      expect(svc.awardBountyEscrow(amount: 0.0, bountyId: 'b9', cid: 'c'),
-          0.0);
+      expect(svc.awardBountyEscrow(amount: 0.0, bountyId: 'b9', cid: 'c'), 0.0);
       // The real, escrowed payout for b9 still lands — the dedup guard
       // sits after the refusal gates, so a refused call never consumes
       // the id.
-      expect(svc.awardBountyEscrow(amount: 10.0, bountyId: 'b9', cid: 'c'),
-          10.0);
+      expect(
+          svc.awardBountyEscrow(amount: 10.0, bountyId: 'b9', cid: 'c'), 10.0);
       // …but a PAID bounty is durably refused on replay.
-      expect(svc.awardBountyEscrow(amount: 10.0, bountyId: 'b9', cid: 'c'),
-          0.0);
+      expect(
+          svc.awardBountyEscrow(amount: 10.0, bountyId: 'b9', cid: 'c'), 0.0);
     });
   });
 
@@ -516,7 +512,8 @@ void main() {
   });
 
   group('E7: version ceiling ordering vs. signature verification', () {
-    test('v=99 receipt with VALID verifier+claim sigs refuses BEFORE the '
+    test(
+        'v=99 receipt with VALID verifier+claim sigs refuses BEFORE the '
         'oracle is invoked — ceiling is pre-verification', () async {
       var oracleCalls = 0;
       Future<bool> counting(Uint8List m, Uint8List s, String k) async {
@@ -531,8 +528,7 @@ void main() {
       final r = await persist(await signedReceipt(v: 99));
       expect(r.v, 99);
       expect(
-          utf8.decode(r.signingPayload),
-          startsWith('alexandria:receipt:v99:'));
+          utf8.decode(r.signingPayload), startsWith('alexandria:receipt:v99:'));
 
       final svc = svcWith(verifier: counting);
       await svc.ready;

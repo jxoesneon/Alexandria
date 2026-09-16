@@ -241,7 +241,8 @@ void main() {
     });
 
     test('downloadPdf returns null for unparseable URLs', () async {
-      final resolver = DoiResolver(_FakeHttpClient((_) => _FakeResponse(200, const [])));
+      final resolver =
+          DoiResolver(_FakeHttpClient((_) => _FakeResponse(200, const [])));
       expect(await resolver.downloadPdf('%'), isNull);
     });
 
@@ -439,8 +440,7 @@ void main() {
       expect((res.data as Map)['total'], 50);
     });
 
-    test('harvest_batch list input filters out unparseable entries',
-        () async {
+    test('harvest_batch list input filters out unparseable entries', () async {
       final plugin = makePlugin();
       final res = await plugin.executeAction('harvest_batch', {
         'input': ['   ', ''],

@@ -124,10 +124,11 @@ void main() {
           throwsStateError);
     });
 
-    test('decode drops out-of-range, duplicate, truncated, and bad-checksum shards',
+    test(
+        'decode drops out-of-range, duplicate, truncated, and bad-checksum shards',
         () {
-      final original = Uint8List.fromList(
-          'Shard hygiene: first valid claim wins'.codeUnits);
+      final original =
+          Uint8List.fromList('Shard hygiene: first valid claim wins'.codeUnits);
       final block = service.encode(blockId: 'blk-hygiene', data: original);
 
       final forged = <ErasureShard>[
@@ -163,8 +164,7 @@ void main() {
       ];
 
       final available = <ErasureShard>[...forged, ...block.shards];
-      final decoded =
-          service.decode(block: block, availableShards: available);
+      final decoded = service.decode(block: block, availableShards: available);
       expect(decoded, equals(original));
     });
 
@@ -181,8 +181,7 @@ void main() {
                 checksum: 'forged',
               ))
           .toList();
-      expect(
-          () => service.decode(block: block, availableShards: forgedOnly),
+      expect(() => service.decode(block: block, availableShards: forgedOnly),
           throwsStateError);
     });
   });

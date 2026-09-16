@@ -57,16 +57,14 @@ void main() {
     // SECURE expectation 1: the manifest row must not carry usable key
     // material — the DEK belongs ONLY in secure storage ('dek_$uuid').
     expect(leakedKey, isNull,
-        reason:
-            'manifest.encryptionKey = "$leakedKey" — a raw base64 DEK '
+        reason: 'manifest.encryptionKey = "$leakedKey" — a raw base64 DEK '
             'sitting in the unencrypted SQLite manifest row (the same '
             'row metadata sync ships around)');
 
     // SECURE expectation 2: manifest data alone must not decrypt the
     // payload. Reaching this line means the row DID carry a key.
     expect(recovered, isNull,
-        reason:
-            'the manifest-row key decrypted the payload end-to-end: '
+        reason: 'the manifest-row key decrypted the payload end-to-end: '
             '"${recovered == null ? null : utf8.decode(recovered)}" — '
             'encryption-at-rest provides ZERO protection against '
             'anyone who can read the database');

@@ -37,7 +37,8 @@ Map<String, dynamic> _txRow({
     };
 
 void main() {
-  test('penalties clamped at runtime floor replay as real debt — '
+  test(
+      'penalties clamped at runtime floor replay as real debt — '
       'a later honest mint is eaten after restart', () async {
     final db = AppDatabase();
     addTearDown(db.close);
@@ -68,7 +69,8 @@ void main() {
             'debt the runtime never actually deducted');
   });
 
-  test('attested balance diverges the same way — a later attested mint '
+  test(
+      'attested balance diverges the same way — a later attested mint '
       'is eaten by phantom penalty debt', () async {
     final db = AppDatabase();
     addTearDown(db.close);

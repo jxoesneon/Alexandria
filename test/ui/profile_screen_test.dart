@@ -30,8 +30,7 @@ class _FakeIdentityService implements IdentityService {
   int get revision => _revision;
 
   @override
-  Future<bool> hasIdentity() async =>
-      identityStored || currentIdentity != null;
+  Future<bool> hasIdentity() async => identityStored || currentIdentity != null;
 
   @override
   Future<AlexandriaIdentity?> getIdentity() async => currentIdentity;
@@ -116,7 +115,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ProfileScreen Tests', () {
-    testWidgets('renders identity, reputation, and activity graph', (tester) async {
+    testWidgets('renders identity, reputation, and activity graph',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -131,7 +131,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            identityServiceProvider.overrideWithValue(_FakeIdentityService(currentIdentity: identity)),
+            identityServiceProvider.overrideWithValue(
+                _FakeIdentityService(currentIdentity: identity)),
             ledgerServiceProvider.overrideWithValue(_FakeLedgerService()),
             ipfsServiceProvider.overrideWithValue(_FakeIpfsService()),
             mnemonicServiceProvider.overrideWithValue(_FakeMnemonicService()),
@@ -168,7 +169,8 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('unverified mode enables generating and recovering identity', (tester) async {
+    testWidgets('unverified mode enables generating and recovering identity',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -214,7 +216,8 @@ void main() {
       expect(fakeMnemonic.recovered, isTrue);
     });
 
-    testWidgets('recovery failure shows a SnackBar instead of an '
+    testWidgets(
+        'recovery failure shows a SnackBar instead of an '
         'unhandled error', (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
@@ -256,7 +259,8 @@ void main() {
       expect(fakeMnemonic.recoverCalls, 1);
     });
 
-    testWidgets('recover warns before replacing a stored identity the '
+    testWidgets(
+        'recover warns before replacing a stored identity the '
         'UI cannot see', (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;

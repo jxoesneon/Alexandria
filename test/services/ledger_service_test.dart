@@ -110,7 +110,8 @@ void main() {
       expect(effectiveDecayed, greaterThan(0.0));
     });
 
-    test('exports and imports ledger JSON preserving chain integrity', () async {
+    test('exports and imports ledger JSON preserving chain integrity',
+        () async {
       await ledger.recordAction(
         action: LedgerActionType.createContent,
         contentCid: 'bafy_exported_1',
@@ -130,7 +131,8 @@ void main() {
       expect(newLedger.verifyChain(), isTrue);
       expect(newLedger.totalReputation, equals(ledger.totalReputation));
 
-      final corruptSuccess = await newLedger.importFromJson('invalid json string');
+      final corruptSuccess =
+          await newLedger.importFromJson('invalid json string');
       expect(corruptSuccess, isFalse);
     });
 

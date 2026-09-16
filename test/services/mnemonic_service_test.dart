@@ -107,8 +107,10 @@ void main() {
 
     test('validates incorrect or corrupt mnemonic words', () {
       expect(mnemonicService.validateMnemonic([]), isFalse);
-      expect(mnemonicService.validateMnemonic(List.filled(23, 'abandon')), isFalse);
-      expect(mnemonicService.validateMnemonic(List.filled(25, 'abandon')), isFalse);
+      expect(mnemonicService.validateMnemonic(List.filled(23, 'abandon')),
+          isFalse);
+      expect(mnemonicService.validateMnemonic(List.filled(25, 'abandon')),
+          isFalse);
 
       // 24 invalid words not in wordlist
       final invalidWords = List.filled(24, 'notawordxyz');
@@ -178,8 +180,7 @@ void main() {
       expect(backup.entropy, equals(seed));
       expect(mnemonicService.validateMnemonic(backup.words), isTrue);
 
-      final recovered =
-          await mnemonicService.recoverFromMnemonic(backup.words);
+      final recovered = await mnemonicService.recoverFromMnemonic(backup.words);
       expect(recovered, isNotNull);
       expect(recovered!.publicKey, equals(Uint8List.fromList(pub.bytes)));
       expect(recovered.privateKey, equals(seed));
@@ -231,8 +232,7 @@ void main() {
       );
 
       final generated = await service.generateMnemonic();
-      final recovered =
-          await service.recoverFromMnemonic(generated.words);
+      final recovered = await service.recoverFromMnemonic(generated.words);
       expect(recovered, isNotNull);
       expect(callCount, equals(1));
 
@@ -330,19 +330,16 @@ void main() {
       final service = MnemonicService(
         fakeIdentity,
         storage: _InMemorySecureStorage(),
-        onIdentityRecovered: () async =>
-            throw StateError('hook blew up'),
+        onIdentityRecovered: () async => throw StateError('hook blew up'),
       );
 
       final generated = await service.generateMnemonic();
-      final recovered =
-          await service.recoverFromMnemonic(generated.words);
+      final recovered = await service.recoverFromMnemonic(generated.words);
       expect(recovered, isNotNull);
       expect(recovered!.publicKey, isNotEmpty);
     });
 
-    test('backup marker is cleared when the identity is replaced',
-        () async {
+    test('backup marker is cleared when the identity is replaced', () async {
       // Single-key single-store: the marker is written by
       // markBackupConfirmed into the shared SecureStorageService and
       // cleared by IdentityService whenever the stored pubkey changes.
@@ -384,7 +381,8 @@ void main() {
       expect(await service.hasBackup(), isFalse);
     });
 
-    test('markBackupConfirmed races an import — no stale marker '
+    test(
+        'markBackupConfirmed races an import — no stale marker '
         'survives on the new identity', () async {
       // The marker write is delegated into IdentityService's
       // serialized op-chain AND carries the public key the phrase
@@ -400,8 +398,7 @@ void main() {
       expect(backupA, isNotNull);
 
       final keyPairB = await Ed25519().newKeyPair();
-      final seedB =
-          Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
+      final seedB = Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
       final publicKeyB =
           Uint8List.fromList((await keyPairB.extractPublicKey()).bytes);
       expect(publicKeyB, isNot(equals(identityA.publicKey)));
@@ -434,7 +431,8 @@ void main() {
       expect(await service.hasBackup(), isFalse);
     });
 
-    test('markBackupConfirmed still records a marker for the CURRENT '
+    test(
+        'markBackupConfirmed still records a marker for the CURRENT '
         'identity', () async {
       final storage = _InMemorySecureStorage();
       final identityService = IdentityService(storage);
@@ -448,8 +446,7 @@ void main() {
       expect(storage.data[SecureStorageKeys.mnemonicBackup], isNotNull);
     });
 
-    test('recover B while A cached -> all read paths return B',
-        () async {
+    test('recover B while A cached -> all read paths return B', () async {
       // End-to-end through the REAL providers: identityStateProvider and
       // activeIdentitiesProvider must both serve the recovered key —
       // enforced by identityRevisionProvider, not by call-site

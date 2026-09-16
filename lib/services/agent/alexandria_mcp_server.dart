@@ -110,12 +110,10 @@ class AlexandriaMcpServer {
           'properties': {
             'doi': {
               'type': 'string',
-              'description': 'Digital Object Identifier (e.g. 10.1038/nature12373)'
+              'description':
+                  'Digital Object Identifier (e.g. 10.1038/nature12373)'
             },
-            'title': {
-              'type': 'string',
-              'description': 'Optional paper title'
-            },
+            'title': {'type': 'string', 'description': 'Optional paper title'},
           },
           'required': ['doi'],
         },
@@ -142,7 +140,8 @@ class AlexandriaMcpServer {
             },
             'credits': {
               'type': 'number',
-              'description': 'Amount of Archival Credits to allocate for replication'
+              'description':
+                  'Amount of Archival Credits to allocate for replication'
             },
           },
           'required': ['cid', 'credits'],
@@ -172,7 +171,8 @@ class AlexandriaMcpServer {
           'properties': {
             'challenge_id': {
               'type': 'string',
-              'description': 'Challenge ID from alexandria_request_por_challenge'
+              'description':
+                  'Challenge ID from alexandria_request_por_challenge'
             },
             'tag': {
               'type': 'string',
@@ -196,8 +196,14 @@ class AlexandriaMcpServer {
           'type': 'object',
           'properties': {
             'cid': {'type': 'string', 'description': 'Target endangered CID'},
-            'doi': {'type': 'string', 'description': 'Optional DOI of the document'},
-            'title': {'type': 'string', 'description': 'Descriptive title for the bounty'},
+            'doi': {
+              'type': 'string',
+              'description': 'Optional DOI of the document'
+            },
+            'title': {
+              'type': 'string',
+              'description': 'Descriptive title for the bounty'
+            },
             'credits_reward': {
               'type': 'number',
               'description': 'Reward offered in Archival Credits'
@@ -272,8 +278,7 @@ class AlexandriaMcpServer {
           );
 
         case 'alexandria_request_por_challenge':
-          return await _requestPorChallenge(
-              arguments['cid'] as String? ?? '');
+          return await _requestPorChallenge(arguments['cid'] as String? ?? '');
 
         case 'alexandria_submit_por_challenge':
           return await _submitPorChallenge(
@@ -388,9 +393,8 @@ class AlexandriaMcpServer {
     // so a transient resolver outage never permanently burns a real DOI.
     DoiRecord? record;
     try {
-      record = await _doiResolver
-          .resolve(doi)
-          .timeout(const Duration(seconds: 15));
+      record =
+          await _doiResolver.resolve(doi).timeout(const Duration(seconds: 15));
     } catch (_) {
       record = null;
     }
@@ -406,8 +410,7 @@ class AlexandriaMcpServer {
 
     // Ingest the verified work: store its dossier so the assigned CID is
     // real content-addressed material, not a fabricated label.
-    final dossier =
-        Uint8List.fromList(utf8.encode(record.toMarkdownDossier()));
+    final dossier = Uint8List.fromList(utf8.encode(record.toMarkdownDossier()));
     final assignedCid = await _ipfsService.addFile(dossier);
 
     // One payout per unique work — looping the same DOI mints nothing.
@@ -468,8 +471,7 @@ class AlexandriaMcpServer {
     }));
   }
 
-  Future<Map<String, dynamic>> _replicateCid(
-      String cid, double credits) async {
+  Future<Map<String, dynamic>> _replicateCid(String cid, double credits) async {
     if (credits <= 0) return _errorResponse('Credits must be > 0.');
     // DURABLE-FIRST (optimistic-return residual — adopted): the debit
     // commits through the insert-if-absent CAS BEFORE the balance
@@ -517,10 +519,9 @@ class AlexandriaMcpServer {
     final challenge = _porService.issueChallenge(
       cid: cid,
       totalChunks: 1,
-      challengerPubkey:
-          (challengerPubkey == null || challengerPubkey.isEmpty)
-              ? null
-              : challengerPubkey,
+      challengerPubkey: (challengerPubkey == null || challengerPubkey.isEmpty)
+          ? null
+          : challengerPubkey,
     );
     return _textResponse(jsonEncode({
       'status': 'challenge_issued',
@@ -576,11 +577,10 @@ class AlexandriaMcpServer {
       proof: proof,
       expectedChunkData: payload,
       proverPeerId: proverPubkey ?? _moltbookService.agentId,
-      proverPubkey:
-          proverPubkey ??
-              ((identityPubkey == null || identityPubkey.isEmpty)
-                  ? null
-                  : identityPubkey),
+      proverPubkey: proverPubkey ??
+          ((identityPubkey == null || identityPubkey.isEmpty)
+              ? null
+              : identityPubkey),
     );
     if (!result.valid) {
       return _errorResponse('PoR proof verification failed: tag mismatch');
@@ -597,8 +597,7 @@ class AlexandriaMcpServer {
     // matches the claim path's evaluation instead of misreporting
     // `attested_claim: true`.
     final canonSelfIssued = receipt != null &&
-        WorkReceipt.samePubkey(
-            receipt.proverPubkey, receipt.verifierPubkey);
+        WorkReceipt.samePubkey(receipt.proverPubkey, receipt.verifierPubkey);
     final canonAttested =
         receipt != null && receipt.isVerifierSigned && !canonSelfIssued;
     final receiptJson = receipt == null

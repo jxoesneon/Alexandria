@@ -64,7 +64,8 @@ void main() {
       expect(service, isA<GovernanceService>());
     });
 
-    test('canVote and canCreateProposal require min reputation and account age', () async {
+    test('canVote and canCreateProposal require min reputation and account age',
+        () async {
       // 0 reputation -> cannot vote
       expect(await governance.canVote(), isFalse);
       expect(await governance.canCreateProposal(), isFalse);
@@ -148,7 +149,8 @@ void main() {
       expect(duplicateVote, isFalse);
     });
 
-    test('resolves and executes expired proposal when quorum and threshold met', () async {
+    test('resolves and executes expired proposal when quorum and threshold met',
+        () async {
       for (int i = 0; i < 500; i++) {
         await ledger.recordAction(
           action: LedgerActionType.validateHash,
@@ -179,7 +181,8 @@ void main() {
       expect(canVoteExpired, isFalse);
     });
 
-    test('Proposal.status is read-only — transitions only through '
+    test(
+        'Proposal.status is read-only — transitions only through '
         'activate()/resolve() (campaign-2)', () {
       final proposal = Proposal(
         id: 'lifecycle_prop',
@@ -221,8 +224,7 @@ void main() {
       expect(proposal.status, equals(ProposalStatus.executed));
     });
 
-    test('addProposal dedupes by id and strips unverifiable votes/status',
-        () {
+    test('addProposal dedupes by id and strips unverifiable votes/status', () {
       final forged = Proposal(
         id: 'remote_prop_1',
         type: ProposalType.gatewayAddition,
@@ -270,7 +272,8 @@ void main() {
         signature: 'sig2',
       ));
       expect(governance.proposals.length, equals(1));
-      expect(governance.proposals.first.title, equals('Forged remote proposal'));
+      expect(
+          governance.proposals.first.title, equals('Forged remote proposal'));
     });
 
     test('addProposal preserves claimed status only when signatureVerified',

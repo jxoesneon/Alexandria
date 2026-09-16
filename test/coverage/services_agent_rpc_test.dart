@@ -97,8 +97,8 @@ void main() {
   group('AlexandriaMcpRunner coverage extras', () {
     test('default session token generation and getter', () {
       final tools = _FakeTools();
-      final runner = AlexandriaMcpRunner(
-          listTools: tools.list, callTool: tools.call);
+      final runner =
+          AlexandriaMcpRunner(listTools: tools.list, callTool: tools.call);
       // No sessionToken supplied → generated internally.
       expect(runner.sessionToken, isNotEmpty);
       expect(runner.sessionSpend, 0.0);
@@ -107,22 +107,17 @@ void main() {
     test('initialize handshake returns server capabilities', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
-          sessionToken: 'tok',
-          listTools: tools.list,
-          callTool: tools.call);
-      final res = await runner.handleJsonRpcRequest(
-          _req('tok', 'initialize', id: 9));
-      expect(res!['result']['serverInfo']['name'],
-          'alexandria-mcp-runner');
+          sessionToken: 'tok', listTools: tools.list, callTool: tools.call);
+      final res =
+          await runner.handleJsonRpcRequest(_req('tok', 'initialize', id: 9));
+      expect(res!['result']['serverInfo']['name'], 'alexandria-mcp-runner');
       expect(res['result']['protocolVersion'], '2024-11-05');
     });
 
     test('token accepted under params.session_token', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
-          sessionToken: 'tok2',
-          listTools: tools.list,
-          callTool: tools.call);
+          sessionToken: 'tok2', listTools: tools.list, callTool: tools.call);
       final res = await runner.handleJsonRpcRequest({
         'jsonrpc': '2.0',
         'id': 2,
@@ -136,9 +131,7 @@ void main() {
         () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
-          sessionToken: 'tok',
-          listTools: tools.list,
-          callTool: tools.call);
+          sessionToken: 'tok', listTools: tools.list, callTool: tools.call);
       // params not a Map → treated as empty → empty tool name →
       // allowlist refusal.
       final res1 = await runner.handleJsonRpcRequest({
@@ -151,8 +144,8 @@ void main() {
       expect(res1!['result'], isNotNull);
 
       // arguments not a Map → empty args.
-      final res2 = await runner.handleJsonRpcRequest(
-          _req('tok', 'tools/call', id: 4, params: {
+      final res2 = await runner
+          .handleJsonRpcRequest(_req('tok', 'tools/call', id: 4, params: {
         'name': 'alexandria_get_wallet_balance',
         'arguments': 'not-a-map',
       }));
@@ -163,11 +156,9 @@ void main() {
     test('unknown method returns -32601', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
-          sessionToken: 'tok',
-          listTools: tools.list,
-          callTool: tools.call);
-      final res = await runner
-          .handleJsonRpcRequest(_req('tok', 'bogus/method', id: 5));
+          sessionToken: 'tok', listTools: tools.list, callTool: tools.call);
+      final res =
+          await runner.handleJsonRpcRequest(_req('tok', 'bogus/method', id: 5));
       expect(res!['error']['code'], -32601);
     });
 
@@ -181,8 +172,8 @@ void main() {
             'alexandria_search_archive',
             'alexandria_replicate_cid',
           });
-      final res = await runner.handleJsonRpcRequest(
-          _req('tok', 'tools/call', id: 6, params: {
+      final res = await runner
+          .handleJsonRpcRequest(_req('tok', 'tools/call', id: 6, params: {
         'name': 'alexandria_replicate_cid',
         'arguments': {'credits': 0},
       }));
@@ -196,9 +187,7 @@ void main() {
     test('port/isRunning before start and auth timeout close', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
-          sessionToken: 'tok-s',
-          listTools: tools.list,
-          callTool: tools.call);
+          sessionToken: 'tok-s', listTools: tools.list, callTool: tools.call);
       final socket = McpControlSocket(runner,
           authTimeout: const Duration(milliseconds: 120));
       expect(socket.port, 0);
@@ -212,19 +201,15 @@ void main() {
       final conn = await Socket.connect('127.0.0.1', port);
       final done = Completer<void>();
       conn.listen((_) {}, onDone: done.complete);
-      await done.future
-          .timeout(const Duration(seconds: 5), onTimeout: () {});
+      await done.future.timeout(const Duration(seconds: 5), onTimeout: () {});
       conn.destroy();
     });
 
     test('oversized frame closes connection', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
-          sessionToken: 'tok-s2',
-          listTools: tools.list,
-          callTool: tools.call);
-      final socket =
-          McpControlSocket(runner, maxFrameBytes: 64);
+          sessionToken: 'tok-s2', listTools: tools.list, callTool: tools.call);
+      final socket = McpControlSocket(runner, maxFrameBytes: 64);
       final port = await socket.start();
       addTearDown(socket.close);
 
@@ -234,17 +219,14 @@ void main() {
       // >64 bytes in one chunk without newline → buffer cap → close.
       conn.add(List.filled(128, 0x41));
       await conn.flush();
-      await done.future
-          .timeout(const Duration(seconds: 5), onTimeout: () {});
+      await done.future.timeout(const Duration(seconds: 5), onTimeout: () {});
       conn.destroy();
     });
 
     test('post-auth garbage line gets a parse-error frame', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
-          sessionToken: 'tok-s3',
-          listTools: tools.list,
-          callTool: tools.call);
+          sessionToken: 'tok-s3', listTools: tools.list, callTool: tools.call);
       final socket = McpControlSocket(runner);
       final port = await socket.start();
       addTearDown(socket.close);
@@ -310,8 +292,7 @@ void main() {
       }));
     }
 
-    test('mutating RPCs reject missing params and verify surfaces',
-        () async {
+    test('mutating RPCs reject missing params and verify surfaces', () async {
       await sdk.startDaemon();
       final token = sdk.rpcAuthToken!;
 
@@ -330,8 +311,8 @@ void main() {
       expect(imp['error'], isNotNull);
 
       // Oversized base64 payload → cap refusal.
-      final huge = base64Encode(List.filled(
-          HeadlessSdk.maxImportBytes + 1024, 0x61));
+      final huge =
+          base64Encode(List.filled(HeadlessSdk.maxImportBytes + 1024, 0x61));
       final big = await rpc('alexandria.import',
           params: {'dataBase64': huge}, token: token);
       expect(big['error'], isNotNull);
@@ -380,8 +361,7 @@ void main() {
     setUp(() async {
       final keyPair = await Ed25519().newKeyPair();
       final pub = await keyPair.extractPublicKey();
-      identity =
-          _FakeIdentityService(keyPair, Uint8List.fromList(pub.bytes));
+      identity = _FakeIdentityService(keyPair, Uint8List.fromList(pub.bytes));
 
       pochService = PoCHService();
       creditService = CreditService(
@@ -403,8 +383,7 @@ void main() {
       mcpServer = AlexandriaMcpServer(
         creditService: creditService,
         pochService: pochService,
-        cryptoBridgeService:
-            CryptoBridgeService(creditService: creditService),
+        cryptoBridgeService: CryptoBridgeService(creditService: creditService),
         moltbookService: moltbookService,
         porService: porService,
         ipfsService: ipfsService,
@@ -419,15 +398,14 @@ void main() {
       expect(mcpServer.porService, same(porService));
     });
 
-    test('unknown tool and throwing tool both error gracefully',
-        () async {
+    test('unknown tool and throwing tool both error gracefully', () async {
       final unknown = await mcpServer.callTool('bogus_tool', {});
       expect(unknown['isError'], isTrue);
 
       // Missing required arg → cast throws inside → caught by the
       // dispatch guard.
-      final bad = await mcpServer.callTool(
-          'alexandria_post_moltbook_bounty', {});
+      final bad =
+          await mcpServer.callTool('alexandria_post_moltbook_bounty', {});
       expect(bad['isError'], isTrue);
     });
 
@@ -464,34 +442,29 @@ void main() {
         'doi': '10.5555/dedup-test',
         'title': 'Dedup Test',
       });
-      final text =
-          (dupe['content'] as List).first['text'] as String;
+      final text = (dupe['content'] as List).first['text'] as String;
       expect(jsonDecode(text)['status'], 'duplicate');
     });
 
     test('submit PoR challenge on absent blockstore errors', () async {
       // Issue a challenge for a CID never stored locally.
-      final issue = await mcpServer.callTool(
-          'alexandria_request_por_challenge', {'cid': 'bafy_absent'});
-      final issueText =
-          (issue['content'] as List).first['text'] as String;
-      final challengeId =
-          jsonDecode(issueText)['challenge_id'] as String;
+      final issue = await mcpServer
+          .callTool('alexandria_request_por_challenge', {'cid': 'bafy_absent'});
+      final issueText = (issue['content'] as List).first['text'] as String;
+      final challengeId = jsonDecode(issueText)['challenge_id'] as String;
 
-      final submit = await mcpServer.callTool(
-          'alexandria_submit_por_challenge', {
+      final submit =
+          await mcpServer.callTool('alexandria_submit_por_challenge', {
         'challenge_id': challengeId,
         'tag': 'deadbeef',
       });
       expect(submit['isError'], isTrue);
-      final errText =
-          (submit['content'] as List).first['text'] as String;
+      final errText = (submit['content'] as List).first['text'] as String;
       expect(errText, contains('not present'));
     });
 
     test('post moltbook bounty publishes through the service', () async {
-      final res = await mcpServer.callTool(
-          'alexandria_post_moltbook_bounty', {
+      final res = await mcpServer.callTool('alexandria_post_moltbook_bounty', {
         'cid': 'bafy_bounty_target',
         'title': 'Preserve this',
         'credits_reward': 1.0,
@@ -504,12 +477,11 @@ void main() {
 
     test('payout rail tools refuse while agentPayoutsEnabled is false',
         () async {
-      final cashu = await mcpServer.callTool(
-          'alexandria_export_cashu_voucher', {'credits': 1.0});
+      final cashu = await mcpServer
+          .callTool('alexandria_export_cashu_voucher', {'credits': 1.0});
       expect(cashu['isError'], isTrue);
 
-      final sweep = await mcpServer.callTool(
-          'alexandria_sweep_lightning_live',
+      final sweep = await mcpServer.callTool('alexandria_sweep_lightning_live',
           {'lightning_address': 'x@y.z', 'credits': 1.0});
       expect(sweep['isError'], isTrue);
     });

@@ -51,7 +51,8 @@ class AgentStewardService extends ChangeNotifier {
   void startSteward({Duration interval = const Duration(seconds: 30)}) {
     if (_isRunning) return;
     _isRunning = true;
-    _logActivity('Autonomous Agent Steward started (Interval: ${interval.inSeconds}s)');
+    _logActivity(
+        'Autonomous Agent Steward started (Interval: ${interval.inSeconds}s)');
     notifyListeners();
 
     // Run first iteration immediately
@@ -73,14 +74,17 @@ class AgentStewardService extends ChangeNotifier {
     // 1. Check and maintain Proof of Common Heritage (PoCH >= 1.0)
     final metrics = _pochService.metrics;
     if (metrics.score < 1.0) {
-      _logActivity('PoCH score (${(metrics.score * 100).toStringAsFixed(0)}%) below threshold. Triggering Cauchy RS parity compute.');
+      _logActivity(
+          'PoCH score (${(metrics.score * 100).toStringAsFixed(0)}%) below threshold. Triggering Cauchy RS parity compute.');
       // ALX-010: steward compute contribution is self-reported and unverified —
       // it maintains local PoCH hygiene but mints NO credits until an external
       // challenger attests the work (prevents self-award of ~65ℭ/cycle).
       _pochService.recordSeedingActivity(100 * 1024 * 1024); // 100 MB
-      _pochService.recordStorageAllocation(1200 * 1024 * 1024); // 1.2 GB (meets 1GB baseline)
+      _pochService.recordStorageAllocation(
+          1200 * 1024 * 1024); // 1.2 GB (meets 1GB baseline)
       _totalComputeCyclesExecuted++;
-      _logActivity('Autonomous compute complete: PoCH restored (unverified — no credit minted).');
+      _logActivity(
+          'Autonomous compute complete: PoCH restored (unverified — no credit minted).');
     }
 
     // 2. Scan Moltbook active bounties and claim endangered tasks.
@@ -89,9 +93,8 @@ class AgentStewardService extends ChangeNotifier {
     // strips announcer-claimed `funded` flags until a verified escrow
     // attestation exists (E-T5r #1), so remote bounties simply never
     // qualify here until the attestation transport lands.
-    final claimableBounties = _moltbookService.activeBounties
-        .where((b) => b.funded)
-        .toList();
+    final claimableBounties =
+        _moltbookService.activeBounties.where((b) => b.funded).toList();
     if (claimableBounties.isNotEmpty) {
       // Prioritize critical urgency bounties
       final targetBounty = claimableBounties.firstWhere(

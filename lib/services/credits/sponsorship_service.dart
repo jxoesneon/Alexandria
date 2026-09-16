@@ -94,7 +94,13 @@ class SponsorshipService extends ChangeNotifier {
         badgeText:
             'Championing user privacy, open encryption, and digital freedom across the globe.',
         actionUrl: 'https://eff.org',
-        categories: ['technology', 'law', 'security', 'privacy', 'computer_science'],
+        categories: [
+          'technology',
+          'law',
+          'security',
+          'privacy',
+          'computer_science'
+        ],
         tags: ['cryptography', 'freedom', 'open-source', 'privacy', 'tor'],
         rewardCredits: 10.0,
       ),
@@ -114,7 +120,13 @@ class SponsorshipService extends ChangeNotifier {
         badgeText:
             'Powering open science: fully accessible, transparent global research index.',
         actionUrl: 'https://openalex.org',
-        categories: ['academicAndScience', 'science', 'medicine', 'mathematics', 'physics'],
+        categories: [
+          'academicAndScience',
+          'science',
+          'medicine',
+          'mathematics',
+          'physics'
+        ],
         tags: ['doi', 'research', 'papers', 'citations', 'peer-review'],
         rewardCredits: 12.0,
       ),

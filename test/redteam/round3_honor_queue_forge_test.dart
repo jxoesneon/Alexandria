@@ -16,7 +16,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/honor_bandwidth_service.dart';
 
 void main() {
-  test('self-declared honor score must not let an attacker jump the '
+  test(
+      'self-declared honor score must not let an attacker jump the '
       'queue', () async {
     final svc = HonorBandwidthService(maxConcurrent: 1);
     final order = <String>[];
@@ -64,8 +65,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
     expect(order.indexOf('attacker') > order.indexOf('honest'), isTrue,
-        reason:
-            'the attacker\'s self-declared honor/PoR outranked the '
+        reason: 'the attacker\'s self-declared honor/PoR outranked the '
             'honest request (order=$order) — computeEffectivePriority '
             'sorts on caller-supplied credentials, so any peer can '
             'claim INT_MAX and starve the queue. Scores must be '

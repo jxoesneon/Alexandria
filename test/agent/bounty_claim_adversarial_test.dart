@@ -169,23 +169,22 @@ PreservationBounty _foreignBounty({
 }
 
 void main() {
-  group('bounty-claim dedup + trust-root + client_info (REV3 adversarial)',
-      () {
+  group('bounty-claim dedup + trust-root + client_info (REV3 adversarial)', () {
     // ── CLASS 1: mutated-copy double-claim ──────────────────────────
-    test('C1: mutating activeBounties/postPreservationBounty copies '
+    test(
+        'C1: mutating activeBounties/postPreservationBounty copies '
         'cannot reopen a claimed bounty (durable db)', () async {
       final db = AppDatabase();
       addTearDown(db.close);
       final cs = CreditService(initialBalance: 100.0);
-      final bounty = _foreignBounty(
-          id: 'bounty_c1', cid: 'bafk_c1', offeredCredits: 25.0);
+      final bounty =
+          _foreignBounty(id: 'bounty_c1', cid: 'bafk_c1', offeredCredits: 25.0);
       final (att, hex) = await _freshTrustedAttestation(bounty);
       final svc = MoltbookService(
           creditService: cs, db: db, trustedAttestorPubkeys: {hex});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
-      final copy =
-          svc.activeBounties.firstWhere((b) => b.id == bounty.id);
+      final copy = svc.activeBounties.firstWhere((b) => b.id == bounty.id);
       expect(await svc.claimBounty(bounty.id), isTrue);
       expect(cs.balance, 125.0);
       copy.isClaimed = false; // mutate retained copy
@@ -198,15 +197,15 @@ void main() {
       final poster = MoltbookService(creditService: cs2, db: db);
       await poster.setKeyPair(await Ed25519().newKeyPair());
       final posted = await poster.postPreservationBounty(
-          cid: 'bafk_own', title: 'own', offeredCredits: 10.0,
-          force: true);
+          cid: 'bafk_own', title: 'own', offeredCredits: 10.0, force: true);
       posted.isClaimed = false;
       posted.funded; // funded is final on the copy anyway
       expect(await poster.claimBounty(posted.id), isFalse);
     });
 
     // ── CLASS 2: restart replay — independent CreditService ─────────
-    test('C2a: restart replay refused by durable CAS even with a FRESH '
+    test(
+        'C2a: restart replay refused by durable CAS even with a FRESH '
         'CreditService (belt dedup not shared)', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -239,13 +238,13 @@ void main() {
       // Exactly one payout row exists in the durable ledger.
       final rows = await db.getCreditTransactions(limit: 1000);
       expect(
-        rows.where(
-            (r) => r['id'] == 'tx_bounty_payout_${bounty.id}').length,
+        rows.where((r) => r['id'] == 'tx_bounty_payout_${bounty.id}').length,
         1,
       );
     });
 
-    test('C2b: in-memory fallback (db==null) — two services sharing one '
+    test(
+        'C2b: in-memory fallback (db==null) — two services sharing one '
         'CreditService: second claim is refused by the payout dedup '
         'belt and returns FALSE', () async {
       final cs = CreditService(initialBalance: 100.0);
@@ -253,10 +252,10 @@ void main() {
           id: 'bounty_nodb', cid: 'bafk_nodb', offeredCredits: 25.0);
       final (att, hex) = await _freshTrustedAttestation(bounty);
 
-      final svcA = MoltbookService(
-          creditService: cs, trustedAttestorPubkeys: {hex});
-      final svcB = MoltbookService(
-          creditService: cs, trustedAttestorPubkeys: {hex});
+      final svcA =
+          MoltbookService(creditService: cs, trustedAttestorPubkeys: {hex});
+      final svcB =
+          MoltbookService(creditService: cs, trustedAttestorPubkeys: {hex});
       svcA.ingestBountyAnnouncement(bounty, escrowAttestation: att);
       svcB.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
@@ -273,7 +272,8 @@ void main() {
     });
 
     // ── CLASS 3: evidence-failure release races ─────────────────────
-    test('C3a: TWO instances, one db — CAS-loss leaves the loser\'s '
+    test(
+        'C3a: TWO instances, one db — CAS-loss leaves the loser\'s '
         'stored record unclaimed so it can win after the winner '
         'releases', () async {
       final db = AppDatabase();
@@ -330,7 +330,8 @@ void main() {
       expect(cs.balance, 125.0);
     });
 
-    test('C3b: SINGLE instance — a claim interleaved during the durable '
+    test(
+        'C3b: SINGLE instance — a claim interleaved during the durable '
         'delete neither wins nor poisons the stored record (no second '
         'service needed)', () async {
       final db = _SlowDeleteDb();
@@ -385,7 +386,8 @@ void main() {
       expect(cs.balance, 100.0);
     });
 
-    test('C3c: a THROWN insertClaimedBounty fails closed and releases '
+    test(
+        'C3c: a THROWN insertClaimedBounty fails closed and releases '
         'the in-flight mark — the bounty stays claimable', () async {
       final db = _FlakyInsertDb();
       addTearDown(db.close);
@@ -410,22 +412,21 @@ void main() {
       expect(cs.balance, 125.0);
     });
 
-    test('C3d: a THROWING deleteClaimedBounty fails closed without '
+    test(
+        'C3d: a THROWING deleteClaimedBounty fails closed without '
         'propagating and without leaking the in-flight mark '
         '(E-REV4-Br)', () async {
       final db = _ThrowingDeleteDb();
       addTearDown(db.close);
       final cs = CreditService(initialBalance: 100.0);
       final bounty = _foreignBounty(
-          id: 'bounty_del_throw', cid: 'bafk_del_throw',
-          offeredCredits: 25.0);
+          id: 'bounty_del_throw', cid: 'bafk_del_throw', offeredCredits: 25.0);
       final (att, hex) = await _freshTrustedAttestation(bounty);
       // No ipfsService → evidence check is skipped → claim reaches the
       // payout path. Refuse the payout by pre-consuming the dedup id —
       // that drives claimBounty into the delete-on-refusal path whose
       // delete throws.
-      cs.awardBountyEscrow(
-          amount: 1.0, bountyId: bounty.id, cid: 'other');
+      cs.awardBountyEscrow(amount: 1.0, bountyId: bounty.id, cid: 'other');
       final svc = MoltbookService(
           creditService: cs, db: db, trustedAttestorPubkeys: {hex});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
@@ -443,7 +444,8 @@ void main() {
     });
 
     // ── CLASS 4: bountyId spelling variants ─────────────────────────
-    test('C4: bounty ids are NOT canonicalized — case/space variants are '
+    test(
+        'C4: bounty ids are NOT canonicalized — case/space variants are '
         'distinct bounties AND claim args must match exactly', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -474,28 +476,29 @@ void main() {
     });
 
     // ── CLASS 5: trust-root hoist ───────────────────────────────────
-    test('C5a: mutating the caller\'s trust set after construction does '
+    test(
+        'C5a: mutating the caller\'s trust set after construction does '
         'NOT widen the frozen trust root', () async {
       final cs = CreditService(initialBalance: 100.0);
       final attestor = await _newAttestor();
       final trust = <String>{};
-      final svc = MoltbookService(
-          creditService: cs, trustedAttestorPubkeys: trust);
+      final svc =
+          MoltbookService(creditService: cs, trustedAttestorPubkeys: trust);
       // Attacker mutates the set it handed in AFTER construction.
       trust.add(await _pubHex(attestor));
 
-      final bounty = _foreignBounty(
-          id: 'bounty_trust_mut', cid: 'bafk_trust_mut');
+      final bounty =
+          _foreignBounty(id: 'bounty_trust_mut', cid: 'bafk_trust_mut');
       final att = await _attestBounty(attestor, bounty);
       expect(att, isNotNull);
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
-      final stored = svc.activeBounties
-          .firstWhere((b) => b.id == bounty.id);
+      final stored = svc.activeBounties.firstWhere((b) => b.id == bounty.id);
       expect(stored.funded, isFalse); // still fail-closed
       expect(await svc.claimBounty(bounty.id), isFalse);
     });
 
-    test('C5b: no public path inserts into _bounties except '
+    test(
+        'C5b: no public path inserts into _bounties except '
         'ingest/postPreservationBounty/seed — wire is_claimed and '
         'funded both stripped without a trusted attestation', () async {
       final cs = CreditService(initialBalance: 100.0);
@@ -508,8 +511,8 @@ void main() {
         ..['funded'] = true
         ..['is_claimed'] = true);
       svc.ingestBountyAnnouncement(wire);
-      final stored = svc.activeBounties
-          .firstWhere((b) => b.id == 'bounty_wire_flags');
+      final stored =
+          svc.activeBounties.firstWhere((b) => b.id == 'bounty_wire_flags');
       expect(stored.funded, isFalse);
       expect(stored.isClaimed, isFalse);
       expect(await svc.claimBounty('bounty_wire_flags'), isFalse);
@@ -517,7 +520,8 @@ void main() {
     });
 
     // ── CLASS 6: client_info ────────────────────────────────────────
-    test('C6: caller-supplied payload client_info is overridden by the '
+    test(
+        'C6: caller-supplied payload client_info is overridden by the '
         'narrowed claimedBroadcastInfo', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
@@ -560,7 +564,8 @@ void main() {
     });
 
     // ── CLASS 7: copyWith fidelity ──────────────────────────────────
-    test('C7: copyWith preserves every field including funded/doi/'
+    test(
+        'C7: copyWith preserves every field including funded/doi/'
         'targetShards/origin', () {
       final b = PreservationBounty(
         id: 'bounty_copy',
@@ -593,41 +598,34 @@ void main() {
     });
 
     // ── awardBountyEscrow durability + hostile ids ──────────────────
-    test('C8a: deterministic payout id is restart-durable; hostile '
+    test(
+        'C8a: deterministic payout id is restart-durable; hostile '
         'bountyId chars cannot collide rows or dedup', () async {
       final db = AppDatabase();
       addTearDown(db.close);
       final cs1 = CreditService(db: db, initialBalance: 100.0);
       await cs1.ready;
       expect(
-          cs1.awardBountyEscrow(
-              amount: 10.0, bountyId: 'a', cid: 'c1'),
-          10.0);
-      expect(
-          cs1.awardBountyEscrow(
-              amount: 20.0, bountyId: 'a/b', cid: 'c2'),
+          cs1.awardBountyEscrow(amount: 10.0, bountyId: 'a', cid: 'c1'), 10.0);
+      expect(cs1.awardBountyEscrow(amount: 20.0, bountyId: 'a/b', cid: 'c2'),
           20.0);
-      expect(
-          cs1.awardBountyEscrow(
-              amount: 30.0, bountyId: 'a/b/c', cid: 'c3'),
+      expect(cs1.awardBountyEscrow(amount: 30.0, bountyId: 'a/b/c', cid: 'c3'),
           30.0);
       // Whole-suffix ids: no prefix collisions.
       expect(
-          cs1.awardBountyEscrow(
-              amount: 99.0, bountyId: 'a', cid: 'c1'),
-          0.0);
+          cs1.awardBountyEscrow(amount: 99.0, bountyId: 'a', cid: 'c1'), 0.0);
       await cs1.settled;
 
       final cs2 = CreditService(db: db, initialBalance: 100.0);
       await cs2.ready;
       // Hydration rebuilt _paidBountyIds for ALL variants, verbatim.
       for (final id in ['a', 'a/b', 'a/b/c']) {
-        expect(cs2.awardBountyEscrow(amount: 1.0, bountyId: id, cid: 'x'),
-            0.0);
+        expect(cs2.awardBountyEscrow(amount: 1.0, bountyId: id, cid: 'x'), 0.0);
       }
     });
 
-    test('C8b: awardBountyEscrow called before hydration completes is '
+    test(
+        'C8b: awardBountyEscrow called before hydration completes is '
         'refused WITHOUT consuming the bountyId — the legit payout '
         'still lands after ready', () async {
       final db = AppDatabase();
@@ -640,34 +638,31 @@ void main() {
       await cs.ready;
       // The refusal did NOT consume the id — the real payout succeeds.
       expect(
-          cs.awardBountyEscrow(
-              amount: 25.0, bountyId: 'bounty_pre', cid: 'c'),
+          cs.awardBountyEscrow(amount: 25.0, bountyId: 'bounty_pre', cid: 'c'),
           25.0);
       await cs.settled;
       final rows = await db.getCreditTransactions(limit: 1000);
-      expect(
-          rows.any((r) => r['id'] == 'tx_bounty_payout_bounty_pre'),
-          isTrue);
+      expect(rows.any((r) => r['id'] == 'tx_bounty_payout_bounty_pre'), isTrue);
       // …and the now-PAID id is refused on replay.
       expect(
-          cs.awardBountyEscrow(
-              amount: 25.0, bountyId: 'bounty_pre', cid: 'c'),
+          cs.awardBountyEscrow(amount: 25.0, bountyId: 'bounty_pre', cid: 'c'),
           0.0);
     });
 
-    test('C8c: a claim inside the hydration window WAITS on the '
+    test(
+        'C8c: a claim inside the hydration window WAITS on the '
         'durable mutator — the payout lands after hydration completes '
         'instead of minting against a phantom ledger', () async {
       final db = _GatedHydrateDb();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
-      final bounty = _foreignBounty(
-          id: 'bounty_unhydrated', cid: 'bafk_unhydrated');
+      final bounty =
+          _foreignBounty(id: 'bounty_unhydrated', cid: 'bafk_unhydrated');
       final (att, hex) = await _freshTrustedAttestation(bounty);
       // db:null on the moltbook side → no CAS await → the whole claim
       // runs inside the (gated, deterministic) hydration window.
-      final svc = MoltbookService(
-          creditService: cs, trustedAttestorPubkeys: {hex});
+      final svc =
+          MoltbookService(creditService: cs, trustedAttestorPubkeys: {hex});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
       // awardBountyEscrowDurable awaits _hydrated BEFORE paying — the

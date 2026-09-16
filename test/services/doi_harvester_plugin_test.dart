@@ -7,14 +7,19 @@ void main() {
       final record = DoiRecord(
         doi: '10.1038/s41586-020-2649-2',
         title: 'Array programming with NumPy',
-        authors: ['Charles R. Harris', 'K. Jarrod Millman', 'Stéfan J. van der Walt'],
+        authors: [
+          'Charles R. Harris',
+          'K. Jarrod Millman',
+          'Stéfan J. van der Walt'
+        ],
         journal: 'Nature',
         year: 2020,
         volume: '585',
         issue: '7825',
         pages: '357-362',
         publisher: 'Springer Science and Business Media LLC',
-        abstractText: 'Array programming provides a powerful, compact syntax...',
+        abstractText:
+            'Array programming provides a powerful, compact syntax...',
         subjects: ['Computer science', 'Scientific data'],
         citationCount: 4500,
         isOpenAccess: true,
@@ -135,7 +140,10 @@ Here are some papers:
         'subject': ['Computer Science'],
         'is-referenced-by-count': 4200,
         'link': [
-          {'content-type': 'application/pdf', 'URL': 'https://nature.com/paper.pdf'}
+          {
+            'content-type': 'application/pdf',
+            'URL': 'https://nature.com/paper.pdf'
+          }
         ],
         'license': [
           {'URL': 'https://creativecommons.org/licenses/by/4.0/'}
@@ -192,7 +200,9 @@ Here are some papers:
       expect(record.sourceApi, 'openalex');
     });
 
-    test('DoiHarvesterPlugin ingestRecord returns error when context is uninitialized', () async {
+    test(
+        'DoiHarvesterPlugin ingestRecord returns error when context is uninitialized',
+        () async {
       final plugin = DoiHarvesterPlugin();
       final record = DoiRecord(
         doi: '10.1234/test',

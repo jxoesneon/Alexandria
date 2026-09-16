@@ -109,7 +109,8 @@ void main() {
       expect(dupe, isNull);
     });
 
-    test('vetoChange allows uploader to immediately veto pending request', () async {
+    test('vetoChange allows uploader to immediately veto pending request',
+        () async {
       // Uploader authority is no longer caller-claimed (round-3 fix):
       // it is attested by a local `createContent` ledger entry for the
       // target CID under this node's identity.
@@ -138,7 +139,9 @@ void main() {
       expect(vote, isNull);
     });
 
-    test('fastTrackChange allows uploader to immediately approve if has support', () async {
+    test(
+        'fastTrackChange allows uploader to immediately approve if has support',
+        () async {
       // Attest local uploader authority via the ledger (round-3 fix).
       await ledger.recordAction(
         action: LedgerActionType.createContent,
@@ -192,7 +195,8 @@ void main() {
 
     group('human attestation (biometric-bound isHuman)', () {
       Future<ChangeRequest> propose(ConsensusService svc) => svc.proposeChange(
-            targetCid: 'bafy_human_cid_${DateTime.now().microsecondsSinceEpoch}',
+            targetCid:
+                'bafy_human_cid_${DateTime.now().microsecondsSinceEpoch}',
             field: 'title',
             currentValue: 'A',
             proposedValue: 'B',
@@ -289,8 +293,7 @@ void main() {
         expect(vote!.isHuman, isFalse);
       });
 
-      test('unattested human claims price weight at the AI factor',
-          () async {
+      test('unattested human claims price weight at the AI factor', () async {
         // Same ledger/identity, two services differing only in the
         // attestation clock — the attested human ballot must weigh
         // exactly twice the unattested one (A = 1.0 vs 0.5).

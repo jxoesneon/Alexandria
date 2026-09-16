@@ -40,7 +40,8 @@ void main() {
           throwsArgumentError);
     });
 
-    test('one ballot per validator per target — repeat votes replace, '
+    test(
+        'one ballot per validator per target — repeat votes replace, '
         'never stack', () {
       // Without dedup a validator could call recordVote N times and
       // multiply its weight N-fold; a re-vote must REPLACE the prior

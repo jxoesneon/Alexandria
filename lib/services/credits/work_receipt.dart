@@ -277,8 +277,8 @@ class WorkReceipt {
   /// while staying a distinct domain from both the verifier's
   /// [signingPayload] and the claim-time possession proof — an ack
   /// signature can never be transplanted into either role.
-  Uint8List get ackPayload => Uint8List.fromList(
-      utf8.encode('alexandria:receipt-ack:v$v:$receiptId'));
+  Uint8List get ackPayload =>
+      Uint8List.fromList(utf8.encode('alexandria:receipt-ack:v$v:$receiptId'));
 
   /// The canonical bytes the claim-time possession signature must sign
   /// (REV3 possession proof + ALX-012 §5.8 DPoP-style freshness).
@@ -294,9 +294,8 @@ class WorkReceipt {
   /// which is why the base preimage stays legal for local claims.
   Uint8List claimPreimage({String? verifierNonce, int? expiryMillis}) {
     final base = 'alexandria:receipt-claim:v$v:$receiptId';
-    final preimage = verifierNonce == null
-        ? base
-        : '$base:$verifierNonce:$expiryMillis';
+    final preimage =
+        verifierNonce == null ? base : '$base:$verifierNonce:$expiryMillis';
     return Uint8List.fromList(utf8.encode(preimage));
   }
 
@@ -430,8 +429,7 @@ class WorkReceipt {
   /// signatures. Required in-path for claims of
   /// `v >= minAckWireVersion` receipts; for older epochs the field
   /// remains unverified provenance.
-  Future<bool> verifyProverSignature(
-      ReceiptSignatureVerifier verifyFn) async {
+  Future<bool> verifyProverSignature(ReceiptSignatureVerifier verifyFn) async {
     final sig = proverSig;
     if (sig == null || sig.isEmpty || proverPubkey.isEmpty) return false;
     try {

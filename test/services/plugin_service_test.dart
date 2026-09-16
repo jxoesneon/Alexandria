@@ -9,7 +9,8 @@ void main() {
       service = PluginService();
     });
 
-    test('automatically registers the flagship DOI Harvester plugin on startup', () {
+    test('automatically registers the flagship DOI Harvester plugin on startup',
+        () {
       expect(service.plugins.isNotEmpty, isTrue);
       final doiPlugin = service.plugins.firstWhere(
         (p) => p.id == 'org.alexandria.plugin.doi-harvester',
@@ -28,11 +29,13 @@ void main() {
       expect(service.getExecutablePlugin(pluginId)!.isEnabled, isTrue);
 
       service.togglePlugin(pluginId, false);
-      expect(service.plugins.firstWhere((p) => p.id == pluginId).enabled, isFalse);
+      expect(
+          service.plugins.firstWhere((p) => p.id == pluginId).enabled, isFalse);
       expect(service.getExecutablePlugin(pluginId)!.isEnabled, isFalse);
 
       service.togglePlugin(pluginId, true);
-      expect(service.plugins.firstWhere((p) => p.id == pluginId).enabled, isTrue);
+      expect(
+          service.plugins.firstWhere((p) => p.id == pluginId).enabled, isTrue);
       expect(service.getExecutablePlugin(pluginId)!.isEnabled, isTrue);
     });
 
@@ -42,7 +45,9 @@ void main() {
 
       expect(installed, isNotNull);
       expect(installed!.id, 'com.alexandria.zotero-connector');
-      expect(service.plugins.any((p) => p.id == 'com.alexandria.zotero-connector'), isTrue);
+      expect(
+          service.plugins.any((p) => p.id == 'com.alexandria.zotero-connector'),
+          isTrue);
     });
 
     test('rejects duplicate plugin installations', () {
@@ -57,11 +62,18 @@ void main() {
     test('uninstalls plugins cleanly', () {
       final manifestJson = service.calibreConnectorTemplate;
       service.installPlugin(manifestJson);
-      expect(service.plugins.any((p) => p.id == 'com.alexandria.calibre-connector'), isTrue);
+      expect(
+          service.plugins
+              .any((p) => p.id == 'com.alexandria.calibre-connector'),
+          isTrue);
 
-      final uninstalled = service.uninstallPlugin('com.alexandria.calibre-connector');
+      final uninstalled =
+          service.uninstallPlugin('com.alexandria.calibre-connector');
       expect(uninstalled, isTrue);
-      expect(service.plugins.any((p) => p.id == 'com.alexandria.calibre-connector'), isFalse);
+      expect(
+          service.plugins
+              .any((p) => p.id == 'com.alexandria.calibre-connector'),
+          isFalse);
     });
 
     test('dispatches hooks to enabled plugins without throwing', () async {
@@ -99,7 +111,10 @@ void main() {
       final result = await service.executeAction(
         'org.alexandria.plugin.doi-harvester',
         'extract_dois',
-        {'text': 'Found in literature: 10.1038/s41586-020-2649-2 and doi:10.1145/3377811.3380327'},
+        {
+          'text':
+              'Found in literature: 10.1038/s41586-020-2649-2 and doi:10.1145/3377811.3380327'
+        },
       );
 
       expect(result.success, isTrue);
@@ -108,7 +123,8 @@ void main() {
       expect(result.data['dois'], contains('10.1145/3377811.3380327'));
     });
 
-    test('PluginManifest and ThemeManifest serialization round-trips correctly', () {
+    test('PluginManifest and ThemeManifest serialization round-trips correctly',
+        () {
       const manifest = PluginManifest(
         id: 'test.manifest',
         name: 'Test Plugin',
@@ -116,7 +132,10 @@ void main() {
         author: 'Test Author',
         description: 'Test Description',
         entrypoint: 'index.js',
-        permissions: [PluginPermission.networkFetch, PluginPermission.storagePersist],
+        permissions: [
+          PluginPermission.networkFetch,
+          PluginPermission.storagePersist
+        ],
         hooks: [PluginHook.onStartup, PluginHook.onContentViewed],
         uiSlots: [UISlot.homeHeader, UISlot.detailActions],
         maxMemoryMb: 128,
@@ -132,7 +151,8 @@ void main() {
       expect(parsed.author, 'Test Author');
       expect(parsed.description, 'Test Description');
       expect(parsed.entrypoint, 'index.js');
-      expect(parsed.permissions, [PluginPermission.networkFetch, PluginPermission.storagePersist]);
+      expect(parsed.permissions,
+          [PluginPermission.networkFetch, PluginPermission.storagePersist]);
       expect(parsed.hooks, [PluginHook.onStartup, PluginHook.onContentViewed]);
       expect(parsed.uiSlots, [UISlot.homeHeader, UISlot.detailActions]);
       expect(parsed.maxMemoryMb, 128);
@@ -165,39 +185,60 @@ void main() {
       doiPlugin.isEnabled = false;
       service.registerPlugin(doiPlugin);
 
-      expect(service.plugins.firstWhere((p) => p.id == doiPlugin.manifest.id).enabled, isFalse);
-      expect(service.executablePlugins.any((p) => p.manifest.id == doiPlugin.manifest.id), isTrue);
+      expect(
+          service.plugins
+              .firstWhere((p) => p.id == doiPlugin.manifest.id)
+              .enabled,
+          isFalse);
+      expect(
+          service.executablePlugins
+              .any((p) => p.manifest.id == doiPlugin.manifest.id),
+          isTrue);
     });
 
     test('getPluginsWithHook and getPluginsForSlot filter correctly', () {
       service.installPlugin(service.zoteroConnectorTemplate);
 
       final startupPlugins = service.getPluginsWithHook(PluginHook.onStartup);
-      expect(startupPlugins.any((p) => p.id == 'com.alexandria.zotero-connector'), isTrue);
+      expect(
+          startupPlugins.any((p) => p.id == 'com.alexandria.zotero-connector'),
+          isTrue);
 
-      final settingsSlotPlugins = service.getPluginsForSlot(UISlot.settingsSection);
-      expect(settingsSlotPlugins.any((p) => p.id == 'com.alexandria.zotero-connector'), isTrue);
+      final settingsSlotPlugins =
+          service.getPluginsForSlot(UISlot.settingsSection);
+      expect(
+          settingsSlotPlugins
+              .any((p) => p.id == 'com.alexandria.zotero-connector'),
+          isTrue);
 
       final homeSlotPlugins = service.getPluginsForSlot(UISlot.homeHeader);
-      expect(homeSlotPlugins.any((p) => p.id == 'com.alexandria.zotero-connector'), isFalse);
+      expect(
+          homeSlotPlugins.any((p) => p.id == 'com.alexandria.zotero-connector'),
+          isFalse);
     });
 
-    test('handles errors when executing non-existent or disabled plugins or when action throws', () async {
-      final notFoundResult = await service.executeAction('non_existent_plugin', 'any_action');
+    test(
+        'handles errors when executing non-existent or disabled plugins or when action throws',
+        () async {
+      final notFoundResult =
+          await service.executeAction('non_existent_plugin', 'any_action');
       expect(notFoundResult.success, isFalse);
       expect(notFoundResult.message, contains('Plugin not found'));
 
       service.togglePlugin('org.alexandria.plugin.doi-harvester', false);
-      final disabledResult = await service.executeAction('org.alexandria.plugin.doi-harvester', 'extract_dois');
+      final disabledResult = await service.executeAction(
+          'org.alexandria.plugin.doi-harvester', 'extract_dois');
       expect(disabledResult.success, isFalse);
       expect(disabledResult.message, contains('is disabled'));
 
       service.togglePlugin('org.alexandria.plugin.doi-harvester', true);
-      final unknownActionResult = await service.executeAction('org.alexandria.plugin.doi-harvester', 'invalid_action');
+      final unknownActionResult = await service.executeAction(
+          'org.alexandria.plugin.doi-harvester', 'invalid_action');
       expect(unknownActionResult.success, isFalse);
     });
 
-    test('togglePlugin and uninstallPlugin return false for unknown plugin', () {
+    test('togglePlugin and uninstallPlugin return false for unknown plugin',
+        () {
       expect(service.togglePlugin('unknown_plugin', true), isFalse);
       expect(service.uninstallPlugin('unknown_plugin'), isFalse);
       expect(service.setActiveTheme('unknown_theme'), isFalse);

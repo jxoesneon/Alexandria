@@ -99,7 +99,8 @@ void main() {
       expect(restored.timestamp, cs.timestamp);
     });
 
-    test('LedgerEntry.fromJson falls back for unknown action and '
+    test(
+        'LedgerEntry.fromJson falls back for unknown action and '
         'missing crossSignatures', () {
       final json = {
         'index': 3,
@@ -116,7 +117,8 @@ void main() {
   });
 
   group('PluginService uncovered branches', () {
-    test('installPlugin accepts a manifest without '
+    test(
+        'installPlugin accepts a manifest without '
         'permissions/hooks/uiSlots keys', () {
       final service = PluginService();
       final result = service.installPlugin(jsonEncode({
@@ -133,7 +135,8 @@ void main() {
       expect(result.manifest.uiSlots, isEmpty);
     });
 
-    test('installPlugin decodes permissions/hooks/uiSlots arrays and '
+    test(
+        'installPlugin decodes permissions/hooks/uiSlots arrays and '
         'manifest toJson round-trips', () {
       final service = PluginService();
       final installed = service.installPlugin(jsonEncode({
@@ -184,8 +187,7 @@ void main() {
       expect(service.executablePlugins, isNotEmpty);
       expect(service.enabledPlugins.map((p) => p.id),
           contains('test.fake-plugin'));
-      expect(service.plugins.map((p) => p.id),
-          contains('test.fake-plugin'));
+      expect(service.plugins.map((p) => p.id), contains('test.fake-plugin'));
 
       // Re-registering syncs the existing installed entry's flag.
       plugin.enabled = false;
@@ -209,16 +211,15 @@ void main() {
 
       // Toggle back on through the service.
       expect(service.togglePlugin('test.fake-plugin', true), isTrue);
-      expect(service.getExecutablePlugin('test.fake-plugin')!.isEnabled,
-          isTrue);
+      expect(
+          service.getExecutablePlugin('test.fake-plugin')!.isEnabled, isTrue);
 
       // Hook/slot filtered views.
       expect(service.getPluginsWithHook(PluginHook.onStartup), isNotEmpty);
       expect(service.getPluginsWithHook(PluginHook.onSearch), isEmpty);
       // The built-in DOI harvester occupies the settings slot; an
       // unoccupied slot filters to empty.
-      expect(
-          service.getPluginsForSlot(UISlot.settingsSection), isNotEmpty);
+      expect(service.getPluginsForSlot(UISlot.settingsSection), isNotEmpty);
       expect(service.getPluginsForSlot(UISlot.homeHeader), isEmpty);
 
       // Uninstall both branches.
@@ -292,8 +293,8 @@ void main() {
       final service = PluginService();
       final plugin = _FakePlugin()..throwOnAction = true;
       service.registerPlugin(plugin);
-      final result = await service.executeAction(
-          'test.fake-plugin', 'any', const {});
+      final result =
+          await service.executeAction('test.fake-plugin', 'any', const {});
       expect(result.success, isFalse);
       expect(result.message, contains('Execution exception'));
     });
@@ -320,8 +321,7 @@ void main() {
         privateKey: Uint8List(64),
         createdAt: DateTime(2026, 1, 1),
       ).publicKeyBase58;
-      expect(await service.encryptForPeer(data, 'x25519:$base58'),
-          isNotEmpty);
+      expect(await service.encryptForPeer(data, 'x25519:$base58'), isNotEmpty);
 
       // Base64.
       final b64 = base64Encode(pub);
@@ -411,8 +411,7 @@ void main() {
     test('testConnections reports a reachable tor proxy', () async {
       // A real TorService pointed at a live loopback socket exercises
       // the 'Tor: proxy reachable' branch.
-      final server =
-          await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(server.close);
       final tor = TorService(FakeSecureStorageService());
       await tor.setProxy('127.0.0.1', server.port);

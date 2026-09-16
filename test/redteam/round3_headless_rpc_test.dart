@@ -37,13 +37,13 @@ void main() {
       'id': 1,
     }));
     expect(res['error'], isNotNull,
-        reason:
-            'alexandria.import executed on a STOPPED daemon — the RPC '
+        reason: 'alexandria.import executed on a STOPPED daemon — the RPC '
             'dispatcher has no liveness gate, so the RPC surface is '
             'live even when the node is "off".');
   });
 
-  test('alexandria.import must bound payload size (unbounded + '
+  test(
+      'alexandria.import must bound payload size (unbounded + '
       'auto-pin = memory exhaustion)', () async {
     await sdk.startDaemon();
     final ipfs = container.read(ipfsServiceProvider);
@@ -57,8 +57,7 @@ void main() {
     }));
 
     expect(res['error'], isNotNull,
-        reason:
-            'an 8 MiB import was accepted with no size cap; storedBytes '
+        reason: 'an 8 MiB import was accepted with no size cap; storedBytes '
             'grew ${ipfs.storedBytes - before} and the block is pinned '
             '(addFile auto-pins) so GC can never reclaim it — an '
             'unauthenticated RPC caller can grow memory without bound.');

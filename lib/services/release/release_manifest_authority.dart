@@ -96,8 +96,7 @@ class ReleaseManifestAuthority {
     int persistedSequence = -1,
     void Function(int sequence)? onSequenceAccepted,
     DateTime Function()? clock,
-    EscrowAttestationVerifier verifyFn =
-        EscrowAttestation.verifyEd25519,
+    EscrowAttestationVerifier verifyFn = EscrowAttestation.verifyEd25519,
   })  : _registry = registry,
         _acceptedSequence = persistedSequence,
         _onSequenceAccepted = onSequenceAccepted,
@@ -244,8 +243,7 @@ class ReleaseManifestAuthority {
   /// Returns the [ManifestIngestResult]; [ManifestIngestResult.malformed]
   /// covers every transport-level drop (wrong kind, bad envelope,
   /// non-quorum signer, unparseable payload).
-  Future<ManifestIngestResult> ingestEnvelope(
-      BeaconEnvelope envelope) async {
+  Future<ManifestIngestResult> ingestEnvelope(BeaconEnvelope envelope) async {
     if (envelope.kind != ReleaseManifest.envelopeKind) {
       return ManifestIngestResult.malformed;
     }
@@ -287,8 +285,7 @@ class ReleaseManifestAuthority {
       }
       bool ok;
       try {
-        ok = await _verifyFn(
-            Uint8List.fromList(preimage), sigBytes, pubkeyHex);
+        ok = await _verifyFn(Uint8List.fromList(preimage), sigBytes, pubkeyHex);
       } catch (_) {
         ok = false;
       }

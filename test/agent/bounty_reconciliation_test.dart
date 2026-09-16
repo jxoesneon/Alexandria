@@ -89,8 +89,7 @@ Future<void> _insertPayoutRow(AppDatabase db, String bountyId) {
   });
 }
 
-int _ageMillis(Duration d) =>
-    DateTime.now().subtract(d).millisecondsSinceEpoch;
+int _ageMillis(Duration d) => DateTime.now().subtract(d).millisecondsSinceEpoch;
 
 /// Runs event-loop turns until [condition] holds (bounded — the startup
 /// sweep is fire-and-forget off the constructor).
@@ -103,7 +102,8 @@ Future<void> _until(Future<bool> Function() condition) async {
 
 void main() {
   group('crash-window reconciliation (REV4 items 1+2)', () {
-    test('CAS-loss + durable payout row → stored record is healed to '
+    test(
+        'CAS-loss + durable payout row → stored record is healed to '
         'claimed (listed-but-paid staleness closed)', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -113,7 +113,9 @@ void main() {
       final attestor = await _newKey();
       final att = await _attestBounty(attestor, bounty);
       final svc = MoltbookService(
-          creditService: cs, db: db, trustedAttestorPubkeys: {await _pubHex(attestor)});
+          creditService: cs,
+          db: db,
+          trustedAttestorPubkeys: {await _pubHex(attestor)});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
       // Simulate a previous incarnation that won the CAS AND landed its
@@ -125,24 +127,25 @@ void main() {
       expect(await svc.claimBounty(bounty.id), isFalse);
       // Healed: the stored record is now claimed — delisted, and the
       // steward's head-of-line is unblocked.
-      expect(
-          svc.activeBounties.any((b) => b.id == bounty.id), isFalse);
+      expect(svc.activeBounties.any((b) => b.id == bounty.id), isFalse);
       expect(await db.isBountyClaimed(bounty.id), isTrue);
       // No second payout: the balance gained nothing.
       expect(cs.balance, 100.0);
     });
 
-    test('CAS-loss + stale claim row + no payout → row deleted, CAS '
+    test(
+        'CAS-loss + stale claim row + no payout → row deleted, CAS '
         'retried, claim wins normally', () async {
       final db = AppDatabase();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
-      final bounty =
-          _foreignBounty(id: 'bounty_stale', cid: 'bafk_stale');
+      final bounty = _foreignBounty(id: 'bounty_stale', cid: 'bafk_stale');
       final attestor = await _newKey();
       final att = await _attestBounty(attestor, bounty);
       final svc = MoltbookService(
-          creditService: cs, db: db, trustedAttestorPubkeys: {await _pubHex(attestor)});
+          creditService: cs,
+          db: db,
+          trustedAttestorPubkeys: {await _pubHex(attestor)});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
       // A claim stranded 20 minutes ago — crash between CAS and payout.
@@ -154,11 +157,11 @@ void main() {
       expect(await svc.claimBounty(bounty.id), isTrue);
       expect(await db.isBountyClaimed(bounty.id), isTrue);
       expect(cs.balance, 125.0);
-      expect(
-          svc.activeBounties.any((b) => b.id == bounty.id), isFalse);
+      expect(svc.activeBounties.any((b) => b.id == bounty.id), isFalse);
     });
 
-    test('CAS-loss + ORPHANED row (gone between CAS and age read) → '
+    test(
+        'CAS-loss + ORPHANED row (gone between CAS and age read) → '
         'treated as stale: delete no-ops, retry wins', () async {
       // Modelled by a deleteClaimedBounty that removes the row between
       // the lost CAS and the claimedAt read — the simplest faithful
@@ -166,12 +169,13 @@ void main() {
       final db = _DeleteBeforeReadDb();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
-      final bounty =
-          _foreignBounty(id: 'bounty_orphan', cid: 'bafk_orphan');
+      final bounty = _foreignBounty(id: 'bounty_orphan', cid: 'bafk_orphan');
       final attestor = await _newKey();
       final att = await _attestBounty(attestor, bounty);
       final svc = MoltbookService(
-          creditService: cs, db: db, trustedAttestorPubkeys: {await _pubHex(attestor)});
+          creditService: cs,
+          db: db,
+          trustedAttestorPubkeys: {await _pubHex(attestor)});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
       await db.insertClaimedBounty(bounty.id, bounty.cid);
 
@@ -179,18 +183,19 @@ void main() {
       expect(cs.balance, 125.0);
     });
 
-    test('CAS-loss + YOUNG row + no payout → genuinely in-flight '
-        'elsewhere: refused, record stays listed and unpoisoned',
-        () async {
+    test(
+        'CAS-loss + YOUNG row + no payout → genuinely in-flight '
+        'elsewhere: refused, record stays listed and unpoisoned', () async {
       final db = AppDatabase();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
-      final bounty =
-          _foreignBounty(id: 'bounty_young', cid: 'bafk_young');
+      final bounty = _foreignBounty(id: 'bounty_young', cid: 'bafk_young');
       final attestor = await _newKey();
       final att = await _attestBounty(attestor, bounty);
       final svc = MoltbookService(
-          creditService: cs, db: db, trustedAttestorPubkeys: {await _pubHex(attestor)});
+          creditService: cs,
+          db: db,
+          trustedAttestorPubkeys: {await _pubHex(attestor)});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
       // A fresh claim row with NO payout — a live claim in flight.
@@ -206,8 +211,7 @@ void main() {
   });
 
   group('startup reconciliation sweep (REV4 item 2)', () {
-    test('stale claim row with no payout is swept at construction',
-        () async {
+    test('stale claim row with no payout is swept at construction', () async {
       final db = AppDatabase();
       addTearDown(db.close);
       await _insertClaimRow(db, 'bounty_sweep',
@@ -218,7 +222,8 @@ void main() {
       expect(await db.isBountyClaimed('bounty_sweep'), isFalse);
     });
 
-    test('stale claim row WITH a payout row is kept — the claim '
+    test(
+        'stale claim row WITH a payout row is kept — the claim '
         'durably settled', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -234,7 +239,8 @@ void main() {
       expect(await db.isBountyClaimed('bounty_swept_paid'), isTrue);
     });
 
-    test('young claim row with no payout is kept — possibly a live '
+    test(
+        'young claim row with no payout is kept — possibly a live '
         'claim', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -249,18 +255,20 @@ void main() {
   });
 
   group('awaited payout durability (REV4 item 3)', () {
-    test('a returned-true claim already has its payout row in the db — '
+    test(
+        'a returned-true claim already has its payout row in the db — '
         'no extra settle await needed', () async {
       final db = AppDatabase();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
       await cs.ready;
-      final bounty =
-          _foreignBounty(id: 'bounty_durable', cid: 'bafk_durable');
+      final bounty = _foreignBounty(id: 'bounty_durable', cid: 'bafk_durable');
       final attestor = await _newKey();
       final att = await _attestBounty(attestor, bounty);
       final svc = MoltbookService(
-          creditService: cs, db: db, trustedAttestorPubkeys: {await _pubHex(attestor)});
+          creditService: cs,
+          db: db,
+          trustedAttestorPubkeys: {await _pubHex(attestor)});
       svc.ingestBountyAnnouncement(bounty, escrowAttestation: att);
 
       expect(await svc.claimBounty(bounty.id), isTrue);
@@ -272,13 +280,16 @@ void main() {
   });
 
   group('cancelBounty escrow release (REV4 item 4)', () {
-    test('local unclaimed bounty → cancel delists + tombstones but the '
+    test(
+        'local unclaimed bounty → cancel delists + tombstones but the '
         'refund is REFUSED (cross-ledger guard)', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_cancel', title: 'cancel me', offeredCredits: 25.0,
+          cid: 'bafk_cancel',
+          title: 'cancel me',
+          offeredCredits: 25.0,
           force: true);
       expect(cs.balance, 75.0); // escrowed
 
@@ -291,7 +302,8 @@ void main() {
       expect(svc.activeBounties.any((b) => b.id == posted.id), isFalse);
     });
 
-    test('claimed bounty → refused (durable claim row wins over the '
+    test(
+        'claimed bounty → refused (durable claim row wins over the '
         'in-memory flag)', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -300,7 +312,9 @@ void main() {
       final svc = MoltbookService(creditService: cs, db: db);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_claimed_cancel', title: 't', offeredCredits: 25.0,
+          cid: 'bafk_claimed_cancel',
+          title: 't',
+          offeredCredits: 25.0,
           force: true);
       // A claim row stands — the escrow is spoken for even though the
       // in-memory flag was never set on this service.
@@ -310,12 +324,12 @@ void main() {
       expect(svc.activeBounties.any((b) => b.id == posted.id), isTrue);
     });
 
-    test('foreign bounty → refused (its escrow is on someone else\'s '
+    test(
+        'foreign bounty → refused (its escrow is on someone else\'s '
         'ledger)', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
-      final foreign =
-          _foreignBounty(id: 'bounty_foreign', cid: 'bafk_foreign');
+      final foreign = _foreignBounty(id: 'bounty_foreign', cid: 'bafk_foreign');
       svc.ingestBountyAnnouncement(foreign);
       expect(await svc.cancelBounty('bounty_foreign'), isFalse);
       expect(cs.balance, 100.0);
@@ -326,7 +340,9 @@ void main() {
       final svc = MoltbookService(creditService: cs);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_dbl_cancel', title: 't', offeredCredits: 25.0,
+          cid: 'bafk_dbl_cancel',
+          title: 't',
+          offeredCredits: 25.0,
           force: true);
       expect(await svc.cancelBounty(posted.id), isFalse,
           reason: 'refund refused — the announced escrow cannot be '
@@ -337,7 +353,8 @@ void main() {
   });
 
   group('canonical bounty-id rejection (REV4 item 4)', () {
-    test('blank, padded, control-char and overlong ids are dropped at '
+    test(
+        'blank, padded, control-char and overlong ids are dropped at '
         'ingest — never normalized', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
@@ -369,7 +386,8 @@ void main() {
   });
 
   group('bounded _bounties registry (REV4 item 5)', () {
-    test('600 unfunded announcements → registry stays ≤512; a funded '
+    test(
+        '600 unfunded announcements → registry stays ≤512; a funded '
         'announcement still displaces an unfunded record', () async {
       final cs = CreditService(initialBalance: 100.0);
       final attestor = await _newKey();
@@ -383,8 +401,7 @@ void main() {
 
       // A funded + attested announcement is still admitted — it evicts
       // the oldest UNFUNDED record (the two seeds are the oldest).
-      final funded = _foreignBounty(
-          id: 'funded_keep', cid: 'bafk_funded_keep');
+      final funded = _foreignBounty(id: 'funded_keep', cid: 'bafk_funded_keep');
       svc.ingestBountyAnnouncement(funded,
           escrowAttestation: await _attestBounty(attestor, funded));
       expect(svc.activeBounties.length, lessThanOrEqualTo(512));
@@ -393,7 +410,8 @@ void main() {
       expect(stored.funded, isTrue);
     });
 
-    test('an all-funded registry drops incoming UNFUNDED announcements '
+    test(
+        'an all-funded registry drops incoming UNFUNDED announcements '
         'and evicts oldest funded only for incoming funded', () async {
       final cs = CreditService(initialBalance: 100.0);
       final attestor = await _newKey();
@@ -412,8 +430,8 @@ void main() {
       expect(svc.activeBounties.every((b) => b.funded), isTrue);
 
       // Unfunded spam is now dropped outright.
-      svc.ingestBountyAnnouncement(_foreignBounty(
-          id: 'spam_drop', cid: 'bafk_spam', funded: false));
+      svc.ingestBountyAnnouncement(
+          _foreignBounty(id: 'spam_drop', cid: 'bafk_spam', funded: false));
       expect(svc.activeBounties.length, 512);
       expect(svc.activeBounties.any((b) => b.id == 'spam_drop'), isFalse);
 
@@ -438,8 +456,7 @@ void main() {
         BeaconEnvelope.create(
             kind: kind, keyPair: poster, payload: bounty.toJson());
 
-    Future<PreservationBounty> signedBy(
-        SimpleKeyPair poster, String id) async {
+    Future<PreservationBounty> signedBy(SimpleKeyPair poster, String id) async {
       final pub = await poster.extractPublicKey();
       return _foreignBounty(
         id: id,
@@ -458,8 +475,7 @@ void main() {
       final att = await _attestBounty(attestor, bounty);
       await svc.ingestBountyEnvelope(await envelopeFor(poster, bounty),
           escrowAttestation: att);
-      final stored =
-          svc.activeBounties.firstWhere((b) => b.id == 'bounty_env');
+      final stored = svc.activeBounties.firstWhere((b) => b.id == 'bounty_env');
       expect(stored.funded, isTrue);
     });
 
@@ -481,11 +497,11 @@ void main() {
         payload: {...env.payload, 'offered_credits': 9999.0},
       );
       await svc.ingestBountyEnvelope(forged);
-      expect(svc.activeBounties.any((b) => b.id == 'bounty_forged'),
-          isFalse);
+      expect(svc.activeBounties.any((b) => b.id == 'bounty_forged'), isFalse);
     });
 
-    test('envelope.agentId != bounty.originAgentId → dropped (no '
+    test(
+        'envelope.agentId != bounty.originAgentId → dropped (no '
         'relayed authorship claims)', () async {
       final poster = await _newKey();
       final imposter = await _newKey();
@@ -498,10 +514,8 @@ void main() {
         cid: 'bafk_relay',
         originAgentId: BeaconEnvelope.deriveAgentId(pub.bytes),
       );
-      await svc.ingestBountyEnvelope(
-          await envelopeFor(imposter, bounty));
-      expect(svc.activeBounties.any((b) => b.id == 'bounty_relay'),
-          isFalse);
+      await svc.ingestBountyEnvelope(await envelopeFor(imposter, bounty));
+      expect(svc.activeBounties.any((b) => b.id == 'bounty_relay'), isFalse);
     });
 
     test('malformed payload → dropped without throwing', () async {
@@ -516,7 +530,8 @@ void main() {
       expect(svc.activeBounties.length, 2); // only the seeds
     });
 
-    test('non-bounty envelope kind → dropped (unknown kinds fail '
+    test(
+        'non-bounty envelope kind → dropped (unknown kinds fail '
         'closed)', () async {
       final poster = await _newKey();
       final cs = CreditService(initialBalance: 100.0);
@@ -524,14 +539,14 @@ void main() {
       final bounty = await signedBy(poster, 'bounty_kind');
       await svc.ingestBountyEnvelope(
           await envelopeFor(poster, bounty, kind: 'chat_message'));
-      expect(svc.activeBounties.any((b) => b.id == 'bounty_kind'),
-          isFalse);
+      expect(svc.activeBounties.any((b) => b.id == 'bounty_kind'), isFalse);
     });
   });
 
   // ═══════════════════ E-REV4b regression fixes ═══════════════════
   group('E-REV4b hardening fixes', () {
-    test('F2: a lost payout write refuses the claim CLOSED — the '
+    test(
+        'F2: a lost payout write refuses the claim CLOSED — the '
         'durable-first CAS mints nothing, so there is nothing to '
         're-pay after restart', () async {
       final db = _PayoutWriteLostDb();
@@ -557,9 +572,7 @@ void main() {
           reason: 'our claim row was released — the claim is retryable');
       expect(await db.hasCreditTransaction('tx_bounty_payout_${bounty.id}'),
           isFalse);
-      expect(
-          await db
-              .hasCreditTransaction('tx_escrow_release_${bounty.id}'),
+      expect(await db.hasCreditTransaction('tx_escrow_release_${bounty.id}'),
           isFalse);
 
       // Restart on the same still-broken store: the claim CAS re-wins
@@ -576,7 +589,8 @@ void main() {
       expect(cs2.balance, 100.0);
     });
 
-    test('F6: a hung payout write cannot park claimBounty forever — '
+    test(
+        'F6: a hung payout write cannot park claimBounty forever — '
         'the durable write is bounded and expiry takes the '
         'indeterminate-write tombstone path', () async {
       final db = _PayoutWriteHangsDb();
@@ -603,13 +617,12 @@ void main() {
       expect(await db.isBountyClaimed(bounty.id), isTrue);
       // The indeterminate write dead-marks the id — the spent
       // tombstone lands whether or not the queued CAS ever resolves.
-      expect(
-          await db
-              .hasCreditTransaction('tx_escrow_release_${bounty.id}'),
+      expect(await db.hasCreditTransaction('tx_escrow_release_${bounty.id}'),
           isTrue);
     });
 
-    test('F4: the startup sweep deletes by SNAPSHOT claimedAt — a claim '
+    test(
+        'F4: the startup sweep deletes by SNAPSHOT claimedAt — a claim '
         'row re-inserted mid-sweep is not torn down', () async {
       final db = _SweepProbeGateDb();
       addTearDown(db.close);
@@ -620,8 +633,7 @@ void main() {
       final gated = container.read(_gatedIpfsProvider) as _GatedIpfs;
       final cs = CreditService(db: db, initialBalance: 100.0);
       await cs.ready;
-      final bounty =
-          _foreignBounty(id: 'bounty_sweep_race', cid: 'bafk_sr');
+      final bounty = _foreignBounty(id: 'bounty_sweep_race', cid: 'bafk_sr');
       final attestor = await _newKey();
       final svc = MoltbookService(
           creditService: cs,
@@ -663,7 +675,8 @@ void main() {
           reason: 'the sweep must not delete a live claim\'s fresh row');
     });
 
-    test('F5: a losing claim\'s release cannot delete a racing claim\'s '
+    test(
+        'F5: a losing claim\'s release cannot delete a racing claim\'s '
         're-won row — self-cleanup is claimedAt-conditional', () async {
       final db = AppDatabase();
       addTearDown(db.close);
@@ -699,8 +712,7 @@ void main() {
       await (db.update(db.claimedBounties)
             ..where((t) => t.bountyId.equals(bounty.id)))
           .write(ClaimedBountiesCompanion(
-              claimedAt:
-                  Value(_ageMillis(const Duration(minutes: 20)))));
+              claimedAt: Value(_ageMillis(const Duration(minutes: 20)))));
       // B heals the genuinely stale row, re-wins the CAS, pays.
       expect(await svcB.claimBounty(bounty.id), isTrue);
       expect(cs.balance, 125.0);
@@ -713,7 +725,8 @@ void main() {
           reason: 'a paid claim must never end without its durable row');
     });
 
-    test('F1: a cancelled id is a permanent tombstone — re-ingest '
+    test(
+        'F1: a cancelled id is a permanent tombstone — re-ingest '
         'stores a dead unfunded record that no claim or upgrade can '
         're-arm', () async {
       final cs = CreditService(initialBalance: 100.0);
@@ -722,8 +735,7 @@ void main() {
           creditService: cs, trustedAttestorPubkeys: {await _pubHex(attestor)});
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_dead', title: 't', offeredCredits: 25.0,
-          force: true);
+          cid: 'bafk_dead', title: 't', offeredCredits: 25.0, force: true);
       expect(await svc.cancelBounty(posted.id), isFalse,
           reason: 'cancel tombstones + delists but refuses the refund — '
               'the announced escrow stays locked (R1)');
@@ -731,13 +743,11 @@ void main() {
 
       // A relayer re-announces the id with a foreign origin and a
       // valid trusted attestation — the record is stored but dead.
-      final reannounced = _foreignBounty(
-          id: posted.id, cid: posted.cid, offeredCredits: 25.0);
+      final reannounced =
+          _foreignBounty(id: posted.id, cid: posted.cid, offeredCredits: 25.0);
       svc.ingestBountyAnnouncement(reannounced,
-          escrowAttestation:
-              await _attestBounty(attestor, reannounced));
-      final stored =
-          svc.activeBounties.firstWhere((b) => b.id == posted.id);
+          escrowAttestation: await _attestBounty(attestor, reannounced));
+      final stored = svc.activeBounties.firstWhere((b) => b.id == posted.id);
       expect(stored.funded, isFalse,
           reason: 'a cancelled id must never be re-funded');
       expect(await svc.claimBounty(posted.id), isFalse);
@@ -746,16 +756,13 @@ void main() {
       // A second attested re-announcement cannot upgrade the dead
       // record either.
       svc.ingestBountyAnnouncement(reannounced,
-          escrowAttestation:
-              await _attestBounty(attestor, reannounced));
-      expect(
-          svc.activeBounties
-              .firstWhere((b) => b.id == posted.id)
-              .funded,
+          escrowAttestation: await _attestBounty(attestor, reannounced));
+      expect(svc.activeBounties.firstWhere((b) => b.id == posted.id).funded,
           isFalse);
     });
 
-    test('F3: a cancel parked on the durable claim-read removes ONLY '
+    test(
+        'F3: a cancel parked on the durable claim-read removes ONLY '
         'its own id — a concurrent ingest is not evicted by a stale '
         'index', () async {
       final db = _GatedClaimCheckDb();
@@ -765,8 +772,7 @@ void main() {
       final svc = MoltbookService(creditService: cs, db: db);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_target', title: 't', offeredCredits: 25.0,
-          force: true);
+          cid: 'bafk_target', title: 't', offeredCredits: 25.0, force: true);
 
       final cancel = svc.cancelBounty(posted.id);
       while (db.calls == 0) {
@@ -781,12 +787,12 @@ void main() {
               'refund is refused by the cross-ledger guard');
       expect(cs.balance, 75.0); // escrow stays locked
       expect(svc.activeBounties.any((b) => b.id == posted.id), isFalse);
-      expect(svc.activeBounties.any((b) => b.id == 'bounty_bystander'),
-          isTrue,
+      expect(svc.activeBounties.any((b) => b.id == 'bounty_bystander'), isTrue,
           reason: 'a stale positional index must not evict a bystander');
     });
 
-    test('F3: two overlapping cancels serialize — the second observes '
+    test(
+        'F3: two overlapping cancels serialize — the second observes '
         'the tombstone, and no refund ever lands', () async {
       final db = _GatedClaimCheckDb();
       addTearDown(db.close);
@@ -795,8 +801,7 @@ void main() {
       final svc = MoltbookService(creditService: cs, db: db);
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_pair', title: 't', offeredCredits: 25.0,
-          force: true);
+          cid: 'bafk_pair', title: 't', offeredCredits: 25.0, force: true);
 
       final c1 = svc.cancelBounty(posted.id);
       final c2 = svc.cancelBounty(posted.id);
@@ -814,7 +819,8 @@ void main() {
       expect(await svc.claimBounty(posted.id), isFalse);
     });
 
-    test('F7: a locally-posted bounty is NEVER registry-evicted — an '
+    test(
+        'F7: a locally-posted bounty is NEVER registry-evicted — an '
         'attested funded flood drops the incoming record instead of '
         'stranding the escrow', () async {
       final cs = CreditService(initialBalance: 100.0);
@@ -823,8 +829,7 @@ void main() {
           creditService: cs, trustedAttestorPubkeys: {await _pubHex(attestor)});
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
-          cid: 'bafk_kept', title: 't', offeredCredits: 25.0,
-          force: true);
+          cid: 'bafk_kept', title: 't', offeredCredits: 25.0, force: true);
       expect(cs.balance, 75.0);
 
       for (var i = 0; i < 520; i++) {
@@ -841,7 +846,8 @@ void main() {
       expect(cs.balance, 75.0); // escrow stays locked
     });
 
-    test('F8: interior whitespace, invisible format chars and C1 '
+    test(
+        'F8: interior whitespace, invisible format chars and C1 '
         'controls are rejected — never normalized', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
@@ -873,7 +879,8 @@ void main() {
   });
 
   group('RE-REV4b restart/durability regressions', () {
-    test('RE-E1a: a cancelled bounty re-ingests DEAD after restart — '
+    test(
+        'RE-E1a: a cancelled bounty re-ingests DEAD after restart — '
         'the hold-row rebuild keeps the id locally-posted, the '
         're-cancel tombstones it, and a trusted re-announcement is '
         'stored unfunded and unclaimable', () async {
@@ -886,8 +893,7 @@ void main() {
       final svc1 = MoltbookService(creditService: cs1, db: db);
       await svc1.setKeyPair(await _newKey());
       final posted = await svc1.postPreservationBounty(
-          cid: 'bafk_z1', title: 't', offeredCredits: 25.0,
-          force: true);
+          cid: 'bafk_z1', title: 't', offeredCredits: 25.0, force: true);
       expect(await svc1.cancelBounty(posted.id), isFalse,
           reason: 'cancel tombstones + delists but refuses the refund — '
               'the announced escrow stays locked (R1 cross-ledger '
@@ -914,15 +920,15 @@ void main() {
       svc2.ingestBountyAnnouncement(re,
           escrowAttestation: await _attestBounty(attestor, re));
 
-      final stored =
-          svc2.activeBounties.firstWhere((b) => b.id == posted.id);
+      final stored = svc2.activeBounties.firstWhere((b) => b.id == posted.id);
       expect(stored.funded, isFalse,
           reason: 'a cancelled id must never re-ingest as claimable');
       expect(await svc2.claimBounty(posted.id), isFalse);
       expect(cs2.balance, 75.0); // escrow still locked — never refunded
     });
 
-    test('RE-E1b: a live locally-posted bounty stays cancellable after '
+    test(
+        'RE-E1b: a live locally-posted bounty stays cancellable after '
         'restart — the durable hold row rebuilds the locally-posted '
         'set; cancel tombstones and the hold stays releasable on '
         'demand', () async {
@@ -935,8 +941,7 @@ void main() {
       final svc1 = MoltbookService(creditService: cs1, db: db);
       await svc1.setKeyPair(await _newKey());
       final posted = await svc1.postPreservationBounty(
-          cid: 'bafk_z2', title: 't', offeredCredits: 25.0,
-          force: true);
+          cid: 'bafk_z2', title: 't', offeredCredits: 25.0, force: true);
       expect(cs1.balance, 75.0);
       await cs1.settled;
 
@@ -952,23 +957,21 @@ void main() {
       expect(cs2.balance, 100.0);
     });
 
-    test('RE-E3: post-after-cancel never escrows onto a dead id — '
-        'generated ids stay off the release/payout tombstones',
-        () async {
+    test(
+        'RE-E3: post-after-cancel never escrows onto a dead id — '
+        'generated ids stay off the release/payout tombstones', () async {
       final db = AppDatabase();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 0.0);
       await cs.ready;
-      cs.awardVerificationCredits(
-          action: 'seed', targetId: 't', amount: 100.0);
+      cs.awardVerificationCredits(action: 'seed', targetId: 't', amount: 100.0);
       final svc = MoltbookService(creditService: cs, db: db);
       await svc.setKeyPair(await _newKey());
 
       final ids = <String>{};
       for (var i = 0; i < 12; i++) {
         final posted = await svc.postPreservationBounty(
-            cid: 'bafk_cyc_$i', title: 't', offeredCredits: 5.0,
-            force: true);
+            cid: 'bafk_cyc_$i', title: 't', offeredCredits: 5.0, force: true);
         expect(ids.add(posted.id), isTrue,
             reason: 'every generated id must be unique');
         expect(cs.isEscrowReleased(posted.id), isFalse,
@@ -982,7 +985,8 @@ void main() {
       expect(cs.balance, 40.0);
     });
 
-    test('RE-F: a correlated payout+tombstone write loss fails the '
+    test(
+        'RE-F: a correlated payout+tombstone write loss fails the '
         'claim CLOSED — nothing mints, the row releases, and the '
         'post-heal retry pays exactly once', () async {
       final db = _CorrelatedWriteLossDb();
@@ -1007,8 +1011,7 @@ void main() {
       db.armed = false;
       expect(cs1.balance, 100.0);
       expect(await db.isBountyClaimed(bounty.id), isFalse);
-      expect(
-          await db.hasCreditTransaction('tx_escrow_release_${bounty.id}'),
+      expect(await db.hasCreditTransaction('tx_escrow_release_${bounty.id}'),
           isFalse);
 
       // Healed store: the retry pays exactly once and the dedup sets
@@ -1021,7 +1024,8 @@ void main() {
       expect(cs1.balance, 125.0);
     });
 
-    test('RE-F2: a wedged payout write whose tombstone ALSO fails '
+    test(
+        'RE-F2: a wedged payout write whose tombstone ALSO fails '
         'stays pending — the next claim entry flushes the tombstone '
         'and the id stays dead', () async {
       final db = _HangPayoutDropReleaseDb();
@@ -1044,8 +1048,7 @@ void main() {
       // the id must stay pending for the next flush.
       expect(await svc1.claimBounty(bounty.id), isTrue);
       expect(await db.isBountyClaimed(bounty.id), isTrue);
-      expect(
-          await db.hasCreditTransaction('tx_escrow_release_${bounty.id}'),
+      expect(await db.hasCreditTransaction('tx_escrow_release_${bounty.id}'),
           isFalse,
           reason: 'the tombstone write died — it must stay pending, '
               'not silently re-open the double-pay');
@@ -1061,15 +1064,15 @@ void main() {
       svc2.ingestBountyAnnouncement(bounty,
           escrowAttestation: await _attestBounty(attestor, bounty));
       expect(await svc2.claimBounty(bounty.id), isFalse);
-      expect(
-          await db.hasCreditTransaction('tx_escrow_release_${bounty.id}'),
+      expect(await db.hasCreditTransaction('tx_escrow_release_${bounty.id}'),
           isTrue,
           reason: 'the pending tombstone must land on the next claim');
       expect(cs2.balance, 100.0,
           reason: 'no payout may ever mint for this escrow');
     });
 
-    test('RE-G: the stale-row healer deletes by OBSERVED claimedAt — '
+    test(
+        'RE-G: the stale-row healer deletes by OBSERVED claimedAt — '
         'a racing claim re-winning the CAS in the gap keeps its fresh '
         'durable row', () async {
       final db = _FirstCondDeleteGateDb();
@@ -1113,10 +1116,10 @@ void main() {
               'not tear down a fresh claim row');
     });
 
-    test('RE-Gb: a lying/corrupted age READ cannot authorize deleting a '
+    test(
+        'RE-Gb: a lying/corrupted age READ cannot authorize deleting a '
         'live row — the conditional delete matches only the stored '
-        'claimedAt, so the claim fails closed and the row stands',
-        () async {
+        'claimedAt, so the claim fails closed and the row stands', () async {
       final db = _StaleAgeDb();
       addTearDown(db.close);
       final cs = CreditService(db: db, initialBalance: 100.0);
@@ -1142,22 +1145,42 @@ void main() {
       expect(cs.balance, 100.0);
     });
 
-    test('RE-H: bidi controls, invisible operators, tag/shorthand '
+    test(
+        'RE-H: bidi controls, invisible operators, tag/shorthand '
         'characters, fillers and lone surrogates are rejected', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
       final badIds = [
-        'a\u2028b', 'a\u2029b', 'a\u0085b',
-        'a\u2060b', 'a\u2061b', 'a\u2064b',
-        'a\u202Ab', 'a\u202Eb',
-        'a\u2066b', 'a\u2069b',
-        'a\u061Cb', 'a\u180Eb', 'a\u00ADb', 'a\u034Fb',
-        'a\u115Fb', 'a\u1160b', 'a\u3164b', 'a\uFFA0b',
-        'a\uFFF0b', 'a\uFFF8b',
-        'a\u{1BCA0}b', 'a\u{1BCA3}b',
-        'a\u{E0000}b', 'a\u{E0001}b', 'a\u{E0FFF}b',
-        'a\uD800b', 'a\uDFFFb',
-        '\u2060', '\u202E', '\u{E0001}',
+        'a\u2028b',
+        'a\u2029b',
+        'a\u0085b',
+        'a\u2060b',
+        'a\u2061b',
+        'a\u2064b',
+        'a\u202Ab',
+        'a\u202Eb',
+        'a\u2066b',
+        'a\u2069b',
+        'a\u061Cb',
+        'a\u180Eb',
+        'a\u00ADb',
+        'a\u034Fb',
+        'a\u115Fb',
+        'a\u1160b',
+        'a\u3164b',
+        'a\uFFA0b',
+        'a\uFFF0b',
+        'a\uFFF8b',
+        'a\u{1BCA0}b',
+        'a\u{1BCA3}b',
+        'a\u{E0000}b',
+        'a\u{E0001}b',
+        'a\u{E0FFF}b',
+        'a\uD800b',
+        'a\uDFFFb',
+        '\u2060',
+        '\u202E',
+        '\u{E0001}',
       ];
       for (var i = 0; i < badIds.length; i++) {
         svc.ingestBountyAnnouncement(
@@ -1169,19 +1192,24 @@ void main() {
       }
       // Previously-covered classes stay rejected.
       for (final stillBad in [
-        'a b', 'a\tb', 'a\u00A0b', 'a\u200Bb', 'a\uFEFFb',
-        'a\u009Bb', 'a\u007Fb', ' lead', 'trail ',
+        'a b',
+        'a\tb',
+        'a\u00A0b',
+        'a\u200Bb',
+        'a\uFEFFb',
+        'a\u009Bb',
+        'a\u007Fb',
+        ' lead',
+        'trail ',
       ]) {
         svc.ingestBountyAnnouncement(
             _foreignBounty(id: stillBad, cid: 'bafk_hc'));
-        expect(stored.contains(stillBad), isFalse,
-            reason: 'id "$stillBad"');
+        expect(stored.contains(stillBad), isFalse, reason: 'id "$stillBad"');
       }
       // Legit ids unaffected.
       svc.ingestBountyAnnouncement(
           _foreignBounty(id: 'bounty_legit', cid: 'bafk_hl'));
-      expect(
-          svc.activeBounties.any((b) => b.id == 'bounty_legit'), isTrue);
+      expect(svc.activeBounties.any((b) => b.id == 'bounty_legit'), isTrue);
     });
   });
 }
@@ -1296,8 +1324,7 @@ class _PayoutWriteHangsDb extends AppDatabase {
   }
 
   @override
-  Future<bool> insertCreditTransactionIfAbsent(
-      Map<String, dynamic> data) {
+  Future<bool> insertCreditTransactionIfAbsent(Map<String, dynamic> data) {
     final id = data['id'] as String?;
     if (id != null && id.startsWith('tx_bounty_payout_')) {
       return Completer<bool>().future; // never completes
@@ -1315,8 +1342,7 @@ class _HangPayoutDropReleaseDb extends AppDatabase {
   bool armed = true;
 
   @override
-  Future<bool> insertCreditTransactionIfAbsent(
-      Map<String, dynamic> data) {
+  Future<bool> insertCreditTransactionIfAbsent(Map<String, dynamic> data) {
     final id = data['id'] as String?;
     if (id != null && id.startsWith('tx_bounty_payout_')) {
       return Completer<bool>().future; // never completes

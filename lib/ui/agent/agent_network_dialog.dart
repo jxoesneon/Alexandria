@@ -655,8 +655,7 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
               if (matchedBounty != null)
                 TextButton(
                   onPressed: matchedBounty.funded
-                      ? () =>
-                          _claimBounty(context, service, matchedBounty)
+                      ? () => _claimBounty(context, service, matchedBounty)
                       : null,
                   child: Text(
                     matchedBounty.funded ? 'Claim Bounty' : 'Unfunded',

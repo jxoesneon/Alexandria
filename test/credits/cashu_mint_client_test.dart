@@ -24,7 +24,8 @@ void main() {
       });
 
       final client = CashuMintClient(client: mockClient);
-      final keysets = await client.fetchActiveKeysetIds('https://mint.minibits.cash/Bitcoin');
+      final keysets = await client
+          .fetchActiveKeysetIds('https://mint.minibits.cash/Bitcoin');
 
       expect(keysets.length, 2);
       expect(keysets.first, '009a1f293252f331');
@@ -71,7 +72,8 @@ void main() {
           return http.Response(
             jsonEncode({
               'paid': true,
-              'payment_preimage': '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+              'payment_preimage':
+                  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
             }),
             200,
           );

@@ -77,7 +77,8 @@ void main() {
 
     test('TLS deobfuscate throws on invalid header', () {
       service.setProfile(ObfuscationProfile.tlsCamouflage);
-      final bad = Uint8List.fromList([0x16, 0x03, 0x03, 0x00, 0x05, 1, 2, 3, 4, 5]);
+      final bad =
+          Uint8List.fromList([0x16, 0x03, 0x03, 0x00, 0x05, 1, 2, 3, 4, 5]);
       expect(() => service.deobfuscate(bad), throwsFormatException);
     });
 

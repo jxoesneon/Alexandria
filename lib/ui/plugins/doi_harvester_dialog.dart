@@ -59,7 +59,8 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
     if (_detectedDois.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter at least one valid DOI or text containing DOIs.'),
+          content: Text(
+              'Please enter at least one valid DOI or text containing DOIs.'),
           backgroundColor: AppTheme.dangerColor,
         ),
       );
@@ -68,7 +69,8 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
 
     setState(() {
       _isProcessing = true;
-      _statusMessage = 'Resolving and harvesting ${_detectedDois.length} scientific work(s)...';
+      _statusMessage =
+          'Resolving and harvesting ${_detectedDois.length} scientific work(s)...';
       _harvestedResults = [];
     });
 
@@ -172,7 +174,8 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppTheme.secondaryColor),
+                    icon:
+                        const Icon(Icons.close, color: AppTheme.secondaryColor),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -203,7 +206,8 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
                         TextButton.icon(
                           onPressed: _loadSampleDoi,
                           icon: const Icon(Icons.auto_awesome, size: 14),
-                          label: const Text('Sample DOIs', style: TextStyle(fontSize: 12)),
+                          label: const Text('Sample DOIs',
+                              style: TextStyle(fontSize: 12)),
                           style: TextButton.styleFrom(
                             foregroundColor: AppTheme.primaryAccent,
                             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -228,11 +232,13 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
                         fillColor: AppTheme.canvasColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          borderSide: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.1)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: AppTheme.primaryAccent),
+                          borderSide:
+                              const BorderSide(color: AppTheme.primaryAccent),
                         ),
                       ),
                     ),
@@ -241,12 +247,14 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
                     // Detected DOIs Pill
                     if (_detectedDois.isNotEmpty)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryAccent.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: AppTheme.primaryAccent.withValues(alpha: 0.3),
+                            color:
+                                AppTheme.primaryAccent.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
@@ -274,11 +282,13 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
                         contentPadding: EdgeInsets.zero,
                         title: const Text(
                           'Download Open-Access PDF',
-                          style: TextStyle(fontSize: 13, color: AppTheme.textColor),
+                          style: TextStyle(
+                              fontSize: 13, color: AppTheme.textColor),
                         ),
                         subtitle: const Text(
                           'Fetches original PDF if open-access; falls back to archival markdown dossier if paywalled',
-                          style: TextStyle(fontSize: 11, color: AppTheme.secondaryColor),
+                          style: TextStyle(
+                              fontSize: 11, color: AppTheme.secondaryColor),
                         ),
                         value: _downloadPdf,
                         onChanged: (val) => setState(() => _downloadPdf = val),
@@ -293,8 +303,8 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
                           children: [
                             const CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(AppTheme.primaryAccent),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppTheme.primaryAccent),
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -321,7 +331,8 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      ..._harvestedResults.map((item) => _buildResultCard(item)),
+                      ..._harvestedResults
+                          .map((item) => _buildResultCard(item)),
                     ],
                   ],
                 ),
@@ -336,13 +347,16 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: _isProcessing ? null : () => Navigator.of(context).pop(),
+                    onPressed: _isProcessing
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('Close'),
                   ),
                   const SizedBox(width: 12),
                   FilledButton.icon(
                     onPressed: _isProcessing ? null : _harvest,
-                    icon: const Icon(Icons.download_for_offline_outlined, size: 18),
+                    icon: const Icon(Icons.download_for_offline_outlined,
+                        size: 18),
                     label: Text(_detectedDois.length > 1
                         ? 'Harvest ${_detectedDois.length} Works'
                         : 'Harvest & Ingest'),
@@ -374,7 +388,9 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
         color: AppTheme.canvasColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: success ? AppTheme.honorColor.withValues(alpha: 0.4) : Colors.red.withValues(alpha: 0.4),
+          color: success
+              ? AppTheme.honorColor.withValues(alpha: 0.4)
+              : Colors.red.withValues(alpha: 0.4),
         ),
       ),
       child: Row(
@@ -406,27 +422,31 @@ class _DoiHarvesterDialogState extends ConsumerState<DoiHarvesterDialog> {
                   const SizedBox(height: 2),
                   Text(
                     author,
-                    style: const TextStyle(color: AppTheme.secondaryColor, fontSize: 11),
+                    style: const TextStyle(
+                        color: AppTheme.secondaryColor, fontSize: 11),
                   ),
                 ],
                 const SizedBox(height: 4),
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.white10,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         format.toUpperCase(),
-                        style: const TextStyle(color: Colors.white70, fontSize: 10),
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 10),
                       ),
                     ),
                     const SizedBox(width: 6),
                     if (capturedPdf)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: AppTheme.honorColor.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),

@@ -2185,9 +2185,8 @@ class MnemonicService {
 
     final checksumBitCount = entropy.length * 8 ~/ 32; // CS = ENT/32
     final hash = sha256.convert(entropy);
-    final hashBits = hash.bytes
-        .map((b) => b.toRadixString(2).padLeft(8, '0'))
-        .join();
+    final hashBits =
+        hash.bytes.map((b) => b.toRadixString(2).padLeft(8, '0')).join();
 
     final bits = StringBuffer();
     for (final byte in entropy) {
@@ -2209,17 +2208,15 @@ class MnemonicService {
   Uint8List _wordsToEntropy(List<String> words) {
     final bits = StringBuffer();
     for (final word in words) {
-      bits.write(_bip39Index[word.toLowerCase()]!
-          .toRadixString(2)
-          .padLeft(11, '0'));
+      bits.write(
+          _bip39Index[word.toLowerCase()]!.toRadixString(2).padLeft(11, '0'));
     }
     final bitString = bits.toString();
     final entropyBitCount = bitString.length * 32 ~/ 33;
 
     final entropy = Uint8List(entropyBitCount ~/ 8);
     for (var i = 0; i < entropyBitCount; i += 8) {
-      entropy[i ~/ 8] =
-          int.parse(bitString.substring(i, i + 8), radix: 2);
+      entropy[i ~/ 8] = int.parse(bitString.substring(i, i + 8), radix: 2);
     }
     return entropy;
   }
@@ -2410,8 +2407,7 @@ class MnemonicService {
             : Uint8List.fromList(sha256.convert(entropy).bytes);
         final keyPair = await Ed25519().newKeyPairFromSeed(seed);
         final publicKey = await keyPair.extractPublicKey();
-        expectedPublicKeyHex =
-            _hexEncode(Uint8List.fromList(publicKey.bytes));
+        expectedPublicKeyHex = _hexEncode(Uint8List.fromList(publicKey.bytes));
       } catch (_) {
         expectedPublicKeyHex = null;
       }

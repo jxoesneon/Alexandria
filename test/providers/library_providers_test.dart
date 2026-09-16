@@ -379,8 +379,7 @@ void main() {
   });
 
   group('readingProgressProvider hardening', () {
-    test('a valid-JSON non-map payload degrades to empty progress',
-        () async {
+    test('a valid-JSON non-map payload degrades to empty progress', () async {
       // Previously `jsonDecode(raw) as Map` let a stored JSON *list*
       // escape the FormatException catch as a CastError.
       final c = ProviderContainer(overrides: [
@@ -400,7 +399,8 @@ void main() {
       expect(await c.read(readingProgressProvider.future), isEmpty);
     });
 
-    test('non-numeric values are dropped, not a CastError '
+    test(
+        'non-numeric values are dropped, not a CastError '
         '(campaign-2)', () async {
       // A stored map with a string value escaped the FormatException
       // catch as a CastError via `(value as num).toDouble()`.
@@ -409,8 +409,7 @@ void main() {
             {'reading_progress': '{"bad": "oops", "cid-1": 0.5}'})),
       ]);
       addTearDown(c.dispose);
-      expect(await c.read(readingProgressProvider.future),
-          {'cid-1': 0.5});
+      expect(await c.read(readingProgressProvider.future), {'cid-1': 0.5});
     });
 
     test('a well-formed map still reads', () async {
@@ -419,8 +418,7 @@ void main() {
             _FakeStorage({'reading_progress': '{"cid-1": 0.5}'})),
       ]);
       addTearDown(c.dispose);
-      expect(
-          await c.read(readingProgressProvider.future), {'cid-1': 0.5});
+      expect(await c.read(readingProgressProvider.future), {'cid-1': 0.5});
     });
   });
 }

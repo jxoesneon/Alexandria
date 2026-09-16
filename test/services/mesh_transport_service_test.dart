@@ -35,8 +35,8 @@ void main() {
       // isReachable is never trusted), so match on peerId + state.
       final discovered = expectLater(
           mesh.onPeerDiscovered,
-          emits(predicate<MeshPeer>((p) =>
-              p.peerId == 'p1' && !p.isReachable && p.isPending)));
+          emits(predicate<MeshPeer>(
+              (p) => p.peerId == 'p1' && !p.isReachable && p.isPending)));
       final listed = expectLater(mesh.peerListStream, emits(hasLength(1)));
 
       mesh.registerPeer(peer);
@@ -169,8 +169,7 @@ void main() {
       final ok = await probedMesh.connectToPeer(multiaddr);
       expect(ok, isTrue);
 
-      final peer =
-          probedMesh.peers.firstWhere((p) => p.peerId == 'existing');
+      final peer = probedMesh.peers.firstWhere((p) => p.peerId == 'existing');
       expect(peer.isReachable, isTrue);
       expect(peer.isPending, isFalse);
     });
@@ -206,7 +205,8 @@ void main() {
         Uint8List.fromList([1, 2, 3]),
       );
       expect(refused, isFalse);
-      expect(bootstrapped.selectBestTransport('QmBootstrapNode1AlexandriaAlpha'),
+      expect(
+          bootstrapped.selectBestTransport('QmBootstrapNode1AlexandriaAlpha'),
           isNull);
 
       // A real handshake proves the peer
@@ -215,8 +215,8 @@ void main() {
       final connected = await bootstrapped.connectToPeer(addr);
       expect(connected, isTrue);
 
-      final peer = bootstrapped.peers.firstWhere(
-          (p) => p.peerId == 'QmBootstrapNode1AlexandriaAlpha');
+      final peer = bootstrapped.peers
+          .firstWhere((p) => p.peerId == 'QmBootstrapNode1AlexandriaAlpha');
       expect(peer.isReachable, isTrue);
       expect(peer.isPending, isFalse);
       expect(bootstrapped.activePeers.length, equals(1));

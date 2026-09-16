@@ -3,7 +3,9 @@ import 'package:alexandria/services/credits/credit_service.dart';
 import 'package:alexandria/services/credits/sponsorship_service.dart';
 
 void main() {
-  group('SponsorshipService Privacy & Attention Verification Tests (ALX-005 §5)', () {
+  group(
+      'SponsorshipService Privacy & Attention Verification Tests (ALX-005 §5)',
+      () {
     late CreditService creditService;
     late SponsorshipService sponsorshipService;
 
@@ -52,7 +54,9 @@ void main() {
       expect(creditService.balance, 50.0); // No kickback awarded
     });
 
-    test('verifies impressions with dwell time >= 5.0s and credits 85% kickback', () {
+    test(
+        'verifies impressions with dwell time >= 5.0s and credits 85% kickback',
+        () {
       sponsorshipService.toggleOptIn(true);
       final slot = sponsorshipService.catalog.first;
       final expectedKickback = slot.rewardCredits * 0.85;

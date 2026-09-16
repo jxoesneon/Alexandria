@@ -26,8 +26,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/logic/honor_system.dart';
 
 void main() {
-  test('a negative attested reputation must not crash the tally',
-      () async {
+  test('a negative attested reputation must not crash the tally', () async {
     final hs = HonorSystem(reputationResolver: (_) => -100);
     hs.recordVote(validatorId: 'v1', targetCid: 'cidA', score: 1);
 
@@ -39,8 +38,7 @@ void main() {
       threw = e;
     }
     expect(threw, isNull,
-        reason:
-            'computeTrustScore threw $threw — resolver returned -100, '
+        reason: 'computeTrustScore threw $threw — resolver returned -100, '
             'log(-90) is NaN, and NaN.round() throws. The attested value '
             'is used unclamped; a buggy resolver poisons every tally.');
     expect(score, isNotNull);
@@ -48,16 +46,15 @@ void main() {
 
   test('an unbounded attested reputation must not dominate the tally',
       () async {
-    final hs = HonorSystem(
-        reputationResolver: (_) => 1 << 60); // compromised resolver
+    final hs =
+        HonorSystem(reputationResolver: (_) => 1 << 60); // compromised resolver
     hs.recordVote(validatorId: 'sybil', targetCid: 'cidB', score: 1);
     final score = hs.computeTrustScore('cidB');
 
     // With a sane bound the weight of one vote is at most ~log10 of the
     // cap; maxClaimedReputation=10000 → weight ≤ ~4.0 per vote.
     expect(score.abs(), lessThanOrEqualTo(5),
-        reason:
-            'a single vote carried weight ~log10(2^60)≈18 — the attested '
+        reason: 'a single vote carried weight ~log10(2^60)≈18 — the attested '
             'reputation path has no bound (HonorBandwidthService clamps '
             'attested values at maxAttestedHonor; HonorSystem does not), '
             'so a compromised/buggy attestation source mints unlimited '

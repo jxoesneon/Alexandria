@@ -115,8 +115,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 48),

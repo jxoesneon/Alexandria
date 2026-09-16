@@ -374,7 +374,8 @@ class _PluginCard extends ConsumerWidget {
                       ...plugin.manifest.permissions
                           .take(2)
                           .map((p) => _PermissionChip(label: p.name)),
-                      if (plugin.id == 'org.alexandria.plugin.doi-harvester' && plugin.enabled)
+                      if (plugin.id == 'org.alexandria.plugin.doi-harvester' &&
+                          plugin.enabled)
                         TextButton.icon(
                           onPressed: () {
                             showDialog(
@@ -382,11 +383,14 @@ class _PluginCard extends ConsumerWidget {
                               builder: (context) => const DoiHarvesterDialog(),
                             );
                           },
-                          icon: const Icon(Icons.download_for_offline, size: 14),
-                          label: const Text('Launch Harvester', style: TextStyle(fontSize: 11)),
+                          icon:
+                              const Icon(Icons.download_for_offline, size: 14),
+                          label: const Text('Launch Harvester',
+                              style: TextStyle(fontSize: 11)),
                           style: TextButton.styleFrom(
                             foregroundColor: AppTheme.primaryAccent,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
                             visualDensity: VisualDensity.compact,
                           ),
                         ),

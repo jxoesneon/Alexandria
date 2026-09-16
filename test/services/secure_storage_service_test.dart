@@ -5,7 +5,8 @@ import 'package:alexandria/services/secure_storage_service.dart';
 
 void main() {
   group('SecureStorageService', () {
-    const channel = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+    const channel =
+        MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
     late ProviderContainer container;
     final store = <String, String>{};
 

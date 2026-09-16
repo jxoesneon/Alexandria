@@ -32,7 +32,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('HomeScreen Tests', () {
-    testWidgets('renders Alexandria header, health status, and action buttons', (tester) async {
+    testWidgets('renders Alexandria header, health status, and action buttons',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -42,7 +43,8 @@ void main() {
         ProviderScope(
           overrides: [
             ipfsServiceProvider.overrideWithValue(_FakeIpfsService()),
-            preservationServiceProvider.overrideWithValue(_FakePreservationService()),
+            preservationServiceProvider
+                .overrideWithValue(_FakePreservationService()),
           ],
           child: const MaterialApp(
             home: HomeScreen(),
@@ -72,8 +74,10 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            ipfsServiceProvider.overrideWithValue(_FakeIpfsService({'bafy_lost'})),
-            preservationServiceProvider.overrideWithValue(_FakePreservationService(HealthStatus.lost)),
+            ipfsServiceProvider
+                .overrideWithValue(_FakeIpfsService({'bafy_lost'})),
+            preservationServiceProvider
+                .overrideWithValue(_FakePreservationService(HealthStatus.lost)),
           ],
           child: const MaterialApp(
             home: HomeScreen(),
@@ -97,7 +101,8 @@ void main() {
         ProviderScope(
           overrides: [
             ipfsServiceProvider.overrideWithValue(_FakeIpfsService()),
-            preservationServiceProvider.overrideWithValue(_FakePreservationService()),
+            preservationServiceProvider
+                .overrideWithValue(_FakePreservationService()),
           ],
           child: const MaterialApp(
             home: HomeScreen(),

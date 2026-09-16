@@ -92,9 +92,8 @@ void main() {
     final col = await svc.createCollection(name: 'Original');
 
     // Attacker pins the name register at wall-clock +10 years.
-    final farFuture = DateTime.now()
-        .add(const Duration(days: 3650))
-        .millisecondsSinceEpoch;
+    final farFuture =
+        DateTime.now().add(const Duration(days: 3650)).millisecondsSinceEpoch;
     await svc.mergeRemoteState(col.id, {
       'name': _forgedRegister('ATTACKER LOCKOUT', farFuture, attackerKey),
     });
@@ -110,14 +109,12 @@ void main() {
       'name': _forgedRegister('Recovered Title', nowWall, ownerId.publicKey),
     });
     expect(col.name.value, 'Recovered Title',
-        reason:
-            'the forged far-future timestamp permanently wins the LWW '
+        reason: 'the forged far-future timestamp permanently wins the LWW '
             'comparison — every real edit until that wall time is '
             'silently discarded');
   });
 
-  test('malformed remote state must fail safe, not crash the merge',
-      () async {
+  test('malformed remote state must fail safe, not crash the merge', () async {
     final ownerId = _identity(0x33);
     final svc = CollectionService(_FakeIdentityService(ownerId));
     final col = await svc.createCollection(name: 'Stable');

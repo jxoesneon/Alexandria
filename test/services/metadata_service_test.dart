@@ -45,8 +45,11 @@ void main() {
       expect(metadata['format'], 'jpg');
     });
 
-    test('extracts full EXIF metadata from image bytes (Image dimensions, model, datetime, specs, GPS)', () async {
-      final jpegBytes = buildSampleExifJpeg(useExifResolution: false, useExifDateTime: false);
+    test(
+        'extracts full EXIF metadata from image bytes (Image dimensions, model, datetime, specs, GPS)',
+        () async {
+      final jpegBytes =
+          buildSampleExifJpeg(useExifResolution: false, useExifDateTime: false);
       final file = PlatformFile(
         name: 'photo.jpg',
         size: jpegBytes.length,
@@ -66,9 +69,13 @@ void main() {
       expect(metadata['location'], 'GPS Data Present');
     });
 
-    test('extracts EXIF metadata from file on disk and tests EXIF sub-tags fallback (DateTimeOriginal, Exif dimensions)', () async {
-      final jpegBytes = buildSampleExifJpeg(useExifResolution: true, useExifDateTime: true);
-      final tempDir = await Directory.systemTemp.createTemp('metadata_exif_test');
+    test(
+        'extracts EXIF metadata from file on disk and tests EXIF sub-tags fallback (DateTimeOriginal, Exif dimensions)',
+        () async {
+      final jpegBytes =
+          buildSampleExifJpeg(useExifResolution: true, useExifDateTime: true);
+      final tempDir =
+          await Directory.systemTemp.createTemp('metadata_exif_test');
       final diskFile = File('${tempDir.path}/photo.jpg');
       await diskFile.writeAsBytes(jpegBytes);
 
@@ -91,7 +98,8 @@ void main() {
       final file = PlatformFile(
         name: 'corrupt.jpg',
         size: 10,
-        bytes: Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x06, 0x45, 0x78, 0x69, 0x66]),
+        bytes: Uint8List.fromList(
+            [0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x06, 0x45, 0x78, 0x69, 0x66]),
       );
       final metadata = await service.extractMetadata(file);
       expect(metadata['format'], 'jpg');

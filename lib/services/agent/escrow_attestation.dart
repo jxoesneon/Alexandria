@@ -98,11 +98,11 @@ class EscrowAttestation {
       Uint8List.fromList(
         utf8.encode(
           'alexandria:escrow:v2:${toCanonicalJson(<String, dynamic>{
-            'amountMilli': amountMilli,
-            'bountyId': bountyId,
-            'cid': cid,
-            'expiresAt': expiresAt,
-          })}',
+                'amountMilli': amountMilli,
+                'bountyId': bountyId,
+                'cid': cid,
+                'expiresAt': expiresAt,
+              })}',
         ),
       );
 
@@ -180,8 +180,7 @@ class EscrowAttestation {
     try {
       final pkBytes = hexToBytes(publicKeyHex);
       if (pkBytes.length != 32) return false;
-      final publicKey =
-          SimplePublicKey(pkBytes, type: KeyPairType.ed25519);
+      final publicKey = SimplePublicKey(pkBytes, type: KeyPairType.ed25519);
       return await Ed25519().verify(
         message,
         signature: Signature(signature, publicKey: publicKey),

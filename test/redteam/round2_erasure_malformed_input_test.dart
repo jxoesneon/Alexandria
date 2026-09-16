@@ -38,8 +38,7 @@ ErasureShard _shard(int index, List<int> data, {bool parity = false}) =>
 void main() {
   final svc = ErasureCodingService();
 
-  test('shard index outside the generator matrix must fail controlled',
-      () {
+  test('shard index outside the generator matrix must fail controlled', () {
     // k=2,m=1 → generator matrix has 3 rows. Attacker supplies a shard
     // at index 9 with a perfectly valid checksum — checksum proves
     // only self-consistency, never provenance.
@@ -59,15 +58,13 @@ void main() {
     expect(
       () => svc.decode(block: block, availableShards: forged),
       throwsA(isA<StateError>()),
-      reason:
-          'index 9 indexed fullGenMatrix[9] on a 3-row matrix → '
+      reason: 'index 9 indexed fullGenMatrix[9] on a 3-row matrix → '
           'uncaught RangeError; forged shard indices must be rejected '
           'before matrix selection',
     );
   });
 
-  test('short shard data must fail controlled, not RangeError mid-loop',
-      () {
+  test('short shard data must fail controlled, not RangeError mid-loop', () {
     final block = ErasureBlock(
       blockId: 'b2',
       originalSize: 6,
@@ -85,8 +82,7 @@ void main() {
     expect(
       () => svc.decode(block: block, availableShards: forged),
       throwsA(isA<StateError>()),
-      reason:
-          'a 1-byte shard reaches data[byteIdx] with byteIdx up to '
+      reason: 'a 1-byte shard reaches data[byteIdx] with byteIdx up to '
           'shardSize-1 → RangeError inside the reconstruction loop; '
           'shard length must be validated against block.shardSize',
     );
@@ -108,8 +104,7 @@ void main() {
     expect(
       () => svc.decode(block: block, availableShards: shards),
       throwsA(isA<StateError>()),
-      reason:
-          'raw.sublist(0, 1<<30) on a 4-byte buffer → RangeError; '
+      reason: 'raw.sublist(0, 1<<30) on a 4-byte buffer → RangeError; '
           'originalSize must be bounded by k*shardSize before slicing',
     );
   });
@@ -130,8 +125,7 @@ void main() {
     expect(thrown, isA<ArgumentError>(),
         reason: 'parameter rejection should be an ArgumentError');
     expect(thrown, isNot(isA<RangeError>()),
-        reason:
-            'k+m=260 reached GF256.log[x^y] with x^y ≥ 256 → uncaught '
+        reason: 'k+m=260 reached GF256.log[x^y] with x^y ≥ 256 → uncaught '
             'RangeError from the field tables; encode must bound-check '
             'k+m ≤ 255 BEFORE touching the matrix');
   });

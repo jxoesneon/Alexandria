@@ -7,8 +7,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('MoltbookService simple accessors', () {
-    test('baseUrl/apiKey/agentId/pubkeyHex/lastPostTime/setApiKey',
-        () async {
+    test('baseUrl/apiKey/agentId/pubkeyHex/lastPostTime/setApiKey', () async {
       final creditService =
           CreditService(pochService: PoCHService(), initialBalance: 5.0);
       final service = MoltbookService(

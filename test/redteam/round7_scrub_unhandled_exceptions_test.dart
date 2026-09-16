@@ -37,7 +37,10 @@ List<int> _chunk(String type, List<int> data) => [
       data.length & 0xFF,
       ...type.codeUnits,
       ...data,
-      0, 0, 0, 0,
+      0,
+      0,
+      0,
+      0,
     ];
 
 void main() {
@@ -50,8 +53,7 @@ void main() {
       0x00, 0x00, 0x00, 0x04, 0x74, 0x45, 0x58, // truncated 'tEX…' header
     ]);
     expect(() => svc.scrubMetadata(png), returnsNormally,
-        reason:
-            'readExifFromBytes throws RangeError on a partial PNG chunk '
+        reason: 'readExifFromBytes throws RangeError on a partial PNG chunk '
             'header — the call at :229 is unguarded.');
   });
 
@@ -59,16 +61,22 @@ void main() {
     final png = Uint8List.fromList([
       ..._pngSig,
       ..._chunk('IHDR', List.filled(13, 1)),
-      0x7F, 0xFF, 0xFF, 0xFF, ...'IDAT'.codeUnits, 0x11, 0x22,
+      0x7F,
+      0xFF,
+      0xFF,
+      0xFF,
+      ...'IDAT'.codeUnits,
+      0x11,
+      0x22,
       ..._chunk('IEND', const []),
     ]);
     expect(() => svc.scrubMetadata(png), returnsNormally,
-        reason:
-            'the reader seeks chunkSize+4 past EOF and its next 8-byte '
+        reason: 'the reader seeks chunkSize+4 past EOF and its next 8-byte '
             'header read throws — unguarded at :229.');
   });
 
-  test('degenerate JPEG produced by the scrubber itself must not crash '
+  test(
+      'degenerate JPEG produced by the scrubber itself must not crash '
       'the verification pass', () async {
     // A stream that scrubs down to SOI + APP0 + EOI (everything else
     // malformed): the round-6 walker emits exactly that — then the
@@ -83,8 +91,7 @@ void main() {
       0xFF, 0xE1, 0x00, 0x10, ...'Exif\x00\x00'.codeUnits, // post-EOI
     ]);
     expect(() => svc.scrubMetadata(jpeg), returnsNormally,
-        reason:
-            'the scrubbed SOI+APP0+EOI output crashes readExifFromBytes '
+        reason: 'the scrubbed SOI+APP0+EOI output crashes readExifFromBytes '
             'at :252 — the scrubber\'s own output is unhandled input.');
   });
 }

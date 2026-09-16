@@ -231,7 +231,8 @@ void main() {
       expect(current.publicKey, equals(Uint8List.fromList(publicKey.bytes)));
     });
 
-    test('concurrent importIdentity + getIdentity never observe a '
+    test(
+        'concurrent importIdentity + getIdentity never observe a '
         'mixed keypair', () async {
       final identityA = await service.generateIdentity();
       expect(
@@ -242,8 +243,7 @@ void main() {
       final keyPairB = await Ed25519().newKeyPair();
       final publicKeyB =
           Uint8List.fromList((await keyPairB.extractPublicKey()).bytes);
-      final seedB =
-          Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
+      final seedB = Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
 
       // Fire a cold-ish read in the middle of the import — every
       // result must be a coherent pair (A before, B after), never a
@@ -270,7 +270,8 @@ void main() {
       expect(current!.publicKey, equals(publicKeyB));
     });
 
-    test('a dropped key write is retried and never persists a mixed '
+    test(
+        'a dropped key write is retried and never persists a mixed '
         'pair', () async {
       final faulty = _DroppingSecureStorage();
       final svc = IdentityService(faulty);
@@ -279,8 +280,7 @@ void main() {
       final keyPairB = await Ed25519().newKeyPair();
       final publicKeyB =
           Uint8List.fromList((await keyPairB.extractPublicKey()).bytes);
-      final seedB =
-          Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
+      final seedB = Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
 
       // Drop the public-key write once: the first write lands
       // priv(B)+pub(A); post-write verification must catch it and the
@@ -299,8 +299,7 @@ void main() {
       expect(current.publicKey, isNot(equals(identityA.publicKey)));
     });
 
-    test('a throwing mid-sequence write is retried via verification',
-        () async {
+    test('a throwing mid-sequence write is retried via verification', () async {
       final faulty = _ThrowingSecureStorage();
       final svc = IdentityService(faulty);
       await svc.generateIdentity();
@@ -308,8 +307,7 @@ void main() {
       final keyPairB = await Ed25519().newKeyPair();
       final publicKeyB =
           Uint8List.fromList((await keyPairB.extractPublicKey()).bytes);
-      final seedB =
-          Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
+      final seedB = Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
 
       faulty.failNextWrites('alexandria_identity_private_key', 1);
       final imported = await svc.importIdentity(seedB);
@@ -317,15 +315,15 @@ void main() {
       await _expectCoherentStoredPair(faulty._data);
     });
 
-    test('persistent write failure restores the previous identity and '
+    test(
+        'persistent write failure restores the previous identity and '
         'throws', () async {
       final faulty = _DroppingSecureStorage();
       final svc = IdentityService(faulty);
       final identityA = await svc.generateIdentity();
 
       final keyPairB = await Ed25519().newKeyPair();
-      final seedB =
-          Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
+      final seedB = Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
 
       // Public-key writes can never land: both import attempts fail
       // verification, so the previous coherent pair must be restored.
@@ -342,7 +340,8 @@ void main() {
       expect(current.privateKey, equals(identityA.privateKey));
     });
 
-    test('persistent write failure with no prior identity leaves no '
+    test(
+        'persistent write failure with no prior identity leaves no '
         'partial keys', () async {
       final faulty = _DroppingSecureStorage();
       final svc = IdentityService(faulty);
@@ -365,7 +364,8 @@ void main() {
       );
     });
 
-    test('a throwing rollback write still drops the cache and bumps '
+    test(
+        'a throwing rollback write still drops the cache and bumps '
         'revision', () async {
       final faulty = _ThrowingSecureStorage();
       final svc = IdentityService(faulty);
@@ -375,8 +375,7 @@ void main() {
       final revisionBefore = svc.revision;
 
       final keyPairB = await Ed25519().newKeyPair();
-      final seedB =
-          Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
+      final seedB = Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
 
       // Every public-key write throws: both import attempts fail
       // verification AND the rollback restore writes throw too. The
@@ -403,11 +402,11 @@ void main() {
       await _expectCoherentStoredPair(faulty._data);
     });
 
-    test('a stored Franken pair is self-healed on read — the private '
+    test(
+        'a stored Franken pair is self-healed on read — the private '
         'key is authoritative', () async {
       final identityA = await service.generateIdentity();
-      final expectedPublicKey =
-          await _derivePublic(identityA.privateKey);
+      final expectedPublicKey = await _derivePublic(identityA.privateKey);
 
       // Simulate a legacy corrupt install: the stored public key does
       // NOT match what the stored private key derives (a pre-fix
@@ -473,7 +472,8 @@ void main() {
       expect(await service.getIdentity(), isNull);
     });
 
-    test('importIdentity preserves createdAt when re-importing the same '
+    test(
+        'importIdentity preserves createdAt when re-importing the same '
         'key', () async {
       final keyPair = await Ed25519().newKeyPair();
       final seed = Uint8List.fromList(await keyPair.extractPrivateKeyBytes());
@@ -484,8 +484,7 @@ void main() {
       // the stored creation time back, then re-import the same seed —
       // recovery must NOT reset it to now.
       final aged = DateTime(2024, 1, 1);
-      storage._data['alexandria_identity_created'] =
-          aged.toIso8601String();
+      storage._data['alexandria_identity_created'] = aged.toIso8601String();
       await service.reloadIdentity();
 
       final reimported = await service.importIdentity(seed);
@@ -501,18 +500,17 @@ void main() {
         () async {
       final old = DateTime(2020, 1, 1);
       await service.generateIdentity();
-      storage._data['alexandria_identity_created'] =
-          old.toIso8601String();
+      storage._data['alexandria_identity_created'] = old.toIso8601String();
       await service.reloadIdentity();
 
       final keyPairB = await Ed25519().newKeyPair();
-      final seedB =
-          Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
+      final seedB = Uint8List.fromList(await keyPairB.extractPrivateKeyBytes());
       final imported = await service.importIdentity(seedB);
       expect(imported.createdAt.isAfter(old), isTrue);
     });
 
-    test('identity replacement clears the mnemonic backup marker; '
+    test(
+        'identity replacement clears the mnemonic backup marker; '
         'same-key re-import keeps it', () async {
       const markerKey = SecureStorageKeys.mnemonicBackup;
       final identityA = await service.generateIdentity();

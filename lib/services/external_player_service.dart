@@ -92,8 +92,7 @@ class ExternalPlayerService {
   /// Throws [ArgumentError] when [target] fails [isSafeExternalTarget].
   static String _checkedTarget(String target) {
     if (!isSafeExternalTarget(target)) {
-      throw ArgumentError(
-          'Refusing unsafe external-player target: $target');
+      throw ArgumentError('Refusing unsafe external-player target: $target');
     }
     return target;
   }
@@ -169,12 +168,7 @@ class ExternalPlayerService {
 
       case SupportedApp.codeEditor:
         if (Platform.isMacOS) {
-          return [
-            'open',
-            '-a',
-            customPath ?? 'Visual Studio Code',
-            target
-          ];
+          return ['open', '-a', customPath ?? 'Visual Studio Code', target];
         }
         if (Platform.isWindows) {
           return [customPath ?? 'code.cmd', target];

@@ -22,7 +22,8 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 final selectedCollectionIdProvider = StateProvider<String?>((ref) => null);
 
 /// Reading progress persisted in secure storage as a JSON map keyed by CID.
-final readingProgressProvider = FutureProvider<Map<String, double>>((ref) async {
+final readingProgressProvider =
+    FutureProvider<Map<String, double>>((ref) async {
   final storage = ref.read(secureStorageServiceProvider);
   final raw = await storage.read('reading_progress');
   if (raw == null || raw.isEmpty) return const {};
@@ -70,7 +71,8 @@ final libraryDashboardProvider = FutureProvider<LibraryStats>((ref) async {
 /// Items the user has recently been reading (progress > 0), or featured additions.
 final recentItemsProvider = FutureProvider<List<LibraryItem>>((ref) async {
   final items = await _fetchLibraryItems(ref);
-  final withProgress = items.where((item) => item.progress > 0).take(10).toList();
+  final withProgress =
+      items.where((item) => item.progress > 0).take(10).toList();
   if (withProgress.isNotEmpty) {
     return withProgress;
   }
@@ -175,7 +177,8 @@ final availableTagsProvider = FutureProvider<List<String>>((ref) async {
 
 /// All content versions linked to a specific manifest or document CID
 final documentVersionsProvider =
-    FutureProvider.family<List<ContentVersion>, String>((ref, documentCidOrUuid) async {
+    FutureProvider.family<List<ContentVersion>, String>(
+        (ref, documentCidOrUuid) async {
   final db = ref.read(databaseProvider);
   int? manifestId;
 
@@ -263,7 +266,8 @@ final currentDocumentProvider =
 /// Re-hashes the stored payload against the CID digest and verifies the
 /// edition signature — reports only checks that actually ran.
 final contentIntegrityProvider =
-    FutureProvider.family<ContentIntegrityReport, String>((ref, documentCid) async {
+    FutureProvider.family<ContentIntegrityReport, String>(
+        (ref, documentCid) async {
   final repository = ref.read(contentRepositoryProvider);
   final doc = await ref.watch(currentDocumentProvider(documentCid).future);
   return repository.probeContentIntegrity(doc.cid!);
@@ -285,7 +289,8 @@ final annotationsProvider =
 });
 
 /// Hierarchical tree of collections.
-final collectionsTreeProvider = FutureProvider<List<CollectionNode>>((ref) async {
+final collectionsTreeProvider =
+    FutureProvider<List<CollectionNode>>((ref) async {
   final service = ref.read(collection_service.collectionServiceProvider);
   final collections = service.collections;
 
@@ -301,15 +306,13 @@ final collectionsTreeProvider = FutureProvider<List<CollectionNode>>((ref) async
     );
   }
 
-  return collections
-      .where((c) => c.parentId == null)
-      .map(buildNode)
-      .toList();
+  return collections.where((c) => c.parentId == null).map(buildNode).toList();
 });
 
 /// Items belonging to a selected collection.
 final collectionItemsProvider =
-    FutureProvider.family<List<CollectionItem>, String?>((ref, collectionId) async {
+    FutureProvider.family<List<CollectionItem>, String?>(
+        (ref, collectionId) async {
   if (collectionId == null) return const [];
 
   final service = ref.read(collection_service.collectionServiceProvider);

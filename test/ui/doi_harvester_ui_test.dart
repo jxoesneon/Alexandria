@@ -6,7 +6,8 @@ import 'package:alexandria/ui/plugins/doi_harvester_dialog.dart';
 import 'package:alexandria/ui/theme/app_theme.dart';
 
 void main() {
-  testWidgets('DoiHarvesterDialog renders and handles sample DOIs', (tester) async {
+  testWidgets('DoiHarvesterDialog renders and handles sample DOIs',
+      (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -19,7 +20,8 @@ void main() {
     );
 
     expect(find.text('DOI SCIENTIFIC HARVESTER'), findsOneWidget);
-    expect(find.text('Enter DOI(s) or Paste Bibliography / Markdown:'), findsOneWidget);
+    expect(find.text('Enter DOI(s) or Paste Bibliography / Markdown:'),
+        findsOneWidget);
     expect(find.text('Sample DOIs'), findsOneWidget);
     expect(find.text('Download Open-Access PDF'), findsOneWidget);
 
@@ -28,11 +30,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // Check that DOIs were detected and indicator displayed
-    expect(find.text('3 DOI(s) ready for safe-harbor preservation'), findsOneWidget);
+    expect(find.text('3 DOI(s) ready for safe-harbor preservation'),
+        findsOneWidget);
     expect(find.text('Harvest 3 Works'), findsOneWidget);
   });
 
-  testWidgets('PluginScreen displays DOI Harvester card and launches dialog', (tester) async {
+  testWidgets('PluginScreen displays DOI Harvester card and launches dialog',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 

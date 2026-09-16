@@ -37,7 +37,9 @@ void main() {
       );
     });
 
-    testWidgets('AppLocalizations.of returns instance within Localizations widget', (tester) async {
+    testWidgets(
+        'AppLocalizations.of returns instance within Localizations widget',
+        (tester) async {
       late AppLocalizations found;
       await tester.pumpWidget(
         Localizations(

@@ -46,7 +46,8 @@ Future<void> _eventually(bool Function() check,
 
 void main() {
   group('frame transport over the handshake socket', () {
-    test('frames flow both directions over the real wire and surface '
+    test(
+        'frames flow both directions over the real wire and surface '
         'on onPayloadReceived', () async {
       final responder = await _identity(7);
       MeshHandshakeTicket? responderTicket;
@@ -86,13 +87,13 @@ void main() {
 
       // Responder → dialer over the same connection.
       final p2 = Uint8List.fromList(utf8.encode('pong dialer'));
-      expect(
-          await responderSvc.sendPayload(responder.peerId, p2), isTrue);
+      expect(await responderSvc.sendPayload(responder.peerId, p2), isTrue);
       await _eventually(() => dialerInbox.isNotEmpty);
       expect(dialerInbox.single, equals(p2));
     });
 
-    test('wire frames are length-prefixed and MAC-verified — a '
+    test(
+        'wire frames are length-prefixed and MAC-verified — a '
         'tampered frame is dropped before release', () async {
       final responder = await _identity(7);
       MeshHandshakeTicket? responderTicket;
@@ -114,8 +115,7 @@ void main() {
 
       // Feed a MAC-invalid frame directly onto the responder's socket
       // — the wire path must parse the prefix, verify, and drop.
-      final key =
-          MeshTransportService.deriveSessionKey(responderTicket!);
+      final key = MeshTransportService.deriveSessionKey(responderTicket!);
       // Direction 1 = responder→dialer — what the dialer's channel
       // expects inbound.
       final badFrame = MeshTransportService.encodeFrame(
@@ -147,8 +147,7 @@ void main() {
       expect(inbox.single, equals(Uint8List.fromList([9, 9, 9])));
     });
 
-    test('socket close demotes the peer and drops the channel',
-        () async {
+    test('socket close demotes the peer and drops the channel', () async {
       final responder = await _identity(7);
       MeshHandshakeTicket? responderTicket;
       final server = await ServerSocket.bind('127.0.0.1', 0);
@@ -171,14 +170,12 @@ void main() {
           .firstWhere((p) => p.peerId == responder.peerId)
           .isReachable);
       expect(dialer.hasChannelBinding(responder.peerId), isFalse);
-      expect(
-          await dialer.sendPayload(responder.peerId, Uint8List(3)),
-          isFalse);
+      expect(await dialer.sendPayload(responder.peerId, Uint8List(3)), isFalse);
     });
 
-    test('a dead OLD socket does not demote the peer\'s fresh '
-        'address (round-6 demote-only-the-failed-address rule)',
-        () async {
+    test(
+        'a dead OLD socket does not demote the peer\'s fresh '
+        'address (round-6 demote-only-the-failed-address rule)', () async {
       final responder = await _identity(7);
       MeshHandshakeTicket? ticketA;
       final serverA = await ServerSocket.bind('127.0.0.1', 0);
@@ -206,9 +203,7 @@ void main() {
       expect(await dialer.connectToPeer(addrA), isTrue);
       expect(await dialer.connectToPeer(addrB), isTrue);
       expect(
-          dialer.peers
-              .firstWhere((p) => p.peerId == responder.peerId)
-              .address,
+          dialer.peers.firstWhere((p) => p.peerId == responder.peerId).address,
           equals(addrB));
 
       // Kill the stale A link — the peer's record points at B and the
@@ -233,7 +228,8 @@ void main() {
       expect(dialer.hasChannelBinding(responder.peerId), isFalse);
     });
 
-    test('a frame declaring more than maxFrameBytes tears down the '
+    test(
+        'a frame declaring more than maxFrameBytes tears down the '
         'link (memory-exhaustion guard)', () async {
       final responder = await _identity(7);
       MeshHandshakeTicket? responderTicket;

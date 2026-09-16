@@ -18,7 +18,8 @@ void main() {
       pochService: pochService,
       initialBalance: 100.0,
     );
-    final cryptoBridgeService = CryptoBridgeService(creditService: creditService);
+    final cryptoBridgeService =
+        CryptoBridgeService(creditService: creditService);
     final moltbookService = MoltbookService(creditService: creditService);
     final porService = container.read(proofOfRetrievabilityServiceProvider);
     final ipfsService = container.read(ipfsServiceProvider);

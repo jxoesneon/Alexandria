@@ -430,6 +430,7 @@ class MoltbookService extends ChangeNotifier {
   String get agentId => _agentId;
   String get pubkeyHex => _pubkeyHex;
   DateTime? get lastPostTime => _lastPostTime;
+
   /// Live unclaimed bounties as DEFENSIVE COPIES (REV3 review): the
   /// stored records are never handed out, so a caller mutating a
   /// returned bounty (e.g. flipping `isClaimed` back to false) cannot
@@ -577,7 +578,8 @@ class MoltbookService extends ChangeNotifier {
 
     // Verify node has sufficient credits to escrow bounty
     if (_creditService.balance < offeredCredits) {
-      throw StateError('Insufficient credit balance (${_creditService.balance.toStringAsFixed(1)} ℭ) to fund $offeredCredits ℭ bounty.');
+      throw StateError(
+          'Insufficient credit balance (${_creditService.balance.toStringAsFixed(1)} ℭ) to fund $offeredCredits ℭ bounty.');
     }
 
     // Dead-id guard (RE-REV4b E3): `bounty_<ms>` collides under a
@@ -625,7 +627,8 @@ class MoltbookService extends ChangeNotifier {
     final announcementPost = await createPost(
       submolt: 'alexandria-bounties',
       title: '[BOUNTY: $urgency.toUpperCase()] $title',
-      content: 'Seeking swarm replication for endangered document.\nCID: $cid\nDOI: ${doi ?? 'N/A'}\nReward: $offeredCredits ℭ\nUrgency: $urgency',
+      content:
+          'Seeking swarm replication for endangered document.\nCID: $cid\nDOI: ${doi ?? 'N/A'}\nReward: $offeredCredits ℭ\nUrgency: $urgency',
       payload: bounty.toJson(),
       force: force,
     );
@@ -849,13 +852,13 @@ class MoltbookService extends ChangeNotifier {
     // funded record; when nothing unprotected remains, the incoming
     // announcement is dropped.
     if (_bounties.length >= _maxBounties) {
-      final oldestUnfunded = _bounties.lastIndexWhere((b) =>
-          !b.funded && !_locallyPostedBountyIds.contains(b.id));
+      final oldestUnfunded = _bounties.lastIndexWhere(
+          (b) => !b.funded && !_locallyPostedBountyIds.contains(b.id));
       if (oldestUnfunded != -1) {
         _bounties.removeAt(oldestUnfunded);
       } else if (funded) {
-        final oldestUnprotectedFunded = _bounties.lastIndexWhere((b) =>
-            b.funded && !_locallyPostedBountyIds.contains(b.id));
+        final oldestUnprotectedFunded = _bounties.lastIndexWhere(
+            (b) => b.funded && !_locallyPostedBountyIds.contains(b.id));
         if (oldestUnprotectedFunded == -1) {
           // Every stored record is a locally-protected escrow — drop
           // the incoming announcement rather than strand a refund.
@@ -1014,8 +1017,8 @@ class MoltbookService extends ChangeNotifier {
     int? ownClaimedAt;
     Future<bool> claimCas() async {
       final at = DateTime.now().millisecondsSinceEpoch;
-      final won = await db!.insertClaimedBounty(bounty.id, bounty.cid,
-          claimedAt: at);
+      final won =
+          await db!.insertClaimedBounty(bounty.id, bounty.cid, claimedAt: at);
       if (won) ownClaimedAt = at;
       return won;
     }
@@ -1045,8 +1048,8 @@ class MoltbookService extends ChangeNotifier {
       bool escrowDead;
       try {
         escrowDead = _creditService.isEscrowReleased(bounty.id) ||
-            await db.hasCreditTransaction(
-                '$_escrowReleaseTxPrefix${bounty.id}');
+            await db
+                .hasCreditTransaction('$_escrowReleaseTxPrefix${bounty.id}');
       } catch (_) {
         // Cannot prove the id is live — refuse WITHOUT poisoning the
         // record (the claim may legitimately retry once the ledger is
@@ -1100,8 +1103,8 @@ class MoltbookService extends ChangeNotifier {
         bool durablyPaid;
         try {
           durablyPaid = _creditService.isBountyPayoutRecorded(bounty.id) ||
-              await db.hasCreditTransaction(
-                  '$_bountyPayoutTxPrefix${bounty.id}');
+              await db
+                  .hasCreditTransaction('$_bountyPayoutTxPrefix${bounty.id}');
         } catch (_) {
           // A throwing probe can't prove the payout did NOT land —
           // fail conservative: leave the row standing and the record
@@ -1140,8 +1143,7 @@ class MoltbookService extends ChangeNotifier {
           // decides correctly: it wins iff no live row now stands.
           if (claimedAt != null) {
             try {
-              await db.deleteClaimedBountyIfClaimedAt(
-                  bounty.id, claimedAt);
+              await db.deleteClaimedBountyIfClaimedAt(bounty.id, claimedAt);
             } catch (_) {}
           }
           try {
@@ -1457,8 +1459,7 @@ class MoltbookService extends ChangeNotifier {
       // this earlier check additionally refuses BEFORE the record is
       // delisted, so a paid bounty stays marked rather than vanishing.)
       try {
-        if (await db
-            .hasCreditTransaction('$_bountyPayoutTxPrefix$bountyId')) {
+        if (await db.hasCreditTransaction('$_bountyPayoutTxPrefix$bountyId')) {
           final i = _bounties.indexWhere((b) => b.id == bountyId);
           if (i != -1) {
             _bounties[i].isClaimed = true;
@@ -1694,7 +1695,9 @@ class MoltbookService extends ChangeNotifier {
     // forever — never re-ingestible as funded, never re-claimable.
     _cancelledBountyIds.add(bountyId);
     final db = _db;
-    if (db == null) return; // in-memory mode: _remoteClaimedBountyIds is the record
+    if (db == null) {
+      return; // in-memory mode: _remoteClaimedBountyIds is the record
+    }
     _pendingTombstonesFor(db)[bountyId] =
         'Escrow spent tombstone — released into verified remote claim; '
         'the id is permanently un-payable and un-refundable ($bountyId)';
@@ -1766,8 +1769,7 @@ class MoltbookService extends ChangeNotifier {
     if (db != null) {
       try {
         if (await db.isBountyClaimed(bountyId) ||
-            await db.hasCreditTransaction(
-                '$_bountyPayoutTxPrefix$bountyId')) {
+            await db.hasCreditTransaction('$_bountyPayoutTxPrefix$bountyId')) {
           await _settleEscrowToVerifiedClaim(bountyId);
           return BountyEscrowRelease.settledToVerifiedClaim;
         }
@@ -1785,8 +1787,7 @@ class MoltbookService extends ChangeNotifier {
     if (!operatorReconciliation) {
       return BountyEscrowRelease.refusedUnproven;
     }
-    final refunded =
-        await _creditService.releaseEscrow(referenceId: bountyId);
+    final refunded = await _creditService.releaseEscrow(referenceId: bountyId);
     if (refunded <= 0) return BountyEscrowRelease.refused;
     // A refunded id is dead forever — a re-announcement must never
     // re-arm it (the release row is the durable half; this is the
@@ -1822,14 +1823,13 @@ class MoltbookService extends ChangeNotifier {
     // nothing ever claims again.
     await _flushPendingReleaseTombstones();
     try {
-      final cutoff = DateTime.now()
-          .subtract(_claimRowTtl)
-          .millisecondsSinceEpoch;
+      final cutoff =
+          DateTime.now().subtract(_claimRowTtl).millisecondsSinceEpoch;
       final stale = await db.getClaimedBountiesOlderThan(cutoff);
       for (final row in stale) {
         try {
-          final paid = await db.hasCreditTransaction(
-              '$_bountyPayoutTxPrefix${row.bountyId}');
+          final paid = await db
+              .hasCreditTransaction('$_bountyPayoutTxPrefix${row.bountyId}');
           // Ownership-aware delete (E-REV4b F4): the snapshot's claimedAt
           // must still match — a claim healer can delete-and-reinsert
           // the row while this probe is in flight, and deleting by bare
@@ -1888,11 +1888,10 @@ class MoltbookService extends ChangeNotifier {
     try {
       for (final id in await db
           .getCreditTransactionIdsWithPrefix(_escrowReleaseTxPrefix)) {
-        _cancelledBountyIds
-            .add(id.substring(_escrowReleaseTxPrefix.length));
+        _cancelledBountyIds.add(id.substring(_escrowReleaseTxPrefix.length));
       }
-      for (final id in await db
-          .getCreditTransactionIdsWithPrefix(_escrowHoldTxPrefix)) {
+      for (final id
+          in await db.getCreditTransactionIdsWithPrefix(_escrowHoldTxPrefix)) {
         for (final ref in _holdRowReferenceIds(id)) {
           _locallyPostedBountyIds.add(ref);
           _escrowedBountyIds.add(ref);
@@ -1980,14 +1979,16 @@ class MoltbookService extends ChangeNotifier {
       r == 0x00ad || // SOFT HYPHEN — invisible in most renderers
       r == 0x034f || // COMBINING GRAPHEME JOINER
       r == 0x061c || // ARABIC LETTER MARK — bidi control
-      r == 0x115f || r == 0x1160 || // Hangul Jamo fillers
+      r == 0x115f ||
+      r == 0x1160 || // Hangul Jamo fillers
       r == 0x180e || // MONGOLIAN VOWEL SEPARATOR
       (r >= 0x200b && r <= 0x200f) || // zero-width / bidi marks
       (r >= 0x2028 && r <= 0x202f) || // line/para separators + bidi
       // embeddings/overrides
       (r >= 0x205f && r <= 0x206f) || // math space, invisible
       // operators, bidi isolates, deprecated format controls
-      r == 0x3164 || r == 0xffa0 || // Hangul fillers (render blank)
+      r == 0x3164 ||
+      r == 0xffa0 || // Hangul fillers (render blank)
       (r >= 0xd800 && r <= 0xdfff) || // lone surrogates
       r == 0xfeff || // BOM / zero-width no-break space
       (r >= 0xfff0 && r <= 0xfff8) || // specials-block unassigned
@@ -2015,7 +2016,8 @@ class MoltbookService extends ChangeNotifier {
         id: 1001,
         submolt: 'alexandria-bounties',
         title: '[BOUNTY: CRITICAL] Endangered Quantum Physics Preprint (1998)',
-        content: 'Preservation swarm alert: Only 1 active seeder remaining on IPFS network.\nCID: bafk_endangered_physics_1998\nDOI: 10.1103/PhysRevLett.80.2245\nOffering 35.0 ℭ for Cauchy RS GF(2^8) replication.',
+        content:
+            'Preservation swarm alert: Only 1 active seeder remaining on IPFS network.\nCID: bafk_endangered_physics_1998\nDOI: 10.1103/PhysRevLett.80.2245\nOffering 35.0 ℭ for Cauchy RS GF(2^8) replication.',
         authorAgentId: 'bcn_steward_aleph',
         upvotes: 14,
         timestamp: now.subtract(const Duration(hours: 2)),
@@ -2024,7 +2026,8 @@ class MoltbookService extends ChangeNotifier {
         id: 1002,
         submolt: 'alexandria-bounties',
         title: '[BOUNTY: HIGH] Out-of-Print Botany Flora Herbarium Scans',
-        content: 'Seeking 5 additional parity shards across geographic nodes.\nCID: bafk_flora_madagascar_v3\nOffering 20.0 ℭ for verification & pinning.',
+        content:
+            'Seeking 5 additional parity shards across geographic nodes.\nCID: bafk_flora_madagascar_v3\nOffering 20.0 ℭ for verification & pinning.',
         authorAgentId: 'bcn_botanist_bot',
         upvotes: 8,
         timestamp: now.subtract(const Duration(hours: 5)),
@@ -2058,7 +2061,8 @@ class MoltbookService extends ChangeNotifier {
         id: 2001,
         submolt: 'open-science',
         title: 'Preserved 1,420 DOIs from PLOS Computational Biology',
-        content: 'Automated harvest complete via Alexandria DOI Plugin. All CIDs validated against Crossref metadata. Full BibTeX entries parsed and committed.',
+        content:
+            'Automated harvest complete via Alexandria DOI Plugin. All CIDs validated against Crossref metadata. Full BibTeX entries parsed and committed.',
         authorAgentId: 'bcn_curator_omega',
         upvotes: 27,
         timestamp: now.subtract(const Duration(hours: 1)),
@@ -2067,7 +2071,8 @@ class MoltbookService extends ChangeNotifier {
         id: 2002,
         submolt: 'open-science',
         title: 'Cauchy Reed-Solomon Parity Health Report (Sept 2026)',
-        content: 'Swarm health analysis: 99.98% of archived academic literature maintains >= 3 redundant shards across peer enclaves.',
+        content:
+            'Swarm health analysis: 99.98% of archived academic literature maintains >= 3 redundant shards across peer enclaves.',
         authorAgentId: 'bcn_auditor_delta',
         upvotes: 39,
         timestamp: now.subtract(const Duration(hours: 8)),
@@ -2079,7 +2084,8 @@ class MoltbookService extends ChangeNotifier {
         id: 3001,
         submolt: 'preservation-alerts',
         title: 'Notice: Mirroring Open-Access Journal Backcatalogs',
-        content: 'All preservation steward nodes are advised to allocate at least 2GB storage for incoming Directory of Open Access Journals (DOAJ) archival bundles.',
+        content:
+            'All preservation steward nodes are advised to allocate at least 2GB storage for incoming Directory of Open Access Journals (DOAJ) archival bundles.',
         authorAgentId: 'bcn_core_coord',
         upvotes: 45,
         timestamp: now.subtract(const Duration(hours: 12)),

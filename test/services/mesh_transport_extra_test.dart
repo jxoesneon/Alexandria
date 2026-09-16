@@ -27,8 +27,7 @@ void main() {
       expect(peers.first.peerId, equals('p1'));
     });
 
-    test('connectToPeer creates a reachable peer from a multiaddr',
-        () async {
+    test('connectToPeer creates a reachable peer from a multiaddr', () async {
       // Simulated successful handshake — the default probe requires a
       // real endpoint (round-2 fix).
       final probedMesh =
@@ -38,8 +37,7 @@ void main() {
       final ok = await probedMesh.connectToPeer(multiaddr);
       expect(ok, isTrue);
 
-      final peer =
-          probedMesh.peers.firstWhere((p) => p.peerId == 'new-peer');
+      final peer = probedMesh.peers.firstWhere((p) => p.peerId == 'new-peer');
       expect(peer.isReachable, isTrue);
       expect(peer.isPending, isFalse);
       expect(peer.address, equals(multiaddr));

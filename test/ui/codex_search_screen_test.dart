@@ -6,7 +6,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('SearchScreen (Codex) Tests', () {
-    testWidgets('renders search field, filter categories, and updates state', (tester) async {
+    testWidgets('renders search field, filter categories, and updates state',
+        (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: SearchScreen(),

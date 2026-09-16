@@ -60,8 +60,7 @@ void main() {
           home: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => showDialog(
-                  context: context,
-                  builder: (_) => const CreditWalletDialog()),
+                  context: context, builder: (_) => const CreditWalletDialog()),
               child: const Text('open'),
             ),
           ),
@@ -91,8 +90,7 @@ void main() {
     expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
   });
 
-  testWidgets('debug faucets award credits and show snackbars',
-      (tester) async {
+  testWidgets('debug faucets award credits and show snackbars', (tester) async {
     await pumpDialog(tester);
     await tester.pumpAndSettle();
 
@@ -142,8 +140,8 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
 
     // Voucher redemption is disabled at the service layer.
-    final voucherField = find.widgetWithText(
-        TextField, 'Paste cashuA... voucher to deposit');
+    final voucherField =
+        find.widgetWithText(TextField, 'Paste cashuA... voucher to deposit');
     await scrollTo(tester, voucherField);
     await tester.enterText(voucherField, 'cashuAinvalid');
     await scrollTo(tester, find.text('Redeem'));

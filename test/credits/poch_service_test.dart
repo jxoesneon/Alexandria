@@ -19,7 +19,9 @@ void main() {
       expect(fullMetrics.bandwidthMultiplier, greaterThan(1.0));
     });
 
-    test('enforces quadratic bandwidth throttling for non-compliant freeloader nodes', () {
+    test(
+        'enforces quadratic bandwidth throttling for non-compliant freeloader nodes',
+        () {
       // Very low contributions: 100MB storage, 0 seeding, 0 challenges
       final lowMetrics = PoCHMetrics(
         allocatedStorageBytes: 100 * 1024 * 1024,
@@ -35,11 +37,13 @@ void main() {
       expect(lowMetrics.bandwidthMultiplier, lessThan(0.01));
     });
 
-    test('PoCHService records storage, seeding, and challenge updates dynamically', () {
+    test(
+        'PoCHService records storage, seeding, and challenge updates dynamically',
+        () {
       final service = PoCHService(
         initialStorageBytes: 500 * 1024 * 1024, // 50%
         initialSeedingBytes: 250 * 1024 * 1024, // 50%
-        initialChallenges: 6,                   // 50%
+        initialChallenges: 6, // 50%
       );
 
       expect(service.score, closeTo(0.50, 0.01));

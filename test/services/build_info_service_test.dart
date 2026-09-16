@@ -79,7 +79,8 @@ void main() {
       expect(map['claimed_protocol_version'], '1');
     });
 
-    test('claimedBroadcastInfo is the narrowed wire-safe subset '
+    test(
+        'claimedBroadcastInfo is the narrowed wire-safe subset '
         '(REV3-D review)', () {
       final info = BuildInfo(
         commitSha: 'a1b2c3d4e5f6',
@@ -100,7 +101,8 @@ void main() {
       expect(map.containsKey('claimed_build_timestamp'), isFalse);
     });
 
-    test('claimed_client_version defaults to dev sentinel and is '
+    test(
+        'claimed_client_version defaults to dev sentinel and is '
         'claimed_-prefixed (ALX-012 B3-lite)', () {
       final info = BuildInfo.current();
 
@@ -127,7 +129,8 @@ void main() {
       expect(info.claimedBuildInfo['claimed_client_version'], '1.4.2');
     });
 
-    test('claimed client info rides the signed Beacon body — tampering '
+    test(
+        'claimed client info rides the signed Beacon body — tampering '
         'with claimed_client_version breaks the signature', () async {
       final algorithm = Ed25519();
       final keyPair = await algorithm.newKeyPair();

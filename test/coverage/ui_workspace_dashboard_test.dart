@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -194,8 +193,7 @@ void main() {
     await finish(tester);
   }, timeout: const Timeout(Duration(minutes: 2)));
 
-  testWidgets('secondary actions push screens or show dialogs',
-      (tester) async {
+  testWidgets('secondary actions push screens or show dialogs', (tester) async {
     await pumpDashboard(tester);
     await tester.pumpAndSettle();
 

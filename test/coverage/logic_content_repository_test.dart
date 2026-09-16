@@ -175,8 +175,7 @@ void main() {
     test('addContentVersion rejects missing manifest', () async {
       await expectLater(
         () => repo.addContentVersion(
-            manifestUuid: 'missing',
-            fileData: utf8.encode('x' * 100)),
+            manifestUuid: 'missing', fileData: utf8.encode('x' * 100)),
         throwsArgumentError,
       );
     });
@@ -320,7 +319,12 @@ void main() {
       );
       await expectLater(
         () => cap.saveNote(const Note(
-            id: 'n', title: 't', author: '', tags: [], summary: '', content: '')),
+            id: 'n',
+            title: 't',
+            author: '',
+            tags: [],
+            summary: '',
+            content: '')),
         throwsStateError,
       );
 

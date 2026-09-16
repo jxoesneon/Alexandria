@@ -26,19 +26,20 @@ import 'package:alexandria/services/metadata_scrubbing_service.dart';
 void main() {
   final svc = MetadataScrubbingService(CidService());
 
-  test('isSupportedType must not claim formats the scrubber passes '
+  test(
+      'isSupportedType must not claim formats the scrubber passes '
       'through unchanged', () async {
     for (final mime in ['image/heic', 'image/heif', 'image/tiff']) {
       expect(svc.isSupportedType(mime), isFalse,
-          reason:
-              'isSupportedType("$mime") advertises scrub support, but '
+          reason: 'isSupportedType("$mime") advertises scrub support, but '
               'scrubMetadata has no handler for it — the user\'s '
               '"strip metadata" choice silently produces a byte-'
               'identical upload with all metadata intact.');
     }
   });
 
-  test('metadata chunks appended after PNG IEND must not survive the '
+  test(
+      'metadata chunks appended after PNG IEND must not survive the '
       'scrub', () async {
     const sig = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
     Uint8List chunk(String type, List<int> data) {
@@ -60,15 +61,14 @@ void main() {
       ..add(chunk('IHDR', List.filled(13, 0)))
       ..add(chunk('IEND', const []))
       // Smuggled tail: a tEXt chunk AFTER the IEND terminator.
-      ..add(chunk('tEXt',
-          'GPS\x00lat 51.5 lon -0.12; device SerialNo-1234'.codeUnits));
+      ..add(chunk(
+          'tEXt', 'GPS\x00lat 51.5 lon -0.12; device SerialNo-1234'.codeUnits));
     final input = png.toBytes();
 
     final result = await svc.scrubMetadata(input);
     final outStr = String.fromCharCodes(result.scrubbedBytes);
     expect(outStr.contains('tEXt'), isFalse,
-        reason:
-            'a tEXt chunk appended after IEND survives verbatim in the '
+        reason: 'a tEXt chunk appended after IEND survives verbatim in the '
             '"scrubbed" output — post-terminator bytes are copied '
             'uninspected, so metadata smuggled past the terminator is '
             'neither stripped nor reported.');

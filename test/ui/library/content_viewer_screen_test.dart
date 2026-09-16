@@ -60,7 +60,8 @@ void main() {
     expect(find.text('Note on peer-to-peer distribution'), findsOneWidget);
   });
 
-  testWidgets('switches to editions and legal tabs, toggles tts and zoom', (tester) async {
+  testWidgets('switches to editions and legal tabs, toggles tts and zoom',
+      (tester) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);

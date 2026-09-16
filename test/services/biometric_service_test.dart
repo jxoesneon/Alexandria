@@ -192,8 +192,8 @@ void main() {
         expect(await service.authenticate(), isTrue);
         final at = service.lastAuthenticatedAt;
         expect(at, isNotNull);
-        expect(at!.isAfter(before.subtract(const Duration(seconds: 1))),
-            isTrue);
+        expect(
+            at!.isAfter(before.subtract(const Duration(seconds: 1))), isTrue);
       });
 
       test('fail-open bypasses do NOT record attestation', () async {
@@ -211,8 +211,7 @@ void main() {
         expect(service.lastAuthenticatedAt, isNull);
       });
 
-      test('secure-mode-off bypass does NOT record attestation',
-          () async {
+      test('secure-mode-off bypass does NOT record attestation', () async {
         final service = getService();
         await service.setSecureMode(false);
         // Device supports biometrics but secure mode is off — the

@@ -33,7 +33,8 @@ void main() {
     );
   }
 
-  test('boxCount bounds: 0, 1, non-dividing and oversized counts are '
+  test(
+      'boxCount bounds: 0, 1, non-dividing and oversized counts are '
       'rejected without unbounded allocation', () async {
     final peer = await makePeer(7);
     // A well-formed v1 envelope to borrow the ephemeral key from.
@@ -56,11 +57,13 @@ void main() {
     expect(() => enc.decryptFromPeer(v2(4, List.filled(16, 1)), peer.xPriv),
         throwsA(isA<FormatException>()));
     // Truncated header.
-    expect(() => enc.decryptFromPeer(Uint8List.fromList([2, ...eph]), peer.xPriv),
+    expect(
+        () => enc.decryptFromPeer(Uint8List.fromList([2, ...eph]), peer.xPriv),
         throwsA(isA<FormatException>()));
   });
 
-  test('ambiguous untagged key produces a v2 envelope; each box is '
+  test(
+      'ambiguous untagged key produces a v2 envelope; each box is '
       'independently authenticated', () async {
     final peer = await makePeer(9);
     // The peer's Ed25519 identity pubkey, UNTAGGED — canonical Ed point
@@ -90,10 +93,12 @@ void main() {
     for (var b = 0; b < count; b++) {
       tamperedAll[34 + b * boxLen + boxLen - 1] ^= 0x01;
     }
-    expect(() => enc.decryptFromPeer(tamperedAll, peer.xPriv), throwsA(anything));
+    expect(
+        () => enc.decryptFromPeer(tamperedAll, peer.xPriv), throwsA(anything));
   });
 
-  test('downgrade: stripping to the wrong box or rewriting the version '
+  test(
+      'downgrade: stripping to the wrong box or rewriting the version '
       'cannot force a decrypt', () async {
     final peer = await makePeer(11);
     final env = await enc.encryptForPeer(data, _hex(peer.edPub));
@@ -108,8 +113,7 @@ void main() {
         [1, ...env.sublist(1, 33), ...payload.sublist((count - 1) * boxLen)]);
     expect(() => enc.decryptFromPeer(strippedToWrong, peer.xPriv),
         throwsA(anything),
-        reason:
-            'an attacker cannot make the recipient open a box sealed '
+        reason: 'an attacker cannot make the recipient open a box sealed '
             'to a different agreement point');
 
     // Rewrap as v1 keeping ALL v2 payload bytes (including count byte)
@@ -129,7 +133,8 @@ void main() {
     expect(() => enc.decryptFromPeer(padded, peer.xPriv), throwsA(anything));
   });
 
-  test('tagged keys are unambiguous: x25519: pins the raw u-coordinate, '
+  test(
+      'tagged keys are unambiguous: x25519: pins the raw u-coordinate, '
       'ed25519: pins the birational map', () async {
     final peer = await makePeer(13);
 

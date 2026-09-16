@@ -150,8 +150,8 @@ class ProofOfRetrievabilityService {
     // OLDEST entry (the map is insertion-ordered, so the first key is
     // the oldest).
     final now = _now();
-    _pendingChallenges.removeWhere(
-        (_, c) => now.difference(c.timestamp) > challengeTtl);
+    _pendingChallenges
+        .removeWhere((_, c) => now.difference(c.timestamp) > challengeTtl);
     while (_pendingChallenges.length >= _maxPendingChallenges) {
       _pendingChallenges.remove(_pendingChallenges.keys.first);
     }
@@ -325,16 +325,14 @@ class ProofOfRetrievabilityService {
     AlexandriaIdentity? identity;
     String? localPubkeyHex;
     try {
-      identity =
-          await _ref.read(identityServiceProvider).getIdentity();
+      identity = await _ref.read(identityServiceProvider).getIdentity();
       if (identity != null) localPubkeyHex = bytesToHex(identity.publicKey);
     } catch (_) {
       // No secure storage in tests/headless runs — receipts stay unsigned.
     }
 
     final effectiveProver = proverPubkey ?? proverPeerId;
-    final verifierPubkey =
-        challenge.challengerPubkey ?? localPubkeyHex ?? '';
+    final verifierPubkey = challenge.challengerPubkey ?? localPubkeyHex ?? '';
 
     // The receipt asserts exactly the work that was proven — the verified
     // chunk bytes alone, never an extrapolation over sibling chunks.
@@ -436,12 +434,10 @@ class ProofOfRetrievabilityService {
           // receipt_id=? AND spent=0 checked by rows-affected — a single
           // atomic op. Losing the CAS (false) means another claim landed
           // first; the artifact then stays reported as spent either way.
-          spentPersisted =
-              await db.claimReceiptAtomically(receipt.receiptId) ||
-                  // A concurrent claim may have already consumed it —
-                  // the row IS spent in that case, so report spent.
-                  (await db.getWorkReceipt(receipt.receiptId))?['spent'] ==
-                      true;
+          spentPersisted = await db.claimReceiptAtomically(receipt.receiptId) ||
+              // A concurrent claim may have already consumed it —
+              // the row IS spent in that case, so report spent.
+              (await db.getWorkReceipt(receipt.receiptId))?['spent'] == true;
         } catch (_) {}
       }
       // Report the state actually persisted (or the consumption itself

@@ -196,7 +196,8 @@ class ErasureCodingService {
       throw StateError(
           'Malformed erasure block parameters (k=${block.k}, m=${block.m})');
     }
-    if (block.shardSize <= 0 || block.originalSize < 0 ||
+    if (block.shardSize <= 0 ||
+        block.originalSize < 0 ||
         block.originalSize > block.k * block.shardSize) {
       throw StateError(
           'Malformed erasure block sizes (originalSize=${block.originalSize}, '

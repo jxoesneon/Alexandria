@@ -41,7 +41,8 @@ class _FakeSecureStorage extends SecureStorageService {
 }
 
 void main() {
-  test('a contentRead-only plugin must not reach content DEKs through '
+  test(
+      'a contentRead-only plugin must not reach content DEKs through '
       'the allowlisted repository', () async {
     final container = ProviderContainer(overrides: [
       secureStorageServiceProvider.overrideWithValue(_FakeSecureStorage()),
@@ -60,12 +61,11 @@ void main() {
     expect(repo, isA<ContentRepository>());
 
     // The transitively-reachable secure-storage read.
-    final dek = await (repo as ContentRepository)
-        .contentDekBase64('victim-doc');
+    final dek =
+        await (repo as ContentRepository).contentDekBase64('victim-doc');
 
     expect(dek, isNull,
-        reason:
-            'a plugin declaring ONLY contentRead recovered a content DEK '
+        reason: 'a plugin declaring ONLY contentRead recovered a content DEK '
             '("$dek") from secure storage via ContentRepository.'
             'contentDekBase64 — the facade blocks the storage PROVIDER '
             'but hands the plugin an object that reads it anyway. '
@@ -73,7 +73,8 @@ void main() {
             'material exfiltration.');
   });
 
-  test('non-allowlisted providers still resolve to an inert capability '
+  test(
+      'non-allowlisted providers still resolve to an inert capability '
       '(verification — round-3 fix holds)', () async {
     final container = ProviderContainer(overrides: [
       secureStorageServiceProvider.overrideWithValue(_FakeSecureStorage()),

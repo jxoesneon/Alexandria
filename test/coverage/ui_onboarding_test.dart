@@ -41,8 +41,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     final overrides = <Override>[
-      if (step != null)
-        onboardingStepProvider.overrideWith((ref) => step),
+      if (step != null) onboardingStepProvider.overrideWith((ref) => step),
     ];
     final child = const MaterialApp(home: OnboardingScreen());
     await tester.pumpWidget(
@@ -227,7 +226,6 @@ void main() {
     expect(store['has_seen_onboarding'], 'true');
   });
 }
-
 
 /// Fills the import dialog's 24 lazily-built word fields by writing to
 /// each visible [TextField]'s public controller, scrolling the grid to

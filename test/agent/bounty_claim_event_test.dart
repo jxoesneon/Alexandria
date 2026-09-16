@@ -48,7 +48,8 @@ Future<Map<String, dynamic>> _attestationBlock(
 }
 
 /// Lets fire-and-forget stream delivery + async ingest settle.
-Future<void> _settle() => Future<void>.delayed(const Duration(milliseconds: 50));
+Future<void> _settle() =>
+    Future<void>.delayed(const Duration(milliseconds: 50));
 
 void main() {
   group('BountyClaimEvent signature + attribution', () {
@@ -91,7 +92,8 @@ void main() {
       );
     });
 
-    test('claimantAgentId not derived from the signing key is refused '
+    test(
+        'claimantAgentId not derived from the signing key is refused '
         '(no self-asserted identity)', () async {
       final kp = await _newKey();
       final other = await _newKey();
@@ -121,8 +123,7 @@ void main() {
     test('malformed payloads verify to null', () async {
       expect(await BountyClaimEvent.fromPayload({}), isNull);
       expect(
-          await BountyClaimEvent.fromPayload({'claim': 'not-a-map'}),
-          isNull);
+          await BountyClaimEvent.fromPayload({'claim': 'not-a-map'}), isNull);
       expect(
         await BountyClaimEvent.fromPayload({
           'claim': {'bounty_id': 'b'} // missing everything else
@@ -169,7 +170,8 @@ void main() {
       expect(await svc.ingestBountyClaimEnvelope(forged), isFalse);
     });
 
-    test('a verified claim marks the stored bounty claimed and records '
+    test(
+        'a verified claim marks the stored bounty claimed and records '
         'attribution', () async {
       final csA = CreditService(initialBalance: 100.0);
       final svcA = MoltbookService(creditService: csA);
@@ -201,7 +203,8 @@ void main() {
       expect(csA.balance, lessThan(100.0));
     });
 
-    test('a claim event over a different cid for the same id is '
+    test(
+        'a claim event over a different cid for the same id is '
         'dropped', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
@@ -215,21 +218,23 @@ void main() {
       final claimant = await _newKey();
       final event = await BountyClaimEvent.issue(
           keyPair: claimant, bountyId: posted.id, cid: 'bafk_other');
-      expect(await svc.ingestBountyClaimEnvelope(
-          await event.toEnvelope(claimant)), isFalse);
+      expect(
+          await svc.ingestBountyClaimEnvelope(await event.toEnvelope(claimant)),
+          isFalse);
       expect(svc.isRemotelyClaimed(posted.id), isFalse);
     });
   });
 
   group('remote transport caller (InMemoryBountyTransport)', () {
-    test('end-to-end: announce → attributed ingest → claim → signed '
+    test(
+        'end-to-end: announce → attributed ingest → claim → signed '
         'claim event → poster sees settlement evidence', () async {
       final bus = InMemoryBountyTransport();
 
       // Poster node.
       final csA = CreditService(initialBalance: 100.0);
-      final svcA = MoltbookService(
-          creditService: csA, bountyTransport: bus.attach());
+      final svcA =
+          MoltbookService(creditService: csA, bountyTransport: bus.attach());
       addTearDown(svcA.dispose);
       final posterKp = await _newKey();
       await svcA.setKeyPair(posterKp);
@@ -256,9 +261,8 @@ void main() {
       );
       await _settle();
       expect(svcB.isOriginVerified(posted.id), isTrue);
-      var stored = svcB.activeBounties
-          .firstWhere((b) => b.id == posted.id, orElse: () =>
-              throw StateError('announcement not ingested'));
+      var stored = svcB.activeBounties.firstWhere((b) => b.id == posted.id,
+          orElse: () => throw StateError('announcement not ingested'));
       expect(stored.funded, isFalse); // unattested → unfunded
       expect(stored.originAgentId, await _agentId(posterKp));
 
@@ -301,8 +305,8 @@ void main() {
     test('forged claim events injected on the bus are dropped', () async {
       final bus = InMemoryBountyTransport();
       final csA = CreditService(initialBalance: 100.0);
-      final svcA = MoltbookService(
-          creditService: csA, bountyTransport: bus.attach());
+      final svcA =
+          MoltbookService(creditService: csA, bountyTransport: bus.attach());
       addTearDown(svcA.dispose);
       await svcA.setKeyPair(await _newKey());
 

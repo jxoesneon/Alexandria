@@ -51,8 +51,7 @@ class _GatedReleaseInsertDb extends AppDatabase {
 
   @override
   Future<void> insertCreditTransaction(Map<String, dynamic> data) async {
-    if (armed &&
-        (data['id'] as String).startsWith('tx_escrow_release_')) {
+    if (armed && (data['id'] as String).startsWith('tx_escrow_release_')) {
       if (throwWhenArmed) {
         throw StateError('simulated release-row write loss');
       }
@@ -66,8 +65,7 @@ class _GatedReleaseInsertDb extends AppDatabase {
       Map<String, dynamic> data) async {
     // The release row is now persisted through the ifAbsent CAS —
     // gate the same crash window there.
-    if (armed &&
-        (data['id'] as String).startsWith('tx_escrow_release_')) {
+    if (armed && (data['id'] as String).startsWith('tx_escrow_release_')) {
       if (throwWhenArmed) {
         throw StateError('simulated release-row write loss');
       }
@@ -133,8 +131,8 @@ void main() {
   Future<bool> receiptVerifier(
       Uint8List message, Uint8List sig, String publicKeyHex) async {
     try {
-      final pk = SimplePublicKey(hexToBytes(publicKeyHex),
-          type: KeyPairType.ed25519);
+      final pk =
+          SimplePublicKey(hexToBytes(publicKeyHex), type: KeyPairType.ed25519);
       return await algorithm.verify(message,
           signature: Signature(sig, publicKey: pk));
     } catch (_) {
@@ -143,10 +141,9 @@ void main() {
   }
 
   Future<String> claimSig(WorkReceipt r, {SimpleKeyPair? prover}) async {
-    final preimage = Uint8List.fromList(utf8
-        .encode('alexandria:receipt-claim:v${r.v}:${r.receiptId}'));
-    final sig =
-        await algorithm.sign(preimage, keyPair: prover ?? keyB);
+    final preimage = Uint8List.fromList(
+        utf8.encode('alexandria:receipt-claim:v${r.v}:${r.receiptId}'));
+    final sig = await algorithm.sign(preimage, keyPair: prover ?? keyB);
     return base64Encode(sig.bytes);
   }
 
@@ -204,7 +201,8 @@ void main() {
 
   // ─────────────────────────────────────────────────────────────────
   group('R1: escrow payout vs refund — the two dedup sets never meet', () {
-    test('payout THEN release: releaseEscrow must refuse an '
+    test(
+        'payout THEN release: releaseEscrow must refuse an '
         'already-paid-out escrow', () async {
       final s = svc();
       await s.ready;
@@ -212,19 +210,18 @@ void main() {
       expect(s.debitEscrow(amount: 20.0, referenceId: 'b1'), isTrue);
       expect(s.balance, 30.0);
       // The claim settles: escrow is paid to the claimant.
-      expect(
-          s.awardBountyEscrow(amount: 20.0, bountyId: 'b1', cid: 'c'), 20.0);
+      expect(s.awardBountyEscrow(amount: 20.0, bountyId: 'b1', cid: 'c'), 20.0);
       expect(s.balance, 50.0);
       // The hold row still matches the release predicate — a cancel that
       // lands after the payout must NOT refund a spent escrow.
       final refund = await s.releaseEscrow(referenceId: 'b1');
       expect(refund, 0.0,
           reason: 'escrow already paid out — a refund double-mints');
-      expect(s.balance, 50.0,
-          reason: 'balance must stay 50 — not 70');
+      expect(s.balance, 50.0, reason: 'balance must stay 50 — not 70');
     });
 
-    test('release THEN payout: awardBountyEscrow must refuse an escrow '
+    test(
+        'release THEN payout: awardBountyEscrow must refuse an escrow '
         'that was already refunded', () async {
       final s = svc();
       await s.ready;
@@ -232,14 +229,14 @@ void main() {
       s.debitEscrow(amount: 20.0, referenceId: 'b2');
       expect(await s.releaseEscrow(referenceId: 'b2'), 20.0);
       expect(s.balance, 50.0);
-      final paid =
-          s.awardBountyEscrow(amount: 20.0, bountyId: 'b2', cid: 'c');
+      final paid = s.awardBountyEscrow(amount: 20.0, bountyId: 'b2', cid: 'c');
       expect(paid, 0.0,
           reason: 'the hold was released — paying it mints from nothing');
       expect(s.balance, 50.0);
     });
 
-    test('the double-dip survives a restart — the persisted hold row is '
+    test(
+        'the double-dip survives a restart — the persisted hold row is '
         'still releasable after the payout row lands', () async {
       final first = svc();
       await first.ready;
@@ -258,7 +255,8 @@ void main() {
       expect(second.balance, 50.0);
     });
 
-    test('service-level: cancelBounty refuses a locally-posted bounty '
+    test(
+        'service-level: cancelBounty refuses a locally-posted bounty '
         'whose payout row is ALREADY durable in this db', () async {
       final cs = svc();
       await cs.ready;
@@ -295,7 +293,8 @@ void main() {
               'replays to 70 — an unbacked mint');
     });
 
-    test('sanity: a claimant-side claimed_bounties row DOES block '
+    test(
+        'sanity: a claimant-side claimed_bounties row DOES block '
         'cancelBounty (the only guard is claimant-local state)', () async {
       final cs = svc();
       await cs.ready;
@@ -311,9 +310,11 @@ void main() {
   });
 
   // ─────────────────────────────────────────────────────────────────
-  group('R2: description-marker spoofing — any caller-controlled reason '
+  group(
+      'R2: description-marker spoofing — any caller-controlled reason '
       'forges a releasable "hold"', () {
-    test('spendCredits with a crafted reason mints a releasable '
+    test(
+        'spendCredits with a crafted reason mints a releasable '
         'non-escrow debit', () async {
       final s = svc();
       await s.ready;
@@ -339,7 +340,8 @@ void main() {
       expect(s.protocolTreasury, 51.5);
     });
 
-    test('a spoofed spend under a REAL bounty referenceId inflates the '
+    test(
+        'a spoofed spend under a REAL bounty referenceId inflates the '
         'legitimate refund', () async {
       final s = svc();
       await s.ready;
@@ -360,7 +362,8 @@ void main() {
 
   // ─────────────────────────────────────────────────────────────────
   group('R3: dedup edges', () {
-    test('three overlapping releaseEscrow calls on ONE instance pay '
+    test(
+        'three overlapping releaseEscrow calls on ONE instance pay '
         'exactly once', () async {
       final s = svc();
       await s.ready;
@@ -375,9 +378,9 @@ void main() {
       expect(s.balance, 50.0);
     });
 
-    test('two live instances racing a release converge on ONE canonical '
-        'refund (deterministic row id dedups the durable record)',
-        () async {
+    test(
+        'two live instances racing a release converge on ONE canonical '
+        'refund (deterministic row id dedups the durable record)', () async {
       final a = svc();
       await a.ready;
       fund(a, 50.0);
@@ -401,8 +404,7 @@ void main() {
       await Future.wait([a.settled, b.settled]);
 
       final rows = await db.getCreditTransactions();
-      expect(
-          rows.where((r) => r['id'] == 'tx_escrow_release_b9').length, 1,
+      expect(rows.where((r) => r['id'] == 'tx_escrow_release_b9').length, 1,
           reason: 'insertOrIgnore must collapse the identical '
               'deterministic ids into one durable refund');
       final c = svc();
@@ -410,7 +412,8 @@ void main() {
       expect(c.balance, 50.0);
     });
 
-    test('a re-posted hold on a stale-view instance re-refunds the OLD '
+    test(
+        'a re-posted hold on a stale-view instance re-refunds the OLD '
         'hold — canonical outcome is write-order dependent', () async {
       final a = svc();
       await a.ready;
@@ -447,7 +450,8 @@ void main() {
               'once-per-referenceId-forever semantics');
     });
 
-    test('crash window CLOSED: a parked release write cannot return '
+    test(
+        'crash window CLOSED: a parked release write cannot return '
         'success early; a lost write fails closed and stays '
         're-releasable (exactly one canonical refund)', () async {
       final gdb = _GatedReleaseInsertDb();
@@ -494,17 +498,15 @@ void main() {
               'not a double-pay');
       await Future.wait([a.settled, c.settled]);
       final rows = await gdb.getCreditTransactions();
-      expect(rows.where((r) => r['id'] == 'tx_escrow_release_b11').length,
-          1);
-      expect(
-          rows.where((r) => r['id'] == 'tx_escrow_release_b11w').length,
-          1);
+      expect(rows.where((r) => r['id'] == 'tx_escrow_release_b11').length, 1);
+      expect(rows.where((r) => r['id'] == 'tx_escrow_release_b11w').length, 1);
       final d = svc(onDb: gdb);
       await d.ready;
       expect(d.balance, 50.0);
     });
 
-    test('release-then-repost under the same referenceId: the second '
+    test(
+        'release-then-repost under the same referenceId: the second '
         'hold is NOT refundable — once-per-referenceId-forever '
         'semantics', () async {
       final s = svc();
@@ -524,7 +526,8 @@ void main() {
               'per id)');
     });
 
-    test('debitEscrow refuses an EMPTY referenceId — symmetric with '
+    test(
+        'debitEscrow refuses an EMPTY referenceId — symmetric with '
         'releaseEscrow', () async {
       final s = svc();
       await s.ready;
@@ -535,7 +538,8 @@ void main() {
       expect(refund, 0.0);
     });
 
-    test('a directly-persisted tx_escrow_release_* row poisons the dedup '
+    test(
+        'a directly-persisted tx_escrow_release_* row poisons the dedup '
         'set — the matching hold becomes unreleasable', () async {
       // db-level write only — no public CreditService API can mint this
       // id, so it is NOT wire-reachable; documents the blast radius if
@@ -563,7 +567,8 @@ void main() {
 
   // ─────────────────────────────────────────────────────────────────
   group('R4: non-finite / weird amounts', () {
-    test('debitEscrow(double.nan) must be refused — NaN defeats every '
+    test(
+        'debitEscrow(double.nan) must be refused — NaN defeats every '
         'comparison guard', () async {
       final s = svc();
       await s.ready;
@@ -592,15 +597,15 @@ void main() {
       final s = svc();
       await s.ready;
       fund(s, 50.0);
-      expect(s.spendCredits(amount: double.nan, reason: 'nan spend'),
-          isFalse,
+      expect(s.spendCredits(amount: double.nan, reason: 'nan spend'), isFalse,
           reason: 'same missing isFinite guard as debitEscrow');
     });
   });
 
   // ─────────────────────────────────────────────────────────────────
   group('R5: rotation self-vouch history', () {
-    test('LIVE?: a pre-feature key retired before ANY read escapes the '
+    test(
+        'LIVE?: a pre-feature key retired before ANY read escapes the '
         'history — its verifier-signed receipt still mints', () async {
       final storage = _FakeSecureStorage();
       // Install A the way the pre-feature build persisted it — no
@@ -629,8 +634,8 @@ void main() {
         knownLocalPubkeys: identity.knownLocalPubkeyHexes,
       );
       await s.ready;
-      final minted = await s.claimVerifiedReceipt(r,
-          claimSignatureB64: await claimSig(r));
+      final minted =
+          await s.claimVerifiedReceipt(r, claimSignatureB64: await claimSig(r));
       expect(minted, 0.0,
           reason: 'a receipt signed by retired key A is self-issued — '
               'it must never mint attested value '
@@ -638,7 +643,8 @@ void main() {
       expect(s.attestedBalance, 0.0);
     });
 
-    test('same hole via deleteIdentity → fresh install: the deleted '
+    test(
+        'same hole via deleteIdentity → fresh install: the deleted '
         'never-read key escapes history', () async {
       final storage = _FakeSecureStorage();
       await seedStorageWithKey(storage, keyA, pubA);
@@ -661,16 +667,16 @@ void main() {
         knownLocalPubkeys: identity.knownLocalPubkeyHexes,
       );
       await s.ready;
-      final minted = await s.claimVerifiedReceipt(r,
-          claimSignatureB64: await claimSig(r));
+      final minted =
+          await s.claimVerifiedReceipt(r, claimSignatureB64: await claimSig(r));
       expect(minted, 0.0,
           reason: 'deleted-then-rotated key still self-issued '
               '(history hole observed: $holeObserved, minted: $minted)');
     });
 
-    test('canonical + garbage history entries: padded/uppercase '
-        'spellings still refuse, garbage does not break claims',
-        () async {
+    test(
+        'canonical + garbage history entries: padded/uppercase '
+        'spellings still refuse, garbage does not break claims', () async {
       // History carries respellings and junk — all must behave.
       CreditService s() => CreditService(
             db: db,
@@ -690,8 +696,8 @@ void main() {
           reason: 'UPPERCASE history entry still canonically matches '
               'retired verifier A');
 
-      final r2 = await persist(await signedReceipt(
-          verifierPubkey: pubC, verifierKeyPair: keyC));
+      final r2 = await persist(
+          await signedReceipt(verifierPubkey: pubC, verifierKeyPair: keyC));
       final svc2 = s();
       await svc2.ready;
       expect(
@@ -702,7 +708,8 @@ void main() {
               'foreign verifier claim still mints');
     });
 
-    test('A→B→A re-rotation: a B-signed receipt (now doubly-retired) is '
+    test(
+        'A→B→A re-rotation: a B-signed receipt (now doubly-retired) is '
         'still refused', () async {
       final storage = _FakeSecureStorage();
       final identity = IdentityService(storage);
@@ -714,8 +721,7 @@ void main() {
       await identity.importIdentity(
           Uint8List.fromList(await keyA.extractPrivateKeyBytes()));
 
-      expect(await identity.knownLocalPubkeyHexes(),
-          containsAll({pubA, pubB}));
+      expect(await identity.knownLocalPubkeyHexes(), containsAll({pubA, pubB}));
 
       // Current key is A again; receipt prover=A, verifier=B (retired).
       final r = await persist(await signedReceipt(
@@ -739,7 +745,8 @@ void main() {
               'cannot launder it into a foreign verifier');
     });
 
-    test('deleteIdentity keeps history but claims fail closed on the '
+    test(
+        'deleteIdentity keeps history but claims fail closed on the '
         'prover binding — no crash, no false mint', () async {
       final storage = _FakeSecureStorage();
       final identity = IdentityService(storage);
@@ -765,16 +772,16 @@ void main() {
       );
       await s.ready;
       expect(
-          await s.claimVerifiedReceipt(r,
-              claimSignatureB64: await claimSig(r)),
+          await s.claimVerifiedReceipt(r, claimSignatureB64: await claimSig(r)),
           0.0);
       expect(s.attestedBalance, 0.0);
     });
 
-    test('resolver returning the PROVER key in history does not bar a '
+    test(
+        'resolver returning the PROVER key in history does not bar a '
         'foreign verifier claim', () async {
-      final r = await persist(await signedReceipt(
-          verifierPubkey: pubC, verifierKeyPair: keyC));
+      final r = await persist(
+          await signedReceipt(verifierPubkey: pubC, verifierKeyPair: keyC));
       final s = CreditService(
         db: db,
         initialBalance: 0.0,
@@ -784,15 +791,15 @@ void main() {
       );
       await s.ready;
       expect(
-          await s.claimVerifiedReceipt(r,
-              claimSignatureB64: await claimSig(r)),
+          await s.claimVerifiedReceipt(r, claimSignatureB64: await claimSig(r)),
           25.0);
     });
   });
 
   // ─────────────────────────────────────────────────────────────────
   group('R6: _txSeq / id construction', () {
-    test('deterministic release rows and auto ids stay disjoint across '
+    test(
+        'deterministic release rows and auto ids stay disjoint across '
         'instances sharing one db', () async {
       final a = svc();
       await a.ready;
@@ -802,8 +809,7 @@ void main() {
 
       final b = svc();
       await b.ready;
-      b.awardVerificationCredits(
-          action: 'x', targetId: 'y', amount: 1.0);
+      b.awardVerificationCredits(action: 'x', targetId: 'y', amount: 1.0);
       await Future.wait([a.settled, b.settled]);
 
       final rows = await db.getCreditTransactions();

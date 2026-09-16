@@ -68,7 +68,8 @@ class LnurlService {
   }) async {
     final parts = lightningAddress.trim().split('@');
     if (parts.length != 2) {
-      throw ArgumentError('Invalid Lightning Address format: $lightningAddress');
+      throw ArgumentError(
+          'Invalid Lightning Address format: $lightningAddress');
     }
 
     final user = parts[0];
@@ -81,7 +82,8 @@ class LnurlService {
     final res = await _gatedGet(endpointUrl, fetch: _wellKnownFetch);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw StateError('Failed to resolve LNURL endpoint for $lightningAddress (HTTP ${res.statusCode})');
+      throw StateError(
+          'Failed to resolve LNURL endpoint for $lightningAddress (HTTP ${res.statusCode})');
     }
 
     final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
@@ -122,13 +124,18 @@ class LnurlService {
     final callbackRes = await _gatedGet(callbackUri, fetch: _callbackFetch);
 
     if (callbackRes.statusCode < 200 || callbackRes.statusCode >= 300) {
-      throw StateError('LNURL callback failed with HTTP ${callbackRes.statusCode}');
+      throw StateError(
+          'LNURL callback failed with HTTP ${callbackRes.statusCode}');
     }
 
-    final invoiceData = jsonDecode(utf8.decode(callbackRes.bodyBytes)) as Map<String, dynamic>;
+    final invoiceData =
+        jsonDecode(utf8.decode(callbackRes.bodyBytes)) as Map<String, dynamic>;
     final pr = invoiceData['pr'] as String?;
-    if (pr == null || !pr.toLowerCase().startsWith('lnbc') && !pr.toLowerCase().startsWith('lntb')) {
-      throw StateError('Invalid or missing BOLT11 invoice returned by LNURL callback: $pr');
+    if (pr == null ||
+        !pr.toLowerCase().startsWith('lnbc') &&
+            !pr.toLowerCase().startsWith('lntb')) {
+      throw StateError(
+          'Invalid or missing BOLT11 invoice returned by LNURL callback: $pr');
     }
 
     return LnurlPayInvoice(

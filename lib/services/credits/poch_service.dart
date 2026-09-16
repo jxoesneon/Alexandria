@@ -54,7 +54,8 @@ class PoCHService extends ChangeNotifier {
 
   /// Record updated local storage allocation allocated for archival blocks
   void recordStorageAllocation(int bytes) {
-    _allocatedStorageBytes = bytes.clamp(0, 100 * 1024 * 1024 * 1024); // Cap at 100GB
+    _allocatedStorageBytes =
+        bytes.clamp(0, 100 * 1024 * 1024 * 1024); // Cap at 100GB
     _lastCalculated = DateTime.now();
     notifyListeners();
   }

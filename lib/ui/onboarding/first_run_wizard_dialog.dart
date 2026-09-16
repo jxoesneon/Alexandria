@@ -22,7 +22,8 @@ class FirstRunWizardDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<FirstRunWizardDialog> createState() => _FirstRunWizardDialogState();
+  ConsumerState<FirstRunWizardDialog> createState() =>
+      _FirstRunWizardDialogState();
 }
 
 class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
@@ -51,14 +52,16 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
   Future<void> _completeOnboarding() async {
     setState(() {
       _isIngesting = true;
-      _statusMessage = 'Allocating Common Heritage cache & ingesting starter archive...';
+      _statusMessage =
+          'Allocating Common Heritage cache & ingesting starter archive...';
     });
 
     try {
       // 1. Configure PoCH Storage Cache
       final pochService = ref.read(pochServiceProvider);
       // Allocate the storage baseline
-      pochService.recordStorageAllocation((_storageAllocationGb * 1024 * 1024 * 1024).toInt());
+      pochService.recordStorageAllocation(
+          (_storageAllocationGb * 1024 * 1024 * 1024).toInt());
 
       // 2. Ingest Selected Starter Pack
       if (_selectedSeedPackId.isNotEmpty) {
@@ -71,7 +74,8 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
         widget.onComplete?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Welcome to Alexandria! Your node is active with 100 ℭ and Starter Commons.'),
+            content: Text(
+                'Welcome to Alexandria! Your node is active with 100 ℭ and Starter Commons.'),
             backgroundColor: AppTheme.honorColor,
             duration: Duration(seconds: 4),
           ),
@@ -116,7 +120,8 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
-                          child: Icon(Icons.auto_stories, color: AppTheme.primaryAccent, size: 16),
+                          child: Icon(Icons.auto_stories,
+                              color: AppTheme.primaryAccent, size: 16),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -141,7 +146,10 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                         decoration: BoxDecoration(
                           color: isActive
                               ? AppTheme.primaryAccent
-                              : (isPassed ? AppTheme.honorColor : AppTheme.secondaryColor.withValues(alpha: 0.3)),
+                              : (isPassed
+                                  ? AppTheme.honorColor
+                                  : AppTheme.secondaryColor
+                                      .withValues(alpha: 0.3)),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       );
@@ -181,15 +189,20 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                     else
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Skip Tour', style: TextStyle(color: AppTheme.secondaryColor)),
+                        child: const Text('Skip Tour',
+                            style: TextStyle(color: AppTheme.secondaryColor)),
                       ),
                     FilledButton.icon(
                       onPressed: _nextStep,
                       icon: Icon(
-                        _currentStep == _totalSteps - 1 ? Icons.check : Icons.arrow_forward,
+                        _currentStep == _totalSteps - 1
+                            ? Icons.check
+                            : Icons.arrow_forward,
                         size: 16,
                       ),
-                      label: Text(_currentStep == _totalSteps - 1 ? 'Launch Archive' : 'Continue'),
+                      label: Text(_currentStep == _totalSteps - 1
+                          ? 'Launch Archive'
+                          : 'Continue'),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppTheme.primaryAccent,
                         foregroundColor: AppTheme.canvasColor,
@@ -221,7 +234,8 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
           const SizedBox(height: 8),
           Text(
             'Alexandria is an immutable, peer-to-peer preservation network operating under the statutory non-profit safe harbor of 17 U.S.C. § 108, 17 U.S.C. § 512, and the Marrakesh Treaty. Governed under the five-pillar governance architectural standard.',
-            style: GoogleFonts.inter(fontSize: 13, height: 1.6, color: AppTheme.textColor),
+            style: GoogleFonts.inter(
+                fontSize: 13, height: 1.6, color: AppTheme.textColor),
           ),
           const SizedBox(height: 16),
           const GovernanceBanner(),
@@ -231,16 +245,19 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
             decoration: BoxDecoration(
               color: AppTheme.canvasColor,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppTheme.secondaryColor.withValues(alpha: 0.2)),
+              border: Border.all(
+                  color: AppTheme.secondaryColor.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.verified_user_outlined, color: AppTheme.honorColor, size: 20),
+                const Icon(Icons.verified_user_outlined,
+                    color: AppTheme.honorColor, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Zero corporate trackers, zero speculative tokens, and zero proprietary lock-in. Content is verified by cryptographic multihashes (CIDv1).',
-                    style: GoogleFonts.inter(fontSize: 12, color: AppTheme.secondaryColor),
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: AppTheme.secondaryColor),
                   ),
                 ),
               ],
@@ -261,12 +278,16 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
         children: [
           Text(
             'Your Common Heritage Grant',
-            style: GoogleFonts.newsreader(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+            style: GoogleFonts.newsreader(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textColor),
           ),
           const SizedBox(height: 8),
           Text(
             'Every new node receives an initial allocation of Archival Credits (ℭ) to query the swarm, harvest papers, and request remote replication.',
-            style: GoogleFonts.inter(fontSize: 14, height: 1.6, color: AppTheme.textColor),
+            style: GoogleFonts.inter(
+                fontSize: 14, height: 1.6, color: AppTheme.textColor),
           ),
           const SizedBox(height: 16),
           Container(
@@ -291,30 +312,47 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                     color: AppTheme.primaryAccent.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.account_balance_wallet, color: AppTheme.primaryAccent, size: 32),
+                  child: const Icon(Icons.account_balance_wallet,
+                      color: AppTheme.primaryAccent, size: 32),
                 ),
                 const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Current Available Balance', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.secondaryColor)),
+                    Text('Current Available Balance',
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: AppTheme.secondaryColor)),
                     Text(
                       '${balance.toStringAsFixed(1)} ℭ',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.primaryAccent),
+                      style: GoogleFonts.jetBrainsMono(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryAccent),
                     ),
-                    Text('≈ ${(balance * 10).toInt()} Sats Parity (1 ℭ = 10 Sats)', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppTheme.honorColor)),
+                    Text(
+                        '≈ ${(balance * 10).toInt()} Sats Parity (1 ℭ = 10 Sats)',
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11, color: AppTheme.honorColor)),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          Text('How You Earn More Credits:', style: GoogleFonts.newsreader(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textColor)),
+          Text('How You Earn More Credits:',
+              style: GoogleFonts.newsreader(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textColor)),
           const SizedBox(height: 8),
-          _buildPillarTile(Icons.storage_outlined, 'Storage Pillar', 'Seed content & answer Proof of Retrievability (PoR) challenges.'),
-          _buildPillarTile(Icons.memory_outlined, 'Compute Pillar', 'Run Cauchy Reed-Solomon parity repair & OCR processing.'),
-          _buildPillarTile(Icons.verified_outlined, 'Verification Pillar', 'Audit DOIs against Crossref/OpenAlex and vote on metadata.'),
-          _buildPillarTile(Icons.campaign_outlined, 'Opt-in Sponsorships', 'Earn an 85% kickback viewing ethical, privacy-preserving institutional ads.'),
+          _buildPillarTile(Icons.storage_outlined, 'Storage Pillar',
+              'Seed content & answer Proof of Retrievability (PoR) challenges.'),
+          _buildPillarTile(Icons.memory_outlined, 'Compute Pillar',
+              'Run Cauchy Reed-Solomon parity repair & OCR processing.'),
+          _buildPillarTile(Icons.verified_outlined, 'Verification Pillar',
+              'Audit DOIs against Crossref/OpenAlex and vote on metadata.'),
+          _buildPillarTile(Icons.campaign_outlined, 'Opt-in Sponsorships',
+              'Earn an 85% kickback viewing ethical, privacy-preserving institutional ads.'),
         ],
       ),
     );
@@ -331,10 +369,15 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
           Expanded(
             child: Text.rich(
               TextSpan(
-                style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textColor),
+                style:
+                    GoogleFonts.inter(fontSize: 12, color: AppTheme.textColor),
                 children: [
-                  TextSpan(text: '$title: ', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  TextSpan(text: desc, style: const TextStyle(color: AppTheme.secondaryColor)),
+                  TextSpan(
+                      text: '$title: ',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  TextSpan(
+                      text: desc,
+                      style: const TextStyle(color: AppTheme.secondaryColor)),
                 ],
               ),
             ),
@@ -352,12 +395,16 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
         children: [
           Text(
             'Proof of Common Heritage (PoCH)',
-            style: GoogleFonts.newsreader(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+            style: GoogleFonts.newsreader(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textColor),
           ),
           const SizedBox(height: 8),
           Text(
             'To maintain an un-censorable library, every node contributes a mandatory minimum baseline of 1.0 GB local storage cache. Nodes with PoCH ≥ 1.0 enjoy unthrottled maximum download speeds.',
-            style: GoogleFonts.inter(fontSize: 14, height: 1.6, color: AppTheme.textColor),
+            style: GoogleFonts.inter(
+                fontSize: 14, height: 1.6, color: AppTheme.textColor),
           ),
           const SizedBox(height: 20),
           Container(
@@ -365,7 +412,8 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
             decoration: BoxDecoration(
               color: AppTheme.canvasColor,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppTheme.secondaryColor.withValues(alpha: 0.2)),
+              border: Border.all(
+                  color: AppTheme.secondaryColor.withValues(alpha: 0.2)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,10 +421,17 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Node Storage Cache Limit:', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textColor)),
+                    Text('Node Storage Cache Limit:',
+                        style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textColor)),
                     Text(
                       '${_storageAllocationGb.toStringAsFixed(1)} GB',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryAccent),
+                      style: GoogleFonts.jetBrainsMono(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryAccent),
                     ),
                   ],
                 ),
@@ -394,9 +449,17 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('0.5 GB', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppTheme.secondaryColor)),
-                    Text('1.0 GB Target', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppTheme.honorColor, fontWeight: FontWeight.bold)),
-                    Text('10.0 GB', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppTheme.secondaryColor)),
+                    Text('0.5 GB',
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 10, color: AppTheme.secondaryColor)),
+                    Text('1.0 GB Target',
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 10,
+                            color: AppTheme.honorColor,
+                            fontWeight: FontWeight.bold)),
+                    Text('10.0 GB',
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 10, color: AppTheme.secondaryColor)),
                   ],
                 ),
               ],
@@ -409,7 +472,10 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
               const SizedBox(width: 8),
               Text(
                 'QoS Status: 1.0x Full Line Speed (Unthrottled)',
-                style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.honorColor),
+                style: GoogleFonts.jetBrainsMono(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.honorColor),
               ),
             ],
           ),
@@ -429,12 +495,16 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
         children: [
           Text(
             '1-Click Starter Archive Packs',
-            style: GoogleFonts.newsreader(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+            style: GoogleFonts.newsreader(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textColor),
           ),
           const SizedBox(height: 8),
           Text(
             'Start with a pre-indexed collection of public-domain and open-access landmark works so your library is immediately alive.',
-            style: GoogleFonts.inter(fontSize: 14, height: 1.6, color: AppTheme.textColor),
+            style: GoogleFonts.inter(
+                fontSize: 14, height: 1.6, color: AppTheme.textColor),
           ),
           const SizedBox(height: 14),
           ...packs.map((pack) {
@@ -446,18 +516,26 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.primaryAccent.withValues(alpha: 0.12) : AppTheme.canvasColor,
+                  color: isSelected
+                      ? AppTheme.primaryAccent.withValues(alpha: 0.12)
+                      : AppTheme.canvasColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected ? AppTheme.primaryAccent : AppTheme.secondaryColor.withValues(alpha: 0.2),
+                    color: isSelected
+                        ? AppTheme.primaryAccent
+                        : AppTheme.secondaryColor.withValues(alpha: 0.2),
                     width: isSelected ? 1.5 : 1.0,
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                      color: isSelected ? AppTheme.primaryAccent : AppTheme.secondaryColor,
+                      isSelected
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: isSelected
+                          ? AppTheme.primaryAccent
+                          : AppTheme.secondaryColor,
                       size: 20,
                     ),
                     const SizedBox(width: 12),
@@ -481,7 +559,8 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                               ),
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: AppTheme.surfaceColor,
                                   borderRadius: BorderRadius.circular(4),
@@ -519,18 +598,26 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: _selectedSeedPackId.isEmpty ? AppTheme.primaryAccent.withValues(alpha: 0.12) : AppTheme.canvasColor,
+                color: _selectedSeedPackId.isEmpty
+                    ? AppTheme.primaryAccent.withValues(alpha: 0.12)
+                    : AppTheme.canvasColor,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _selectedSeedPackId.isEmpty ? AppTheme.primaryAccent : AppTheme.secondaryColor.withValues(alpha: 0.2),
+                  color: _selectedSeedPackId.isEmpty
+                      ? AppTheme.primaryAccent
+                      : AppTheme.secondaryColor.withValues(alpha: 0.2),
                   width: _selectedSeedPackId.isEmpty ? 1.5 : 1.0,
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    _selectedSeedPackId.isEmpty ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                    color: _selectedSeedPackId.isEmpty ? AppTheme.primaryAccent : AppTheme.secondaryColor,
+                    _selectedSeedPackId.isEmpty
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: _selectedSeedPackId.isEmpty
+                        ? AppTheme.primaryAccent
+                        : AppTheme.secondaryColor,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
@@ -574,12 +661,16 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
           const SizedBox(height: 20),
           Text(
             'Initializing Alexandria Commons...',
-            style: GoogleFonts.newsreader(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textColor),
+            style: GoogleFonts.newsreader(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textColor),
           ),
           const SizedBox(height: 8),
           Text(
             _statusMessage ?? 'Please wait...',
-            style: GoogleFonts.jetBrainsMono(fontSize: 12, color: AppTheme.secondaryColor),
+            style: GoogleFonts.jetBrainsMono(
+                fontSize: 12, color: AppTheme.secondaryColor),
             textAlign: TextAlign.center,
           ),
         ],

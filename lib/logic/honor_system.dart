@@ -61,9 +61,8 @@ class HonorSystem {
     // clamps attested values (maxAttestedHonor); do the same here so a
     // broken attestation source degrades to bounded weight, never
     // NaN/unbounded.
-    final resolved =
-        (reputationResolver?.call(validatorId) ?? reputation)
-            .clamp(0, maxClaimedReputation);
+    final resolved = (reputationResolver?.call(validatorId) ?? reputation)
+        .clamp(0, maxClaimedReputation);
     _votes.add(ValidationVote(
       validatorId: validatorId,
       targetCid: targetCid,

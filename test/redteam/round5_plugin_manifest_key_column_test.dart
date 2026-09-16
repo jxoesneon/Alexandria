@@ -26,7 +26,8 @@ import 'package:alexandria/logic/content_repository.dart';
 import 'package:alexandria/services/plugin_service.dart';
 
 void main() {
-  test('a contentRead plugin must not read the manifest encryptionKey '
+  test(
+      'a contentRead plugin must not read the manifest encryptionKey '
       'column (legacy-row DEK leak)', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -55,8 +56,7 @@ void main() {
     final row = manifests.firstWhere((m) => m.uuid == 'legacy-doc');
 
     expect(row.encryptionKey, isNull,
-        reason:
-            'the narrowed plugin view returned a manifest row carrying '
+        reason: 'the narrowed plugin view returned a manifest row carrying '
             'encryptionKey="${row.encryptionKey}" — the key-material '
             'column survives into the plugin-visible object graph. '
             'PluginContentRepository closed the *methods* '
@@ -68,8 +68,7 @@ void main() {
     // Same leak through the single-manifest read path.
     final single = await repo.getManifestByUuid('legacy-doc');
     expect(single?.encryptionKey, isNull,
-        reason:
-            'getManifestByUuid also returns the raw row — the '
+        reason: 'getManifestByUuid also returns the raw row — the '
             'encryptionKey field reaches the plugin identically.');
   });
 }

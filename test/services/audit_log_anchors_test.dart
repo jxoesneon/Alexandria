@@ -52,8 +52,8 @@ void main() {
     File headFile() => File('${tempDir.path}/audit_trail.log.head');
 
     AuditLogService svc({int checkpointEvery = 4}) => container.read(
-          Provider((ref) =>
-              AuditLogService(ref, checkpointEvery: checkpointEvery)),
+          Provider(
+              (ref) => AuditLogService(ref, checkpointEvery: checkpointEvery)),
         );
 
     setUp(() async {
@@ -100,7 +100,8 @@ void main() {
       expect(parts[3], equals(mac));
     });
 
-    test('in-file checkpoint lines are written every checkpointEvery '
+    test(
+        'in-file checkpoint lines are written every checkpointEvery '
         'entries, chained, and verify on read', () async {
       await writeEntries(service, 4); // checkpointEvery = 4
       final lines = await logFile().readAsLines();
@@ -116,7 +117,8 @@ void main() {
       expect(logs.where((l) => l.status == 'Tampered'), isEmpty);
     });
 
-    test('a checkpoint whose recorded head lies is flagged tampered '
+    test(
+        'a checkpoint whose recorded head lies is flagged tampered '
         'even with a valid MAC', () async {
       await writeEntries(service, 4);
       final lines = await logFile().readAsLines();
@@ -128,22 +130,19 @@ void main() {
           sha256.convert(utf8.encode(lines[3].trim())).toString();
       final input = 'v2|4|$prevDigest|$ts|audit_chain_checkpoint|'
           '3:${'b' * 64}|system|Checkpoint';
-      final mac = Hmac(sha256, keyBytes)
-          .convert(utf8.encode(input))
-          .toString();
+      final mac = Hmac(sha256, keyBytes).convert(utf8.encode(input)).toString();
       lines[4] = '$ts|audit_chain_checkpoint|3:${'b' * 64}'
           '|v2:4:$prevDigest:$mac|system|Checkpoint';
       await logFile().writeAsString('${lines.join('\n')}\n');
       final logs = await service.getRecentLogs(20);
-      final ckpt =
-          logs.where((l) => l.event == 'audit_chain_checkpoint');
+      final ckpt = logs.where((l) => l.event == 'audit_chain_checkpoint');
       expect(ckpt.isNotEmpty, isTrue);
       expect(ckpt.first.status, equals('Tampered'));
     });
 
-    test('storage-head deletion alone no longer blinds truncation '
-        'detection — the sidecar anchor still exposes the gap',
-        () async {
+    test(
+        'storage-head deletion alone no longer blinds truncation '
+        'detection — the sidecar anchor still exposes the gap', () async {
       await writeEntries(service, 3);
       // Attacker: deletes the secure-storage head and truncates the
       // tail — but cannot touch the sidecar.
@@ -162,7 +161,8 @@ void main() {
       expect(gaps.every((l) => l.status == 'Tampered'), isTrue);
     });
 
-    test('deleting EVERY anchor while signed lines remain is itself '
+    test(
+        'deleting EVERY anchor while signed lines remain is itself '
         'surfaced (audit_log_head_anchor_missing)', () async {
       await writeEntries(service, 3);
       // Attacker: deletes BOTH anchors and truncates the tail.
@@ -183,7 +183,8 @@ void main() {
       );
     });
 
-    test('a corrupted sidecar degrades to absent — storage anchor '
+    test(
+        'a corrupted sidecar degrades to absent — storage anchor '
         'still detects truncation', () async {
       await writeEntries(service, 3);
       await headFile().writeAsString('v1|2|deadbeef|${'0' * 64}\n');
@@ -196,11 +197,11 @@ void main() {
           reason: 'the surviving storage anchor still exposes the '
               'truncation even with the sidecar corrupted');
       expect(
-          logs.any((l) => l.event == 'audit_log_head_anchor_missing'),
-          isFalse);
+          logs.any((l) => l.event == 'audit_log_head_anchor_missing'), isFalse);
     });
 
-    test('a same-seq/different-digest anchor disagreement is flagged '
+    test(
+        'a same-seq/different-digest anchor disagreement is flagged '
         '(audit_log_anchor_conflict)', () async {
       await writeEntries(service, 3);
       // Attacker rewrites ONLY the storage anchor: same seq, forged
@@ -209,8 +210,7 @@ void main() {
       final logs = await service.getRecentLogs(20);
       expect(
         logs.any((l) =>
-            l.event == 'audit_log_anchor_conflict' &&
-            l.status == 'Tampered'),
+            l.event == 'audit_log_anchor_conflict' && l.status == 'Tampered'),
         isTrue,
       );
     });
@@ -222,13 +222,12 @@ void main() {
       expect(await headFile().exists(), isFalse);
       final logs = await service.getRecentLogs(20);
       expect(
-          logs.any((l) => l.event == 'audit_log_head_anchor_missing'),
-          isFalse);
-      expect(logs.any((l) => l.event == 'audit_chain_checkpoint'),
-          isFalse);
+          logs.any((l) => l.event == 'audit_log_head_anchor_missing'), isFalse);
+      expect(logs.any((l) => l.event == 'audit_chain_checkpoint'), isFalse);
     });
 
-    test('fresh instance recovers expected head from in-file '
+    test(
+        'fresh instance recovers expected head from in-file '
         'checkpoint when every external anchor is gone', () async {
       await writeEntries(service, 4); // checkpoint at index 4
       await storage.delete('audit_chain_head_v1');
@@ -237,8 +236,7 @@ void main() {
       // checkpoint becomes the remembered head; further truncation
       // below it is detectable by the next read.
       final lines = await logFile().readAsLines();
-      await logFile()
-          .writeAsString('${lines.sublist(0, 5).join('\n')}\n');
+      await logFile().writeAsString('${lines.sublist(0, 5).join('\n')}\n');
 
       final fresh = svc();
       // First read anchors the head on the checkpoint.

@@ -102,7 +102,8 @@ void main() {
           funded: funded,
         );
 
-    test('composed + decomposed announcements of one id dedup to a '
+    test(
+        'composed + decomposed announcements of one id dedup to a '
         'single stored record (normalized)', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
@@ -123,7 +124,8 @@ void main() {
       expect(stored.single.id, normalizeBountyId(composedId));
     });
 
-    test('claimBounty resolves a composed spelling against the '
+    test(
+        'claimBounty resolves a composed spelling against the '
         'normalized stored id', () async {
       final cs = CreditService(initialBalance: 100.0);
       final attestor = await _newKey();
@@ -158,7 +160,8 @@ void main() {
       expect(svc.activeBounties.any((b) => b.id == stored.id), isFalse);
     });
 
-    test('cancelBounty resolves the composed spelling for a locally '
+    test(
+        'cancelBounty resolves the composed spelling for a locally '
         'posted id', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
@@ -174,11 +177,11 @@ void main() {
       // is a no-op. A live locally-posted bounty with a tracked escrow
       // hold is delisted but the refund is refused by the cross-ledger
       // guard → cancel reports false.
-      expect(await svc.cancelBounty(normalizeBountyId(posted.id)),
-          isFalse);
+      expect(await svc.cancelBounty(normalizeBountyId(posted.id)), isFalse);
     });
 
-    test('dead-id tombstone is canonical: a cancelled id re-announced '
+    test(
+        'dead-id tombstone is canonical: a cancelled id re-announced '
         'in the OTHER spelling stays unfunded', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);

@@ -46,7 +46,8 @@ void main() {
 
     expect(find.text('Coherence Voice'), findsOneWidget);
     expect(find.text('CIDv1 Standard & Ontological Harmony'), findsOneWidget);
-    expect(find.textContaining('Enforces universal content addressing'), findsOneWidget);
+    expect(find.textContaining('Enforces universal content addressing'),
+        findsOneWidget);
 
     // 3. Close dialog
     await tester.tap(find.text('Close'));

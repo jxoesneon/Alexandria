@@ -176,8 +176,7 @@ class Proposal {
             (next == ProposalStatus.approved ||
                 next == ProposalStatus.rejected ||
                 next == ProposalStatus.expired)) ||
-        (_status == ProposalStatus.approved &&
-            next == ProposalStatus.executed);
+        (_status == ProposalStatus.approved && next == ProposalStatus.executed);
     if (allowed) _status = next;
   }
 

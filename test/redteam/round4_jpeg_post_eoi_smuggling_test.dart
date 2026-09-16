@@ -38,8 +38,7 @@ void main() {
 
     final result = await svc.scrubMetadata(jpeg);
     expect(result.scrubbedBytes, isNot(contains(tail.first)),
-        reason:
-            'a payload appended after the JPEG EOI marker survived '
+        reason: 'a payload appended after the JPEG EOI marker survived '
             'scrubbing verbatim — the same covert channel the round-3 '
             'fix closed for post-IEND PNG data is still open post-EOI '
             'for JPEG. EOI terminates the stream; trailing bytes are '

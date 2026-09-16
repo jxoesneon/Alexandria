@@ -66,7 +66,16 @@ const _jfifApp0 = <int>[
 /// verbatim by the allowlist; the exif reader hops its declared
 /// length (0x0008) and lands on the byte right after it.
 const _sos = <int>[
-  0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00,
+  0xFF,
+  0xDA,
+  0x00,
+  0x08,
+  0x01,
+  0x01,
+  0x00,
+  0x00,
+  0x3F,
+  0x00,
 ];
 
 /// A kept-marker segment (DQT, 0xDB) whose payload embeds a complete
@@ -119,7 +128,10 @@ List<int> _dqtWithPlantedExif() {
   payload[p + 35] = 0x00;
   final segLen = payload.length + 2;
   return [
-    0xFF, 0xDB, (segLen >> 8) & 0xFF, segLen & 0xFF,
+    0xFF,
+    0xDB,
+    (segLen >> 8) & 0xFF,
+    segLen & 0xFF,
     ...payload,
   ];
 }
@@ -158,7 +170,8 @@ Uint8List _exifApp1Segment() {
 void main() {
   final svc = MetadataScrubbingService(CidService());
 
-  test('a TIFF planted inside a kept DQT payload survives verbatim AND '
+  test(
+      'a TIFF planted inside a kept DQT payload survives verbatim AND '
       'is surfaced by the app\'s own exif reader — the reader\'s '
       'segment walk is not entropy-aware and can be steered into kept '
       'payloads via fake lengths in the scan data', () async {
@@ -175,8 +188,8 @@ void main() {
     // Sanity: detection sees the real APP1 fields.
     expect(await svc.detectSensitiveFields(jpeg), isNotEmpty);
 
-    final result = await svc.scrubMetadata(jpeg,
-        options: ScrubbingOptions.full);
+    final result =
+        await svc.scrubMetadata(jpeg, options: ScrubbingOptions.full);
 
     expect(_countExifMarkers(result.scrubbedBytes), 0,
         reason: 'the round-9 criterion: no FF E1 `Exif` pattern may '
@@ -198,7 +211,8 @@ void main() {
     expect(meta?.exif.containsKey('Image Make') ?? false, isFalse);
   });
 
-  test('covert-only carrier: a JPEG whose ONLY metadata lives inside a '
+  test(
+      'covert-only carrier: a JPEG whose ONLY metadata lives inside a '
       'kept payload scrubs to byte-identical output (wasModified '
       'false) yet still yields the field to extractMetadata', () async {
     // No real APP1 at all — the only metadata is the DQT-payload
@@ -207,16 +221,18 @@ void main() {
     // relevant, so the output is byte-identical and the caller ships
     // the original believing it clean.
     final jpeg = Uint8List.fromList([
-      0xFF, 0xD8,
+      0xFF,
+      0xD8,
       ..._jfifApp0,
       ..._sos,
       ..._steeringEntropy,
       ..._dqtWithPlantedExif(),
-      0xFF, 0xD9,
+      0xFF,
+      0xD9,
     ]);
 
-    final result = await svc.scrubMetadata(jpeg,
-        options: ScrubbingOptions.full);
+    final result =
+        await svc.scrubMetadata(jpeg, options: ScrubbingOptions.full);
 
     final leaked = await readExifFromBytes(result.scrubbedBytes);
     expect(leaked.containsKey('Image Make'), isFalse,

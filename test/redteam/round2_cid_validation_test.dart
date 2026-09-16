@@ -40,31 +40,27 @@ void main() {
         isTrue);
   });
 
-  test('pinCid must not claim success for unresolvable identifiers',
-      () async {
+  test('pinCid must not claim success for unresolvable identifiers', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final ipfs = container.read(ipfsServiceProvider);
 
     final ok = await ipfs.pinCid('definitely-not-a-cid');
     expect(ok, isFalse,
-        reason:
-            'pinCid("definitely-not-a-cid") returned true and added it to '
+        reason: 'pinCid("definitely-not-a-cid") returned true and added it to '
             'pinnedCids — pin claims are unconstrained by resolution or '
             'validity, so preservation health and storage accounting '
             'count phantom content');
   });
 
-  test('health of nonexistent content must not read as endangered',
-      () async {
+  test('health of nonexistent content must not read as endangered', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final preservation = container.read(preservationServiceProvider);
 
     final status = await preservation.checkContentHealth('not-a-real-cid');
     expect(status, HealthStatus.lost,
-        reason:
-            'findProviders fabricates a DHT provider for unheld content, '
+        reason: 'findProviders fabricates a DHT provider for unheld content, '
             'so health reports $status for content that does not exist — '
             'preservation decisions are made on phantom availability');
   });

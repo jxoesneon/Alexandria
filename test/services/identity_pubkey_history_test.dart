@@ -74,16 +74,16 @@ void main() {
       expect(known.length, 2);
     });
 
-    test('re-importing the SAME key does not duplicate the entry',
-        () async {
+    test('re-importing the SAME key does not duplicate the entry', () async {
       final seed = await _newSeed();
       final first = await service.importIdentity(seed);
       await service.importIdentity(seed); // recovery of the same key
-      expect(await service.knownLocalPubkeyHexes(),
-          {_hexEncode(first.publicKey)});
+      expect(
+          await service.knownLocalPubkeyHexes(), {_hexEncode(first.publicKey)});
     });
 
-    test('history survives deleteIdentity — a deleted key stays '
+    test(
+        'history survives deleteIdentity — a deleted key stays '
         'self-vouched forever', () async {
       final first = await service.generateIdentity();
       final second = await service.generateIdentity();
@@ -96,7 +96,8 @@ void main() {
               {_hexEncode(first.publicKey), _hexEncode(second.publicKey)}));
     });
 
-    test('history persists across service instances on one store '
+    test(
+        'history persists across service instances on one store '
         '(restart durability)', () async {
       final first = await service.generateIdentity();
       final second = await service.generateIdentity();
@@ -109,25 +110,21 @@ void main() {
               {_hexEncode(first.publicKey), _hexEncode(second.publicKey)}));
     });
 
-    test('legacy install (pre-feature keys, no history blob) still '
+    test(
+        'legacy install (pre-feature keys, no history blob) still '
         'reports the current key — the current-key floor', () async {
       // Write a coherent pair out-of-band, as a pre-feature build would
       // have persisted it.
       final keyPair = await Ed25519().newKeyPair();
-      final pub =
-          Uint8List.fromList((await keyPair.extractPublicKey()).bytes);
-      final seed =
-          Uint8List.fromList(await keyPair.extractPrivateKeyBytes());
+      final pub = Uint8List.fromList((await keyPair.extractPublicKey()).bytes);
+      final seed = Uint8List.fromList(await keyPair.extractPrivateKeyBytes());
+      await storage.write('alexandria_identity_private_key', _hexEncode(seed));
+      await storage.write('alexandria_identity_public_key', _hexEncode(pub));
       await storage.write(
-          'alexandria_identity_private_key', _hexEncode(seed));
-      await storage.write(
-          'alexandria_identity_public_key', _hexEncode(pub));
-      await storage.write('alexandria_identity_created',
-          DateTime.now().toIso8601String());
+          'alexandria_identity_created', DateTime.now().toIso8601String());
 
       // Even before any read/heal, the resolver includes the current key.
-      expect(await service.knownLocalPubkeyHexes(),
-          contains(_hexEncode(pub)));
+      expect(await service.knownLocalPubkeyHexes(), contains(_hexEncode(pub)));
 
       // And the first served read backfills the history blob so the key
       // stays known after a later rotation.
@@ -136,18 +133,14 @@ void main() {
       final rotated = await service.importIdentity(seedB);
       final known = await service.knownLocalPubkeyHexes();
       expect(
-          known,
-          containsAll(
-              {_hexEncode(pub), _hexEncode(rotated.publicKey)}),
+          known, containsAll({_hexEncode(pub), _hexEncode(rotated.publicKey)}),
           reason: 'the legacy key must be recorded before rotation, so '
               'a receipt it signed is still self-issued');
     });
 
-    test('a corrupt history blob degrades to the current-key floor',
-        () async {
+    test('a corrupt history blob degrades to the current-key floor', () async {
       final identity = await service.generateIdentity();
-      await storage.write(
-          'alexandria_identity_pubkey_history', 'not-json{{[');
+      await storage.write('alexandria_identity_pubkey_history', 'not-json{{[');
       expect(await service.knownLocalPubkeyHexes(),
           {_hexEncode(identity.publicKey)});
     });

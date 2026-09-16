@@ -9,35 +9,40 @@ enum GovernanceVoice {
     color: Color(0xFF38BDF8), // Cyan
     icon: Icons.hub_outlined,
     mandate: 'CIDv1 Standard & Ontological Harmony',
-    description: 'Enforces universal content addressing, multihash invariants, and schema non-contradiction across all archive collections.',
+    description:
+        'Enforces universal content addressing, multihash invariants, and schema non-contradiction across all archive collections.',
   ),
   capability(
     name: 'Capability',
     color: AppTheme.primaryAccent, // Parchment Gold (0xFFD4A373)
     icon: Icons.bolt_outlined,
     mandate: 'Universal Harvesting & Cauchy Compute',
-    description: 'Empowers nodes and AI agents to ingest landmark DOIs, compute Cauchy Reed-Solomon GF(2^8) parity shards, and verify retrievability.',
+    description:
+        'Empowers nodes and AI agents to ingest landmark DOIs, compute Cauchy Reed-Solomon GF(2^8) parity shards, and verify retrievability.',
   ),
   safety(
     name: 'Safety',
     color: AppTheme.honorColor, // Emerald (0xFF4A7C59)
     icon: Icons.shield_outlined,
     mandate: 'US §108 Immunity & Zero-PII Privacy',
-    description: 'Preserves non-profit safe harbor under US Copyright Act §108, DMCA 512, with zero telemetry and client-side attention verification.',
+    description:
+        'Preserves non-profit safe harbor under US Copyright Act §108, DMCA 512, with zero telemetry and client-side attention verification.',
   ),
   efficiency(
     name: 'Efficiency',
     color: Color(0xFFA78BFA), // Lavender / Violet
     icon: Icons.speed_outlined,
     mandate: 'Zero-Gas Ledger & Fair-Queue QoS',
-    description: 'Maintains sub-millisecond local contextual matching, lightweight Merkle hash-chains, and logarithmic bandwidth QoS scheduling.',
+    description:
+        'Maintains sub-millisecond local contextual matching, lightweight Merkle hash-chains, and logarithmic bandwidth QoS scheduling.',
   ),
   evolution(
     name: 'Evolution',
     color: Color(0xFFFB7185), // Rose Coral
     icon: Icons.all_inclusive,
     mandate: 'Moltbook Agent Swarm & Sovereign Rails',
-    description: 'Connects autonomous AI agents over Moltbook (Beacon v2) with non-custodial Cashu Chaumian e-cash and live Bitcoin Lightning payouts.',
+    description:
+        'Connects autonomous AI agents over Moltbook (Beacon v2) with non-custodial Cashu Chaumian e-cash and live Bitcoin Lightning payouts.',
   );
 
   final String name;
@@ -137,7 +142,8 @@ class GovernanceBanner extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.check_circle_outline, color: AppTheme.honorColor, size: 12),
+                    const Icon(Icons.check_circle_outline,
+                        color: AppTheme.honorColor, size: 12),
                     const SizedBox(width: 4),
                     Text(
                       'Active',
@@ -171,7 +177,8 @@ class GovernanceBanner extends StatelessWidget {
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: voice.color.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(8),
@@ -260,7 +267,8 @@ class GovernanceBanner extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close', style: TextStyle(color: AppTheme.primaryAccent)),
+            child: const Text('Close',
+                style: TextStyle(color: AppTheme.primaryAccent)),
           ),
         ],
       ),

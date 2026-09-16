@@ -57,7 +57,8 @@ void main() {
       expect(a, isNot(b));
     });
 
-    test('every request without/with-wrong token is refused — including '
+    test(
+        'every request without/with-wrong token is refused — including '
         'initialize and tools/list', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
@@ -103,31 +104,29 @@ void main() {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
           sessionToken: 't', listTools: tools.list, callTool: tools.call);
-      final res = await runner
-          .handleJsonRpcRequest(_req('t', 'tools/list'));
-      final listed = (res!['result']['tools'] as List)
-          .map((t) => t['name'])
-          .toList();
-      expect(listed, unorderedEquals([
-        'alexandria_search_archive',
-        'alexandria_get_wallet_balance',
-        'alexandria_request_por_challenge',
-      ]));
+      final res = await runner.handleJsonRpcRequest(_req('t', 'tools/list'));
+      final listed =
+          (res!['result']['tools'] as List).map((t) => t['name']).toList();
+      expect(
+          listed,
+          unorderedEquals([
+            'alexandria_search_archive',
+            'alexandria_get_wallet_balance',
+            'alexandria_request_por_challenge',
+          ]));
     });
 
     test('non-allowlisted tool is refused before dispatch', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
           sessionToken: 't', listTools: tools.list, callTool: tools.call);
-      final res = await runner.handleJsonRpcRequest(_req(
-          't', 'tools/call',
+      final res = await runner.handleJsonRpcRequest(_req('t', 'tools/call',
           params: {'name': 'alexandria_replicate_cid', 'arguments': {}}));
       expect(res!['result']['isError'], isTrue);
       expect(tools.calls, isEmpty);
     });
 
-    test('per-tool sliding-window budget is enforced independently',
-        () async {
+    test('per-tool sliding-window budget is enforced independently', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
         sessionToken: 't',
@@ -139,25 +138,29 @@ void main() {
         },
       );
       Future<Map<String, dynamic>?> call(String name) =>
-          runner.handleJsonRpcRequest(_req('t', 'tools/call',
-              params: {'name': name, 'arguments': {}}));
+          runner.handleJsonRpcRequest(
+              _req('t', 'tools/call', params: {'name': name, 'arguments': {}}));
 
-      expect((await call('alexandria_search_archive'))!['result']
-          ['isError'], isFalse);
-      expect((await call('alexandria_search_archive'))!['result']
-          ['isError'], isFalse);
+      expect((await call('alexandria_search_archive'))!['result']['isError'],
+          isFalse);
+      expect((await call('alexandria_search_archive'))!['result']['isError'],
+          isFalse);
       // Third call inside the window → protocol-level rate error.
       final third = await call('alexandria_search_archive');
       expect(third!['error']['code'], -32029);
       // A different tool is unaffected — budgets are independent.
-      expect((await call('alexandria_get_wallet_balance'))!['result']
-          ['isError'], isFalse);
-      expect(tools.calls,
-          ['alexandria_search_archive', 'alexandria_search_archive',
-           'alexandria_get_wallet_balance']);
+      expect(
+          (await call('alexandria_get_wallet_balance'))!['result']['isError'],
+          isFalse);
+      expect(tools.calls, [
+        'alexandria_search_archive',
+        'alexandria_search_archive',
+        'alexandria_get_wallet_balance'
+      ]);
     });
 
-    test('minting/receipt-ingest tools stay refused unless the §5.2.4 '
+    test(
+        'minting/receipt-ingest tools stay refused unless the §5.2.4 '
         'gate is explicitly lifted', () async {
       final tools = _FakeTools();
       final gated = AlexandriaMcpRunner(
@@ -166,8 +169,7 @@ void main() {
         callTool: tools.call,
         allowedTools: {'alexandria_ingest_doi'},
       );
-      final res = await gated.handleJsonRpcRequest(_req(
-          't', 'tools/call',
+      final res = await gated.handleJsonRpcRequest(_req('t', 'tools/call',
           params: {'name': 'alexandria_ingest_doi', 'arguments': {}}));
       expect(res!['result']['isError'], isTrue);
       expect(tools.calls, isEmpty);
@@ -179,8 +181,7 @@ void main() {
         allowedTools: {'alexandria_ingest_doi'},
         permitMintingTools: true,
       );
-      final res2 = await open.handleJsonRpcRequest(_req(
-          't', 'tools/call',
+      final res2 = await open.handleJsonRpcRequest(_req('t', 'tools/call',
           params: {'name': 'alexandria_ingest_doi', 'arguments': {}}));
       expect(res2!['result']['isError'], isFalse);
     });
@@ -198,16 +199,16 @@ void main() {
           consentHook: consent,
         );
 
-    test('economic tool without a consent hook is refused even under '
+    test(
+        'economic tool without a consent hook is refused even under '
         'the ceiling', () async {
       final tools = _FakeTools();
       final runner = econRunner(tools);
-      final res = await runner.handleJsonRpcRequest(_req(
-          't', 'tools/call',
-          params: {
-            'name': 'alexandria_replicate_cid',
-            'arguments': {'cid': 'bafk_x', 'credits': 10.0}
-          }));
+      final res =
+          await runner.handleJsonRpcRequest(_req('t', 'tools/call', params: {
+        'name': 'alexandria_replicate_cid',
+        'arguments': {'cid': 'bafk_x', 'credits': 10.0}
+      }));
       expect(res!['result']['isError'], isTrue);
       expect(tools.calls, isEmpty);
     });
@@ -215,37 +216,35 @@ void main() {
     test('consent denial refuses the spend', () async {
       final tools = _FakeTools();
       var asked = 0;
-      final runner =
-          econRunner(tools, consent: (req) async {
+      final runner = econRunner(tools, consent: (req) async {
         asked++;
         expect(req.toolName, 'alexandria_replicate_cid');
         expect(req.amountCredits, 10.0);
         return false;
       });
-      final res = await runner.handleJsonRpcRequest(_req(
-          't', 'tools/call',
-          params: {
-            'name': 'alexandria_replicate_cid',
-            'arguments': {'cid': 'bafk_x', 'credits': 10.0}
-          }));
+      final res =
+          await runner.handleJsonRpcRequest(_req('t', 'tools/call', params: {
+        'name': 'alexandria_replicate_cid',
+        'arguments': {'cid': 'bafk_x', 'credits': 10.0}
+      }));
       expect(res!['result']['isError'], isTrue);
       expect(asked, 1);
       expect(tools.calls, isEmpty);
       expect(runner.sessionSpend, 0.0);
     });
 
-    test('approved spend executes and accumulates; exceeding the hard '
+    test(
+        'approved spend executes and accumulates; exceeding the hard '
         'ceiling is refused even when consent approves', () async {
       final tools = _FakeTools();
-      final runner = econRunner(tools,
-          ceiling: 25.0, consent: (req) async => true);
+      final runner =
+          econRunner(tools, ceiling: 25.0, consent: (req) async => true);
       Future<bool> spend(double c) async {
-        final res = await runner.handleJsonRpcRequest(_req(
-            't', 'tools/call',
-            params: {
-              'name': 'alexandria_replicate_cid',
-              'arguments': {'cid': 'bafk_x', 'credits': c}
-            }));
+        final res =
+            await runner.handleJsonRpcRequest(_req('t', 'tools/call', params: {
+          'name': 'alexandria_replicate_cid',
+          'arguments': {'cid': 'bafk_x', 'credits': c}
+        }));
         return res!['result']['isError'] == false;
       }
 
@@ -261,21 +260,21 @@ void main() {
 
     test('default ceiling of zero refuses all spend paths', () async {
       final tools = _FakeTools();
-      final runner = econRunner(tools,
-          ceiling: 0.0, consent: (req) async => true);
-      final res = await runner.handleJsonRpcRequest(_req(
-          't', 'tools/call',
-          params: {
-            'name': 'alexandria_replicate_cid',
-            'arguments': {'cid': 'bafk_x', 'credits': 1.0}
-          }));
+      final runner =
+          econRunner(tools, ceiling: 0.0, consent: (req) async => true);
+      final res =
+          await runner.handleJsonRpcRequest(_req('t', 'tools/call', params: {
+        'name': 'alexandria_replicate_cid',
+        'arguments': {'cid': 'bafk_x', 'credits': 1.0}
+      }));
       expect(res!['result']['isError'], isTrue);
       expect(tools.calls, isEmpty);
     });
   });
 
   group('McpControlSocket', () {
-    test('loopback socket requires auth handshake, then still requires '
+    test(
+        'loopback socket requires auth handshake, then still requires '
         'the per-request token', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(
@@ -291,8 +290,9 @@ void main() {
       final bad = await Socket.connect('127.0.0.1', port);
       final badLines = <String>[];
       final badDone = Completer<void>();
-      bad.listen((d) => badLines.addAll(
-          utf8.decode(d).split('\n').where((l) => l.isNotEmpty)),
+      bad.listen(
+          (d) => badLines
+              .addAll(utf8.decode(d).split('\n').where((l) => l.isNotEmpty)),
           onDone: badDone.complete);
       bad.writeln(jsonEncode({'auth': 'nope'}));
       await bad.flush();
@@ -317,8 +317,7 @@ void main() {
         }
       });
       Future<List<String>> waitLines(int n) async {
-        final deadline =
-            DateTime.now().add(const Duration(seconds: 5));
+        final deadline = DateTime.now().add(const Duration(seconds: 5));
         while (received.length < n) {
           if (DateTime.now().isAfter(deadline)) {
             fail('timed out waiting for $n socket lines, got $received');
@@ -333,8 +332,7 @@ void main() {
       final hello = jsonDecode((await waitLines(1)).single) as Map;
       expect(hello['ok'], isTrue);
 
-      good.writeln(jsonEncode(
-          {'jsonrpc': '2.0', 'id': 7, 'method': 'ping'}));
+      good.writeln(jsonEncode({'jsonrpc': '2.0', 'id': 7, 'method': 'ping'}));
       good.writeln(jsonEncode({
         'jsonrpc': '2.0',
         'id': 8,
@@ -359,7 +357,8 @@ void main() {
       good.destroy();
     });
 
-    test('auth frame + request frame in ONE TCP chunk stay ordered — '
+    test(
+        'auth frame + request frame in ONE TCP chunk stay ordered — '
         'the request is not mistaken for a second auth attempt', () async {
       final tools = _FakeTools();
       final runner = AlexandriaMcpRunner(

@@ -61,8 +61,7 @@ class FakeEncryptionService implements EncryptionService {
   }
 
   @override
-  Future<Uint8List?> decryptData(
-      Uint8List cipherData, SecretKey key) async {
+  Future<Uint8List?> decryptData(Uint8List cipherData, SecretKey key) async {
     return cipherData;
   }
 
@@ -290,7 +289,8 @@ void main() {
       );
     });
 
-    test('getCurrentAlerts warns about a missing mnemonic backup only '
+    test(
+        'getCurrentAlerts warns about a missing mnemonic backup only '
         'when the shared marker is absent', () async {
       identity.setIdentity(_makeIdentity());
 
@@ -336,15 +336,15 @@ void main() {
       );
     });
 
-    test('exportPrivateKey emits a versioned KDF envelope and validates '
+    test(
+        'exportPrivateKey emits a versioned KDF envelope and validates '
         'key id', () async {
       identity.setIdentity(_makeIdentity());
       final exported = await service.exportPrivateKey('11111111', 'p@ss');
 
       // v2 format: base64(JSON{kdf params, salt, blob}) — never the raw
       // ciphertext, and never keyed by bare SHA-256(password).
-      final envelope =
-          jsonDecode(utf8.decode(base64Decode(exported))) as Map;
+      final envelope = jsonDecode(utf8.decode(base64Decode(exported))) as Map;
       expect(envelope['v'], SecurityOverviewService.exportFormatVersion);
       expect(envelope['kdf'], 'argon2id');
       expect(envelope['memory'], isA<int>());
@@ -360,7 +360,8 @@ void main() {
       );
     });
 
-    test('exportPrivateKey uses a random salt — exports are not '
+    test(
+        'exportPrivateKey uses a random salt — exports are not '
         'correlatable', () async {
       identity.setIdentity(_makeIdentity());
       final a = await service.exportPrivateKey('11111111', 'p@ss');
@@ -390,8 +391,7 @@ void main() {
       identity.setIdentity(_makeIdentity());
       final exported =
           await realService.exportPrivateKey('11111111', 'correct horse');
-      final env =
-          jsonDecode(utf8.decode(base64Decode(exported))) as Map;
+      final env = jsonDecode(utf8.decode(base64Decode(exported))) as Map;
       final kdf = Argon2id(
         parallelism: env['parallelism'] as int,
         memory: env['memory'] as int,
@@ -454,7 +454,11 @@ void main() {
         'alexandria_access_policies',
         jsonEncode({
           'cid-1': [
-            {'cid': 'cid-1', 'peerDid': 'did:alex:ok', 'grantedAt': '2024-01-01T00:00:00.000Z'},
+            {
+              'cid': 'cid-1',
+              'peerDid': 'did:alex:ok',
+              'grantedAt': '2024-01-01T00:00:00.000Z'
+            },
             'garbage-entry',
             {'cid': 'cid-1'}, // missing peerDid/grantedAt
           ],

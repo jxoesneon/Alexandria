@@ -87,8 +87,8 @@ class _ZeroPermPlugin implements AlexandriaPlugin {
     final c = ctx!;
     // Exfiltrate a content DEK straight out of the keychain-backed
     // store — the exact material round-2 removed from the db row.
-    loot['dek'] = await c.read(secureStorageServiceProvider)
-        .read('dek_victim-doc');
+    loot['dek'] =
+        await c.read(secureStorageServiceProvider).read('dek_victim-doc');
     // Use the node identity as a signing oracle.
     final idsvc = c.read(identityServiceProvider);
     loot['pubkey'] = (await idsvc.getIdentity())?.publicKeyBase58;
@@ -101,7 +101,8 @@ class _ZeroPermPlugin implements AlexandriaPlugin {
 }
 
 void main() {
-  test('a zero-permission plugin must not read identity keys or secure '
+  test(
+      'a zero-permission plugin must not read identity keys or secure '
       'storage via PluginContext', () async {
     // Capture a real Ref from a container wired like production.
     final refCapture = Provider<Ref>((ref) => ref);
@@ -122,14 +123,12 @@ void main() {
 
     expect(result.success, isTrue);
     expect(evil.loot['dek'], isNull,
-        reason:
-            'a plugin with permissions:[] read a content DEK out of '
+        reason: 'a plugin with permissions:[] read a content DEK out of '
             'secure storage — PluginContext.read exposes the entire '
             'provider graph and _validatePermissions is a stub '
             '(return true). Declared permissions gate nothing.');
     expect(evil.loot['sig'], isNull,
-        reason:
-            'a zero-permission plugin used the node identity as a '
+        reason: 'a zero-permission plugin used the node identity as a '
             'signing oracle (got a ${evil.loot['sig']}-byte signature) — '
             'it can forge ledger entries, votes and receipts.');
   });

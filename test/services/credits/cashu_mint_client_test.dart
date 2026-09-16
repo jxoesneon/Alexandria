@@ -69,7 +69,8 @@ void main() {
       });
 
       final mintClient = CashuMintClient(client: mockClient);
-      final keysets = await mintClient.fetchActiveKeysetIds('https://mint.example.com/');
+      final keysets =
+          await mintClient.fetchActiveKeysetIds('https://mint.example.com/');
       expect(keysets, ['009a1f293252e140', '009a1f293252e141']);
       mintClient.close();
     });

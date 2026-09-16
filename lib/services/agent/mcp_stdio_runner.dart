@@ -136,8 +136,8 @@ class AlexandriaMcpRunner {
         _sessionToken = sessionToken ?? generateSessionToken(),
         // Frozen copy — the caller must not widen the surface after
         // construction by mutating the set it handed in.
-        _allowedTools = Set.unmodifiable(
-            allowedTools ?? Set.of(readOnlyAllowlist)),
+        _allowedTools =
+            Set.unmodifiable(allowedTools ?? Set.of(readOnlyAllowlist)),
         _rateBudgets = Map.unmodifiable(rateBudgets ?? const {}),
         _consentHook = consentHook;
 
@@ -257,8 +257,7 @@ class AlexandriaMcpRunner {
         final outcome = await _dispatchToolCall(name, args);
         final protocolError = outcome._protocolError;
         if (protocolError != null) {
-          return _rpcError(
-              id, protocolError, outcome._errorMessage ?? 'error');
+          return _rpcError(id, protocolError, outcome._errorMessage ?? 'error');
         }
         return {'jsonrpc': '2.0', 'id': id, 'result': outcome._result};
       default:

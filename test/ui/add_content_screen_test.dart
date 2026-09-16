@@ -105,7 +105,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AddContentScreen Tests', () {
-    testWidgets('renders add content form with inputs and category selector', (tester) async {
+    testWidgets('renders add content form with inputs and category selector',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -118,8 +119,10 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            contentRepositoryProvider.overrideWithValue(_FakeContentRepository()),
-            metadataScrubbingServiceProvider.overrideWithValue(scrubbingService),
+            contentRepositoryProvider
+                .overrideWithValue(_FakeContentRepository()),
+            metadataScrubbingServiceProvider
+                .overrideWithValue(scrubbingService),
             metadataServiceProvider.overrideWithValue(metadataService),
           ],
           child: const MaterialApp(
@@ -138,7 +141,9 @@ void main() {
       await tester.pump();
     });
 
-    testWidgets('interacts with category dropdown, toggles switches, and validates missing files', (tester) async {
+    testWidgets(
+        'interacts with category dropdown, toggles switches, and validates missing files',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -178,13 +183,15 @@ void main() {
       expect(find.text('Metadata (DATASET)'), findsOneWidget);
 
       // Toggle encryption switch
-      final encryptSwitch = find.widgetWithText(SwitchListTile, 'Encrypt Content');
+      final encryptSwitch =
+          find.widgetWithText(SwitchListTile, 'Encrypt Content');
       expect(encryptSwitch, findsOneWidget);
       await tester.tap(encryptSwitch);
       await tester.pumpAndSettle();
 
       // Toggle strip metadata switch
-      final stripSwitch = find.widgetWithText(SwitchListTile, 'Strip Metadata for Privacy');
+      final stripSwitch =
+          find.widgetWithText(SwitchListTile, 'Strip Metadata for Privacy');
       expect(stripSwitch, findsOneWidget);
       await tester.tap(stripSwitch);
       await tester.pumpAndSettle();
@@ -199,7 +206,9 @@ void main() {
       expect(find.text('Please select at least one file.'), findsOneWidget);
     });
 
-    testWidgets('populates initialFiles, analyzes metadata, and submits manifest', (tester) async {
+    testWidgets(
+        'populates initialFiles, analyzes metadata, and submits manifest',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -235,7 +244,8 @@ void main() {
 
       // Enter required fields
       await tester.enterText(find.byType(TextFormField).at(0), 'Principia');
-      await tester.enterText(find.byType(TextFormField).at(1), 'Philosophiae Naturalis');
+      await tester.enterText(
+          find.byType(TextFormField).at(1), 'Philosophiae Naturalis');
       await tester.enterText(find.byType(TextFormField).at(2), 'Isaac Newton');
       await tester.pump();
 
@@ -259,8 +269,7 @@ void main() {
         overrides: [
           contentRepositoryProvider.overrideWithValue(repo),
           metadataScrubbingServiceProvider.overrideWithValue(scrub),
-          metadataServiceProvider
-              .overrideWithValue(_MockMetadataService()),
+          metadataServiceProvider.overrideWithValue(_MockMetadataService()),
         ],
         child: MaterialApp(
           home: AddContentScreen(initialFiles: files),
@@ -361,7 +370,8 @@ void main() {
       expect(find.byType(AddContentScreen), findsNothing);
     });
 
-    testWidgets('a total failure keeps the screen and reports per-file '
+    testWidgets(
+        'a total failure keeps the screen and reports per-file '
         'errors', (tester) async {
       final repo = _FakeContentRepository();
       // Only oversized files — nothing ingests, so the form must stay

@@ -320,8 +320,7 @@ void main() {
       expect(added, isFalse);
     });
 
-    test('forkCollection copies a collection and tracks parent id',
-        () async {
+    test('forkCollection copies a collection and tracks parent id', () async {
       final source = await service.createCollection(name: 'Source');
       await service.addItem(
         collectionId: source.id,
@@ -359,8 +358,7 @@ void main() {
       expect(collection.hasRole(otherKey, CollectionRole.curator), isTrue);
     });
 
-    test('createMergeRequest returns a diff between two collections',
-        () async {
+    test('createMergeRequest returns a diff between two collections', () async {
       final source = await service.createCollection(name: 'Source');
       final target = await service.createCollection(name: 'Target');
       await service.addItem(
@@ -381,8 +379,7 @@ void main() {
       expect(request.signature, isNotEmpty);
     });
 
-    test('createMergeRequest returns null for a missing collection',
-        () async {
+    test('createMergeRequest returns null for a missing collection', () async {
       final source = await service.createCollection(name: 'Source');
 
       final request = await service.createMergeRequest(

@@ -62,8 +62,7 @@ class _FakeIdentityService implements IdentityService {
 /// built — mirrors BiometricService's preimage exactly.
 String _mac(Uint8List key, Uint8List voterKey, String changeId, bool approve,
     int issuedAt, String nonce) {
-  final preimage =
-      'alexandria:vote-attestation:v1|${base64Encode(voterKey)}|'
+  final preimage = 'alexandria:vote-attestation:v1|${base64Encode(voterKey)}|'
       '$changeId|$approve|$issuedAt|$nonce';
   return crypto.Hmac(crypto.sha256, key)
       .convert(utf8.encode(preimage))
@@ -126,7 +125,8 @@ void main() {
   ConsensusService consensus({VoteAttestationVerifier? verifier}) =>
       ConsensusService(identity, ledger, voteAttestationVerifier: verifier);
 
-  Future<ChangeRequest> propose(ConsensusService svc, {String cid = 'bafy_t'}) =>
+  Future<ChangeRequest> propose(ConsensusService svc,
+          {String cid = 'bafy_t'}) =>
       svc.proposeChange(
         targetCid: cid,
         field: 'title',
@@ -159,7 +159,8 @@ void main() {
       expect(biometric.lastAuthenticatedAt, isNull);
     });
 
-    test('returns null when biometrics are unavailable (fail closed — '
+    test(
+        'returns null when biometrics are unavailable (fail closed — '
         'no usability escape on the attestation path)', () async {
       mockLocalAuth(available: false, authResult: true);
       final token = await biometric.attestVoteIntent(
@@ -257,11 +258,10 @@ void main() {
       );
     });
 
-    test('refuses forged, malformed, stale and future-dated tokens',
-        () async {
+    test('refuses forged, malformed, stale and future-dated tokens', () async {
       // A deterministic-keyed service lets us craft valid-format tokens.
-      final crafted = BiometricService(
-          null, const Duration(minutes: 2), attKey);
+      final crafted =
+          BiometricService(null, const Duration(minutes: 2), attKey);
       final now = DateTime.now().millisecondsSinceEpoch;
       final voter = identity.publicKeyBytes;
 
@@ -309,8 +309,7 @@ void main() {
       );
 
       // Sanity: a correctly minted recent token on the same key verifies.
-      final good =
-          'va1.$now.nn.${_mac(attKey, voter, 'c', true, now, 'nn')}';
+      final good = 'va1.$now.nn.${_mac(attKey, voter, 'c', true, now, 'nn')}';
       expect(
         await crafted.consumeVoteAttestation(good,
             voterKey: voter, changeId: 'c', approve: true),
@@ -349,9 +348,7 @@ void main() {
         closeTo(
           VoteWeightCalculator.calculateWeight(
             reputationScore: ledger.totalReputation,
-            daysActive: DateTime.now()
-                .difference(DateTime(2025, 1, 1))
-                .inDays,
+            daysActive: DateTime.now().difference(DateTime(2025, 1, 1)).inDays,
             isHuman: true,
           ),
           0.0001,
@@ -359,8 +356,7 @@ void main() {
       );
     });
 
-    test('a token minted for a different change refuses the cast',
-        () async {
+    test('a token minted for a different change refuses the cast', () async {
       final svc = consensus(verifier: biometric.consumeVoteAttestation);
       final req = await propose(svc, cid: 'bafy_a');
       final other = await propose(svc, cid: 'bafy_b');
@@ -382,8 +378,7 @@ void main() {
       expect(req.votes, isEmpty);
     });
 
-    test('a token minted for the opposite choice refuses the cast',
-        () async {
+    test('a token minted for the opposite choice refuses the cast', () async {
       final svc = consensus(verifier: biometric.consumeVoteAttestation);
       final req = await propose(svc);
       final token = (await biometric.attestVoteIntent(
@@ -421,8 +416,7 @@ void main() {
       expect(req.votes, isEmpty);
     });
 
-    test('a presented token with no verifier wired refuses the cast',
-        () async {
+    test('a presented token with no verifier wired refuses the cast', () async {
       final svc = consensus(); // no verifier
       final req = await propose(svc);
       final vote = await svc.castVote(
@@ -436,7 +430,8 @@ void main() {
       expect(vote, isNull);
     });
 
-    test('clock fallback still works when no token is supplied '
+    test(
+        'clock fallback still works when no token is supplied '
         '(compat path — temporal binding only)', () async {
       final svc = ConsensusService(
         identity,
@@ -466,8 +461,7 @@ void main() {
       expect(vote.humanAttestation, isNull);
     });
 
-    test('no token + no biometric evidence → isHuman fails closed',
-        () async {
+    test('no token + no biometric evidence → isHuman fails closed', () async {
       final svc = consensus(verifier: biometric.consumeVoteAttestation);
       final req = await propose(svc);
       final vote = await svc.castVote(

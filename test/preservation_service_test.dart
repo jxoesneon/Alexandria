@@ -33,8 +33,8 @@ void main() {
       // actually retrievable (round-2 fix — phantom pins are refused),
       // so the test stores real content first.
       final ipfs = container.read(ipfsServiceProvider);
-      final cid = await ipfs.addFile(
-          Uint8List.fromList('pinned preservation payload'.codeUnits));
+      final cid = await ipfs
+          .addFile(Uint8List.fromList('pinned preservation payload'.codeUnits));
 
       final health = await preservation.checkContentHealth(cid);
       expect(

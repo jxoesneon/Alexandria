@@ -56,7 +56,8 @@ Future<EscrowAttestation?> _attest(
 }
 
 void main() {
-  test('poster refunds escrow after a remote claim already paid out — '
+  test(
+      'poster refunds escrow after a remote claim already paid out — '
       'net +X unbacked across the two ledgers', () async {
     final ed = Ed25519();
     final dbPoster = AppDatabase();
@@ -81,8 +82,7 @@ void main() {
 
     // ── Honest attestor vouches for the (real) escrow. ──
     final attestor = await ed.newKeyPair();
-    final attestorHex =
-        bytesToHex((await attestor.extractPublicKey()).bytes);
+    final attestorHex = bytesToHex((await attestor.extractPublicKey()).bytes);
     final att = await _attest(attestor,
         bountyId: posted.id, cid: posted.cid, amountMilli: 20000);
     expect(att, isNotNull);
@@ -119,8 +119,7 @@ void main() {
     expect(csC.balance, 70.0,
         reason: 'claimant minted the 20 ℭ payout on its own ledger');
     expect(
-        await dbClaimant.hasCreditTransaction(
-            'tx_bounty_payout_${posted.id}'),
+        await dbClaimant.hasCreditTransaction('tx_bounty_payout_${posted.id}'),
         isTrue);
 
     // ── POSTER cancels: the claim is INVISIBLE on the poster's db. ──

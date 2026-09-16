@@ -8,7 +8,8 @@ import 'package:alexandria/ui/credits/sponsorship_card.dart';
 import 'package:alexandria/ui/theme/app_theme.dart';
 
 void main() {
-  testWidgets('CreditWalletDialog renders balance, PoCH status, and handles simulation',
+  testWidgets(
+      'CreditWalletDialog renders balance, PoCH status, and handles simulation',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -40,9 +41,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     // Verify snackbar confirmed compute
-    expect(find.textContaining('Contributed Cauchy RS compute: +42.5 ℭ earned!'), findsOneWidget);
+    expect(
+        find.textContaining('Contributed Cauchy RS compute: +42.5 ℭ earned!'),
+        findsOneWidget);
 
-    expect(find.textContaining('Simulated Cauchy RS Parity Encoding'), findsWidgets);
+    expect(find.textContaining('Simulated Cauchy RS Parity Encoding'),
+        findsWidgets);
   });
 
   testWidgets(

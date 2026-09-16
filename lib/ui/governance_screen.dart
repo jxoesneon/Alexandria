@@ -579,7 +579,9 @@ class _ProposalDetailSheet extends ConsumerWidget {
               const SizedBox(height: 16),
               Text(
                 proposal.description,
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 16),
               ),
               const SizedBox(height: 24),
               // Voting Section

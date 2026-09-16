@@ -139,8 +139,7 @@ void main() {
 
   group('Cashu/LNURL model serialization', () {
     test('SweepResult.toJson includes optional fields only when set', () {
-      const minimal =
-          SweepResult(success: false, status: 'failed', sats: 0);
+      const minimal = SweepResult(success: false, status: 'failed', sats: 0);
       expect(minimal.toJson().containsKey('bolt11'), isFalse);
       const full = SweepResult(
         success: true,
@@ -200,8 +199,8 @@ void main() {
     test('egressRejectionReason returns null for a valid request', () {
       final bridge = openBridge();
       expect(bridge.egressRejectionReason(5.0), isNull);
-      expect(bridge.egressRejectionReason(double.nan),
-          'Invalid egress amount.');
+      expect(
+          bridge.egressRejectionReason(double.nan), 'Invalid egress amount.');
     });
 
     test('export still refuses when the attested pool cannot cover it', () {
@@ -287,11 +286,11 @@ void main() {
       expect(creditService.balance, 100.0);
     });
 
-    test('live sweep reports a mint that cannot route the invoice',
-        () async {
+    test('live sweep reports a mint that cannot route the invoice', () async {
       final bridge = openBridge(
-        mint: _FakeMint(onMelt: (_, quoteId, __) async =>
-            CashuMeltResult(paid: false, quoteId: quoteId)),
+        mint: _FakeMint(
+            onMelt: (_, quoteId, __) async =>
+                CashuMeltResult(paid: false, quoteId: quoteId)),
       );
       final result = await bridge.sweepToLightningAddressLive(
         creditsToSweep: 5.0,
@@ -319,8 +318,7 @@ void main() {
 
   group('redeemCashuToken edge cases', () {
     test('well-formed but proofless voucher redeems to zero', () {
-      final bridge =
-          CryptoBridgeService(creditService: creditService);
+      final bridge = CryptoBridgeService(creditService: creditService);
       final empty = const CashuToken(mint: 'm', proofs: []).serialize();
       expect(bridge.redeemCashuToken(empty), 0.0);
     });

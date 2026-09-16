@@ -32,8 +32,8 @@ void main() {
   Future<bool> receiptVerifier(
       Uint8List message, Uint8List sig, String publicKeyHex) async {
     try {
-      final pk = SimplePublicKey(hexToBytes(publicKeyHex),
-          type: KeyPairType.ed25519);
+      final pk =
+          SimplePublicKey(hexToBytes(publicKeyHex), type: KeyPairType.ed25519);
       return await algorithm.verify(message,
           signature: Signature(sig, publicKey: pk));
     } catch (_) {
@@ -101,8 +101,8 @@ void main() {
   /// already-signed receipt built OUTSIDE [signedReceipt] — for tests
   /// that construct the artifact by hand.
   Future<WorkReceipt> withAck(WorkReceipt r, {SimpleKeyPair? keyPair}) async {
-    final ack = await algorithm.sign(r.ackPayload,
-        keyPair: keyPair ?? localKeyPair);
+    final ack =
+        await algorithm.sign(r.ackPayload, keyPair: keyPair ?? localKeyPair);
     return r.withProverSig(base64Encode(ack.bytes));
   }
 
@@ -111,8 +111,8 @@ void main() {
   /// (default: the local prover key). claimVerifiedReceipt verifies it
   /// in-path under receipt.proverPubkey.
   Future<String> claimSig(WorkReceipt r, {SimpleKeyPair? keyPair}) async {
-    final preimage = Uint8List.fromList(utf8
-        .encode('alexandria:receipt-claim:v${r.v}:${r.receiptId}'));
+    final preimage = Uint8List.fromList(
+        utf8.encode('alexandria:receipt-claim:v${r.v}:${r.receiptId}'));
     final sig =
         await algorithm.sign(preimage, keyPair: keyPair ?? localKeyPair);
     return base64Encode(sig.bytes);
@@ -167,7 +167,8 @@ void main() {
   }
 
   group('REV3-1 forgery & domain confusion', () {
-    test('EXPLOIT-CHECK: forged claim must not burn the row — the honest '
+    test(
+        'EXPLOIT-CHECK: forged claim must not burn the row — the honest '
         'claim afterwards must still mint (DoS ordering)', () async {
       final attacker = await algorithm.newKeyPair();
       // One unsigned artifact; two signatures over its payload — the
@@ -186,10 +187,9 @@ void main() {
         expiresAt:
             DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
       );
-      final forgedSig = await algorithm.sign(unsigned.signingPayload,
-          keyPair: attacker);
-      final forged =
-          unsigned.withVerifierSig(base64Encode(forgedSig.bytes));
+      final forgedSig =
+          await algorithm.sign(unsigned.signingPayload, keyPair: attacker);
+      final forged = unsigned.withVerifierSig(base64Encode(forgedSig.bytes));
       await db.insertWorkReceipt(forged.toDbMap());
 
       // Forged claim: refused AND leaves the row unspent.
@@ -214,16 +214,15 @@ void main() {
       expect(svc.attestedBalance, 25.0);
     });
 
-    test('malformed verifierSig variants are all refused unspent',
-        () async {
+    test('malformed verifierSig variants are all refused unspent', () async {
       for (final sig in [
         base64Encode(Uint8List(63)), // one byte short
         base64Encode(Uint8List(65)), // one byte long
         '!!!not_base64!!!',
         base64Encode(Uint8List(64)), // zeros
       ]) {
-        final r = await persist(await signedReceipt(
-            proverPubkey: localPubHex, verifierSig: sig));
+        final r = await persist(
+            await signedReceipt(proverPubkey: localPubHex, verifierSig: sig));
         expect(
             await svc.claimVerifiedReceipt(r,
                 claimSignatureB64: await claimSig(r)),
@@ -233,8 +232,7 @@ void main() {
       }
     });
 
-    test('signature transplanted from another receipt is refused',
-        () async {
+    test('signature transplanted from another receipt is refused', () async {
       final a = await signedReceipt(proverPubkey: localPubHex, amount: 11.0);
       final b = await persist(
           await signedReceipt(proverPubkey: localPubHex, amount: 22.0));
@@ -246,7 +244,8 @@ void main() {
       expect((await db.getWorkReceipt(b.receiptId))!['spent'], isFalse);
     });
 
-    test('v1-prefixed-domain signature on a v1 artifact is refused '
+    test(
+        'v1-prefixed-domain signature on a v1 artifact is refused '
         '(v1 domain is the BARE body only)', () async {
       final unsigned = WorkReceipt.issue(
         v: 1,
@@ -276,7 +275,8 @@ void main() {
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
-    test('cross-version: a legit v1 artifact re-presented as v2 dies on '
+    test(
+        'cross-version: a legit v1 artifact re-presented as v2 dies on '
         'the tamper check even with a valid v1 signature', () async {
       final v1 = await signedReceipt(v: 1, proverPubkey: localPubHex);
       // Re-issue identical fields at v2 — different canonical body,
@@ -306,22 +306,20 @@ void main() {
   });
 
   group('REV3-2 replay & CAS', () {
-    test('re-inserting a spent receiptId does NOT resurrect it '
+    test(
+        're-inserting a spent receiptId does NOT resurrect it '
         '(insertOrIgnore)', () async {
       final r = await persist(await signedReceipt(proverPubkey: localPubHex));
       final sig = await claimSig(r);
-      expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: sig),
-          25.0);
+      expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: sig), 25.0);
       // Attacker re-delivers the same artifact (or an unspent-flagged
       // copy) — must not unspend.
       await db.insertWorkReceipt({...r.toDbMap(), 'spent': false});
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isTrue);
-      expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: sig),
-          0.0);
+      expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: sig), 0.0);
     });
 
-    test('two concurrent claims of one receipt mint exactly once',
-        () async {
+    test('two concurrent claims of one receipt mint exactly once', () async {
       final r = await persist(await signedReceipt(proverPubkey: localPubHex));
       final sig = await claimSig(r);
       final results = await Future.wait([
@@ -335,7 +333,8 @@ void main() {
   });
 
   group('REV3-3 verifier wiring', () {
-    test('malformed verifierPubkey variants fail closed, unspent, '
+    test(
+        'malformed verifierPubkey variants fail closed, unspent, '
         'no throw', () async {
       for (final badKey in [
         'zz_not_hex',
@@ -358,13 +357,13 @@ void main() {
       }
     });
 
-    test('a verifyFn that throws sync/async never leaks a mint and '
+    test(
+        'a verifyFn that throws sync/async never leaks a mint and '
         'never consumes the row', () async {
       final throwing = CreditService(
         db: db,
         initialBalance: 0.0,
-        receiptVerifier: (m, s, k) =>
-            throw StateError('oracle exploded'),
+        receiptVerifier: (m, s, k) => throw StateError('oracle exploded'),
         localProverPubkeyHex: () => localPubHex,
       );
       await throwing.ready;
@@ -393,7 +392,8 @@ void main() {
   });
 
   group('REV3-4 identity-guard canonicalization bypass', () {
-    test('EXPLOIT: verifierPubkey = UPPERCASE of local key — same Ed25519 '
+    test(
+        'EXPLOIT: verifierPubkey = UPPERCASE of local key — same Ed25519 '
         'key, different string — bypasses isSelfIssued AND verifier!=local '
         'so a SELF-SIGNED receipt mints ATTESTED value', () async {
       // Forked client: crafts a receipt prover=local(lowercase),
@@ -417,12 +417,11 @@ void main() {
       expect(svc.attestedBalance, 0.0);
     });
 
-    test('EXPLOIT: space-padded verifierPubkey decodes to the local key '
+    test(
+        'EXPLOIT: space-padded verifierPubkey decodes to the local key '
         '(hexToBytes strips spaces) — same self-dealing bypass', () async {
-      final spaced = localPubHex
-          .split('')
-          .expand((c) => c == ' ' ? [c] : [c])
-          .join();
+      final spaced =
+          localPubHex.split('').expand((c) => c == ' ' ? [c] : [c]).join();
       // Insert a space every 8 chars — still decodes identically.
       final padded =
           localPubHex.replaceAllMapped(RegExp('.{8}'), (m) => '${m[0]} ');
@@ -441,7 +440,8 @@ void main() {
               'dealing guard ($spaced)');
     });
 
-    test('EXPLOIT-CHECK: empty proverPubkey + foreign sig claimed by a '
+    test(
+        'EXPLOIT-CHECK: empty proverPubkey + foreign sig claimed by a '
         'node whose resolver returns "" — does the prover binding go '
         'vacuous?', () async {
       // A service whose identity resolver serves the empty string —
@@ -458,8 +458,8 @@ void main() {
         proverPubkey: '',
         amount: 10.0,
       ));
-      final minted = await emptyIdentity.claimVerifiedReceipt(r,
-          claimSignatureB64: '');
+      final minted =
+          await emptyIdentity.claimVerifiedReceipt(r, claimSignatureB64: '');
       // Documents actual behavior; a vacuous prover binding minting
       // attested value is a finding.
       if (minted > 0) {
@@ -473,9 +473,9 @@ void main() {
   });
 
   group('REV3-5 fail-closed contract on hostile doubles', () {
-    test('EXPLOIT: amount=+Infinity receipt makes claimVerifiedReceipt '
-        'THROW instead of returning 0.0 (tamper check outside try)',
-        () async {
+    test(
+        'EXPLOIT: amount=+Infinity receipt makes claimVerifiedReceipt '
+        'THROW instead of returning 0.0 (tamper check outside try)', () async {
       // issue() would throw on amountMilli, so craft via fromDbMap —
       // exactly what a DB row / wire artifact delivers.
       final hostile = craftedReceipt({
@@ -492,7 +492,8 @@ void main() {
       expect(minted, 0.0);
     });
 
-    test('EXPLOIT: amount=1e308 (finite, overflows amountMilli) — same '
+    test(
+        'EXPLOIT: amount=1e308 (finite, overflows amountMilli) — same '
         'throw path', () async {
       final hostile = craftedReceipt({
         'receiptId': 'h_big',
@@ -507,7 +508,8 @@ void main() {
       expect(minted, 0.0);
     });
 
-    test('EXPLOIT: NaN workUnits with a positive amount — workUnitsMilli '
+    test(
+        'EXPLOIT: NaN workUnits with a positive amount — workUnitsMilli '
         'throws inside the guard chain', () async {
       final hostile = craftedReceipt({
         'receiptId': 'h_nan_wu',
@@ -523,7 +525,8 @@ void main() {
       expect(minted, 0.0);
     });
 
-    test('NaN amount IS refused cleanly by the amount>0 guard '
+    test(
+        'NaN amount IS refused cleanly by the amount>0 guard '
         '(contrast: it never reaches computeReceiptId)', () async {
       final hostile = craftedReceipt({
         'receiptId': 'h_nan_amt',
@@ -541,8 +544,7 @@ void main() {
   });
 
   group('REV3-6 version floor/ceiling & hydration', () {
-    test('v=0 and negative v are refused below the floor, unspent',
-        () async {
+    test('v=0 and negative v are refused below the floor, unspent', () async {
       for (final v in [0, -1, -2147483648]) {
         final r =
             await persist(await signedReceipt(v: v, proverPubkey: localPubHex));
@@ -564,7 +566,8 @@ void main() {
           25.0);
     });
 
-    test('EXPLOIT-CHECK: v=99 receipt signed under '
+    test(
+        'EXPLOIT-CHECK: v=99 receipt signed under '
         "'alexandria:receipt:v99:' — floor-only check means a FUTURE "
         'version mints on this build', () async {
       final r =
@@ -580,21 +583,22 @@ void main() {
       // grace window arguably should also cap at wireVersion.
     });
 
-    test('hydrated unknown future v does not crash parse and selects '
+    test(
+        'hydrated unknown future v does not crash parse and selects '
         'the matching domain prefix', () async {
       final r = await persist(await signedReceipt(v: 7, proverPubkey: 'l'));
       final hydrated =
           WorkReceipt.fromDbMap((await db.getWorkReceipt(r.receiptId))!);
       expect(hydrated.v, 7);
-      expect(
-          utf8.decode(hydrated.signingPayload),
+      expect(utf8.decode(hydrated.signingPayload),
           startsWith('alexandria:receipt:v7:'));
     });
 
     test('row missing the v column hydrates as v1', () async {
       final map = signedReceipt(v: 2, proverPubkey: localPubHex)
           .then((r) => r.toDbMap());
-      final m = await map..remove('v');
+      final m = await map
+        ..remove('v');
       await db.insertWorkReceipt(m);
       final hydrated = WorkReceipt.fromDbMap(
           (await db.getWorkReceipt(m['receiptId'] as String))!);
@@ -603,7 +607,8 @@ void main() {
   });
 
   group('REV3-7 legacy guard regressions', () {
-    test('expired / self-issued / prover-mismatch / unsigned / '
+    test(
+        'expired / self-issued / prover-mismatch / unsigned / '
         'non-positive amounts all refuse', () async {
       // expired
       final expired = await persist(await signedReceipt(
@@ -616,15 +621,15 @@ void main() {
               claimSignatureB64: await claimSig(expired)),
           0.0);
       // self-issued (same string case)
-      final selfIssued = await persist(await signedReceipt(
-          proverPubkey: verifierPubHex));
+      final selfIssued =
+          await persist(await signedReceipt(proverPubkey: verifierPubHex));
       expect(
           await svc.claimVerifiedReceipt(selfIssued,
               claimSignatureB64: await claimSig(selfIssued)),
           0.0);
       // foreign prover
-      final foreign = await persist(await signedReceipt(
-          proverPubkey: 'someone_else'));
+      final foreign =
+          await persist(await signedReceipt(proverPubkey: 'someone_else'));
       expect(
           await svc.claimVerifiedReceipt(foreign,
               claimSignatureB64: await claimSig(foreign)),
@@ -730,7 +735,8 @@ void main() {
       }
     });
 
-    test('respelled proverPubkey dies at the prover-binding guard '
+    test(
+        'respelled proverPubkey dies at the prover-binding guard '
         '(never reaches the oracle)', () async {
       final (_, hex) = await respellableKey();
       final i = respellablePair(hex);
@@ -759,7 +765,8 @@ void main() {
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
-    test('a resolver serving a respelled local key refuses rather than '
+    test(
+        'a resolver serving a respelled local key refuses rather than '
         'binding vacuously', () async {
       final (kp, hex) = await respellableKey();
       final i = respellablePair(hex);
@@ -769,8 +776,8 @@ void main() {
       // 'local' spelling: the prover binding fails closed. The v3 ack
       // is signed by the receipt's actual prover key (kp), not the
       // default local key.
-      final r = await persist(await signedReceipt(
-          proverPubkey: hex, proverKeyPair: kp));
+      final r = await persist(
+          await signedReceipt(proverPubkey: hex, proverKeyPair: kp));
       final sig = await claimSig(r, keyPair: kp);
       final respelledSvc = CreditService(
         db: db,
@@ -779,9 +786,7 @@ void main() {
         localProverPubkeyHex: () => respelledLocal,
       );
       await respelledSvc.ready;
-      expect(
-          await respelledSvc.claimVerifiedReceipt(r,
-              claimSignatureB64: sig),
+      expect(await respelledSvc.claimVerifiedReceipt(r, claimSignatureB64: sig),
           0.0);
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
       // And the SAME row still claims for the canonical spelling — the
@@ -794,11 +799,11 @@ void main() {
       );
       await canonSvc.ready;
       expect(
-          await canonSvc.claimVerifiedReceipt(r, claimSignatureB64: sig),
-          25.0);
+          await canonSvc.claimVerifiedReceipt(r, claimSignatureB64: sig), 25.0);
     });
 
-    test('a clean-key legit receipt still claims (strictness does not '
+    test(
+        'a clean-key legit receipt still claims (strictness does not '
         'over-refuse)', () async {
       final r = await persist(await signedReceipt(proverPubkey: localPubHex));
       expect(
@@ -810,7 +815,8 @@ void main() {
   });
 
   group('REV3-9 possession-bound claim (claimSignatureB64)', () {
-    test('claim signature by a key OTHER than proverPubkey is refused '
+    test(
+        'claim signature by a key OTHER than proverPubkey is refused '
         'unspent — a copied artifact cannot be claimed without the '
         'prover key', () async {
       // Attacker holds a copy of the artifact and signs the claim
@@ -833,15 +839,16 @@ void main() {
           25.0);
     });
 
-    test('claim signature over the wrong preimage is refused — version '
+    test(
+        'claim signature over the wrong preimage is refused — version '
         'mismatch AND wrong domain', () async {
       final r = await persist(await signedReceipt(proverPubkey: localPubHex));
       expect(r.v, WorkReceipt.wireVersion);
       // (a) Version mismatch inside the claim domain: signed
       // 'v1' while the artifact is v2.
       final wrongVersion = await algorithm.sign(
-          Uint8List.fromList(utf8.encode(
-              'alexandria:receipt-claim:v1:${r.receiptId}')),
+          Uint8List.fromList(
+              utf8.encode('alexandria:receipt-claim:v1:${r.receiptId}')),
           keyPair: localKeyPair);
       expect(
           await svc.claimVerifiedReceipt(r,
@@ -849,8 +856,8 @@ void main() {
           0.0);
       // (b) Wrong domain entirely: the receipt's own signing payload
       // ('alexandria:receipt:v2:...') is not a claim preimage.
-      final wrongDomain = await algorithm.sign(r.signingPayload,
-          keyPair: localKeyPair);
+      final wrongDomain =
+          await algorithm.sign(r.signingPayload, keyPair: localKeyPair);
       expect(
           await svc.claimVerifiedReceipt(r,
               claimSignatureB64: base64Encode(wrongDomain.bytes)),
@@ -868,8 +875,7 @@ void main() {
       expect(svc.attestedBalance, 0.0);
     });
 
-    test('malformed claimSignatureB64 variants are refused unspent',
-        () async {
+    test('malformed claimSignatureB64 variants are refused unspent', () async {
       for (final bad in [
         '',
         '!!!not_base64!!!',
@@ -877,16 +883,15 @@ void main() {
         base64Encode(Uint8List(65)), // one byte long
         base64Encode(Uint8List(64)), // zeros — shape-valid, verifies false
       ]) {
-        final r =
-            await persist(await signedReceipt(proverPubkey: localPubHex));
-        expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: bad),
-            0.0,
+        final r = await persist(await signedReceipt(proverPubkey: localPubHex));
+        expect(await svc.claimVerifiedReceipt(r, claimSignatureB64: bad), 0.0,
             reason: 'claim sig variant must refuse: "$bad"');
         expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
       }
     });
 
-    test('a service with NO resolver — or a resolver returning null — '
+    test(
+        'a service with NO resolver — or a resolver returning null — '
         'fails closed', () async {
       final noResolver = CreditService(
         db: db,
@@ -904,25 +909,22 @@ void main() {
 
       final r = await persist(await signedReceipt(proverPubkey: localPubHex));
       final sig = await claimSig(r); // a VALID possession proof
-      expect(
-          await noResolver.claimVerifiedReceipt(r, claimSignatureB64: sig),
+      expect(await noResolver.claimVerifiedReceipt(r, claimSignatureB64: sig),
           0.0);
-      expect(
-          await nullResolver.claimVerifiedReceipt(r,
-              claimSignatureB64: sig),
+      expect(await nullResolver.claimVerifiedReceipt(r, claimSignatureB64: sig),
           0.0);
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
-    test('a resolver naming a key != proverPubkey refuses even with a '
+    test(
+        'a resolver naming a key != proverPubkey refuses even with a '
         'valid claim signature — the binding is artifact-pinned', () async {
       // This node's identity is `other`, but the artifact names
       // localPubHex as prover and the claim signature IS valid under
       // that prover key (e.g. obtained alongside a copied artifact).
       // The resolver binding — not just the signature — must refuse.
       final other = await algorithm.newKeyPair();
-      final otherHex =
-          bytesToHex((await other.extractPublicKey()).bytes);
+      final otherHex = bytesToHex((await other.extractPublicKey()).bytes);
       final mismatched = CreditService(
         db: db,
         initialBalance: 0.0,
@@ -956,18 +958,17 @@ void main() {
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
-    test('awardBountyEscrow pays a bountyId exactly once — the payout '
+    test(
+        'awardBountyEscrow pays a bountyId exactly once — the payout '
         'primitive dedups even if the claim layer is bypassed', () async {
-      expect(svc.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c'),
-          10.0);
-      expect(svc.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c'),
-          0.0);
+      expect(
+          svc.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c'), 10.0);
+      expect(
+          svc.awardBountyEscrow(amount: 10.0, bountyId: 'b1', cid: 'c'), 0.0);
       expect(svc.balance, 10.0);
       // A different bountyId still pays; an empty id refuses.
-      expect(svc.awardBountyEscrow(amount: 5.0, bountyId: 'b2', cid: 'c'),
-          5.0);
-      expect(svc.awardBountyEscrow(amount: 5.0, bountyId: '', cid: 'c'),
-          0.0);
+      expect(svc.awardBountyEscrow(amount: 5.0, bountyId: 'b2', cid: 'c'), 5.0);
+      expect(svc.awardBountyEscrow(amount: 5.0, bountyId: '', cid: 'c'), 0.0);
       expect(svc.balance, 15.0);
       // Only two payout rows landed.
       expect(

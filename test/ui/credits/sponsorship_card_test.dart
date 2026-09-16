@@ -85,7 +85,8 @@ void main() {
       expect(find.text('ETHICAL SPONSOR'), findsNothing);
     });
 
-    testWidgets('renders sponsorship card when opt-in is enabled and slot matches',
+    testWidgets(
+        'renders sponsorship card when opt-in is enabled and slot matches',
         (tester) async {
       sponsorshipService = SponsorshipService(
         creditService: fakeCreditService,

@@ -321,7 +321,8 @@ class _CollectionDetail extends ConsumerWidget {
           child: Row(
             children: [
               IconButton(
-                icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                icon: Icon(Icons.arrow_back,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
                 onPressed: () =>
                     ref.read(selectedCollectionProvider.notifier).state = null,
               ),
@@ -349,14 +350,18 @@ class _CollectionDetail extends ConsumerWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                icon: Icon(Icons.more_vert,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
                 color: const Color(0xFF1E293B),
                 itemBuilder: (context) => [
                   PopupMenuItem(
                     value: 'fork',
                     child: Row(
                       children: [
-                        Icon(Icons.call_split, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
+                        Icon(Icons.call_split,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            size: 20),
                         const SizedBox(width: 8),
                         const Text(
                           'Fork Collection',
@@ -369,7 +374,10 @@ class _CollectionDetail extends ConsumerWidget {
                     value: 'history',
                     child: Row(
                       children: [
-                        Icon(Icons.history, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
+                        Icon(Icons.history,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            size: 20),
                         const SizedBox(width: 8),
                         const Text(
                           'View History',

@@ -91,8 +91,8 @@ void main() {
       (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        currentDocumentProvider.overrideWith(
-            (ref, cid) => Future<DocumentStream>.error(StateError('ipfs down'))),
+        currentDocumentProvider.overrideWith((ref, cid) =>
+            Future<DocumentStream>.error(StateError('ipfs down'))),
       ],
       child: MaterialApp(
         theme: AppTheme.darkTheme,
@@ -224,11 +224,11 @@ void main() {
       overrides: [
         sidebarVisibleProvider.overrideWith((ref) => true),
         currentDocumentProvider.overrideWith(
-          (ref, cid) async =>
-              const DocumentStream(title: 'T', content: 'C'),
+          (ref, cid) async => const DocumentStream(title: 'T', content: 'C'),
         ),
         documentVersionsProvider.overrideWith(
-          (ref, cid) => Future<List<ContentVersion>>.error(StateError('db err')),
+          (ref, cid) =>
+              Future<List<ContentVersion>>.error(StateError('db err')),
         ),
       ],
       child: MaterialApp(
@@ -430,8 +430,7 @@ void main() {
     await tester.tap(find.byTooltip('Copy Image Reference'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
-    expect(
-        find.text('Image reference copied to clipboard'), findsOneWidget);
+    expect(find.text('Image reference copied to clipboard'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.close).last);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));

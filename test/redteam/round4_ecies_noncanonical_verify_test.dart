@@ -37,16 +37,15 @@ String _hex(List<int> b) =>
 
 /// Reproduces EncryptionService._sealedU — the unreachable point a
 /// refused input maps to. Public knowledge.
-Uint8List _sealedU(String peerPublicKey) => Uint8List.fromList(
-    crypto.sha256
-        .convert(
-            utf8.encode('alexandria:x25519-unresolvable-peer:v1:$peerPublicKey'))
-        .bytes);
+Uint8List _sealedU(String peerPublicKey) => Uint8List.fromList(crypto.sha256
+    .convert(
+        utf8.encode('alexandria:x25519-unresolvable-peer:v1:$peerPublicKey'))
+    .bytes);
 
 /// Reproduces the non-contributory fallback secret — also public.
 List<int> _fallbackSecret(String peerPublicKey) => crypto.sha256
-    .convert(utf8
-        .encode('alexandria:x25519-non-contributory:v1:$peerPublicKey'))
+    .convert(
+        utf8.encode('alexandria:x25519-non-contributory:v1:$peerPublicKey'))
     .bytes;
 
 /// Every canonical low-order u plus its +2^255 sibling.
@@ -76,10 +75,10 @@ void main() {
   final aes = AesGcm.with256bits();
   final x = X25519();
 
-  test('no spelling of a low-order peer input yields a publicly '
+  test(
+      'no spelling of a low-order peer input yields a publicly '
       'decryptable envelope', () async {
-    final secret =
-        Uint8List.fromList(utf8.encode('round4-probe-payload'));
+    final secret = Uint8List.fromList(utf8.encode('round4-probe-payload'));
     final hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
 
     for (final u in _lowOrderVariants()) {
@@ -95,8 +94,10 @@ void main() {
         _fallbackSecret(pubStr), // the public non-contributory fallback
       ];
       for (final peerU in candidatePeerUs) {
-        final salt =
-            (BytesBuilder()..add(ephPub)..add(peerU)).toBytes();
+        final salt = (BytesBuilder()
+              ..add(ephPub)
+              ..add(peerU))
+            .toBytes();
         for (final sec in candidateSecrets) {
           final key = await hkdf.deriveKey(
               secretKey: SecretKey(sec),
@@ -112,16 +113,14 @@ void main() {
             opened = await aes.decrypt(box, secretKey: key);
           } catch (_) {}
           expect(opened, isNull,
-              reason:
-                  'envelope for low-order input ${_hex(u)} opened with a '
+              reason: 'envelope for low-order input ${_hex(u)} opened with a '
                   'publicly derivable key — the seal failed');
         }
       }
     }
   });
 
-  test('decryptFromPeer rejects every low-order ephemeral spelling',
-      () async {
+  test('decryptFromPeer rejects every low-order ephemeral spelling', () async {
     final kp = await x.newKeyPair();
     final priv = Uint8List.fromList(await kp.extractPrivateKeyBytes());
     for (final u in _lowOrderVariants()) {
@@ -137,8 +136,7 @@ void main() {
         threw = e;
       }
       expect(threw, isNotNull,
-          reason:
-              'decryptFromPeer accepted ephemeral ${_hex(u)} — a '
+          reason: 'decryptFromPeer accepted ephemeral ${_hex(u)} — a '
               'non-contributory input slipped past the blocklist');
     }
   });

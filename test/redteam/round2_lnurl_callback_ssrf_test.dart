@@ -62,11 +62,10 @@ void main() {
       thrown = e; // invoice parse failure is fine — we watch the wire
     }
 
-    final hitMetadata = captured.any((u) =>
-        u.host == '169.254.169.254' || u.scheme == 'http');
+    final hitMetadata =
+        captured.any((u) => u.host == '169.254.169.254' || u.scheme == 'http');
     expect(hitMetadata, isFalse,
-        reason:
-            'the LNURL callback was fetched verbatim: the service issued '
+        reason: 'the LNURL callback was fetched verbatim: the service issued '
             'a request to ${captured.join(", ")} — a cleartext/link-local '
             'SSRF straight from the victim device. '
             '(thrown=$thrown)');
@@ -95,8 +94,7 @@ void main() {
 
     final hitLan = captured.any((u) => u.host.startsWith('192.168.'));
     expect(hitLan, isFalse,
-        reason:
-            'callback targeted an RFC-1918 LAN host and was fetched — '
+        reason: 'callback targeted an RFC-1918 LAN host and was fetched — '
             'internal-network SSRF: ${captured.join(", ")}');
   });
 }

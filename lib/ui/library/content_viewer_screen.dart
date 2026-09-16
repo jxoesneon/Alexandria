@@ -28,11 +28,13 @@ class ContentViewerScreen extends ConsumerStatefulWidget {
 
 class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   final ScrollController _scrollController = ScrollController();
-  int _sidebarTab = 0; // 0: TOC, 1: Editions & Formats, 2: Safe Harbor & Legal, 3: Annotations
+  int _sidebarTab =
+      0; // 0: TOC, 1: Editions & Formats, 2: Safe Harbor & Legal, 3: Annotations
   final Map<int, GlobalKey> _headingKeys = {};
   bool _isSyncingScroll = false;
 
-  final TextEditingController _editionSearchController = TextEditingController();
+  final TextEditingController _editionSearchController =
+      TextEditingController();
   String _editionSearchQuery = '';
   String _editionFilterFormat = 'all';
 
@@ -66,8 +68,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
     try {
       final resolved = File(path).resolveSymbolicLinksSync();
       final sep = Platform.pathSeparator;
-      return roots.any(
-          (root) => resolved == root || resolved.startsWith('$root$sep'));
+      return roots
+          .any((root) => resolved == root || resolved.startsWith('$root$sep'));
     } catch (_) {
       return false;
     }
@@ -233,7 +235,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildDocumentHeader(context, doc, zoomLevel, useOpenDyslexic),
+                          _buildDocumentHeader(
+                              context, doc, zoomLevel, useOpenDyslexic),
                           const SizedBox(height: 24),
                           ...blocks.map((block) => _buildBlockWidget(
                                 context,
@@ -290,7 +293,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
               ),
               const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
@@ -298,9 +302,9 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                 child: Text(
                   '${(progress * 100).toInt()}%',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                    fontWeight: FontWeight.bold,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
             ],
@@ -312,7 +316,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
 
   Widget _buildDocumentHeader(
       BuildContext context, DocumentStream doc, double zoom, bool dyslexic) {
-    final versionsAsync = ref.watch(documentVersionsProvider(widget.documentCid));
+    final versionsAsync =
+        ref.watch(documentVersionsProvider(widget.documentCid));
     final activeCid = doc.cid;
     final isBrief = doc.format == 'md-brief';
 
@@ -323,7 +328,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
           children: [
             Flexible(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isBrief
                       ? Colors.lightBlueAccent.withValues(alpha: 0.15)
@@ -353,7 +359,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.8,
-                          color: isBrief ? Colors.lightBlueAccent : Colors.amber,
+                          color:
+                              isBrief ? Colors.lightBlueAccent : Colors.amber,
                         ),
                       ),
                     ),
@@ -380,14 +387,17 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
             if (versions.isEmpty) return const SizedBox.shrink();
             final currentActive = activeCid ??
                 (versions.any((v) => v.format == 'md-unabridged')
-                    ? versions.firstWhere((v) => v.format == 'md-unabridged').cid
+                    ? versions
+                        .firstWhere((v) => v.format == 'md-unabridged')
+                        .cid
                     : versions.first.cid);
             final activeVersion = versions.firstWhere(
               (v) => v.cid == currentActive,
               orElse: () => versions.first,
             );
             final isBrief = activeVersion.format == 'md-brief';
-            final editionLabel = isBrief ? 'Executive Brief' : 'Full Unabridged';
+            final editionLabel =
+                isBrief ? 'Executive Brief' : 'Full Unabridged';
             final accentColor = isBrief ? Colors.lightBlueAccent : Colors.amber;
 
             return Padding(
@@ -409,7 +419,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                     borderRadius: BorderRadius.circular(6),
                     hoverColor: accentColor.withValues(alpha: 0.1),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: accentColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
@@ -440,14 +451,19 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                             '(${_formatSize(activeVersion.sizeBytes)})',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1.5),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
@@ -466,7 +482,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                   const SizedBox(width: 4),
                   IconButton(
                     icon: const Icon(Icons.more_vert, size: 18),
-                    tooltip: 'Open Editions Catalog (${versions.length} versions)',
+                    tooltip:
+                        'Open Editions Catalog (${versions.length} versions)',
                     visualDensity: VisualDensity.compact,
                     onPressed: _openEditionsPanel,
                   ),
@@ -561,7 +578,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
           margin: const EdgeInsets.symmetric(vertical: 14.0),
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+            color: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.4),
             border: const Border(
               left: BorderSide(color: Colors.amber, width: 3.5),
             ),
@@ -763,7 +781,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                   color: const Color(0xFF14171F),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Theme.of(context).dividerColor.withValues(alpha: 0.4),
+                    color:
+                        Theme.of(context).dividerColor.withValues(alpha: 0.4),
                   ),
                 ),
                 child: _resolveImageWidget(context, url, alt),
@@ -774,7 +793,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.image_outlined, size: 13, color: Colors.grey),
+                  const Icon(Icons.image_outlined,
+                      size: 13, color: Colors.grey),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
@@ -833,8 +853,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
     if (url.toLowerCase().endsWith('.svg') ||
         url.startsWith('data:image/svg+xml')) {
       if (url.startsWith('data:image/svg+xml;base64,')) {
-        final base64String =
-            url.substring('data:image/svg+xml;base64,'.length);
+        final base64String = url.substring('data:image/svg+xml;base64,'.length);
         final decoded = utf8.decode(base64Decode(base64String));
         return SvgPicture.string(decoded, fit: BoxFit.contain);
       } else if (url.startsWith('data:image/svg+xml;utf8,') ||
@@ -973,7 +992,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.broken_image_outlined, size: 36, color: Colors.amber),
+          const Icon(Icons.broken_image_outlined,
+              size: 36, color: Colors.amber),
           const SizedBox(height: 8),
           Text(
             alt.isNotEmpty ? alt : 'Archival Visual Asset',
@@ -992,8 +1012,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.amber.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
@@ -1011,8 +1030,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                 style:
                     TextButton.styleFrom(visualDensity: VisualDensity.compact),
                 icon: const Icon(Icons.copy, size: 12),
-                label:
-                    const Text('Copy Asset URI', style: TextStyle(fontSize: 11)),
+                label: const Text('Copy Asset URI',
+                    style: TextStyle(fontSize: 11)),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: url));
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1160,14 +1179,12 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
             ),
             child: Text(
               matchText.substring(1, matchText.length - 1),
-              style: TextStyle(
-                  fontFamily: 'monospace', fontSize: 13 * zoom),
+              style: TextStyle(fontFamily: 'monospace', fontSize: 13 * zoom),
             ),
           ),
         ));
       } else if (matchText.startsWith('![') && matchText.endsWith(')')) {
-        final imgMatch =
-            RegExp(r'^!\[(.*?)\]\((.*?)\)$').firstMatch(matchText);
+        final imgMatch = RegExp(r'^!\[(.*?)\]\((.*?)\)$').firstMatch(matchText);
         if (imgMatch != null) {
           final alt = imgMatch.group(1) ?? '';
           var url = imgMatch.group(2) ?? '';
@@ -1447,22 +1464,30 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
               ButtonSegment(
                 value: 0,
                 icon: Icon(Icons.toc, size: 13),
-                label: Text('TOC', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                label: Text('TOC',
+                    style:
+                        TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
               ),
               ButtonSegment(
                 value: 1,
                 icon: Icon(Icons.layers_outlined, size: 13),
-                label: Text('Editions', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                label: Text('Editions',
+                    style:
+                        TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
               ),
               ButtonSegment(
                 value: 2,
                 icon: Icon(Icons.shield_outlined, size: 13),
-                label: Text('Legal', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                label: Text('Legal',
+                    style:
+                        TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
               ),
               ButtonSegment(
                 value: 3,
                 icon: Icon(Icons.note_alt_outlined, size: 13),
-                label: Text('Notes', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                label: Text('Notes',
+                    style:
+                        TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
               ),
             ],
             selected: {_sidebarTab},
@@ -1513,7 +1538,9 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         final currentActive = activeCid ??
             (versions.any((v) => v.format == 'md-unabridged')
                 ? versions.firstWhere((v) => v.format == 'md-unabridged').cid
-                : (versions.isNotEmpty ? versions.first.cid : widget.documentCid));
+                : (versions.isNotEmpty
+                    ? versions.first.cid
+                    : widget.documentCid));
 
         // Filter by search query
         var filtered = versions.where((v) {
@@ -1529,13 +1556,14 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
 
         // Filter by category chip
         if (_editionFilterFormat == 'unabridged') {
-          filtered = filtered.where((v) => v.format == 'md-unabridged').toList();
+          filtered =
+              filtered.where((v) => v.format == 'md-unabridged').toList();
         } else if (_editionFilterFormat == 'brief') {
           filtered = filtered.where((v) => v.format == 'md-brief').toList();
         } else if (_editionFilterFormat == 'other') {
           filtered = filtered
-              .where((v) =>
-                  v.format != 'md-unabridged' && v.format != 'md-brief')
+              .where(
+                  (v) => v.format != 'md-unabridged' && v.format != 'md-brief')
               .toList();
         }
 
@@ -1897,8 +1925,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.black26,
                       borderRadius: BorderRadius.circular(4),
@@ -1931,8 +1959,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
 
               // CID Multihash display with Copy button
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.black38,
                   borderRadius: BorderRadius.circular(4),
@@ -1966,8 +1993,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                       },
                       child: const Padding(
                         padding: EdgeInsets.all(2.0),
-                        child:
-                            Icon(Icons.copy, size: 12, color: Colors.grey),
+                        child: Icon(Icons.copy, size: 12, color: Colors.grey),
                       ),
                     ),
                   ],
@@ -2045,7 +2071,11 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
           child: ListTile(
             dense: true,
             contentPadding: EdgeInsets.only(
-              left: isH1 ? 16 : isH2 ? 28 : 40,
+              left: isH1
+                  ? 16
+                  : isH2
+                      ? 28
+                      : 40,
               right: 16,
             ),
             leading: Icon(
@@ -2054,7 +2084,11 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                   : isH2
                       ? Icons.subdirectory_arrow_right
                       : Icons.circle,
-              size: isH1 ? 16 : isH2 ? 14 : 6,
+              size: isH1
+                  ? 16
+                  : isH2
+                      ? 14
+                      : 6,
               color: isH1 ? Colors.amber : Colors.grey,
             ),
             title: Text(
@@ -2078,7 +2112,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   }
 
   Widget _buildSafeHarborView(BuildContext context) {
-    final versionsAsync = ref.watch(documentVersionsProvider(widget.documentCid));
+    final versionsAsync =
+        ref.watch(documentVersionsProvider(widget.documentCid));
     final activeCid = ref.watch(activeVersionCidProvider(widget.documentCid));
 
     return ListView(
@@ -2126,7 +2161,9 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
             }
             final currentActive = activeCid ??
                 (versions.any((v) => v.format == 'md-unabridged')
-                    ? versions.firstWhere((v) => v.format == 'md-unabridged').cid
+                    ? versions
+                        .firstWhere((v) => v.format == 'md-unabridged')
+                        .cid
                     : versions.first.cid);
 
             return Column(
@@ -2191,8 +2228,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                           const SizedBox(width: 6),
                           Text(
                             _formatSize(v.sizeBytes),
-                            style:
-                                const TextStyle(fontSize: 11, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey),
                           ),
                         ],
                       ),
@@ -2219,15 +2256,15 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
                                 style: TextStyle(fontSize: 11)),
                             onPressed: () {
                               ref
-                                  .read(activeVersionCidProvider(widget.documentCid)
+                                  .read(activeVersionCidProvider(
+                                          widget.documentCid)
                                       .notifier)
                                   .state = v.cid;
                               if (_scrollController.hasClients) {
                                 _scrollController.jumpTo(0);
                               }
-                              ref
-                                  .read(readerProgressProvider.notifier)
-                                  .state = 0.0;
+                              ref.read(readerProgressProvider.notifier).state =
+                                  0.0;
                             },
                           ),
                         ),
@@ -2246,8 +2283,7 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
         _buildMetaRow('Catalog Duplication', 'Zero (Deduped by Work UUID)'),
         _buildMetaRow('P2P Redundancy', '4 Seed Peers Active'),
         ref.watch(contentIntegrityProvider(widget.documentCid)).when(
-              loading: () =>
-                  _buildMetaRow('Integrity Check', 'Verifying…'),
+              loading: () => _buildMetaRow('Integrity Check', 'Verifying…'),
               error: (_, __) =>
                   _buildMetaRow('Integrity Check', 'Verification failed'),
               data: (report) => Column(
@@ -2306,12 +2342,14 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   Widget _buildAnnotationsView(BuildContext context) {
     final annotationsAsync = ref.watch(annotationsProvider(widget.documentCid));
     return annotationsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      loading: () =>
+          const Center(child: CircularProgressIndicator(strokeWidth: 2)),
       error: (err, _) => Center(child: Text('Error: $err')),
       data: (annotations) {
         if (annotations.isEmpty) {
           return const Center(
-            child: Text('No annotations or reading notes.', style: TextStyle(color: Colors.grey)),
+            child: Text('No annotations or reading notes.',
+                style: TextStyle(color: Colors.grey)),
           );
         }
         return ListView.separated(
@@ -2323,7 +2361,8 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
               type: MaterialType.transparency,
               child: ListTile(
                 leading: const Icon(Icons.bookmark_outline, size: 18),
-                title: Text(annotations[index].text, style: const TextStyle(fontSize: 13)),
+                title: Text(annotations[index].text,
+                    style: const TextStyle(fontSize: 13)),
                 dense: true,
               ),
             );
@@ -2334,7 +2373,18 @@ class _ContentViewerScreenState extends ConsumerState<ContentViewerScreen> {
   }
 }
 
-enum _BlockType { h1, h2, h3, divider, quote, code, math, image, listItem, paragraph }
+enum _BlockType {
+  h1,
+  h2,
+  h3,
+  divider,
+  quote,
+  code,
+  math,
+  image,
+  listItem,
+  paragraph
+}
 
 class _MarkdownBlock {
   final _BlockType type;

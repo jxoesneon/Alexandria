@@ -74,8 +74,7 @@ void main() {
       expect(noRetries.retries, 0);
     });
 
-    test('failed publish ages the op instead of wedging the queue',
-        () async {
+    test('failed publish ages the op instead of wedging the queue', () async {
       final storage = _FakeSecureStorage();
       late _IpfsStub ipfs;
       final container = ProviderContainer(overrides: [
@@ -167,7 +166,6 @@ void main() {
     });
   });
 
-
   group('ContentRepository coverage extras', () {
     late ProviderContainer container;
     late ContentRepository repo;
@@ -201,7 +199,8 @@ void main() {
 
     tearDown(() => container.dispose());
 
-    test('createContent defaults format to bin and downloadContent '
+    test(
+        'createContent defaults format to bin and downloadContent '
         'delegates to retrieveContent', () async {
       final data = utf8.encode('binary blob');
       final uuid = await repo.createContent(
@@ -213,10 +212,8 @@ void main() {
       expect(manifest, isNotNull);
 
       final db = container.read(databaseProvider);
-      final versions =
-          await db.getVersionsForManifest(manifest!.id);
-      final fetched =
-          await repo.downloadContent(versions.first.cid);
+      final versions = await db.getVersionsForManifest(manifest!.id);
+      final fetched = await repo.downloadContent(versions.first.cid);
       expect(utf8.decode(fetched), 'binary blob');
     });
 
@@ -234,8 +231,7 @@ void main() {
       expect(note.content, '');
     });
 
-    test('annotation with unparseable createdAt falls back to now',
-        () async {
+    test('annotation with unparseable createdAt falls back to now', () async {
       final db = container.read(databaseProvider);
       await db.insertManifest({
         'uuid': 'doc1',
@@ -248,14 +244,12 @@ void main() {
         }),
         'lastUpdated': DateTime.now(),
       });
-      final annotations =
-          await repo.watchAnnotations('doc1').first;
+      final annotations = await repo.watchAnnotations('doc1').first;
       expect(annotations.length, 1);
       expect(annotations.first.text, 'hi');
     });
 
-    test('PluginContentRepository write paths and watchAllManifests',
-        () async {
+    test('PluginContentRepository write paths and watchAllManifests', () async {
       final plugin = repo.asPluginCapability(canWrite: true);
 
       // watchAllManifests projection (lines 635-638).
@@ -270,8 +264,7 @@ void main() {
       expect(manifest, isNotNull);
       expect(manifest!.encryptionKey, isNull);
 
-      await plugin.addVersion(uuid, 'cid-x', 'en', 'txt',
-          sizeBytes: 3);
+      await plugin.addVersion(uuid, 'cid-x', 'en', 'txt', sizeBytes: 3);
       await plugin.addContentVersion(
         manifestUuid: uuid,
         // Version payloads have a 64-byte minimum.
@@ -302,7 +295,6 @@ void main() {
     });
   });
 
-
   group('MetadataScrubbingService JPEG marker-walk edges', () {
     late MetadataScrubbingService scrubber;
 
@@ -310,12 +302,10 @@ void main() {
       scrubber = MetadataScrubbingService(CidService());
     });
 
-    Uint8List jpeg(List<int> tail) =>
-        Uint8List.fromList([0xFF, 0xD8, ...tail]);
+    Uint8List jpeg(List<int> tail) => Uint8List.fromList([0xFF, 0xD8, ...tail]);
 
     /// Minimal SOS header: FF DA + segLen 8 + 6 payload bytes.
-    List<int> sos(List<int> payload) =>
-        [0xFF, 0xDA, 0x00, 0x08, ...payload];
+    List<int> sos(List<int> payload) => [0xFF, 0xDA, 0x00, 0x08, ...payload];
 
     test('reserved markers 0x30-0x3F are consumed at width 2', () async {
       // FF D8 SOI, FF 35 reserved (dropped), FF D9 EOI — padded past
@@ -330,17 +320,26 @@ void main() {
       final input =
           jpeg([0xFF, 0x01, 0xFF, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
       final res = await scrubber.scrubMetadata(input);
-      expect(res.scrubbedBytes,
-          [0xFF, 0xD8, 0xFF, 0x01, 0xFF, 0xD9]);
+      expect(res.scrubbedBytes, [0xFF, 0xD8, 0xFF, 0x01, 0xFF, 0xD9]);
     });
 
     test('canonical Adobe APP14 is kept', () async {
       // FF EE + segLen 14 + 'Adobe' + 7 payload bytes.
       final input = jpeg([
-        0xFF, 0xEE, 0x00, 0x0E,
+        0xFF,
+        0xEE,
+        0x00,
+        0x0E,
         ...'Adobe'.codeUnits,
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-        0xFF, 0xD9,
+        0x00,
+        0x01,
+        0x02,
+        0x03,
+        0x04,
+        0x05,
+        0x06,
+        0xFF,
+        0xD9,
       ]);
       final res = await scrubber.scrubMetadata(input);
       expect(res.scrubbedBytes.length, greaterThan(4));
@@ -369,8 +368,7 @@ void main() {
       expect(res.scrubbedBytes, [0xFF, 0xD8]);
     });
 
-    test('assembled FF E1 + Exif landing pad refuses image content',
-        () async {
+    test('assembled FF E1 + Exif landing pad refuses image content', () async {
       // SOS payload ends with `FF E1 00 00` — an intra-segment pad
       // prefix that only completes when the next emitted bytes (the
       // verbatim entropy run) start with 'Exif'. The assembled-stream
@@ -378,7 +376,9 @@ void main() {
       final input = jpeg([
         ...sos([0x01, 0x01, 0xFF, 0xE1, 0x00, 0x00]),
         ...'Exif'.codeUnits,
-        0x00, 0x11, 0x22,
+        0x00,
+        0x11,
+        0x22,
       ]);
       final res = await scrubber.scrubMetadata(input);
       expect(res.scrubbedBytes, [0xFF, 0xD8, 0xFF, 0xD9]);
@@ -387,7 +387,10 @@ void main() {
     test('assembled FF DB FF + Ducky landing pad is refused', () async {
       final input = jpeg([
         ...sos([0x01, 0x01, 0xFF, 0xDB, 0xFF, 0x00]),
-        0xAA, 0xBB, ...'Ducky'.codeUnits, 0x00,
+        0xAA,
+        0xBB,
+        ...'Ducky'.codeUnits,
+        0x00,
       ]);
       final res = await scrubber.scrubMetadata(input);
       expect(res.scrubbedBytes, [0xFF, 0xD8, 0xFF, 0xD9]);
@@ -396,14 +399,16 @@ void main() {
     test('assembled FF DB FF + Adobe landing pad is refused', () async {
       final input = jpeg([
         ...sos([0x01, 0x01, 0xFF, 0xDB, 0xFF, 0x00]),
-        0xAA, 0xBB, ...'Adobe'.codeUnits, 0x00,
+        0xAA,
+        0xBB,
+        ...'Adobe'.codeUnits,
+        0x00,
       ]);
       final res = await scrubber.scrubMetadata(input);
       expect(res.scrubbedBytes, [0xFF, 0xD8, 0xFF, 0xD9]);
     });
 
-    test('detectSensitiveFields fails closed on unreadable input',
-        () async {
+    test('detectSensitiveFields fails closed on unreadable input', () async {
       // Whatever the exif reader does with this garbage, the API must
       // return a list — a throw inside becomes [].
       final res = await scrubber.detectSensitiveFields(

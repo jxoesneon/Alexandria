@@ -51,7 +51,8 @@ void main() {
       expect(service.inFlightCount, equals(0));
     });
 
-    test('a SYNCHRONOUSLY throwing task completes with error and '
+    test(
+        'a SYNCHRONOUSLY throwing task completes with error and '
         'releases the permit (campaign-2)', () async {
       // A task that throws before returning a Future used to leak the
       // in-flight permit — the queue would deadlock once every permit

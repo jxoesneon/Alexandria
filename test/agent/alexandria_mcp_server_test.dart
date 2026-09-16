@@ -4,7 +4,8 @@ import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart' hide Hmac;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:alexandria/data/database.dart' show AppDatabase, databaseProvider;
+import 'package:alexandria/data/database.dart'
+    show AppDatabase, databaseProvider;
 import 'package:alexandria/services/agent/alexandria_mcp_server.dart';
 import 'package:alexandria/services/agent/beacon_models.dart';
 import 'package:alexandria/services/agent/moltbook_service.dart';
@@ -79,8 +80,7 @@ void main() {
     setUp(() async {
       final keyPair = await Ed25519().newKeyPair();
       final pub = await keyPair.extractPublicKey();
-      identity =
-          _FakeIdentityService(keyPair, Uint8List.fromList(pub.bytes));
+      identity = _FakeIdentityService(keyPair, Uint8List.fromList(pub.bytes));
 
       pochService = PoCHService();
       db = AppDatabase();
@@ -141,7 +141,8 @@ void main() {
     });
 
     test('executes alexandria_search_archive tool', () async {
-      final res = await mcpServer.callTool('alexandria_search_archive', {'query': 'Physics'});
+      final res = await mcpServer
+          .callTool('alexandria_search_archive', {'query': 'Physics'});
       expect(res['isError'], isFalse);
 
       final text = (res['content'] as List).first['text'] as String;
@@ -150,7 +151,8 @@ void main() {
       expect(data['total_matches'], greaterThan(0));
     });
 
-    test('executes alexandria_ingest_doi tool and awards verification credits', () async {
+    test('executes alexandria_ingest_doi tool and awards verification credits',
+        () async {
       final initialBalance = creditService.balance;
 
       final res = await mcpServer.callTool('alexandria_ingest_doi', {
@@ -166,8 +168,7 @@ void main() {
       // resolved dossier bytes), not a fabricated label containing the
       // DOI string — verify it parses as a structurally valid CID.
       expect(data['assigned_cid'], isNotEmpty);
-      expect(CidService().isValidCid(data['assigned_cid'] as String),
-          isTrue);
+      expect(CidService().isValidCid(data['assigned_cid'] as String), isTrue);
       expect(data['verified_via'], 'stub');
       expect(creditService.balance, initialBalance + 15.0);
 
@@ -176,14 +177,16 @@ void main() {
         'doi': '10.1038/nature12373',
       });
       expect(dupeRes['isError'], isFalse);
-      final dupeData = jsonDecode(
-          (dupeRes['content'] as List).first['text'] as String) as Map<String, dynamic>;
+      final dupeData =
+          jsonDecode((dupeRes['content'] as List).first['text'] as String)
+              as Map<String, dynamic>;
       expect(dupeData['status'], 'duplicate');
       expect(dupeData['credits_earned'], 0.0);
       expect(creditService.balance, initialBalance + 15.0);
 
       // Rejects invalid DOI prefix
-      final invalidRes = await mcpServer.callTool('alexandria_ingest_doi', {'doi': 'invalid_doi_format'});
+      final invalidRes = await mcpServer
+          .callTool('alexandria_ingest_doi', {'doi': 'invalid_doi_format'});
       expect(invalidRes['isError'], isTrue);
     });
 
@@ -207,18 +210,19 @@ void main() {
       });
       expect(first['isError'], isFalse);
       expect(
-          jsonDecode((first['content'] as List).first['text'] as String)
-              ['status'],
+          jsonDecode(
+              (first['content'] as List).first['text'] as String)['status'],
           'success');
-      expect(await db.hasAwardedDoi('10.1126/science.persisted-dedupe'),
-          isTrue);
+      expect(
+          await db.hasAwardedDoi('10.1126/science.persisted-dedupe'), isTrue);
 
       final second = await secondServer.callTool('alexandria_ingest_doi', {
         'doi': '10.1126/science.persisted-dedupe',
       });
       expect(second['isError'], isFalse);
-      final data = jsonDecode((second['content'] as List).first['text']
-          as String) as Map<String, dynamic>;
+      final data =
+          jsonDecode((second['content'] as List).first['text'] as String)
+              as Map<String, dynamic>;
       expect(data['status'], 'duplicate');
       expect(data['credits_earned'], 0.0);
     });
@@ -234,7 +238,8 @@ void main() {
       expect(data['bandwidth_qos_multiplier'], isNotNull);
     });
 
-    test('executes alexandria_replicate_cid tool with credit deduction', () async {
+    test('executes alexandria_replicate_cid tool with credit deduction',
+        () async {
       final initialBalance = creditService.balance;
 
       final res = await mcpServer.callTool('alexandria_replicate_cid', {
@@ -264,8 +269,9 @@ void main() {
       final challengeRes = await mcpServer
           .callTool('alexandria_request_por_challenge', {'cid': cid});
       expect(challengeRes['isError'], isFalse);
-      final challengeData = jsonDecode((challengeRes['content'] as List)
-          .first['text'] as String) as Map<String, dynamic>;
+      final challengeData =
+          jsonDecode((challengeRes['content'] as List).first['text'] as String)
+              as Map<String, dynamic>;
       final challengeId = challengeData['challenge_id'] as String;
       final nonceHex = challengeData['nonce_hex'] as String;
       // The verifier-of-record is the node identity key — the same key the
@@ -273,8 +279,7 @@ void main() {
       expect(challengeData['challenger_pubkey'], identity.pubkeyHex);
 
       // 2. Compute the tag the prover would produce
-      final nonceBytes = Uint8List.fromList(List.generate(
-          nonceHex.length ~/ 2,
+      final nonceBytes = Uint8List.fromList(List.generate(nonceHex.length ~/ 2,
           (i) => int.parse(nonceHex.substring(i * 2, i * 2 + 2), radix: 16)));
       final tag = Hmac(sha256, nonceBytes).convert(payload).toString();
 
@@ -286,8 +291,9 @@ void main() {
       expect(res['isError'], isFalse);
       expect(creditService.balance, greaterThan(initialBalance));
 
-      final submitData = jsonDecode((res['content'] as List)
-          .first['text'] as String) as Map<String, dynamic>;
+      final submitData =
+          jsonDecode((res['content'] as List).first['text'] as String)
+              as Map<String, dynamic>;
       expect(submitData['status'], 'verified');
       final receipt = submitData['receipt'] as Map<String, dynamic>?;
       expect(receipt, isNotNull);
@@ -310,23 +316,27 @@ void main() {
       // 4. A wrong tag is rejected — no payout
       final challenge2 = await mcpServer
           .callTool('alexandria_request_por_challenge', {'cid': cid});
-      final id2 = jsonDecode((challenge2['content'] as List)
-          .first['text'] as String)['challenge_id'] as String;
-      final failRes = await mcpServer.callTool('alexandria_submit_por_challenge', {
+      final id2 =
+          jsonDecode((challenge2['content'] as List).first['text'] as String)[
+              'challenge_id'] as String;
+      final failRes =
+          await mcpServer.callTool('alexandria_submit_por_challenge', {
         'challenge_id': id2,
         'tag': 'deadbeef' * 8,
       });
       expect(failRes['isError'], isTrue);
 
       // 5. A fabricated challenge ID is rejected outright
-      final forgedRes = await mcpServer.callTool('alexandria_submit_por_challenge', {
+      final forgedRes =
+          await mcpServer.callTool('alexandria_submit_por_challenge', {
         'challenge_id': 'forged_id_12345',
         'tag': tag,
       });
       expect(forgedRes['isError'], isTrue);
     });
 
-    test('PoR submit for a foreign prover persists an unspent signed '
+    test(
+        'PoR submit for a foreign prover persists an unspent signed '
         'claim instrument — no local mint', () async {
       final payload = Uint8List.fromList(
           utf8.encode('payload proven for a remote prover agent'));
@@ -335,12 +345,12 @@ void main() {
 
       final challengeRes = await mcpServer
           .callTool('alexandria_request_por_challenge', {'cid': cid});
-      final challengeData = jsonDecode((challengeRes['content'] as List)
-          .first['text'] as String) as Map<String, dynamic>;
+      final challengeData =
+          jsonDecode((challengeRes['content'] as List).first['text'] as String)
+              as Map<String, dynamic>;
       final challengeId = challengeData['challenge_id'] as String;
       final nonceHex = challengeData['nonce_hex'] as String;
-      final nonceBytes = Uint8List.fromList(List.generate(
-          nonceHex.length ~/ 2,
+      final nonceBytes = Uint8List.fromList(List.generate(nonceHex.length ~/ 2,
           (i) => int.parse(nonceHex.substring(i * 2, i * 2 + 2), radix: 16)));
       final tag = Hmac(sha256, nonceBytes).convert(payload).toString();
 
@@ -352,8 +362,8 @@ void main() {
       });
       expect(res['isError'], isFalse);
 
-      final data = jsonDecode((res['content'] as List).first['text']
-          as String) as Map<String, dynamic>;
+      final data = jsonDecode((res['content'] as List).first['text'] as String)
+          as Map<String, dynamic>;
       expect(data['status'], 'verified');
       final receipt = data['receipt'] as Map<String, dynamic>;
       expect(receipt['verifier_pubkey'], identity.pubkeyHex);
@@ -366,12 +376,12 @@ void main() {
       expect(receipt['spent'], isFalse);
       expect(creditService.balance, equals(initialBalance));
 
-      final row =
-          await db.getWorkReceipt(receipt['receipt_id'] as String);
+      final row = await db.getWorkReceipt(receipt['receipt_id'] as String);
       expect(row!['spent'], isFalse);
     });
 
-    test('case-variant prover_pubkey reports the CANONICAL self-issued '
+    test(
+        'case-variant prover_pubkey reports the CANONICAL self-issued '
         'verdict — receipt_attested never misreports', () async {
       // Regression for the WORKING_ON residual: `isSelfIssued` composed a
       // literal `==`, so a prover_pubkey spelled as the case-variant of
@@ -385,12 +395,12 @@ void main() {
 
       final challengeRes = await mcpServer
           .callTool('alexandria_request_por_challenge', {'cid': cid});
-      final challengeData = jsonDecode((challengeRes['content'] as List)
-          .first['text'] as String) as Map<String, dynamic>;
+      final challengeData =
+          jsonDecode((challengeRes['content'] as List).first['text'] as String)
+              as Map<String, dynamic>;
       final challengeId = challengeData['challenge_id'] as String;
       final nonceHex = challengeData['nonce_hex'] as String;
-      final nonceBytes = Uint8List.fromList(List.generate(
-          nonceHex.length ~/ 2,
+      final nonceBytes = Uint8List.fromList(List.generate(nonceHex.length ~/ 2,
           (i) => int.parse(nonceHex.substring(i * 2, i * 2 + 2), radix: 16)));
       final tag = Hmac(sha256, nonceBytes).convert(payload).toString();
 
@@ -404,8 +414,8 @@ void main() {
         'prover_pubkey': caseVariant,
       });
       expect(res['isError'], isFalse);
-      final data = jsonDecode((res['content'] as List).first['text']
-          as String) as Map<String, dynamic>;
+      final data = jsonDecode((res['content'] as List).first['text'] as String)
+          as Map<String, dynamic>;
       final receipt = data['receipt'] as Map<String, dynamic>;
       expect(receipt['prover_pubkey'], caseVariant);
       // The reported verdict is the canonical one: self-issued, NOT
@@ -420,20 +430,23 @@ void main() {
       expect(creditService.balance, greaterThan(initialBalance));
     });
 
-    test('agent payout rails are disabled until attestation (ALX-010)', () async {
+    test('agent payout rails are disabled until attestation (ALX-010)',
+        () async {
       final res = await mcpServer.callTool('alexandria_export_cashu_voucher', {
         'credits': 10.0,
       });
       expect(res['isError'], isTrue);
 
-      final sweepRes = await mcpServer.callTool('alexandria_sweep_lightning_live', {
+      final sweepRes =
+          await mcpServer.callTool('alexandria_sweep_lightning_live', {
         'lightning_address': 'agent@walletofsatoshi.com',
         'credits': 10.0,
       });
       expect(sweepRes['isError'], isTrue);
     });
 
-    test('handles JSON-RPC 2.0 dispatch for tools/list and tools/call', () async {
+    test('handles JSON-RPC 2.0 dispatch for tools/list and tools/call',
+        () async {
       // 1. tools/list
       final listRpc = await mcpServer.handleJsonRpcRequest({
         'jsonrpc': '2.0',
@@ -466,9 +479,11 @@ void main() {
       expect(errRpc['error']['code'], -32601);
     });
 
-    test('executes alexandria_sweep_lightning_live tool with validation', () async {
+    test('executes alexandria_sweep_lightning_live tool with validation',
+        () async {
       // Disabled rail rejects before address validation (ALX-010)
-      final errRes = await mcpServer.callTool('alexandria_sweep_lightning_live', {
+      final errRes =
+          await mcpServer.callTool('alexandria_sweep_lightning_live', {
         'lightning_address': 'not_an_email',
         'credits': 10.0,
       });

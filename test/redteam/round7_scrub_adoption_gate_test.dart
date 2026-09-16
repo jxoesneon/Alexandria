@@ -92,8 +92,7 @@ void main() {
     // detector could not see a COM — so the UI keeps the ORIGINAL.
     final shipped = _shippedBytes(jpeg, result);
     expect(shipped.join(',').contains('71,80,83'), isFalse,
-        reason:
-            'wasModified==false makes add_content_screen keep the '
+        reason: 'wasModified==false makes add_content_screen keep the '
             'original bytes — the COM comment ships despite the '
             'user-enabled metadata strip.');
   });
@@ -117,8 +116,7 @@ void main() {
             .join(',')
             .contains('69,118,101'), // 'Eve' survives → gate failed
         isFalse,
-        reason:
-            'an XMP packet with no Exif header is invisible to the '
+        reason: 'an XMP packet with no Exif header is invisible to the '
             'detector: wanted=={} → wasModified==false → the UI ships '
             'the original file with the author field intact.');
   });

@@ -90,7 +90,8 @@ void main() {
     expect(fake.generatedIdentity, isNotNull);
   });
 
-  testWidgets('rotation failure shows a SnackBar instead of an '
+  testWidgets(
+      'rotation failure shows a SnackBar instead of an '
       'unhandled error', (tester) async {
     final fake = FakeSecurityOverviewService()
       ..generateError = StateError('identity write failed verification');

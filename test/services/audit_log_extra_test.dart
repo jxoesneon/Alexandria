@@ -83,7 +83,8 @@ void main() {
 
     test('encrypts data for a peer public key', () async {
       final data = Uint8List.fromList('peer secret'.codeUnits);
-      final cipher = await encryption.encryptForPeer(data, 'did:alex:peer#key1');
+      final cipher =
+          await encryption.encryptForPeer(data, 'did:alex:peer#key1');
       expect(cipher, isNot(equals(data)));
       expect(cipher.length, greaterThan(data.length));
     });

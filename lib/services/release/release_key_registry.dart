@@ -78,8 +78,7 @@ class StaticReleaseKeyRegistry implements ReleaseKeyRegistry {
       throw ArgumentError(
           'releaseThreshold $releaseThreshold outside 1..${releaseKeys.length}');
     }
-    if (timestampThreshold < 0 ||
-        timestampThreshold > timestampKeys.length) {
+    if (timestampThreshold < 0 || timestampThreshold > timestampKeys.length) {
       throw ArgumentError('timestampThreshold $timestampThreshold outside '
           '0..${timestampKeys.length}');
     }

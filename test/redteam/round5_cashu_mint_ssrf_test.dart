@@ -25,7 +25,8 @@ import 'package:http/testing.dart';
 import 'package:alexandria/services/credits/cashu_mint_client.dart';
 
 void main() {
-  test('CashuMintClient must refuse private/non-https mint URLs '
+  test(
+      'CashuMintClient must refuse private/non-https mint URLs '
       '(no request may leave)', () async {
     var requestCount = 0;
     final mock = MockClient((request) async {
@@ -45,15 +46,13 @@ void main() {
       await expectLater(
         client.fetchActiveKeysetIds(mintUrl),
         throwsA(anything),
-        reason:
-            'mint URL "$mintUrl" must be refused by an SSRF gate before '
+        reason: 'mint URL "$mintUrl" must be refused by an SSRF gate before '
             'any request is issued — CashuMintClient is the only remote '
             'fetch surface with no UrlSafety.requirePublicFetchUri.',
       );
     }
     expect(requestCount, 0,
-        reason:
-            'a refused mint URL must never reach the transport — '
+        reason: 'a refused mint URL must never reach the transport — '
             '$requestCount request(s) were issued anyway.');
   });
 }

@@ -728,10 +728,9 @@ class ConsensusService {
       signature: signature,
       timestamp: DateTime.now(),
       isHuman: attestedIsHuman,
-      humanAttestation:
-          attestedIsHuman && humanAttestationToken != null
-              ? humanAttestationToken
-              : null,
+      humanAttestation: attestedIsHuman && humanAttestationToken != null
+          ? humanAttestationToken
+          : null,
     );
 
     request.votes.add(vote);

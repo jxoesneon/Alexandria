@@ -106,8 +106,7 @@ class HybridLogicalClock implements Comparable<HybridLogicalClock> {
           'Malformed HybridLogicalClock: nodeId is not valid base64');
     }
     if (nodeId.isEmpty) {
-      throw const FormatException(
-          'Malformed HybridLogicalClock: empty nodeId');
+      throw const FormatException('Malformed HybridLogicalClock: empty nodeId');
     }
     return HybridLogicalClock(
       wallTime: wallTime,
@@ -599,8 +598,7 @@ class CollectionService {
     }
 
     // Merge description (LWW)
-    final remoteDesc =
-        _parseRemoteRegister(remoteState['description'], local);
+    final remoteDesc = _parseRemoteRegister(remoteState['description'], local);
     if (remoteDesc != null &&
         remoteDesc.timestamp.compareTo(local.description.timestamp) > 0) {
       local.description = remoteDesc;
@@ -629,9 +627,7 @@ class CollectionService {
       final value = map['value'];
       final authorRaw = map['author'];
       final timestampRaw = map['timestamp'];
-      if (value is! String ||
-          authorRaw is! String ||
-          timestampRaw is! Map) {
+      if (value is! String || authorRaw is! String || timestampRaw is! Map) {
         return null;
       }
       final Uint8List author = base64Decode(authorRaw);

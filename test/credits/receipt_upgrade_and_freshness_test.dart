@@ -39,8 +39,8 @@ void main() {
 
   Future<bool> receiptVerifier(
       Uint8List message, Uint8List sig, String publicKeyHex) {
-    final pk = SimplePublicKey(hexToBytes(publicKeyHex),
-        type: KeyPairType.ed25519);
+    final pk =
+        SimplePublicKey(hexToBytes(publicKeyHex), type: KeyPairType.ed25519);
     return algorithm.verify(message, signature: Signature(sig, publicKey: pk));
   }
 
@@ -81,8 +81,8 @@ void main() {
   /// [keyPair] (default: the receipt's named prover, proverKeyPairA).
   Future<WorkReceipt> withProverSig(WorkReceipt r,
       {SimpleKeyPair? keyPair}) async {
-    final sig = await algorithm.sign(r.ackPayload,
-        keyPair: keyPair ?? proverKeyPairA);
+    final sig =
+        await algorithm.sign(r.ackPayload, keyPair: keyPair ?? proverKeyPairA);
     return r.withProverSig(base64Encode(sig.bytes));
   }
 
@@ -95,8 +95,7 @@ void main() {
     final unsigned = unsignedReceipt(
         proverPubkey: proverPubkey, amount: amount, nonce: nonce);
     final signed = await withVerifierSig(unsigned);
-    return withProverSig(signed,
-        keyPair: proverKeyPair ?? proverKeyPairA);
+    return withProverSig(signed, keyPair: proverKeyPair ?? proverKeyPairA);
   }
 
   /// Local-claim possession signature over the static preimage.
@@ -128,15 +127,12 @@ void main() {
     verifierPubHex =
         bytesToHex((await verifierKeyPair.extractPublicKey()).bytes);
     proverKeyPairA = await algorithm.newKeyPair();
-    proverPubHexA =
-        bytesToHex((await proverKeyPairA.extractPublicKey()).bytes);
+    proverPubHexA = bytesToHex((await proverKeyPairA.extractPublicKey()).bytes);
     proverKeyPairB = await algorithm.newKeyPair();
-    proverPubHexB =
-        bytesToHex((await proverKeyPairB.extractPublicKey()).bytes);
+    proverPubHexB = bytesToHex((await proverKeyPairB.extractPublicKey()).bytes);
   });
 
-  group('ingestWorkReceipt — signed upgrade of an unsigned first insert',
-      () {
+  group('ingestWorkReceipt — signed upgrade of an unsigned first insert', () {
     late AppDatabase db;
     late CreditService svc;
 
@@ -155,7 +151,8 @@ void main() {
       await db.close();
     });
 
-    test('unsigned first insert persists; the signed redelivery upgrades '
+    test(
+        'unsigned first insert persists; the signed redelivery upgrades '
         'both signatures and becomes claimable', () async {
       final unsigned = unsignedReceipt();
       expect(await svc.ingestWorkReceipt(unsigned), isTrue);
@@ -164,8 +161,8 @@ void main() {
       expect(row['proverSig'], isNull);
 
       // First claim attempt refuses — the artifact is still unsigned.
-      expect(await svc.claimVerifiedReceipt(unsigned, claimSignatureB64: ''),
-          0.0);
+      expect(
+          await svc.claimVerifiedReceipt(unsigned, claimSignatureB64: ''), 0.0);
 
       // The signed redelivery carries the SAME receiptId — it must
       // upgrade the stored signatures, not be deduped away.
@@ -177,13 +174,13 @@ void main() {
 
       // And the now-complete artifact mints attested value.
       expect(
-          await svc.claimVerifiedReceipt(
-              WorkReceipt.fromDbMap(row),
+          await svc.claimVerifiedReceipt(WorkReceipt.fromDbMap(row),
               claimSignatureB64: await claimSig(unsigned)),
           25.0);
     });
 
-    test('a forged verifierSig upgrade is refused — the stored row stays '
+    test(
+        'a forged verifierSig upgrade is refused — the stored row stays '
         'unsigned', () async {
       final unsigned = unsignedReceipt();
       expect(await svc.ingestWorkReceipt(unsigned), isTrue);
@@ -217,7 +214,8 @@ void main() {
       expect(row!['proverSig'], complete.proverSig);
     });
 
-    test('first-signed-wins: a DIFFERENT signature can never overwrite '
+    test(
+        'first-signed-wins: a DIFFERENT signature can never overwrite '
         'a stored one (no downgrade)', () async {
       final signed = await signedReceipt();
       expect(await svc.ingestWorkReceipt(signed), isTrue);
@@ -232,7 +230,8 @@ void main() {
       expect(row['proverSig'], signed.proverSig);
     });
 
-    test('a tampered body (receiptId mismatch) is refused on the merge '
+    test(
+        'a tampered body (receiptId mismatch) is refused on the merge '
         'path', () async {
       final signed = await signedReceipt();
       expect(await svc.ingestWorkReceipt(signed), isTrue);
@@ -249,12 +248,12 @@ void main() {
       expect(row!['amount'], 25.0);
     });
 
-    test('upgrade never touches spent — a consumed receipt stays '
+    test(
+        'upgrade never touches spent — a consumed receipt stays '
         'consumed', () async {
       final unsigned = unsignedReceipt();
       expect(await svc.ingestWorkReceipt(unsigned), isTrue);
-      expect(
-          await db.claimReceiptAtomically(unsigned.receiptId), isTrue);
+      expect(await db.claimReceiptAtomically(unsigned.receiptId), isTrue);
 
       final signed = await withProverSig(await withVerifierSig(unsigned));
       expect(await svc.ingestWorkReceipt(signed), isTrue);
@@ -262,9 +261,10 @@ void main() {
       expect(row!['spent'], isTrue,
           reason: 'the signature upgrade must not resurrect a spent '
               'receipt — first-insert-wins covers bookkeeping too');
-      expect(await svc.claimVerifiedReceipt(
-          WorkReceipt.fromDbMap(row),
-          claimSignatureB64: await claimSig(unsigned)), 0.0);
+      expect(
+          await svc.claimVerifiedReceipt(WorkReceipt.fromDbMap(row),
+              claimSignatureB64: await claimSig(unsigned)),
+          0.0);
     });
   });
 
@@ -292,17 +292,15 @@ void main() {
       return r;
     }
 
-    int freshExpiry() => DateTime.now()
-        .add(const Duration(minutes: 5))
-        .millisecondsSinceEpoch;
+    int freshExpiry() =>
+        DateTime.now().add(const Duration(minutes: 5)).millisecondsSinceEpoch;
 
     test('a valid freshness-bound remote claim mints', () async {
       final r = await persist(await signedReceipt());
       final expiry = freshExpiry();
       expect(
           await svc.claimVerifiedReceipt(r,
-              claimSignatureB64:
-                  await remoteClaimSig(r, 'srv_nonce_1', expiry),
+              claimSignatureB64: await remoteClaimSig(r, 'srv_nonce_1', expiry),
               verifierNonce: 'srv_nonce_1',
               expiryMillis: expiry),
           25.0);
@@ -310,16 +308,14 @@ void main() {
       expect(row!['spent'], isTrue);
     });
 
-    test('expired freshness is refused — the row stays unspent',
-        () async {
+    test('expired freshness is refused — the row stays unspent', () async {
       final r = await persist(await signedReceipt());
       final stale = DateTime.now()
           .subtract(const Duration(minutes: 1))
           .millisecondsSinceEpoch;
       expect(
           await svc.claimVerifiedReceipt(r,
-              claimSignatureB64:
-                  await remoteClaimSig(r, 'srv_nonce_2', stale),
+              claimSignatureB64: await remoteClaimSig(r, 'srv_nonce_2', stale),
               verifierNonce: 'srv_nonce_2',
               expiryMillis: stale),
           0.0);
@@ -336,20 +332,19 @@ void main() {
       // Nonce without expiry.
       expect(
           await svc.claimVerifiedReceipt(r,
-              claimSignatureB64:
-                  await remoteClaimSig(r, 'srv_nonce_3', expiry),
+              claimSignatureB64: await remoteClaimSig(r, 'srv_nonce_3', expiry),
               verifierNonce: 'srv_nonce_3'),
           0.0);
       // Expiry without nonce.
       expect(
           await svc.claimVerifiedReceipt(r,
-              claimSignatureB64: await claimSig(r),
-              expiryMillis: expiry),
+              claimSignatureB64: await claimSig(r), expiryMillis: expiry),
           0.0);
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
-    test('a signature over the LOCAL preimage does not satisfy a remote '
+    test(
+        'a signature over the LOCAL preimage does not satisfy a remote '
         'challenge (domain mismatch fails closed)', () async {
       final r = await persist(await signedReceipt());
       final expiry = freshExpiry();
@@ -368,15 +363,15 @@ void main() {
       // Signed 'nonce_A' but the challenge presented 'nonce_B'.
       expect(
           await svc.claimVerifiedReceipt(r,
-              claimSignatureB64:
-                  await remoteClaimSig(r, 'nonce_A', expiry),
+              claimSignatureB64: await remoteClaimSig(r, 'nonce_A', expiry),
               verifierNonce: 'nonce_B',
               expiryMillis: expiry),
           0.0);
       expect((await db.getWorkReceipt(r.receiptId))!['spent'], isFalse);
     });
 
-    test('remote claim replay loses the CAS — a second claim of the '
+    test(
+        'remote claim replay loses the CAS — a second claim of the '
         'same receipt mints nothing', () async {
       final r = await persist(await signedReceipt());
       final expiry = freshExpiry();
@@ -413,7 +408,8 @@ void main() {
       return r;
     }
 
-    test('a multi-key wallet mints under the receipt\'s OWN prover key '
+    test(
+        'a multi-key wallet mints under the receipt\'s OWN prover key '
         '— both shards back egress', () async {
       final held = {proverPubHexA, proverPubHexB};
       final svc = CreditService(
@@ -425,12 +421,11 @@ void main() {
       await svc.ready;
 
       // Claim under key A.
-      final ra = await persist(await signedReceipt(
-          proverPubkey: proverPubHexA, nonce: 'aa'));
+      final ra = await persist(
+          await signedReceipt(proverPubkey: proverPubHexA, nonce: 'aa'));
       expect(
           await svc.claimVerifiedReceipt(ra,
-              claimSignatureB64:
-                  await claimSig(ra, keyPair: proverKeyPairA)),
+              claimSignatureB64: await claimSig(ra, keyPair: proverKeyPairA)),
           25.0);
       // Claim under key B.
       final rb = await persist(await signedReceipt(
@@ -439,8 +434,7 @@ void main() {
           nonce: 'bb'));
       expect(
           await svc.claimVerifiedReceipt(rb,
-              claimSignatureB64:
-                  await claimSig(rb, keyPair: proverKeyPairB)),
+              claimSignatureB64: await claimSig(rb, keyPair: proverKeyPairB)),
           25.0);
 
       await svc.settled;
@@ -448,16 +442,13 @@ void main() {
 
       // Persisted rows carry their own scope.
       final rows = await db.getCreditTransactions();
-      final mints =
-          rows.where((r) => r['isAttested'] == true).toList();
+      final mints = rows.where((r) => r['isAttested'] == true).toList();
       expect(mints.length, 2);
-      final scopes =
-          mints.map((r) => r['attestedPubkey'] as String).toSet();
+      final scopes = mints.map((r) => r['attestedPubkey'] as String).toSet();
       expect(scopes, {proverPubHexA, proverPubHexB});
     });
 
-    test('a rotated-out key\'s minted value stops backing egress',
-        () async {
+    test('a rotated-out key\'s minted value stops backing egress', () async {
       // Phase 1: the wallet holds ONLY key A and mints under it.
       var held = {proverPubHexA};
       final first = CreditService(
@@ -467,12 +458,11 @@ void main() {
         localProverPubkeys: () async => held,
       );
       await first.ready;
-      final r = await persist(await signedReceipt(
-          proverPubkey: proverPubHexA, nonce: 'cc'));
+      final r = await persist(
+          await signedReceipt(proverPubkey: proverPubHexA, nonce: 'cc'));
       expect(
           await first.claimVerifiedReceipt(r,
-              claimSignatureB64:
-                  await claimSig(r, keyPair: proverKeyPairA)),
+              claimSignatureB64: await claimSig(r, keyPair: proverKeyPairA)),
           25.0);
       await first.settled;
       expect(first.attestedBalance, 25.0);
@@ -496,21 +486,19 @@ void main() {
               'longer held — it cannot back egress');
       expect(
           rotated.spendCredits(
-              amount: 10.0,
-              reason: 'egress attempt',
-              isAttested: true),
+              amount: 10.0, reason: 'egress attempt', isAttested: true),
           isFalse,
           reason: 'egress against a rotated-out key\'s attested value '
               'refuses outright');
     });
 
-    test('legacy unscoped attested rows (attested_pubkey IS NULL) count '
+    test(
+        'legacy unscoped attested rows (attested_pubkey IS NULL) count '
         'for any held key', () async {
       // A pre-v7 attested mint: isAttested, no scope column value.
       await db.insertCreditTransaction({
         'id': 'tx_legacy_attested',
-        'timestamp':
-            DateTime.now().subtract(const Duration(seconds: 1)),
+        'timestamp': DateTime.now().subtract(const Duration(seconds: 1)),
         'type': 'storageReward',
         'amount': 40.0,
         'description': 'legacy attested mint',
@@ -530,9 +518,7 @@ void main() {
               'semantics');
       expect(
           svc.spendCredits(
-              amount: 10.0,
-              reason: 'legacy-backed egress',
-              isAttested: true),
+              amount: 10.0, reason: 'legacy-backed egress', isAttested: true),
           isTrue);
     });
   });

@@ -41,8 +41,7 @@ void main() {
       tor = TorService(storage);
     });
 
-    test('a hostile stored host cannot smuggle findProxy directives',
-        () async {
+    test('a hostile stored host cannot smuggle findProxy directives', () async {
       await storage.write('tor_enabled', 'false');
       // A ';' / space payload would split the findProxy directive list
       // ('PROXY x; DIRECT' would bypass the proxy entirely).
@@ -52,14 +51,12 @@ void main() {
       await tor.init();
 
       expect(tor.proxyHost, equals('127.0.0.1'),
-          reason:
-              'stored host bypassed setProxy validation — must fail '
+          reason: 'stored host bypassed setProxy validation — must fail '
               'closed to the loopback default');
       expect(tor.proxyPort, equals(9050));
     });
 
-    test('a stored out-of-range port falls back to the default',
-        () async {
+    test('a stored out-of-range port falls back to the default', () async {
       await storage.write('tor_host', '10.0.0.5');
       await storage.write('tor_port', '99999');
 
@@ -76,8 +73,7 @@ void main() {
 
     setUp(() {
       container = ProviderContainer(overrides: [
-        webNodeServiceProvider.overrideWith((ref) => WebNodeService(
-            ref,
+        webNodeServiceProvider.overrideWith((ref) => WebNodeService(ref,
             blockStore: IndexedDbBlockStore(maxCapacityBytes: 64))),
       ]);
       webNode = container.read(webNodeServiceProvider);
@@ -87,14 +83,12 @@ void main() {
       container.dispose();
     });
 
-    test('preserveInBrowser throws when the store refuses the block',
-        () async {
+    test('preserveInBrowser throws when the store refuses the block', () async {
       // A block larger than the store capacity is refused by putBlock
       // — the service must not hand back a CID for content it never
       // stored.
       final oversized = Uint8List(1024);
-      await expectLater(
-          webNode.preserveInBrowser(oversized), throwsStateError);
+      await expectLater(webNode.preserveInBrowser(oversized), throwsStateError);
     });
 
     test('retrieveFromBrowser refuses a CID aliased to foreign bytes',
@@ -151,7 +145,8 @@ void main() {
       expect(sync.offlineQueue, isEmpty);
     });
 
-    test('an unencodable op is refused at enqueue, not wedged in the '
+    test(
+        'an unencodable op is refused at enqueue, not wedged in the '
         'queue', () async {
       await sync.init();
       // jsonEncode throws on non-encodable values — this op is poison
@@ -176,11 +171,9 @@ void main() {
       expect(sync.offlineQueue, isEmpty);
     });
 
-    test('a throwing transport ages the op out instead of wedging',
-        () async {
+    test('a throwing transport ages the op out instead of wedging', () async {
       final c2 = ProviderContainer(overrides: [
-        ipfsServiceProvider
-            .overrideWith((ref) => _ThrowingIpfsService(ref)),
+        ipfsServiceProvider.overrideWith((ref) => _ThrowingIpfsService(ref)),
         secureStorageServiceProvider.overrideWithValue(storage),
       ]);
       addTearDown(c2.dispose);
@@ -209,10 +202,8 @@ void main() {
         ipfsServiceProvider.overrideWith((ref) => FakeIpfsService(ref)),
         meshTransportServiceProvider
             .overrideWith((ref) => FakeMeshTransportService()),
-        webNodeServiceProvider
-            .overrideWith((ref) => FakeWebNodeService(ref)),
-        syncServiceProvider
-            .overrideWith((ref) => _ThrowingSyncService(ref)),
+        webNodeServiceProvider.overrideWith((ref) => FakeWebNodeService(ref)),
+        syncServiceProvider.overrideWith((ref) => _ThrowingSyncService(ref)),
         secureStorageServiceProvider
             .overrideWith((ref) => FakeSecureStorageService()),
         torServiceProvider.overrideWith(
@@ -225,8 +216,7 @@ void main() {
 
       final progress = await service.watchSyncProgress().first;
       expect(progress.inProgress, isFalse,
-          reason:
-              'a failed manual sync must not leave the progress state '
+          reason: 'a failed manual sync must not leave the progress state '
               'latched in progress');
       expect(progress, isA<SyncProgress>());
     });

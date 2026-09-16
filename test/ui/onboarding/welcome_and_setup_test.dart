@@ -49,7 +49,8 @@ class _FakeIdentityService implements IdentityService {
         createdAt: DateTime(2026, 1, 1),
       );
 
-  Future<AlexandriaIdentity> createIdentity({String? name}) async => AlexandriaIdentity(
+  Future<AlexandriaIdentity> createIdentity({String? name}) async =>
+      AlexandriaIdentity(
         publicKey: Uint8List(32),
         privateKey: Uint8List(32),
         createdAt: DateTime(2026, 1, 1),
@@ -103,10 +104,10 @@ class _FakeMnemonicService implements MnemonicService {
   Future<AlexandriaIdentity?> recoverFromMnemonic(List<String> words) async {
     recoverCalls++;
     return AlexandriaIdentity(
-        publicKey: Uint8List(32),
-        privateKey: Uint8List(32),
-        createdAt: DateTime(2026, 1, 1),
-      );
+      publicKey: Uint8List(32),
+      privateKey: Uint8List(32),
+      createdAt: DateTime(2026, 1, 1),
+    );
   }
 
   @override
@@ -118,7 +119,8 @@ class _FakeBiometricService implements BiometricService {
 
   @override
   Future<bool> authenticate(
-      {String reason = 'Please authenticate to access Alexandria'}) async => true;
+          {String reason = 'Please authenticate to access Alexandria'}) async =>
+      true;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -143,14 +145,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Onboarding Screens Tests', () {
-    testWidgets('WelcomeScreen renders title, subtitle, and enter button', (tester) async {
+    testWidgets('WelcomeScreen renders title, subtitle, and enter button',
+        (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             identityServiceProvider.overrideWithValue(_FakeIdentityService()),
             mnemonicServiceProvider.overrideWithValue(_FakeMnemonicService()),
             biometricServiceProvider.overrideWithValue(_FakeBiometricService()),
-            secureStorageServiceProvider.overrideWithValue(_FakeSecureStorageService()),
+            secureStorageServiceProvider
+                .overrideWithValue(_FakeSecureStorageService()),
           ],
           child: const MaterialApp(
             home: WelcomeScreen(),
@@ -166,7 +170,8 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('SetupWizardScreen completes timer sequence and progresses', (tester) async {
+    testWidgets('SetupWizardScreen completes timer sequence and progresses',
+        (tester) async {
       final fakeStorage = _FakeSecureStorageService();
 
       await tester.pumpWidget(
@@ -194,7 +199,8 @@ void main() {
       expect(fakeStorage.storage['has_seen_onboarding'], equals('true'));
     });
 
-    testWidgets('OnboardingScreen renders all steps via step provider', (tester) async {
+    testWidgets('OnboardingScreen renders all steps via step provider',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -216,7 +222,8 @@ void main() {
       addTearDown(container.dispose);
 
       // Start at welcome step and tap Begin
-      container.read(onboardingStepProvider.notifier).state = OnboardingStep.welcome;
+      container.read(onboardingStepProvider.notifier).state =
+          OnboardingStep.welcome;
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -271,7 +278,8 @@ void main() {
       expect(find.text('Enter the library'), findsOneWidget);
 
       // Import Dialog Flow
-      container.read(onboardingStepProvider.notifier).state = OnboardingStep.identity;
+      container.read(onboardingStepProvider.notifier).state =
+          OnboardingStep.identity;
       await tester.pumpAndSettle();
 
       final importBtn = find.text('Import Existing Identity');
@@ -285,7 +293,8 @@ void main() {
       }
 
       // Test cancel button on import dialog
-      container.read(onboardingStepProvider.notifier).state = OnboardingStep.identity;
+      container.read(onboardingStepProvider.notifier).state =
+          OnboardingStep.identity;
       await tester.pumpAndSettle();
       await tester.tap(find.text('Import Existing Identity'));
       await tester.pumpAndSettle();
@@ -295,16 +304,19 @@ void main() {
       expect(find.text('Import Recovery Phrase'), findsNothing);
 
       // Test "Skip for now" on key step
-      container.read(onboardingStepProvider.notifier).state = OnboardingStep.key;
+      container.read(onboardingStepProvider.notifier).state =
+          OnboardingStep.key;
       await tester.pumpAndSettle();
       await tester.tap(find.text('Skip for now'));
       await tester.pumpAndSettle();
-      expect(container.read(onboardingStepProvider), equals(OnboardingStep.biometric));
+      expect(container.read(onboardingStepProvider),
+          equals(OnboardingStep.biometric));
 
       // Test "Skip" on biometric step
       await tester.tap(find.text('Skip'));
       await tester.pumpAndSettle();
-      expect(container.read(onboardingStepProvider), equals(OnboardingStep.complete));
+      expect(container.read(onboardingStepProvider),
+          equals(OnboardingStep.complete));
 
       // Test "Enter the library" button on complete step (navigates away)
       await tester.tap(find.text('Enter the library'));
@@ -312,7 +324,9 @@ void main() {
       expect(fakeStorage.storage['has_seen_onboarding'], equals('true'));
     });
 
-    testWidgets('backup phrase is derived from the stored identity, not random entropy', (tester) async {
+    testWidgets(
+        'backup phrase is derived from the stored identity, not random entropy',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -324,7 +338,8 @@ void main() {
           identityServiceProvider.overrideWithValue(_FakeIdentityService()),
           mnemonicServiceProvider.overrideWithValue(fakeMnemonic),
           biometricServiceProvider.overrideWithValue(_FakeBiometricService()),
-          secureStorageServiceProvider.overrideWithValue(_FakeSecureStorageService()),
+          secureStorageServiceProvider
+              .overrideWithValue(_FakeSecureStorageService()),
         ],
       );
       addTearDown(container.dispose);
@@ -354,7 +369,8 @@ void main() {
       expect(find.text("I've Saved It"), findsOneWidget);
     });
 
-    testWidgets('shows an error when there is no identity to back up', (tester) async {
+    testWidgets('shows an error when there is no identity to back up',
+        (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -366,7 +382,8 @@ void main() {
           identityServiceProvider.overrideWithValue(_FakeIdentityService()),
           mnemonicServiceProvider.overrideWithValue(fakeMnemonic),
           biometricServiceProvider.overrideWithValue(_FakeBiometricService()),
-          secureStorageServiceProvider.overrideWithValue(_FakeSecureStorageService()),
+          secureStorageServiceProvider
+              .overrideWithValue(_FakeSecureStorageService()),
         ],
       );
       addTearDown(container.dispose);

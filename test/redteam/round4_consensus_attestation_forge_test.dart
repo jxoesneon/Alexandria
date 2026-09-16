@@ -59,10 +59,10 @@ Vote _wireVote({int keyByte = 1, bool isHuman = true}) => Vote(
     );
 
 void main() {
-  test('weightAttested is forgeable by construction — tally gate is '
+  test(
+      'weightAttested is forgeable by construction — tally gate is '
       'self-asserted', () async {
-    final svc = ConsensusService(
-        _FakeIdentityService(_identity()),
+    final svc = ConsensusService(_FakeIdentityService(_identity()),
         LedgerService(_FakeIdentityService(_identity())));
     final req = await svc.proposeChange(
       targetCid: 'bafyVictim',
@@ -85,21 +85,17 @@ void main() {
     ));
 
     expect(req.approvalWeight, 0.0,
-        reason:
-            'a fabricated vote claiming weightAttested counted '
+        reason: 'a fabricated vote claiming weightAttested counted '
             '${req.approvalWeight} toward the tally — the "attested" '
             'marker is a public constructor bool, so the round-3 weight '
             'fix is forgeable without touching the ledger.');
     expect(req.isApproved, isFalse,
-        reason:
-            'isApproved returned true on a self-attested vote — metadata '
+        reason: 'isApproved returned true on a self-attested vote — metadata '
             'consensus captured by object construction.');
   });
 
-  test('wire votes must not satisfy the AI-proposal human quorum',
-      () async {
-    final svc = ConsensusService(
-        _FakeIdentityService(_identity()),
+  test('wire votes must not satisfy the AI-proposal human quorum', () async {
+    final svc = ConsensusService(_FakeIdentityService(_identity()),
         LedgerService(_FakeIdentityService(_identity())));
     final req = await svc.proposeChange(
       targetCid: 'bafyAiTarget',
@@ -116,8 +112,7 @@ void main() {
     req.votes.add(_wireVote(keyByte: 0x11)); // same key — no dedup
 
     expect(req.humanApprovalCount, 0,
-        reason:
-            'two self-asserted isHuman wire ballots (same key!) counted '
+        reason: 'two self-asserted isHuman wire ballots (same key!) counted '
             'as ${req.humanApprovalCount} human approvals — the '
             'humanThreshold=${ConsensusConstants.humanThreshold} quorum '
             'for AI proposals counts votes the weight-attestation fix '
@@ -125,8 +120,7 @@ void main() {
             'voter keys.');
   });
 
-  test('ChangeRequest.fromJson must not import a terminal status',
-      () async {
+  test('ChangeRequest.fromJson must not import a terminal status', () async {
     // A wire payload claiming the request already resolved 'approved'.
     final forged = {
       'id': 'req-forged',
@@ -145,8 +139,7 @@ void main() {
     final req = ChangeRequest.fromJson(forged);
 
     expect(req.isApproved, isFalse,
-        reason:
-            'a deserialized request imported status=approved verbatim — '
+        reason: 'a deserialized request imported status=approved verbatim — '
             'any ingest path that materializes wire ChangeRequests '
             'accepts a pre-resolved outcome with zero votes. Wire status '
             'must reset to pending like addProposal does for governance.');

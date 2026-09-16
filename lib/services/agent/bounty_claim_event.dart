@@ -162,12 +162,12 @@ class BountyClaimEvent {
       Uint8List.fromList(
         utf8.encode(
           'alexandria:bounty-claim:v2:${toCanonicalJson(<String, dynamic>{
-            'bountyId': bountyId,
-            'cid': cid,
-            'claimedAt': claimedAt,
-            'claimNonce': claimNonce,
-            'claimantAgentId': claimantAgentId,
-          })}',
+                'bountyId': bountyId,
+                'cid': cid,
+                'claimedAt': claimedAt,
+                'claimNonce': claimNonce,
+                'claimantAgentId': claimantAgentId,
+              })}',
         ),
       );
 

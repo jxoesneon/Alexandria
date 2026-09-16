@@ -123,11 +123,11 @@ class ReleaseManifest {
         utf8.encode(
           'alexandria:release-manifest:v1:'
           '${toCanonicalJson(<String, dynamic>{
-            'expires_at': expiresAt,
-            'issued_at': issuedAt,
-            'min_wire_version': minWireVersion,
-            'sequence': sequence,
-          })}',
+                'expires_at': expiresAt,
+                'issued_at': issuedAt,
+                'min_wire_version': minWireVersion,
+                'sequence': sequence,
+              })}',
         ),
       );
 
@@ -164,8 +164,11 @@ class ReleaseManifest {
     final issued = (m['issued_at'] as num?)?.toInt();
     final expires = (m['expires_at'] as num?)?.toInt();
     final sigsRaw = m['signatures'];
-    if (minWire == null || seq == null || issued == null ||
-        expires == null || sigsRaw is! List) {
+    if (minWire == null ||
+        seq == null ||
+        issued == null ||
+        expires == null ||
+        sigsRaw is! List) {
       return null;
     }
     final sigs = <ManifestSignature>[];
@@ -265,11 +268,11 @@ class ManifestTimestamp {
         utf8.encode(
           'alexandria:manifest-timestamp:v1:'
           '${toCanonicalJson(<String, dynamic>{
-            'expires_at': expiresAt,
-            'manifest_hash': manifestHash,
-            'sequence': sequence,
-            'timestamp': timestamp,
-          })}',
+                'expires_at': expiresAt,
+                'manifest_hash': manifestHash,
+                'sequence': sequence,
+                'timestamp': timestamp,
+              })}',
         ),
       );
 
@@ -299,7 +302,10 @@ class ManifestTimestamp {
     final ts = (m['timestamp'] as num?)?.toInt();
     final expires = (m['expires_at'] as num?)?.toInt();
     final sigsRaw = m['signatures'];
-    if (seq == null || hash == null || ts == null || expires == null ||
+    if (seq == null ||
+        hash == null ||
+        ts == null ||
+        expires == null ||
         sigsRaw is! List) {
       return null;
     }

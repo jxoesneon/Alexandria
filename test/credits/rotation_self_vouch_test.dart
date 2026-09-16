@@ -55,8 +55,8 @@ void main() {
   Future<bool> receiptVerifier(
       Uint8List message, Uint8List sig, String publicKeyHex) async {
     try {
-      final pk = SimplePublicKey(hexToBytes(publicKeyHex),
-          type: KeyPairType.ed25519);
+      final pk =
+          SimplePublicKey(hexToBytes(publicKeyHex), type: KeyPairType.ed25519);
       return await algorithm.verify(message,
           signature: Signature(sig, publicKey: pk));
     } catch (_) {
@@ -66,8 +66,8 @@ void main() {
 
   /// Claim preimage signed under the prover key (B).
   Future<String> claimSig(WorkReceipt r) async {
-    final preimage = Uint8List.fromList(utf8
-        .encode('alexandria:receipt-claim:v${r.v}:${r.receiptId}'));
+    final preimage = Uint8List.fromList(
+        utf8.encode('alexandria:receipt-claim:v${r.v}:${r.receiptId}'));
     final sig = await algorithm.sign(preimage, keyPair: keyB);
     return base64Encode(sig.bytes);
   }
@@ -135,7 +135,8 @@ void main() {
   });
 
   group('rotation self-vouch guard (Safety item 3)', () {
-    test('receipt signed by the RETIRED local key is refused when the '
+    test(
+        'receipt signed by the RETIRED local key is refused when the '
         'history contains it ({A,B})', () async {
       final r = await persist(await signedReceipt());
       final svc = svcWith(knownLocal: () async => {pubA, pubB});
@@ -151,7 +152,8 @@ void main() {
           reason: 'a refused claim leaves the row unspent');
     });
 
-    test('the SAME receipt mints when history knows only {B} — this is '
+    test(
+        'the SAME receipt mints when history knows only {B} — this is '
         'exactly why history matters', () async {
       final r = await persist(await signedReceipt());
       final svc = svcWith(knownLocal: () async => {pubB});
@@ -165,7 +167,8 @@ void main() {
       expect(svc.attestedBalance, 25.0);
     });
 
-    test('null resolver → current-key-only fallback (pre-feature '
+    test(
+        'null resolver → current-key-only fallback (pre-feature '
         'behavior, claims still work)', () async {
       final r = await persist(await signedReceipt());
       final svc = svcWith(); // knownLocalPubkeys omitted entirely
@@ -192,11 +195,11 @@ void main() {
       }
     });
 
-    test('a THROWING history resolver degrades fail-open — claims are '
+    test(
+        'a THROWING history resolver degrades fail-open — claims are '
         'not broken by broken history', () async {
       final r = await persist(await signedReceipt());
-      final svc =
-          svcWith(knownLocal: () => Future<Set<String>?>.error('boom'));
+      final svc = svcWith(knownLocal: () => Future<Set<String>?>.error('boom'));
       await svc.ready;
       expect(
           await svc.claimVerifiedReceipt(r,
@@ -204,10 +207,11 @@ void main() {
           25.0);
     });
 
-    test('a foreign verifier (C) with full history still mints — the '
+    test(
+        'a foreign verifier (C) with full history still mints — the '
         'guard refuses only KNOWN-local keys', () async {
-      final r = await persist(await signedReceipt(
-          verifierPubkey: pubC, verifierKeyPair: keyC));
+      final r = await persist(
+          await signedReceipt(verifierPubkey: pubC, verifierKeyPair: keyC));
       final svc = svcWith(knownLocal: () async => {pubA, pubB});
       await svc.ready;
       expect(
@@ -216,7 +220,8 @@ void main() {
           25.0);
     });
 
-    test('canonical matching: an UPPERCASE respelling of the retired '
+    test(
+        'canonical matching: an UPPERCASE respelling of the retired '
         'key in the receipt still refuses', () async {
       final r = await persist(
           await signedReceipt(verifierPubkey: pubA.toUpperCase()));
@@ -230,7 +235,8 @@ void main() {
               'retired key');
     });
 
-    test('end-to-end: real IdentityService rotated A→B wires the '
+    test(
+        'end-to-end: real IdentityService rotated A→B wires the '
         'history resolver exactly like the provider', () async {
       final storage = _FakeSecureStorage();
       final identity = IdentityService(storage);

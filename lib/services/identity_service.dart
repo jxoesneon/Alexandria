@@ -296,8 +296,7 @@ class IdentityService {
       final history = await _readPubkeyHistoryUnlocked();
       if (history.contains(canonical)) return;
       history.add(canonical);
-      await _storage.write(
-          _IdentityKeys.publicKeyHistory, jsonEncode(history));
+      await _storage.write(_IdentityKeys.publicKeyHistory, jsonEncode(history));
     } catch (_) {}
   }
 
@@ -411,8 +410,7 @@ class IdentityService {
       final publicKeyBytes = Uint8List.fromList(publicKeyObj.bytes);
       final publicKeyHex = _hexEncode(publicKeyBytes);
 
-      final existingPublicKeyHex =
-          await _storage.read(_IdentityKeys.publicKey);
+      final existingPublicKeyHex = await _storage.read(_IdentityKeys.publicKey);
       final existingCreatedStr =
           await _storage.read(_IdentityKeys.identityCreated);
       final createdAt =

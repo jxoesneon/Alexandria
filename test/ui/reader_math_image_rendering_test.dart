@@ -9,7 +9,8 @@ import 'package:alexandria/ui/library/content_viewer_screen.dart';
 
 void main() {
   group('Reader Scientific Math, Symbol & Image Rendering', () {
-    testWidgets('renders display KaTeX math, inline math, and figure images with captions',
+    testWidgets(
+        'renders display KaTeX math, inline math, and figure images with captions',
         (tester) async {
       tester.view.physicalSize = const Size(1280, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -61,9 +62,12 @@ This establishes the B-form helical structure.
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            currentDocumentProvider(testDocCid).overrideWith((ref) async => testStream),
-            documentVersionsProvider(testDocCid).overrideWith((ref) async => [testVersion]),
-            activeVersionCidProvider(testDocCid).overrideWith((ref) => testDocCid),
+            currentDocumentProvider(testDocCid)
+                .overrideWith((ref) async => testStream),
+            documentVersionsProvider(testDocCid)
+                .overrideWith((ref) async => [testVersion]),
+            activeVersionCidProvider(testDocCid)
+                .overrideWith((ref) => testDocCid),
           ],
           child: const MaterialApp(
             home: ContentViewerScreen(documentCid: testDocCid),
@@ -82,10 +86,12 @@ This establishes the B-form helical structure.
       expect(find.text('Copy LaTeX'), findsNWidgets(2));
 
       // 3. Verify Image figure is parsed and rendered with caption
-      expect(find.text('Figure: Double Helix X-ray Diffraction Photo 51'), findsOneWidget);
+      expect(find.text('Figure: Double Helix X-ray Diffraction Photo 51'),
+          findsOneWidget);
 
       // 4. Test tapping on image opens lightbox inspection dialog
-      final figureCaptionFinder = find.text('Figure: Double Helix X-ray Diffraction Photo 51');
+      final figureCaptionFinder =
+          find.text('Figure: Double Helix X-ray Diffraction Photo 51');
       expect(figureCaptionFinder, findsOneWidget);
 
       await tester.ensureVisible(figureCaptionFinder);
@@ -95,7 +101,10 @@ This establishes the B-form helical structure.
 
       // Verify lightbox opened
       expect(find.byType(InteractiveViewer), findsOneWidget);
-      expect(find.text('Pinch or scroll to zoom • Click and drag to pan • Air-gapped peer preservation'), findsOneWidget);
+      expect(
+          find.text(
+              'Pinch or scroll to zoom • Click and drag to pan • Air-gapped peer preservation'),
+          findsOneWidget);
 
       // Close lightbox
       final closeButton = find.byIcon(Icons.close);

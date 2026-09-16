@@ -207,8 +207,8 @@ class SecurityOverviewService {
     if (identity.shortId != keyId) {
       throw ArgumentError('Key id does not match the active identity.');
     }
-    final salt =
-        List<int>.generate(_exportSaltLength, (_) => _secureRandom.nextInt(256));
+    final salt = List<int>.generate(
+        _exportSaltLength, (_) => _secureRandom.nextInt(256));
     final kdf = Argon2id(
       parallelism: _exportKdfParallelism,
       memory: _exportKdfMemoryKiB,
@@ -286,8 +286,8 @@ class SecurityOverviewService {
         // Whitespace/controls are not valid in a DID; '|' and '\' are
         // rejected too — neither is legal DID syntax, and both are the
         // audit log's column delimiter and escape lead-in.
-        peerDid.codeUnits.any(
-            (c) => c <= 0x20 || c == 0x7F || c == 0x7C || c == 0x5C)) {
+        peerDid.codeUnits
+            .any((c) => c <= 0x20 || c == 0x7F || c == 0x7C || c == 0x5C)) {
       throw ArgumentError('Invalid peer DID');
     }
   }

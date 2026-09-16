@@ -67,8 +67,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byType(DoiHarvesterDialog), findsOneWidget);
       // Dismiss the dialog.
-      Navigator.of(tester.element(find.byType(DoiHarvesterDialog)))
-          .pop();
+      Navigator.of(tester.element(find.byType(DoiHarvesterDialog))).pop();
       await tester.pump();
     });
 
@@ -86,8 +85,8 @@ void main() {
       // rebuild the const widget subtree).
       await tester.tap(find.byType(Switch).first);
       await tester.pump();
-      final installed = service.plugins.firstWhere(
-          (p) => p.id == 'org.alexandria.plugin.doi-harvester');
+      final installed = service.plugins
+          .firstWhere((p) => p.id == 'org.alexandria.plugin.doi-harvester');
       expect(installed.enabled, isFalse);
 
       await tester.pumpWidget(const SizedBox());
@@ -248,10 +247,10 @@ void main() {
               cid: cid,
             ),
           ),
-          documentVersionsProvider.overrideWith(
-              (ref, cid) async => const <ContentVersion>[]),
-          annotationsProvider.overrideWith(
-              (ref, cid) => Future.value(const <Annotation>[])),
+          documentVersionsProvider
+              .overrideWith((ref, cid) async => const <ContentVersion>[]),
+          annotationsProvider
+              .overrideWith((ref, cid) => Future.value(const <Annotation>[])),
           contentIntegrityProvider.overrideWith(
             (ref, cid) => Future.value(const ContentIntegrityReport(
                 cid: 'x', payloadHashOk: true, signatureValid: null)),
@@ -276,8 +275,8 @@ void main() {
   group('CreationWizard extra branches', () {
     testWidgets('browse button and mid-step cancel', (tester) async {
       await bigSurface(tester);
-      await tester.pumpWidget(const ProviderScope(
-          child: MaterialApp(home: CreationWizard())));
+      await tester.pumpWidget(
+          const ProviderScope(child: MaterialApp(home: CreationWizard())));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -373,11 +372,12 @@ void main() {
       await tester.tap(find.text('Prune'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Storage cleanup completed successfully.'),
-          findsOneWidget);
+      expect(
+          find.text('Storage cleanup completed successfully.'), findsOneWidget);
     });
 
-    testWidgets('appbar actions open agent dialog, wallet and plugin '
+    testWidgets(
+        'appbar actions open agent dialog, wallet and plugin '
         'screen', (tester) async {
       await bigSurface(tester);
       final creditService = CreditService(initialBalance: 50);
@@ -393,8 +393,8 @@ void main() {
           secureStorageServiceProvider
               .overrideWith((ref) => FakeSecureStorageService()),
           ipfsServiceProvider.overrideWith((ref) => FakeIpfsService(ref)),
-          torServiceProvider.overrideWith((ref) =>
-              FakeTorService(ref.read(secureStorageServiceProvider))),
+          torServiceProvider.overrideWith(
+              (ref) => FakeTorService(ref.read(secureStorageServiceProvider))),
           creditServiceProvider.overrideWith((_) => creditService),
           pochServiceProvider.overrideWith((_) => pochService),
           moltbookServiceProvider.overrideWith((_) => moltbook),
@@ -479,8 +479,10 @@ void main() {
     }
 
     Widget dialogHost(
-      AgentStewardService steward, MoltbookService moltbook,
-      CreditService credit, PoCHService poch,
+      AgentStewardService steward,
+      MoltbookService moltbook,
+      CreditService credit,
+      PoCHService poch,
     ) {
       return ProviderScope(
         overrides: [
@@ -495,7 +497,8 @@ void main() {
       );
     }
 
-    testWidgets('feed interactions: chips, upvote, unfunded claim, copy, '
+    testWidgets(
+        'feed interactions: chips, upvote, unfunded claim, copy, '
         'export config, activity log', (tester) async {
       await bigSurface(tester);
       final (credit, poch, moltbook, steward) = makeServices();
@@ -510,8 +513,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Recent Agent Activity:'), findsOneWidget);
-      expect(find.text('[BOUNTY: CRITICAL] Endangered Quantum Physics '
-          'Preprint (1998)'), findsOneWidget);
+      expect(
+          find.text('[BOUNTY: CRITICAL] Endangered Quantum Physics '
+              'Preprint (1998)'),
+          findsOneWidget);
 
       // Seeded bounties are unfunded → disabled 'Unfunded' buttons.
       expect(find.text('Unfunded'), findsWidgets);
@@ -530,8 +535,7 @@ void main() {
       await tester.tap(find.text('m/open-science'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
-      expect(find.textContaining('PLOS Computational Biology'),
-          findsOneWidget);
+      expect(find.textContaining('PLOS Computational Biology'), findsOneWidget);
       await tester.tap(find.text('m/preservation-alerts'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
@@ -552,8 +556,7 @@ void main() {
     testWidgets('bounty dialog validation and insufficient-balance error',
         (tester) async {
       await bigSurface(tester);
-      final (credit, poch, moltbook, steward) =
-          makeServices(balance: 0.0);
+      final (credit, poch, moltbook, steward) = makeServices(balance: 0.0);
       await tester.pumpWidget(dialogHost(steward, moltbook, credit, poch));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -561,14 +564,12 @@ void main() {
       await tester.tap(find.text('Post Bounty'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Post Preservation Bounty (Moltbook)'),
-          findsOneWidget);
+      expect(find.text('Post Preservation Bounty (Moltbook)'), findsOneWidget);
 
       // Empty fields: publish is a silent no-op, dialog stays.
       await tester.tap(find.text('Publish Bounty'));
       await tester.pump();
-      expect(find.text('Post Preservation Bounty (Moltbook)'),
-          findsOneWidget);
+      expect(find.text('Post Preservation Bounty (Moltbook)'), findsOneWidget);
 
       // Filled fields but zero balance → error snackbar.
       await tester.enterText(

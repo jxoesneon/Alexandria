@@ -61,7 +61,8 @@ void main() {
 
     // Sanity: the sensitive fields are really there.
     final detected = await svc.detectSensitiveFields(original);
-    expect(detected, containsAll(['Image Make', 'Image Model', 'Image Artist']));
+    expect(
+        detected, containsAll(['Image Make', 'Image Model', 'Image Artist']));
 
     final result =
         await svc.scrubMetadata(original, options: ScrubbingOptions.full);
@@ -71,11 +72,9 @@ void main() {
         reason: 'fixture should advertise removed fields for this test');
 
     // ...so the returned bytes must no longer expose them.
-    final stillPresent =
-        await svc.detectSensitiveFields(result.scrubbedBytes);
+    final stillPresent = await svc.detectSensitiveFields(result.scrubbedBytes);
     expect(stillPresent, isEmpty,
-        reason:
-            'removedFields=${result.removedFields} but the scrubbed bytes '
+        reason: 'removedFields=${result.removedFields} but the scrubbed bytes '
             'still expose $stillPresent — scrubMetadata returned the '
             'original payload unchanged (placeholder implementation) while '
             'reporting a successful scrub. Publishing result.scrubbedBytes '
@@ -96,8 +95,7 @@ void main() {
 
     // If scrubbing truly removed fields the digest would differ.
     expect(result.newCid, isNot(cidService.cidFromBytes(original)),
-        reason:
-            'the "post-scrub" CID equals the pre-scrub CID — the output '
+        reason: 'the "post-scrub" CID equals the pre-scrub CID — the output '
             'payload is byte-identical, yet the API reports '
             'wasModified=${result.wasModified}');
   });
