@@ -110,8 +110,7 @@ class BiometricService {
 
       final authenticated = await _auth.authenticate(
         localizedReason: reason,
-        options:
-            const AuthenticationOptions(stickyAuth: true, biometricOnly: false),
+        persistAcrossBackgrounding: true,
       );
       if (authenticated) {
         // Only a genuine prompt success attests a human — the early
@@ -144,8 +143,7 @@ class BiometricService {
       // only when a real prompt succeeded.
       final authenticated = await _auth.authenticate(
         localizedReason: 'Confirm your vote',
-        options:
-            const AuthenticationOptions(stickyAuth: true, biometricOnly: false),
+        persistAcrossBackgrounding: true,
       );
       if (!authenticated) return null;
       _lastAuthenticatedAt = DateTime.now();
