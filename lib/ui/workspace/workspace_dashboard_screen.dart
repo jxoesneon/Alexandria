@@ -776,13 +776,16 @@ class _WorkspaceDashboardScreenState
                   OutlinedButton.icon(
                     onPressed: () async {
                       final seedService = ref.read(starterSeedServiceProvider);
-                      await seedService
+                      final result = await seedService
                           .ingestSeedPack('open-science-landmarks');
                       if (mounted) {
+                        final note = result.skipped.isEmpty
+                            ? ''
+                            : ' (${result.skipped.length} unavailable)';
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text(
-                                'Ingested Landmark Open Science collection!'),
+                                'Ingested ${result.ingested} works from the network$note'),
                             backgroundColor: AppTheme.honorColor,
                           ),
                         );

@@ -32,6 +32,7 @@ class IpfsService {
   bool _isStarted = false;
   IPFS? _node;
   final String? _localStoreDirOverride;
+  late final bool _persistLocal;
   Directory? _localBlocksDir;
   final Map<String, Uint8List> _localStore = {};
   final Set<String> _pinnedCids = {};
@@ -56,7 +57,16 @@ class IpfsService {
       String? localStoreDir})
       : _engineFactory = engineFactory,
         _configBuilder = configBuilder,
-        _localStoreDirOverride = localStoreDir;
+        _localStoreDirOverride = localStoreDir {
+    // Disk persistence is production behavior. Under FLUTTER_TEST the
+    // zone is FakeAsync: real file I/O awaited from a test body
+    // deadlocks (its continuations queue on fake microtasks that only
+    // flush during pump), and tests would otherwise share a real
+    // ~/.local/share blocks dir across runs. Tests that exercise the
+    // durable store opt in explicitly via localStoreDir.
+    _persistLocal =
+        localStoreDir != null || Platform.environment['FLUTTER_TEST'] != 'true';
+  }
 
   bool get isStarted => _isStarted;
 
@@ -169,6 +179,7 @@ class IpfsService {
   }
 
   Future<void> _savePins() async {
+    if (!_persistLocal) return;
     try {
       final f = File('${(await _blocksDir()).path}/.pins');
       await f.writeAsString(_pinnedCids.join('\n'), flush: true);
@@ -181,7 +192,7 @@ class IpfsService {
       _ref.read(cidServiceProvider).isValidCid(cid);
 
   Future<void> _writeLocalBlock(String cid, Uint8List data) async {
-    if (!_persistableCid(cid)) return;
+    if (!_persistLocal || !_persistableCid(cid)) return;
     try {
       final file = File('${(await _blocksDir()).path}/$cid');
       await file.writeAsBytes(data, flush: true);
@@ -192,7 +203,7 @@ class IpfsService {
   }
 
   Future<Uint8List?> _readLocalBlock(String cid) async {
-    if (!_persistableCid(cid)) return null;
+    if (!_persistLocal || !_persistableCid(cid)) return null;
     try {
       final file = File('${(await _blocksDir()).path}/$cid');
       if (!file.existsSync()) return null;
@@ -206,7 +217,7 @@ class IpfsService {
 
   Future<bool> _localBlockExists(String cid) async {
     if (_localStore.containsKey(cid)) return true;
-    if (!_persistableCid(cid)) return false;
+    if (!_persistLocal || !_persistableCid(cid)) return false;
     try {
       return File('${(await _blocksDir()).path}/$cid').existsSync();
     } catch (_) {
@@ -404,6 +415,7 @@ class IpfsService {
 
   Future<bool> runGc() async {
     _localStore.removeWhere((key, _) => !_pinnedCids.contains(key));
+    if (!_persistLocal) return true;
     try {
       // Disk blocks follow the same pin gate - GC removes exactly what
       // is unpinned, in memory and on disk alike.

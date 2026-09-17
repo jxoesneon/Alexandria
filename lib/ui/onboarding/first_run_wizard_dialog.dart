@@ -74,8 +74,8 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
         widget.onComplete?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-                'Welcome to Alexandria! Your node is active with 100 ℭ and Starter Commons.'),
+            content:
+                Text('Welcome to Alexandria! Your node is active with 100 ℭ.'),
             backgroundColor: AppTheme.honorColor,
             duration: Duration(seconds: 4),
           ),
@@ -566,7 +566,7 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  '${pack.documents.length} Works • ${pack.estimatedSizeMb} MB',
+                                  '${pack.documents.length} Works • ~${pack.estimatedSizeMb} MB download',
                                   style: GoogleFonts.jetBrainsMono(
                                     fontSize: 10,
                                     color: AppTheme.primaryAccent,

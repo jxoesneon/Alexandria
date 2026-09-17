@@ -425,17 +425,18 @@ class DoiResolver {
   /// (red minor-observation hardening).
   static const int maxPdfBytes = 64 * 1024 * 1024; // 64 MiB
 
-  /// Attempts to download PDF bytes for open-access papers.
-  /// Aborts and returns null once the response exceeds [maxPdfBytes].
+  /// Downloads bytes from [url] under the full SSRF gate, redirect
+  /// re-gating, and the [maxPdfBytes] cap - the shared transport for
+  /// content acquisition (PDFs, OA texts, seed-pack sources).
   ///
-  /// SSRF gate (round-3 red finding): `pdfUrl` is publisher/Crossref
-  /// metadata - attacker-influenced remote input. Before ANY connection
-  /// is opened the URL must pass [UrlSafety.requirePublicFetchUri]
-  /// (https-only, public host, DNS-checked). Redirects are followed
-  /// manually and re-gated per hop so a public landing page cannot 302
-  /// the fetch into private space.
-  Future<Uint8List?> downloadPdf(String pdfUrl) async {
-    final initial = Uri.tryParse(pdfUrl);
+  /// SSRF gate (round-3 red finding): `url` is remote-influenced input.
+  /// Before ANY connection is opened it must pass
+  /// [UrlSafety.requirePublicFetchUri] (https-only, public host,
+  /// DNS-checked). Redirects are followed manually and re-gated per
+  /// hop so a public landing page cannot 302 the fetch into private
+  /// space.
+  Future<Uint8List?> downloadBytes(String url) async {
+    final initial = Uri.tryParse(url);
     if (initial == null) return null;
     var uri = initial;
     try {
@@ -469,24 +470,31 @@ class DoiResolver {
             bytesBuilder.add(chunk);
           }
           if (oversized) {
-            debugPrint(
-                'PDF download aborted: exceeds $maxPdfBytes bytes ($pdfUrl)');
+            debugPrint('Download aborted: exceeds $maxPdfBytes bytes ($url)');
             return null;
           }
-          final data = bytesBuilder.toBytes();
-          // Verify PDF magic header %PDF
-          if (data.length > 4 &&
-              data[0] == 0x25 &&
-              data[1] == 0x50 &&
-              data[2] == 0x44 &&
-              data[3] == 0x46) {
-            return data;
-          }
+          return bytesBuilder.toBytes();
         }
         return null;
       }
     } catch (e) {
-      debugPrint('PDF download failed for $pdfUrl: $e');
+      debugPrint('Download failed for $url: $e');
+    }
+    return null;
+  }
+
+  /// Attempts to download PDF bytes for open-access papers via
+  /// [downloadBytes], then verifies the %PDF magic header - a
+  /// landing-page HTML response is never mistaken for a document.
+  Future<Uint8List?> downloadPdf(String pdfUrl) async {
+    final data = await downloadBytes(pdfUrl);
+    if (data != null &&
+        data.length > 4 &&
+        data[0] == 0x25 &&
+        data[1] == 0x50 &&
+        data[2] == 0x44 &&
+        data[3] == 0x46) {
+      return data;
     }
     return null;
   }

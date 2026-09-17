@@ -135,8 +135,6 @@ import 'package:alexandria/services/secure_storage_service.dart'
     as _import_services_secure_storage_service_dart;
 import 'package:alexandria/services/security_overview_service.dart'
     as _import_services_security_overview_service_dart;
-import 'package:alexandria/services/seed/seed_data_texts.dart'
-    as _import_services_seed_seed_data_texts_dart;
 import 'package:alexandria/services/seed/starter_seed_service.dart'
     as _import_services_seed_starter_seed_service_dart;
 import 'package:alexandria/services/sibling_service.dart'
