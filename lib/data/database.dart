@@ -571,6 +571,29 @@ class AppDatabase extends _$AppDatabase {
     return query.get();
   }
 
+  Future<void> insertHonorValidation({
+    required String validatorId,
+    required String targetCid,
+    required int score,
+    required String signature,
+  }) async {
+    await into(honorValidations).insert(
+      HonorValidationsCompanion.insert(
+        validatorId: validatorId,
+        targetCid: targetCid,
+        score: score,
+        timestamp: DateTime.now(),
+        signature: signature,
+      ),
+    );
+  }
+
+  /// Newest row per (validatorId, targetCid) wins on replay — mirrors
+  /// HonorSystem's one-ballot-per-validator dedup.
+  Future<List<HonorValidation>> getAllHonorValidations() {
+    return select(honorValidations).get();
+  }
+
   Future<List<DateTime>> getUserActivityDates(String publicKey) async {
     return [];
   }

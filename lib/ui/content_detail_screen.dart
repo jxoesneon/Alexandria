@@ -23,6 +23,7 @@ import 'library/content_viewer_screen.dart';
 
 final trustScoreProvider = FutureProvider.family<int, String>((ref, cid) async {
   final honor = ref.watch(honorSystemProvider);
+  await ref.watch(honorSystemReadyProvider.future);
   return honor.getTrustScore(cid);
 });
 

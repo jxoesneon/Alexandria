@@ -1,7 +1,57 @@
+import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final honorSystemProvider = Provider((ref) => HonorSystem());
+import '../data/database.dart';
+import '../services/identity_service.dart';
+
+final honorSystemProvider = Provider((ref) {
+  final system = HonorSystem();
+  system.onVoteRecorded = (vote) async {
+    try {
+      String signature = '';
+      try {
+        final identity = await ref.read(identityServiceProvider).getIdentity();
+        if (identity != null) {
+          final payload = utf8.encode(
+              'alexandria:vote:v1:${vote.validatorId}:${vote.targetCid}:${vote.score}');
+          final sig = await ref
+              .read(identityServiceProvider)
+              .sign(Uint8List.fromList(payload));
+          signature = base64Encode(sig);
+        }
+      } catch (_) {
+        // An unsigned vote still counts locally - persistence failure of
+        // the signature must not drop the ballot.
+      }
+      await ref.read(databaseProvider).insertHonorValidation(
+            validatorId: vote.validatorId,
+            targetCid: vote.targetCid,
+            score: vote.score,
+            signature: signature,
+          );
+    } catch (_) {
+      // Persistence is best-effort: a DB hiccup must not reject the vote.
+    }
+  };
+  return system;
+});
+
+/// Resolves once the persisted honor ledger has been replayed into the
+/// in-memory tally. Consumers that render trust scores should await this
+/// so a vote cast in a previous session is not reported as absent.
+final honorSystemReadyProvider = FutureProvider<void>((ref) async {
+  final system = ref.watch(honorSystemProvider);
+  final rows = await ref.watch(databaseProvider).getAllHonorValidations();
+  for (final row in rows) {
+    system.restoreVote(
+      validatorId: row.validatorId,
+      targetCid: row.targetCid,
+      score: row.score,
+    );
+  }
+});
 
 class ValidationVote {
   final String validatorId;
@@ -39,6 +89,32 @@ class HonorSystem {
 
   HonorSystem({this.reputationResolver});
 
+  /// Write-through persistence hook, wired by [honorSystemProvider].
+  /// Invoked after every recorded ballot so the vote survives restart.
+  Future<void> Function(ValidationVote vote)? onVoteRecorded;
+
+  /// Replays a persisted ballot without re-invoking the persistence
+  /// hook. Same one-ballot-per-validator dedup as [recordVote].
+  void restoreVote({
+    required String validatorId,
+    required String targetCid,
+    required int score,
+    int reputation = 10,
+  }) {
+    if (score != -1 && score != 1) return;
+    _votes.removeWhere(
+      (v) => v.validatorId == validatorId && v.targetCid == targetCid,
+    );
+    final resolved = (reputationResolver?.call(validatorId) ?? reputation)
+        .clamp(0, maxClaimedReputation);
+    _votes.add(ValidationVote(
+      validatorId: validatorId,
+      targetCid: targetCid,
+      score: score,
+      reputation: resolved,
+    ));
+  }
+
   void recordVote({
     required String validatorId,
     required String targetCid,
@@ -63,12 +139,14 @@ class HonorSystem {
     // NaN/unbounded.
     final resolved = (reputationResolver?.call(validatorId) ?? reputation)
         .clamp(0, maxClaimedReputation);
-    _votes.add(ValidationVote(
+    final vote = ValidationVote(
       validatorId: validatorId,
       targetCid: targetCid,
       score: score,
       reputation: resolved,
-    ));
+    );
+    _votes.add(vote);
+    onVoteRecorded?.call(vote);
   }
 
   int computeTrustScore(String targetCid) {

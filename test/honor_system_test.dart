@@ -102,5 +102,54 @@ void main() {
       addTearDown(container.dispose);
       expect(container.read(honorSystemProvider), isA<HonorSystem>());
     });
+
+    test('recordVote invokes the persistence hook', () async {
+      ValidationVote? captured;
+      honorSystem.onVoteRecorded = (vote) async => captured = vote;
+
+      honorSystem.recordVote(
+        validatorId: 'val_alice',
+        targetCid: 'cid_900',
+        score: -1,
+        reputation: 90,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(captured?.targetCid, 'cid_900');
+      expect(captured?.score, -1);
+      expect(captured?.reputation, 90);
+    });
+
+    test('restoreVote replays a persisted ballot without re-writing', () {
+      var writes = 0;
+      honorSystem.onVoteRecorded = (_) async => writes++;
+
+      honorSystem.restoreVote(
+        validatorId: 'val_alice',
+        targetCid: 'cid_910',
+        score: 1,
+        reputation: 90,
+      );
+
+      expect(honorSystem.computeTrustScore('cid_910'), equals(2));
+      expect(writes, 0);
+    });
+
+    test('restoreVote dedups per validator — newest ballot wins', () {
+      honorSystem.restoreVote(
+        validatorId: 'val_alice',
+        targetCid: 'cid_920',
+        score: 1,
+        reputation: 90,
+      );
+      honorSystem.restoreVote(
+        validatorId: 'val_alice',
+        targetCid: 'cid_920',
+        score: -1,
+        reputation: 90,
+      );
+
+      expect(honorSystem.computeTrustScore('cid_920'), equals(-2));
+    });
   });
 }
