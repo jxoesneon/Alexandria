@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/ipfs_service.dart';
 
 void main() {
-  group('IpfsService (dart_ipfs ^1.12.0 Engine) Tests', () {
+  group('IpfsService (dart_ipfs 1.16.x Engine) Tests', () {
     late ProviderContainer container;
     late IpfsService ipfs;
 
@@ -56,6 +56,20 @@ void main() {
 
       final gc = await ipfs.runGc();
       expect(gc, isTrue);
+    });
+
+    test('local-only mode reports honest empty swarm seams', () async {
+      // Under FLUTTER_TEST the engine factory is null - the service is
+      // in honest local-only mode. Network-layer seams must report
+      // unavailability rather than fabricate connectivity.
+      await ipfs.startNode();
+      expect(ipfs.isNetworked, isFalse);
+      expect(ipfs.nodePeerId, isNull);
+      expect(ipfs.listenAddrs, isEmpty);
+      expect(await ipfs.provideCid('bafyAnything'), isFalse);
+      expect(await ipfs.swarmConnect('/ip4/1.2.3.4/tcp/4001/p2p/12D3KooWX'),
+          isFalse);
+      expect(ipfs.swarmPeerCount, 0);
     });
   });
 }

@@ -38,10 +38,17 @@ class _FakeIpfs extends IpfsService {
   final controller = StreamController<Map<String, String>>.broadcast();
   final List<String> subscribed = [];
   final List<String> published = [];
+  final List<String> swarmConnected = [];
   bool networked = true;
+  String? peerId = '12D3KooWFakeSelfPeerId';
+  List<String> addrs = const [];
 
   @override
   bool get isNetworked => networked;
+  @override
+  String? get nodePeerId => peerId;
+  @override
+  List<String> get listenAddrs => addrs;
   @override
   Stream<Map<String, String>> get pubsubStream => controller.stream;
   @override
@@ -49,6 +56,12 @@ class _FakeIpfs extends IpfsService {
   @override
   Future<bool> publishToPubsub(String t, String d) async {
     published.add(d);
+    return true;
+  }
+
+  @override
+  Future<bool> swarmConnect(String multiaddr) async {
+    swarmConnected.add(multiaddr);
     return true;
   }
 }
@@ -82,22 +95,29 @@ class _FakeMesh extends MeshTransportService {
 }
 
 /// Builds a signed announce payload exactly as the service produces.
+/// Defaults to the current wire version (v2, empty IPFS coordinates).
 Future<String> _announce({
   required String peerId,
   required List<String> addrs,
   required Future<Uint8List> Function(Uint8List) signer,
+  int v = 2,
+  String ipfsPeerId = '',
+  List<String> ipfsAddrs = const [],
   int? ts,
   String nonce = 'aabbccdd',
 }) async {
   final t = ts ?? DateTime.now().millisecondsSinceEpoch;
-  final sig = await signer(
-      RendezvousService.announceSignBytes(peerId, addrs, t, nonce));
+  final sig = await signer(RendezvousService.announceSignBytes(
+      peerId, addrs, t, nonce,
+      ipfsPeerId: ipfsPeerId, ipfsAddrs: ipfsAddrs));
   return jsonEncode({
-    'v': 1,
+    'v': v,
     'peerId': peerId,
     'addrs': addrs,
     'ts': t,
     'nonce': nonce,
+    if (v == 2) 'ipfsPeerId': ipfsPeerId,
+    if (v == 2) 'ipfsAddrs': ipfsAddrs,
     'sig': base64Encode(sig),
   });
 }
@@ -140,7 +160,10 @@ void main() {
 
       // The published announce verifies under our own peerId.
       final decoded = jsonDecode(ipfs.published.single) as Map<String, dynamic>;
+      expect(decoded['v'], 2);
       expect(decoded['peerId'], selfPeerId);
+      expect(decoded, contains('ipfsPeerId'));
+      expect(decoded, contains('ipfsAddrs'));
       final sig = base64Decode(decoded['sig'] as String);
       final addrs = (decoded['addrs'] as List).cast<String>();
       expect(addrs, isNotEmpty);
@@ -149,8 +172,10 @@ void main() {
               (a) => MeshTransportService.peerIdFromMultiaddr(a) == selfPeerId),
           isTrue);
       final ok = await Ed25519().verify(
-        RendezvousService.announceSignBytes(selfPeerId, addrs,
-            decoded['ts'] as int, decoded['nonce'] as String),
+        RendezvousService.announceSignBytes(
+            selfPeerId, addrs, decoded['ts'] as int, decoded['nonce'] as String,
+            ipfsPeerId: decoded['ipfsPeerId'] as String,
+            ipfsAddrs: (decoded['ipfsAddrs'] as List).cast<String>()),
         signature: Signature(
           sig,
           publicKey: SimplePublicKey(
@@ -279,6 +304,80 @@ void main() {
       }
       await Future.delayed(const Duration(milliseconds: 200));
       expect(mesh.registered, isEmpty);
+    });
+
+    test('v2 announce swarm-connects each signed libp2p addr', () async {
+      await setup();
+      await service.start();
+      final remote = await _identity(77);
+      final addr = '/ip4/203.0.113.7/tcp/4401/p2p/${remote.peerId}';
+      const ipfsPeer = '12D3KooWRemoteSwarmPeer';
+      const swarm1 = '/ip4/203.0.113.7/tcp/4001/p2p/$ipfsPeer';
+      const swarm2 = '/ip4/203.0.113.7/tcp/4002/p2p/$ipfsPeer';
+      await feed(await _announce(
+          peerId: remote.peerId,
+          addrs: [addr],
+          signer: remote.signer,
+          ipfsPeerId: ipfsPeer,
+          ipfsAddrs: [swarm1, swarm2]));
+      expect(mesh.registered.map((p) => p.address), contains(addr));
+      expect(ipfs.swarmConnected, containsAll([swarm1, swarm2]));
+    });
+
+    test('v1 announce dials mesh only - no swarm connect', () async {
+      await setup();
+      await service.start();
+      final remote = await _identity(77);
+      final addr = '/ip4/203.0.113.7/tcp/4401/p2p/${remote.peerId}';
+      await feed(await _announce(
+          peerId: remote.peerId, addrs: [addr], signer: remote.signer, v: 1));
+      expect(mesh.registered.map((p) => p.address), contains(addr));
+      expect(ipfs.swarmConnected, isEmpty);
+    });
+
+    test('swarm addr grafting a foreign ipfsPeerId is dropped', () async {
+      await setup();
+      await service.start();
+      final remote = await _identity(77);
+      final addr = '/ip4/203.0.113.7/tcp/4401/p2p/${remote.peerId}';
+      // Signed ipfsPeerId is A, but the addr names a different peer.
+      const grafted =
+          '/ip4/203.0.113.7/tcp/4001/p2p/12D3KooWNotTheAnnouncedPeer';
+      await feed(await _announce(
+          peerId: remote.peerId,
+          addrs: [addr],
+          signer: remote.signer,
+          ipfsPeerId: '12D3KooWRemoteSwarmPeer',
+          ipfsAddrs: [grafted]));
+      await Future.delayed(const Duration(milliseconds: 200));
+      expect(mesh.registered, isEmpty);
+      expect(ipfs.swarmConnected, isEmpty);
+    });
+
+    test('v2 ipfsAddrs without ipfsPeerId is dropped', () async {
+      await setup();
+      await service.start();
+      final remote = await _identity(77);
+      final addr = '/ip4/203.0.113.7/tcp/4401/p2p/${remote.peerId}';
+      // Sign the consistent empty form, then strip the peerId - the
+      // payload is malformed on its face regardless of signature.
+      final t = DateTime.now().millisecondsSinceEpoch;
+      const nonce = 'cc1122';
+      final sig = await remote.signer(
+          RendezvousService.announceSignBytes(remote.peerId, [addr], t, nonce));
+      await feed(jsonEncode({
+        'v': 2,
+        'peerId': remote.peerId,
+        'addrs': [addr],
+        'ts': t,
+        'nonce': nonce,
+        'ipfsPeerId': '',
+        'ipfsAddrs': ['/ip4/203.0.113.7/tcp/4001/p2p/12D3KooWAnything'],
+        'sig': base64Encode(sig),
+      }));
+      await Future.delayed(const Duration(milliseconds: 200));
+      expect(mesh.registered, isEmpty);
+      expect(ipfs.swarmConnected, isEmpty);
     });
   });
 }

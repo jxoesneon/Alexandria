@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:dart_ipfs/dart_ipfs.dart'
-    show IPFSConfig, IPFSNode, PubSubMessage;
+import 'package:dart_ipfs/dart_ipfs.dart' show IPFS, IPFSConfig, PubSubMessage;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +10,7 @@ import 'cid_service.dart';
 /// Injectable engine factory: production wires the real dart_ipfs
 /// engine; tests substitute a fake - or none, which leaves the service
 /// in its honest local-only mode (local block store, no swarm).
-typedef IpfsNodeFactory = Future<IPFSNode> Function(IPFSConfig config);
+typedef IpfsEngineFactory = Future<IPFS> Function(IPFSConfig config);
 
 /// Builds the engine config for a resolved base directory - injectable
 /// so tests can pin paths/ports without touching the real defaults.
@@ -22,15 +21,16 @@ final ipfsServiceProvider = Provider((ref) {
   // must never start - it would bind live sockets and try to reach the
   // public swarm - so the provider yields the honest local-only mode.
   final underTest = Platform.environment['FLUTTER_TEST'] == 'true';
-  return IpfsService(ref, nodeFactory: underTest ? null : IPFSNode.create);
+  return IpfsService(ref,
+      engineFactory: underTest ? null : (c) => IPFS.create(config: c));
 });
 
 class IpfsService {
   final Ref _ref;
-  final IpfsNodeFactory? _nodeFactory;
+  final IpfsEngineFactory? _engineFactory;
   final IpfsConfigBuilder? _configBuilder;
   bool _isStarted = false;
-  IPFSNode? _node;
+  IPFS? _node;
   final Map<String, Uint8List> _localStore = {};
   final Set<String> _pinnedCids = {};
   final StreamController<Map<String, String>> _pubsubController =
@@ -49,8 +49,8 @@ class IpfsService {
   int swarmPeerCount = 0;
 
   IpfsService(this._ref,
-      {IpfsNodeFactory? nodeFactory, IpfsConfigBuilder? configBuilder})
-      : _nodeFactory = nodeFactory,
+      {IpfsEngineFactory? engineFactory, IpfsConfigBuilder? configBuilder})
+      : _engineFactory = engineFactory,
         _configBuilder = configBuilder;
 
   bool get isStarted => _isStarted;
@@ -62,6 +62,10 @@ class IpfsService {
   /// The engine's libp2p peer id when networked; null in local mode.
   String? get nodePeerId => _node?.peerID;
 
+  /// The engine's libp2p listen multiaddrs when networked - the
+  /// addresses swarm peers can actually dial. Empty in local mode.
+  List<String> get listenAddrs => _node?.addresses ?? const [];
+
   Stream<Map<String, String>> get pubsubStream => _pubsubController.stream;
   Set<String> get pinnedCids => _pinnedCids;
 
@@ -70,7 +74,7 @@ class IpfsService {
 
   Future<void> startNode() async {
     if (_isStarted) return;
-    final factory = _nodeFactory;
+    final factory = _engineFactory;
     if (factory != null) {
       try {
         final dir = await _dataDir();
@@ -130,7 +134,7 @@ class IpfsService {
     }
   }
 
-  void _attachNode(IPFSNode node) {
+  void _attachNode(IPFS node) {
     // Bridge real swarm pubsub into the legacy map shape callers use.
     _pubsubSub = node.pubsubMessages.listen((m) {
       if (!_pubsubController.isClosed) {
@@ -151,6 +155,36 @@ class IpfsService {
     } catch (_) {}
   }
 
+  /// Announces this node as a DHT provider for [cid] - the immediate
+  /// counterpart to [findProviders]. Best-effort: returns false when
+  /// local-only or when the announce fails, and the engine's periodic
+  /// Reprovider re-announces pinned content regardless.
+  Future<bool> provideCid(String cid) async {
+    final node = _node;
+    if (node == null) return false;
+    try {
+      await node.provide(cid);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Dials a swarm peer by full multiaddr at the IPFS layer - bitswap,
+  /// DHT, and gossipsub connectivity independent of the ALX-MESH
+  /// channel. Returns false in local mode or on dial failure; never
+  /// throws.
+  Future<bool> swarmConnect(String multiaddr) async {
+    final node = _node;
+    if (node == null) return false;
+    try {
+      await node.connectToPeer(multiaddr);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<String> addFile(Uint8List data) async {
     final node = _node;
     if (node != null) {
@@ -160,6 +194,7 @@ class IpfsService {
         final cid = await node.addFile(data);
         _localStore[cid] = data;
         _pinnedCids.add(cid);
+        unawaited(provideCid(cid));
         return cid;
       } catch (_) {
         // Engine add failed - fall through to the local store so the
@@ -179,7 +214,7 @@ class IpfsService {
   /// empty stream (aggregate chunk count == 0).
   ///
   /// When networked, a local miss escalates to a real bitswap fetch
-  /// ([IPFSNode.get]); a fetched block is cached locally, so this node
+  /// ([IPFS.get]); a fetched block is cached locally, so this node
   /// becomes an honest provider for it thereafter.
   Stream<Uint8List> getFile(String cid) async* {
     final local = _localStore[cid];
@@ -193,6 +228,9 @@ class IpfsService {
         final remote = await node.get(cid).timeout(const Duration(seconds: 30));
         if (remote != null) {
           _localStore[cid] = remote;
+          // We now honestly hold the block - announce it so other
+          // nodes can fetch it from us.
+          unawaited(provideCid(cid));
           yield remote;
         }
       } catch (_) {
@@ -213,6 +251,7 @@ class IpfsService {
     if (node != null) {
       try {
         await node.pin(cid);
+        unawaited(provideCid(cid));
       } catch (_) {
         return false;
       }

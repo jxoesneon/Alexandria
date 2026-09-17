@@ -99,31 +99,44 @@ class RendezvousService {
   }
 
   /// Canonical sign bytes for an announce:
-  /// `ALX-RENDEZVOUS/1|peerId|addr1,addr2,...|ts|nonce`.
+  /// `ALX-RENDEZVOUS/1|peerId|addr1,addr2,...|ts|nonce`, extended for
+  /// v2 with `|ipfsPeerId|ipfsAddr1,ipfsAddr2,...`. With no IPFS-layer
+  /// coordinates the preimage is byte-identical to v1, so legacy
+  /// announces still verify.
   static Uint8List announceSignBytes(
-          String peerId, List<String> addrs, int ts, String nonce) =>
-      Uint8List.fromList(
-          utf8.encode('$signDomain|$peerId|${addrs.join(',')}|$ts|$nonce'));
+      String peerId, List<String> addrs, int ts, String nonce,
+      {String ipfsPeerId = '', List<String> ipfsAddrs = const []}) {
+    final base = '$signDomain|$peerId|${addrs.join(',')}|$ts|$nonce';
+    final ext = ipfsPeerId.isEmpty ? '' : '|$ipfsPeerId|${ipfsAddrs.join(',')}';
+    return Uint8List.fromList(utf8.encode('$base$ext'));
+  }
 
   Future<void> _announce(String peerId, int listenPort) async {
     if (listenPort <= 0) return;
     final addrs = await _dialableAddrs(listenPort, peerId);
     if (addrs.isEmpty) return; // nothing honest to advertise
+    final ipfs = _ref.read(ipfsServiceProvider);
+    final ipfsAddrs = ipfs.listenAddrs;
+    // A libp2p peer id with no dialable addr is useless to a receiver
+    // (and rejected by intake) - announce both or neither.
+    final ipfsPeerId = ipfsAddrs.isEmpty ? '' : (ipfs.nodePeerId ?? '');
     final ts = _now().millisecondsSinceEpoch;
     final nonce = MeshTransportService.randomNonceHex();
     try {
-      final sig = await _ref
-          .read(identityServiceProvider)
-          .sign(announceSignBytes(peerId, addrs, ts, nonce));
+      final sig = await _ref.read(identityServiceProvider).sign(
+          announceSignBytes(peerId, addrs, ts, nonce,
+              ipfsPeerId: ipfsPeerId, ipfsAddrs: ipfsAddrs));
       final payload = jsonEncode({
-        'v': 1,
+        'v': 2,
         'peerId': peerId,
         'addrs': addrs,
         'ts': ts,
         'nonce': nonce,
+        'ipfsPeerId': ipfsPeerId,
+        'ipfsAddrs': ipfsAddrs,
         'sig': base64Encode(sig),
       });
-      await _ref.read(ipfsServiceProvider).publishToPubsub(topic, payload);
+      await ipfs.publishToPubsub(topic, payload);
     } catch (_) {
       // Announce failure leaves discovery silent, not forged.
     }
@@ -166,7 +179,8 @@ class RendezvousService {
     } catch (_) {
       return;
     }
-    if (decoded['v'] != 1) return;
+    final version = decoded['v'];
+    if (version != 1 && version != 2) return;
     final peerId = decoded['peerId'];
     final addrsRaw = decoded['addrs'];
     final ts = decoded['ts'];
@@ -180,6 +194,31 @@ class RendezvousService {
       return;
     }
     if (addrsRaw.length > _maxAddrs || nonce.length > 64) return;
+
+    // v2 IPFS-layer coordinates: the libp2p peer id and its dialable
+    // addrs, so the receiver can open a swarm connection (bitswap/DHT)
+    // alongside the ALX-MESH channel. Both fields must be present in
+    // v2; absent-or-empty means "no swarm endpoint", which is valid.
+    var ipfsPeerId = '';
+    var ipfsAddrs = const <String>[];
+    if (version == 2) {
+      final ip = decoded['ipfsPeerId'];
+      final ia = decoded['ipfsAddrs'];
+      if (ip is! String || ia is! List) return;
+      if (ip.isNotEmpty || ia.isNotEmpty) {
+        if (ip.isEmpty || ia.isEmpty || ia.length > _maxAddrs) return;
+        final checked = <String>[];
+        for (final a in ia) {
+          if (a is! String || a.length > 256) return;
+          // Each libp2p addr must name the announced ipfsPeerId - the
+          // same anti-grafting rule as mesh addrs.
+          if (MeshTransportService.peerIdFromMultiaddr(a) != ip) return;
+          checked.add(a);
+        }
+        ipfsPeerId = ip;
+        ipfsAddrs = checked;
+      }
+    }
 
     // Freshness: drop stale or implausibly future-dated announces.
     final age = _now().millisecondsSinceEpoch - ts;
@@ -219,7 +258,8 @@ class RendezvousService {
     bool verified;
     try {
       verified = await Ed25519().verify(
-        announceSignBytes(peerId, addrs, ts, nonce),
+        announceSignBytes(peerId, addrs, ts, nonce,
+            ipfsPeerId: ipfsPeerId, ipfsAddrs: ipfsAddrs),
         signature: Signature(
           sig,
           publicKey: SimplePublicKey(key, type: KeyPairType.ed25519),
@@ -253,6 +293,17 @@ class RendezvousService {
     }
     for (final addr in addrs) {
       if (await mesh.connectToPeer(addr)) break;
+    }
+
+    // Swarm-layer dial: the announced libp2p addrs give bitswap/DHT/
+    // gossipsub connectivity even before the ALX-MESH handshake
+    // completes - a verified announce's ipfsPeerId is signed, so this
+    // dials exactly the endpoint the signer advertised.
+    if (ipfsAddrs.isNotEmpty) {
+      final ipfsSvc = _ref.read(ipfsServiceProvider);
+      for (final addr in ipfsAddrs) {
+        unawaited(ipfsSvc.swarmConnect(addr));
+      }
     }
   }
 }
