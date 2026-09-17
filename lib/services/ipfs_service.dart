@@ -128,6 +128,18 @@ class IpfsService {
     _isStarted = false;
   }
 
+  /// Emergency data wipe: drops the in-memory stores and deletes the
+  /// on-disk repo (`datastore`, `keystore`, `blocks`, `local_blocks`)
+  /// under `<dataDir>`. Call only after [stopNode] - deleting a live
+  /// repo leaves the engine writing to unlinked paths.
+  Future<void> wipeLocalData() async {
+    _localStore.clear();
+    _pinnedCids.clear();
+    _localBlocksDir = null;
+    final dir = Directory(await _dataDir());
+    if (dir.existsSync()) await dir.delete(recursive: true);
+  }
+
   static IPFSConfig _defaultConfig(String baseDir) => IPFSConfig(
         offline: false,
         debug: false,

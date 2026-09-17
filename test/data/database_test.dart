@@ -857,6 +857,82 @@ void main() {
       expect((await db.getWorkReceipt('post_mig'))!['v'], 2);
     });
   });
+
+  group('wipeAllData (emergency wipe)', () {
+    late AppDatabase db;
+
+    setUp(() {
+      db = AppDatabase();
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    test('empties every table while the schema survives', () async {
+      await db.insertManifest({
+        'uuid': 'uuid-w',
+        'title': 'Wipe me',
+        'category': 'other',
+        'isEncrypted': false,
+        'lastUpdated': DateTime.now(),
+      });
+      await db.insertHonorValidation(
+        validatorId: 'pk_validator',
+        targetCid: 'bafk_cid',
+        score: 1,
+        signature: 'sig',
+      );
+      await db.insertCreditTransaction({
+        'id': 'tx_w',
+        'type': 'mint',
+        'amount': 1.0,
+        'description': 'wipe seed',
+        'hash': 'h',
+        'timestamp': DateTime.now(),
+      });
+
+      await db.wipeAllData();
+
+      expect(await db.getAllManifests(), isEmpty);
+      expect(await db.getAllHonorValidations(), isEmpty);
+      expect(await db.select(db.creditTransactions).get(), isEmpty);
+      for (final table in db.allTables) {
+        expect(await db.select(table).get(), isEmpty,
+            reason: '${table.actualTableName} must be empty after wipe');
+      }
+      // Schema survives: inserts still work on the wiped database.
+      await db.insertManifest({
+        'uuid': 'uuid-after',
+        'title': 'After',
+        'category': 'other',
+        'isEncrypted': false,
+        'lastUpdated': DateTime.now(),
+      });
+      expect(await db.getManifestByUuid('uuid-after'), isNotNull);
+    });
+
+    test('resets AUTOINCREMENT so a post-wipe id starts at 1', () async {
+      await db.insertManifest({
+        'uuid': 'uuid-seq',
+        'title': 'Seq',
+        'category': 'other',
+        'isEncrypted': false,
+        'lastUpdated': DateTime.now(),
+      });
+      await db.wipeAllData();
+      await db.insertManifest({
+        'uuid': 'uuid-seq2',
+        'title': 'Seq2',
+        'category': 'other',
+        'isEncrypted': false,
+        'lastUpdated': DateTime.now(),
+      });
+      final row = await db.getManifestByUuid('uuid-seq2');
+      expect(row!['id'], equals(1),
+          reason: 'a wiped database numbers new rows like a fresh install');
+    });
+  });
 }
 
 class _FakeMigrator extends Migrator {

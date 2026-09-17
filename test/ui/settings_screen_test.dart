@@ -1,5 +1,7 @@
+import 'package:alexandria/data/database.dart';
 import 'package:alexandria/logic/settings_logic.dart';
 import 'package:alexandria/services/ipfs_service.dart';
+import 'package:alexandria/services/network_overview_service.dart';
 import 'package:alexandria/services/secure_storage_service.dart';
 import 'package:alexandria/services/tor_service.dart';
 import 'package:alexandria/ui/settings/settings_screen.dart';
@@ -29,10 +31,29 @@ class FakeIpfsService implements IpfsService {
   int get storedBytes => 0;
 
   bool gcRun = false;
+  bool wiped = false;
+
   @override
   Future<bool> runGc() async {
     gcRun = true;
     return true;
+  }
+
+  @override
+  Future<void> wipeLocalData() async {
+    wiped = true;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeNetworkOverviewService implements NetworkOverviewService {
+  bool stopCalled = false;
+
+  @override
+  Future<void> stopNode() async {
+    stopCalled = true;
   }
 
   @override
@@ -69,13 +90,21 @@ void main() {
   late FakeSecureStorageService storage;
   late FakeIpfsService ipfs;
   late FakeTorService tor;
+  late FakeNetworkOverviewService networkOverview;
+  late AppDatabase db;
   late SettingsNotifier settingsNotifier;
 
   setUp(() {
     storage = FakeSecureStorageService();
     ipfs = FakeIpfsService();
     tor = FakeTorService();
+    networkOverview = FakeNetworkOverviewService();
+    db = AppDatabase();
     settingsNotifier = SettingsNotifier(storage, ipfs);
+  });
+
+  tearDown(() async {
+    await db.close();
   });
 
   Widget createSubject() {
@@ -83,6 +112,10 @@ void main() {
       overrides: [
         settingsProvider.overrideWith((ref) => settingsNotifier),
         torServiceProvider.overrideWithValue(tor),
+        secureStorageServiceProvider.overrideWithValue(storage),
+        databaseProvider.overrideWithValue(db),
+        ipfsServiceProvider.overrideWithValue(ipfs),
+        networkOverviewServiceProvider.overrideWithValue(networkOverview),
       ],
       child: MaterialApp(
         theme: AppTheme.darkTheme,
@@ -141,7 +174,18 @@ void main() {
         find.text('Storage cleanup completed successfully.'), findsOneWidget);
   });
 
-  testWidgets('Emergency Data Wipe shows confirmation dialog', (tester) async {
+  testWidgets('Emergency Data Wipe really wipes the local stores',
+      (tester) async {
+    storage.storage['identity_key'] = 'secret';
+    storage.storage['has_seen_onboarding'] = 'true';
+    await db.insertManifest({
+      'uuid': 'uuid-1',
+      'title': 'Doc',
+      'category': 'other',
+      'isEncrypted': false,
+      'lastUpdated': DateTime.now(),
+    });
+
     await tester.pumpWidget(createSubject());
     await tester.pumpAndSettle();
 
@@ -156,6 +200,13 @@ void main() {
 
     await tester.tap(find.text('Confirm Wipe'));
     await tester.pumpAndSettle();
-    expect(find.text('Data wipe completed.'), findsOneWidget);
+
+    // The wipe is real: node stopped, every table emptied, repo wiped,
+    // keychain cleared - no fake "completed" snackbar.
+    expect(networkOverview.stopCalled, isTrue);
+    expect(await db.getAllManifests(), isEmpty);
+    expect(ipfs.wiped, isTrue);
+    expect(storage.storage, isEmpty);
+    expect(find.text('Data wipe completed.'), findsNothing);
   });
 }

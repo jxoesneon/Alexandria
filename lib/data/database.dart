@@ -443,6 +443,26 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// Emergency data wipe: deletes every row in every table inside one
+  /// transaction and resets AUTOINCREMENT counters, leaving the schema
+  /// exactly as a fresh install's `onCreate` produced it. Used by
+  /// Settings → Emergency Data Wipe; secure-storage keys and the IPFS
+  /// repo are cleared by the caller.
+  Future<void> wipeAllData() async {
+    await transaction(() async {
+      for (final table in allTables) {
+        await delete(table).go();
+      }
+      // sqlite_sequence only exists while an AUTOINCREMENT table does
+      // (ContentManifests/ContentVersions); the reset makes a post-wipe
+      // insert start at 1 like a fresh install, and no-ops on executors
+      // where the table was never created.
+      try {
+        await customStatement('DELETE FROM sqlite_sequence');
+      } catch (_) {}
+    });
+  }
+
   /// v7→v8 backfill for [CreditTransactions.burnedAttested]: replays the
   /// persisted ledger in chronological order under the SAME burn rule
   /// `CreditService._rebuildBalance`/`_burnForDebit` apply at runtime,

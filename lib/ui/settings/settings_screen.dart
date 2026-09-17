@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../logic/settings_logic.dart';
+import '../../services/data_wipe_service.dart';
 import '../../services/tor_service.dart';
 import '../agent/agent_network_dialog.dart';
+import '../alexandria_root.dart';
 import '../common/alexandria_app_bar.dart';
 import '../credits/credit_wallet_dialog.dart';
 import '../plugin_screen.dart';
@@ -160,9 +162,9 @@ class SettingsScreen extends ConsumerWidget {
                   title: const Text('Emergency Data Wipe',
                       style: TextStyle(color: Colors.redAccent)),
                   subtitle: const Text(
-                      'Securely zeroes private keys and flushes local storage cache'),
+                      'Permanently deletes identity, keys and all local data'),
                   onTap: () {
-                    _showDataWipeDialog(context);
+                    _showDataWipeDialog(context, ref);
                   },
                 ),
               ],
@@ -242,26 +244,43 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showDataWipeDialog(BuildContext context) {
+  void _showDataWipeDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Confirm Emergency Data Wipe'),
         content: const Text(
-          'This will securely delete all locally cached keys and cached blocks from this device. Pinned content on the network will remain intact.',
+          'This permanently deletes all local data on this device — identity keys, recovery phrase, library index, credit balance and cached content. It cannot be undone. Content pinned by other nodes on the network remains there.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Data wipe completed.')),
-              );
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final messenger = ScaffoldMessenger.of(context);
+              try {
+                await ref.read(dataWipeServiceProvider).wipe();
+              } catch (e) {
+                // Partial state is possible - say so instead of
+                // claiming a clean wipe.
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Data wipe incomplete: $e. Some data may remain on this device.',
+                    ),
+                  ),
+                );
+                return;
+              }
+              if (!context.mounted) return;
+              // Landing on onboarding IS the success signal: the wiped
+              // keychain has no flag, so the rebuilt tree shows the
+              // first-run flow.
+              AlexandriaRoot.restart(context);
             },
             child: const Text('Confirm Wipe'),
           ),
