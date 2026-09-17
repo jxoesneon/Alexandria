@@ -107,6 +107,29 @@ void main() {
       }
     });
 
+    test('storedBytes counts disk-persisted blocks after a restart',
+        () async {
+      final dir = await Directory.systemTemp.createTemp('alx_bytes_test');
+      try {
+        final svc1 = IpfsService(_Ref(container), localStoreDir: dir.path);
+        final payload = Uint8List.fromList('durable block'.codeUnits);
+        await svc1.addFile(payload);
+        // Present in memory AND on disk - counts once.
+        expect(svc1.storedBytes, payload.length);
+
+        // Simulated restart: a fresh service has no memory of the add,
+        // but the on-disk block must still count toward stored bytes
+        // (the "0 B / 3 docs" Home-card inconsistency).
+        final svc2 = IpfsService(_Ref(container), localStoreDir: dir.path);
+        await svc2.startNode();
+        // The blocks-dir scan is fired asynchronously at startNode.
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        expect(svc2.storedBytes, payload.length);
+      } finally {
+        await dir.delete(recursive: true);
+      }
+    });
+
     test('runGc reaps unpinned disk blocks', () async {
       final dir = await Directory.systemTemp.createTemp('alx_blocks_gc');
       try {

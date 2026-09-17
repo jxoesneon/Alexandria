@@ -345,6 +345,12 @@ class CreditService extends ChangeNotifier {
   /// [_hydratedComplete].
   Future<void> get ready => _hydrated;
 
+  /// True once [ready] has completed (or when no database is attached,
+  /// where hydration is a no-op). Synchronous callers may mutate
+  /// immediately when this holds; while false they must defer behind
+  /// [ready] or be refused by [_rejectIfUnhydrated].
+  bool get isHydrated => _db == null || _hydratedComplete;
+
   /// Returns true (after logging) when a mutating call arrived while
   /// persistent state was still unhydrated - see [_hydratedComplete] for
   /// why refusing is strictly safer than acting on phantom state.

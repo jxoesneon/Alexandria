@@ -36,6 +36,10 @@ class IpfsService {
   Directory? _localBlocksDir;
   final Map<String, Uint8List> _localStore = {};
   final Set<String> _pinnedCids = {};
+  // Disk-persisted block sizes, keyed by CID (the filename). Tracked so
+  // storedBytes reflects blocks that survive restarts - the in-memory
+  // map alone reported 0 B for a populated local store.
+  final Map<String, int> _diskBlockBytes = {};
   final StreamController<Map<String, String>> _pubsubController =
       StreamController.broadcast();
   StreamSubscription<PubSubMessage>? _pubsubSub;
@@ -84,8 +88,29 @@ class IpfsService {
   Stream<Map<String, String>> get pubsubStream => _pubsubController.stream;
   Set<String> get pinnedCids => _pinnedCids;
 
-  int get storedBytes =>
-      _localStore.values.fold<int>(0, (sum, data) => sum + data.length);
+  /// Completes once the on-disk block store has been scanned - `.pins`
+  /// loaded into [pinnedCids] and disk block sizes into [storedBytes].
+  /// Consumers reading either at startup must await this or they see
+  /// the stale pre-scan empty state. A no-op when disk persistence is
+  /// off (in-memory-only mode has nothing to await - and under
+  /// FLUTTER_TEST the real file I/O would deadlock the fake zone).
+  Future<void> ensureBlocksReady() async {
+    if (_persistLocal) await _blocksDir();
+  }
+
+  /// Bytes this node holds: the in-memory store plus the on-disk block
+  /// cache, deduplicated by CID so a block present in both counts once.
+  int get storedBytes {
+    var total = 0;
+    final seen = <String>{};
+    for (final entry in _localStore.entries) {
+      if (seen.add(entry.key)) total += entry.value.length;
+    }
+    for (final entry in _diskBlockBytes.entries) {
+      if (seen.add(entry.key)) total += entry.value;
+    }
+    return total;
+  }
 
   Future<void> startNode() async {
     if (_isStarted) return;
@@ -110,6 +135,9 @@ class IpfsService {
       }
     }
     _isStarted = true;
+    // Populate pins + disk-block accounting early so storedBytes is
+    // correct before the first content op on a restart.
+    if (_persistLocal) unawaited(_blocksDir());
   }
 
   Future<void> stopNode() async {
@@ -135,6 +163,7 @@ class IpfsService {
   Future<void> wipeLocalData() async {
     _localStore.clear();
     _pinnedCids.clear();
+    _diskBlockBytes.clear();
     _localBlocksDir = null;
     final dir = Directory(await _dataDir());
     if (dir.existsSync()) await dir.delete(recursive: true);
@@ -173,8 +202,22 @@ class IpfsService {
           _localStoreDirOverride ?? '${await _dataDir()}/local_blocks');
       if (!dir.existsSync()) await dir.create(recursive: true);
       await _loadPins(dir);
+      await _scanDiskBlocks(dir);
     }
     return dir;
+  }
+
+  /// Sizes every persisted block so storedBytes counts them. Runs once
+  /// per blocks-dir creation; writes/deletes keep the map current.
+  Future<void> _scanDiskBlocks(Directory dir) async {
+    try {
+      await for (final entity in dir.list()) {
+        final name = entity.uri.pathSegments.last;
+        if (entity is File && !name.startsWith('.')) {
+          _diskBlockBytes[name] = await entity.length();
+        }
+      }
+    } catch (_) {}
   }
 
   /// Pin state is as durable as the blocks it protects: a restart
@@ -208,6 +251,7 @@ class IpfsService {
     try {
       final file = File('${(await _blocksDir()).path}/$cid');
       await file.writeAsBytes(data, flush: true);
+      _diskBlockBytes[cid] = data.length;
     } catch (_) {
       // Disk write failed - the in-memory copy still serves this
       // session; persistence degrades, correctness does not.
@@ -438,6 +482,7 @@ class IpfsService {
             !name.startsWith('.') &&
             !_pinnedCids.contains(name)) {
           await entity.delete();
+          _diskBlockBytes.remove(name);
         }
       }
     } catch (_) {}

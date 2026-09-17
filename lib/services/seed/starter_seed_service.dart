@@ -265,12 +265,18 @@ class StarterSeedService {
 
       // Reward storage & verification credits only for content that
       // actually arrived - never for a pointer that resolved to air.
-      creditService.awardStorageCredits(
-        sizeBytes: bytes.length,
-        peerCount: 3,
-        porPassed: true,
-        cid: doc.id,
-      );
+      // Await hydration or a startup-time ingest mints 0.0 silently;
+      // a service disposed mid-hydration drops the award rather than
+      // failing the ingest.
+      await creditService.ready;
+      try {
+        creditService.awardStorageCredits(
+          sizeBytes: bytes.length,
+          peerCount: 3,
+          porPassed: true,
+          cid: doc.id,
+        );
+      } catch (_) {}
       pochService.recordSeedingActivity(bytes.length);
       ingested++;
     }

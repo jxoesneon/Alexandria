@@ -14,6 +14,9 @@ class _FakeIpfsService implements IpfsService {
   Set<String> get pinnedCids => _cids;
 
   @override
+  Future<void> ensureBlocksReady() async {}
+
+  @override
   int get storedBytes => 0;
 
   @override

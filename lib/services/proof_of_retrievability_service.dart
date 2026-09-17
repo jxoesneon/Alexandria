@@ -313,14 +313,34 @@ class ProofOfRetrievabilityService {
   /// Synchronous local storage-reward mint for proofs over locally-held
   /// bytes. Always unattested (1.0x rarity) - a locally-verified,
   /// locally-signed proof can never carry foreign attestation weight.
+  ///
+  /// The mint is deferred behind [CreditService.ready] only while
+  /// hydration is still in flight: a verification landing inside that
+  /// window would otherwise be silently refused (returns 0.0) and the
+  /// earned reward lost. Once hydrated the award stays synchronous -
+  /// the mint has landed when verifyProof returns.
   void _mintLocalStorageReward(PoRChallenge challenge, int sizeBytes) {
     try {
-      _ref.read(creditServiceProvider).awardStorageCredits(
+      final credits = _ref.read(creditServiceProvider);
+      void mint() => credits.awardStorageCredits(
             sizeBytes: sizeBytes,
             peerCount: 2,
             porPassed: true,
             cid: challenge.cid,
           );
+      if (credits.isHydrated) {
+        mint();
+      } else {
+        unawaited(credits.ready.then((_) {
+          // Best-effort: if the service was disposed while hydration
+          // resolved (scope restart, teardown) the mint drops exactly as
+          // the pre-deferral refusal would have dropped it - the award
+          // path notifies listeners on a possibly-disposed PoCHService.
+          try {
+            mint();
+          } catch (_) {}
+        }));
+      }
     } catch (_) {
       // Safe fallback in isolated mock test environments
     }
@@ -435,12 +455,16 @@ class ProofOfRetrievabilityService {
     var claimed = localMintSettled;
     if (!claimed && localIsProver) {
       try {
-        _ref.read(creditServiceProvider).awardStorageCredits(
-              sizeBytes: sizeBytes,
-              peerCount: peerCount,
-              porPassed: true,
-              cid: challenge.cid,
-            );
+        final credits = _ref.read(creditServiceProvider);
+        // A receipt issued inside the hydration window would mint 0.0 -
+        // await readiness so the earned reward actually lands.
+        await credits.ready;
+        credits.awardStorageCredits(
+          sizeBytes: sizeBytes,
+          peerCount: peerCount,
+          porPassed: true,
+          cid: challenge.cid,
+        );
       } catch (_) {
         // Safe fallback in isolated mock test environments
       }

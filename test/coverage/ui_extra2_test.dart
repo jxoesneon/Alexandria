@@ -333,13 +333,17 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Confirm Emergency Data Wipe'), findsNothing);
 
-      // Confirm branch → snackbar.
+      // Confirm branch → real wipe runs (destructive behavior is covered
+      // in settings_screen_test); the dialog dismisses and no
+      // incomplete-wipe error is reported.
       await tester.tap(find.text('Emergency Data Wipe'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Confirm Wipe'));
       await tester.pump();
-      expect(find.text('Data wipe completed.'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Confirm Emergency Data Wipe'), findsNothing);
+      expect(find.textContaining('Data wipe incomplete'), findsNothing);
     });
 
     testWidgets('theme dropdown, reduced-motion and tor switches, prune',

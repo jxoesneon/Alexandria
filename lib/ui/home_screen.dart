@@ -36,6 +36,9 @@ final preservationHealthProvider =
     FutureProvider.autoDispose<PreservationHealthSummary>((ref) async {
   final ipfs = ref.watch(ipfsServiceProvider);
   final preservation = ref.watch(preservationServiceProvider);
+  // Persisted pins load lazily with the blocks dir - await the scan or
+  // a restart reports "No content preserved" for a populated store.
+  await ipfs.ensureBlocksReady();
   final cids = ipfs.pinnedCids.toList();
 
   if (cids.isEmpty) {
