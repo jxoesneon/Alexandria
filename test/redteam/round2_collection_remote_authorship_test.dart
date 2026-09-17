@@ -103,8 +103,12 @@ void main() {
     // Even IF the overwrite landed, a legitimate same-wall-time local
     // edit must be able to reclaim the register. Simulate an owner edit
     // at the real current time via a second remote merge (the only
-    // write path this service exposes for remote state).
-    final nowWall = DateTime.now().millisecondsSinceEpoch;
+    // write path this service exposes for remote state). Strictly
+    // after the stored register's wallTime: an exact-millisecond HLC
+    // tie (creation and edit inside one ms, as happens on fast CI)
+    // would degenerate to logical/nodeId comparison and make the
+    // outcome timing-dependent.
+    final nowWall = col.name.timestamp.wallTime + 1;
     await svc.mergeRemoteState(col.id, {
       'name': _forgedRegister('Recovered Title', nowWall, ownerId.publicKey),
     });
