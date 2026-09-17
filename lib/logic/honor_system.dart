@@ -43,8 +43,32 @@ final honorSystemProvider = Provider((ref) {
 /// so a vote cast in a previous session is not reported as absent.
 final honorSystemReadyProvider = FutureProvider<void>((ref) async {
   final system = ref.watch(honorSystemProvider);
-  final rows = await ref.watch(databaseProvider).getAllHonorValidations();
+  final db = ref.watch(databaseProvider);
+
+  // Ledger migration: ballots persisted under the legacy 'self'/'me'
+  // placeholder ids are not verifiable validators. 'self' rows were
+  // self-attestations minted by local integrity checks - not community
+  // trust - so they are dropped. 'me' rows were explicit user votes, so
+  // they are preserved by remapping onto the real identity key.
+  String? localValidatorId;
+  try {
+    final identity = await ref.read(identityServiceProvider).getIdentity();
+    localValidatorId = identity?.publicKeyBase58;
+  } catch (_) {
+    // No secure storage (tests/headless) - placeholders stay unreplayed.
+  }
+  await db.deleteHonorValidationsByValidator('self');
+  if (localValidatorId != null) {
+    await db.remapHonorValidationValidator(
+      from: 'me',
+      to: localValidatorId,
+    );
+  }
+
+  final rows = await db.getAllHonorValidations();
   for (final row in rows) {
+    // Unattributable placeholder ballots never enter the tally.
+    if (row.validatorId == 'me' || row.validatorId == 'self') continue;
     system.restoreVote(
       validatorId: row.validatorId,
       targetCid: row.targetCid,

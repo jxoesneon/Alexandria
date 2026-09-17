@@ -203,7 +203,9 @@ class ProofOfRetrievabilityService {
     final challenge = _validateProof(proof, expectedChunkData);
     if (challenge == null) return false;
 
-    _recordHonor(proverPeerId, challenge);
+    // No honor ballot here: this path always proves locally-held bytes, so
+    // any recorded vote would be a self-attestation — inflating the
+    // community-trust tally with a validator that cannot vouch for itself.
 
     // Legacy callers supply no prover pubkey and always prove locally-held
     // bytes, so the local node is the prover of record: mint the self-check
@@ -245,7 +247,13 @@ class ProofOfRetrievabilityService {
     final challenge = _validateProof(proof, expectedChunkData);
     if (challenge == null) return const PoRVerificationResult.rejected();
 
-    _recordHonor(proverPeerId, challenge);
+    // Honor the prover ONLY when it is verifiably foreign: a proof over
+    // local bytes (no prover key, or the node's own key) is a
+    // self-attestation and must not mint community trust.
+    final effectiveProver = proverPubkey ?? proverPeerId;
+    if (proverPubkey != null && !await _isLocalKey(effectiveProver)) {
+      _recordHonor(effectiveProver, challenge);
+    }
 
     final receipt = await _issueReceipt(
       challenge: challenge,
@@ -273,6 +281,19 @@ class ProofOfRetrievabilityService {
     _pendingChallenges.remove(proof.challengeId);
 
     return expectedTag == proof.tag ? challenge : null;
+  }
+
+  /// True when [key] canonically names the local node identity (or when no
+  /// identity is available and the caller supplied no distinguishing key).
+  /// Case/padding variants still count as local - [WorkReceipt.samePubkey].
+  Future<bool> _isLocalKey(String key) async {
+    try {
+      final identity = await _ref.read(identityServiceProvider).getIdentity();
+      if (identity == null) return false;
+      return WorkReceipt.samePubkey(key, bytesToHex(identity.publicKey));
+    } catch (_) {
+      return false;
+    }
   }
 
   void _recordHonor(String proverPeerId, PoRChallenge challenge) {
@@ -331,7 +352,11 @@ class ProofOfRetrievabilityService {
       // No secure storage in tests/headless runs - receipts stay unsigned.
     }
 
-    final effectiveProver = proverPubkey ?? proverPeerId;
+    // When no prover key is supplied the proof ran over local bytes - name
+    // the REAL local key as prover rather than whatever caller-supplied
+    // label arrived in proverPeerId, so the signed receipt never asserts a
+    // fabricated prover identity.
+    final effectiveProver = proverPubkey ?? localPubkeyHex ?? proverPeerId;
     final verifierPubkey = challenge.challengerPubkey ?? localPubkeyHex ?? '';
 
     // The receipt asserts exactly the work that was proven - the verified

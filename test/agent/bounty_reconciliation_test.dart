@@ -358,6 +358,7 @@ void main() {
         'ingest — never normalized', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
+      svc.seedDemoPostsForTest();
       final badIds = [' x', 'x ', 'x\x00y', 'x' * 200, ''];
       for (var i = 0; i < badIds.length; i++) {
         svc.ingestBountyAnnouncement(
@@ -522,6 +523,7 @@ void main() {
       final poster = await _newKey();
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
+      svc.seedDemoPostsForTest();
       final env = await BeaconEnvelope.create(
           kind: 'preservation_bounty',
           keyPair: poster,

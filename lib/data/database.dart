@@ -594,6 +594,26 @@ class AppDatabase extends _$AppDatabase {
     return select(honorValidations).get();
   }
 
+  /// Rewrites every ballot cast under a legacy placeholder validator id
+  /// (e.g. 'me') onto the real identity — preserves the user's explicit
+  /// vote while making the stored validator verifiable.
+  Future<int> remapHonorValidationValidator({
+    required String from,
+    required String to,
+  }) {
+    return (update(honorValidations)..where((v) => v.validatorId.equals(from)))
+        .write(HonorValidationsCompanion(validatorId: Value(to)));
+  }
+
+  /// Removes ballots recorded under a placeholder validator id (e.g.
+  /// 'self') — self-attestations are not community trust and must not be
+  /// replayed into the tally.
+  Future<int> deleteHonorValidationsByValidator(String validatorId) {
+    return (delete(honorValidations)
+          ..where((v) => v.validatorId.equals(validatorId)))
+        .go();
+  }
+
   Future<List<DateTime>> getUserActivityDates(String publicKey) async {
     return [];
   }

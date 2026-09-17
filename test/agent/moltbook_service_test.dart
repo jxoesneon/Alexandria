@@ -143,6 +143,7 @@ void main() {
         initialBalance: 100.0,
       );
       moltbookService = MoltbookService(creditService: creditService);
+      moltbookService.seedDemoPostsForTest();
     });
 
     test('seeds initial posts and bounties in submolts', () {

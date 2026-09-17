@@ -308,7 +308,6 @@ class MoltbookService extends ChangeNotifier {
         _trustedAttestorPubkeys = Set.unmodifiable(trustedAttestorPubkeys),
         _baseUrl = baseUrl,
         _apiKey = apiKey {
-    _seedInitialPosts();
     _initKey();
     // Startup reconciliation (REV4 review): heal claim rows nobody will
     // ever retry - the in-claimBounty healer only runs when a claim is
@@ -2008,7 +2007,12 @@ class MoltbookService extends ChangeNotifier {
     return false;
   }
 
-  void _seedInitialPosts() {
+  /// Demo fixtures for tests: fabricates posts/bounties so adversarial
+  /// suites have unfunded announcements to exercise against. NOT called
+  /// in production — real feeds populate from the signed transport
+  /// ingest and locally posted bounties only.
+  @visibleForTesting
+  void seedDemoPostsForTest() {
     final now = DateTime.now();
 
     _submoltPosts['alexandria-bounties'] = [

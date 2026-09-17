@@ -521,6 +521,7 @@ void main() {
     test('control: the covered classes are still rejected', () async {
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
+      svc.seedDemoPostsForTest();
       for (final (i, id) in [
         'a b',
         'a\tb',

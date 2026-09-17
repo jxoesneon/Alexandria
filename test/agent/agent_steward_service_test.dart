@@ -54,6 +54,7 @@ void main() {
         initialBalance: 100.0,
       );
       moltbookService = MoltbookService(creditService: creditService);
+      moltbookService.seedDemoPostsForTest();
       stewardService = AgentStewardService(
         creditService: creditService,
         pochService: pochService,

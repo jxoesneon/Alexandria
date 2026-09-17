@@ -84,8 +84,10 @@ void main() {
       expect(challenge.challengerPubkey, equals('verifier_hex_key'));
     });
 
-    test('verifyProof accepts an authentic generated proof and records honor',
-        () {
+    test(
+        'verifyProof accepts an authentic generated proof WITHOUT minting '
+        'community trust — a local proof is self-attestation and the '
+        'caller-supplied peer label must not be forgeable into a ballot', () {
       final chunk = Uint8List.fromList('Authentic retrievable chunk'.codeUnits);
       final challenge =
           service.createChallenge(cid: 'bafy_auth', totalChunks: 10);
@@ -102,9 +104,12 @@ void main() {
       );
       expect(valid, isTrue);
 
+      // The proof verified, but no honor ballot was recorded: the local
+      // node proved its own bytes, and attributing a trust vote to an
+      // arbitrary caller-supplied peer id would be fabricated trust.
       final honor = container.read(honorSystemProvider);
       final trust = honor.computeTrustScore('bafy_auth');
-      expect(trust, greaterThan(0));
+      expect(trust, 0);
     });
 
     test('verifyProof rejects a forged proof with tampered chunk data', () {
@@ -414,6 +419,54 @@ void main() {
       expect(creditService.balance, greaterThan(before));
       final row = await db.getWorkReceipt(receipt.receiptId);
       expect(row!['spent'], isTrue);
+    });
+
+    test(
+        'a verified foreign prover earns a real honor ballot under its '
+        'own key', () async {
+      final chunk = chunkOf('foreign-prover attested payload');
+      final challenge = service.issueChallenge(
+        cid: 'bafy_foreign_honor',
+        totalChunks: 1,
+        challengerPubkey: identity.pubkeyHex,
+      );
+      final proof =
+          service.generateProof(challenge: challenge, chunkData: chunk);
+
+      final result = await service.verifyAndIssueReceipt(
+        proof: proof,
+        expectedChunkData: chunk,
+        proverPeerId: 'remote_peer_1',
+        proverPubkey: 'foreign_prover_pubkey_hex',
+      );
+
+      expect(result.valid, isTrue);
+      final honor = container.read(honorSystemProvider);
+      expect(honor.computeTrustScore('bafy_foreign_honor'), greaterThan(0));
+    });
+
+    test(
+        'a proof naming the LOCAL key as prover earns no honor ballot — '
+        'self-attestation cannot mint community trust', () async {
+      final chunk = chunkOf('self-attested local payload');
+      final challenge = service.issueChallenge(
+        cid: 'bafy_self_honor',
+        totalChunks: 1,
+        challengerPubkey: identity.pubkeyHex,
+      );
+      final proof =
+          service.generateProof(challenge: challenge, chunkData: chunk);
+
+      final result = await service.verifyAndIssueReceipt(
+        proof: proof,
+        expectedChunkData: chunk,
+        proverPeerId: 'self',
+        proverPubkey: identity.pubkeyHex,
+      );
+
+      expect(result.valid, isTrue);
+      final honor = container.read(honorSystemProvider);
+      expect(honor.computeTrustScore('bafy_self_honor'), 0);
     });
 
     test(

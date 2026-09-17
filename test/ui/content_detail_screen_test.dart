@@ -6,9 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/data/database.dart';
 import 'package:alexandria/logic/content_repository.dart';
 import 'package:alexandria/logic/honor_system.dart';
+import 'package:alexandria/services/identity_service.dart';
 import 'package:alexandria/services/ipfs_service.dart';
 import 'package:alexandria/services/knowledge_graph_service.dart';
 import 'package:alexandria/services/preservation_service.dart';
+import 'package:alexandria/services/secure_storage_service.dart';
 import 'package:alexandria/services/sibling_service.dart';
 import 'package:alexandria/ui/content_detail_screen.dart';
 import 'package:alexandria/ui/library/content_viewer_screen.dart';
@@ -40,9 +42,24 @@ class _FakePreservationService implements PreservationService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _FakeIdentityService extends IdentityService {
+  _FakeIdentityService() : super(SecureStorageService());
+
+  @override
+  Future<AlexandriaIdentity?> getIdentity() async => AlexandriaIdentity(
+        publicKey: Uint8List.fromList(List.filled(32, 7)),
+        privateKey: Uint8List.fromList(List.filled(32, 9)),
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+  @override
+  Future<Uint8List> sign(Uint8List data) async => Uint8List(64);
+}
+
 class _FakeHonorSystem implements HonorSystem {
   int validatedScore = 0;
   String? lastTargetCid;
+  String? lastValidatorId;
 
   @override
   int getTrustScore(String cid) => 95;
@@ -56,6 +73,7 @@ class _FakeHonorSystem implements HonorSystem {
   }) {
     validatedScore = score;
     lastTargetCid = targetCid;
+    lastValidatorId = validatorId;
   }
 
   @override
@@ -241,6 +259,7 @@ void main() {
             preservationServiceProvider
                 .overrideWithValue(_FakePreservationService()),
             honorSystemProvider.overrideWithValue(fakeHonor),
+            identityServiceProvider.overrideWithValue(_FakeIdentityService()),
             versionFilePickerProvider.overrideWithValue(
               () async => (
                 bytes: Uint8List.fromList([1, 2, 3, 4, 5]),
@@ -272,6 +291,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(fakeHonor.validatedScore, 1);
       expect(fakeHonor.lastTargetCid, 'bafy_version_cid_1');
+      // The ballot is cast under the real identity key, never the
+      // legacy 'me' placeholder.
+      expect(fakeHonor.lastValidatorId, isNot('me'));
+      expect(fakeHonor.lastValidatorId, isNotNull);
 
       // Re-open dialog and test Report (-1)
       await tester.tap(find.text('PDF'));

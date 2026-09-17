@@ -8,6 +8,7 @@ import '../data/database.dart';
 import '../logic/content_repository.dart';
 import '../logic/honor_system.dart';
 import '../services/preservation_service.dart';
+import '../services/identity_service.dart';
 import '../services/proof_of_retrievability_service.dart';
 import '../services/ipfs_service.dart';
 import '../services/sibling_service.dart';
@@ -732,15 +733,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
           ),
           const SizedBox(height: 8),
           TextButton(
-            onPressed: () {
-              ref.read(honorSystemProvider).validateContent(
-                    targetCid: cid,
-                    score: -1,
-                    validatorId: 'me',
-                  );
-              ref.invalidate(trustScoreProvider(cid));
-              Navigator.pop(ctx);
-            },
+            onPressed: () => _castVote(context, ref, ctx, cid, -1),
             child: const Text(
               'Report (-1)',
               style: TextStyle(color: AppTheme.dangerColor),
@@ -751,13 +744,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
               backgroundColor: AppTheme.honorColor,
               foregroundColor: Colors.black,
             ),
-            onPressed: () {
-              ref
-                  .read(honorSystemProvider)
-                  .validateContent(targetCid: cid, score: 1, validatorId: 'me');
-              ref.invalidate(trustScoreProvider(cid));
-              Navigator.pop(ctx);
-            },
+            onPressed: () => _castVote(context, ref, ctx, cid, 1),
             child: const Text('Verify (+1)'),
           ),
           const SizedBox(height: 16),
@@ -857,6 +844,37 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
+  }
+
+  Future<void> _castVote(
+    BuildContext context,
+    WidgetRef ref,
+    BuildContext dialogContext,
+    String cid,
+    int score,
+  ) async {
+    final identity = await ref.read(identityServiceProvider).getIdentity();
+    if (!dialogContext.mounted) return;
+    if (identity == null) {
+      Navigator.pop(dialogContext);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Identity unavailable — vote was not recorded',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    ref.read(honorSystemProvider).validateContent(
+          targetCid: cid,
+          score: score,
+          validatorId: identity.publicKeyBase58,
+        );
+    ref.invalidate(trustScoreProvider(cid));
+    Navigator.pop(dialogContext);
   }
 
   Future<void> _verifyIntegrity(

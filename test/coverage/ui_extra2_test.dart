@@ -470,6 +470,7 @@ void main() {
       final creditService = CreditService(initialBalance: balance);
       final pochService = PoCHService();
       final moltbook = MoltbookService(creditService: creditService);
+      moltbook.seedDemoPostsForTest();
       final steward = AgentStewardService(
         creditService: creditService,
         pochService: pochService,

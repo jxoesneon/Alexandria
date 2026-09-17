@@ -583,6 +583,7 @@ void main() {
       final cs = CreditService(db: db, initialBalance: 100.0);
       await cs.ready;
       final svc = MoltbookService(creditService: cs, db: db);
+      svc.seedDemoPostsForTest();
       await svc.setKeyPair(await _newKey());
       final posted = await svc.postPreservationBounty(
           cid: 'bafk_dc', title: 't', offeredCredits: 25.0, force: true);
@@ -841,6 +842,7 @@ void main() {
       final poster = await _newKey();
       final cs = CreditService(initialBalance: 100.0);
       final svc = MoltbookService(creditService: cs);
+      svc.seedDemoPostsForTest();
       for (final payload in <Map<String, dynamic>>[
         {'id': 42, 'cid': 'x', 'title': 't', 'offered_credits': 1.0},
         {'id': 'x', 'cid': 'x', 'title': 't'}, // missing offered_credits
