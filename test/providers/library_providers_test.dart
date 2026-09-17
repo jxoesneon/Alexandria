@@ -24,9 +24,20 @@ class FakeDatabase extends AppDatabase {
 class FakeContentRepository extends ContentRepository {
   FakeContentRepository(super.ref);
 
+  String? dek;
+
   @override
   Future<Uint8List> retrieveContent(String cid, {String? dekBase64}) async {
     return Uint8List.fromList(utf8.encode('Test content for $cid'));
+  }
+
+  @override
+  Future<String?> contentDekBase64(String manifestUuid) async => dek;
+
+  @override
+  Future<Uint8List> retrieveManifestContent(
+      String manifestUuid, String cid) async {
+    return Uint8List.fromList(utf8.encode('Decrypted content for $cid'));
   }
 }
 
@@ -265,6 +276,59 @@ void main() {
       await expectLater(
         container.read(currentDocumentProvider('unknown').future),
         throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test(
+        'currentDocumentProvider decrypts encrypted content with the stored DEK',
+        () async {
+      await db.insertManifest({
+        'uuid': 'uuid-enc',
+        'title': 'Encrypted Doc',
+        'lastUpdated': DateTime(2024, 1, 4),
+        'isEncrypted': true,
+      });
+      final mEnc =
+          (await db.getAllManifests()).firstWhere((m) => m.uuid == 'uuid-enc');
+      await db.insertVersion({
+        'manifestId': mEnc.id,
+        'cid': 'cid-enc',
+        'sizeBytes': 256,
+        'createdData': DateTime(2024, 1, 4),
+        'format': 'txt',
+      });
+      (container.read(contentRepositoryProvider) as FakeContentRepository).dek =
+          'dek-b64';
+
+      final document =
+          await container.read(currentDocumentProvider('cid-enc').future);
+
+      expect(document.title, 'Encrypted Doc');
+      expect(document.content, 'Decrypted content for cid-enc');
+    });
+
+    test(
+        'currentDocumentProvider refuses encrypted content when the DEK is absent',
+        () async {
+      await db.insertManifest({
+        'uuid': 'uuid-enc',
+        'title': 'Encrypted Doc',
+        'lastUpdated': DateTime(2024, 1, 4),
+        'isEncrypted': true,
+      });
+      final mEnc =
+          (await db.getAllManifests()).firstWhere((m) => m.uuid == 'uuid-enc');
+      await db.insertVersion({
+        'manifestId': mEnc.id,
+        'cid': 'cid-enc',
+        'sizeBytes': 256,
+        'createdData': DateTime(2024, 1, 4),
+        'format': 'txt',
+      });
+
+      await expectLater(
+        container.read(currentDocumentProvider('cid-enc').future),
+        throwsA(isA<StateError>()),
       );
     });
 

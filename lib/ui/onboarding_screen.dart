@@ -272,6 +272,33 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
           ),
+          // Upgrade path: an identity already exists on this device, so
+          // offer a non-destructive way through instead of forcing
+          // replace-or-import.
+          if (ref.watch(identityStateProvider).valueOrNull != null) ...[
+            const SizedBox(height: 16),
+            GlassCard(
+              onTap: () => ref.read(onboardingStepProvider.notifier).state =
+                  OnboardingStep.biometric,
+              child: const Padding(
+                padding: EdgeInsets.all(20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.verified_user_outlined,
+                      color: AppTheme.honorColor,
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Continue with existing identity',
+                      style: TextStyle(color: AppTheme.honorColor),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

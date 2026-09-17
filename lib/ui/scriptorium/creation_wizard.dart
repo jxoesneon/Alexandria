@@ -116,6 +116,11 @@ class _CreationWizardState extends ConsumerState<CreationWizard> {
       ),
       body: Stepper(
         currentStep: _currentStep,
+        onStepTapped: (step) {
+          if (step <= _currentStep + 1) {
+            setState(() => _currentStep = step);
+          }
+        },
         onStepContinue: () {
           if (_currentStep < 2) {
             setState(() => _currentStep += 1);

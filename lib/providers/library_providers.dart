@@ -289,7 +289,14 @@ final currentDocumentProvider =
     throw ArgumentError('Document not found: $documentCid');
   }
 
-  final bytes = await repository.retrieveContent(version.cid);
+  if (manifest.isEncrypted &&
+      await repository.contentDekBase64(manifest.uuid) == null) {
+    throw StateError(
+        'This edition is encrypted and its decryption key is unavailable on this device.');
+  }
+  final bytes = manifest.isEncrypted
+      ? await repository.retrieveManifestContent(manifest.uuid, version.cid)
+      : await repository.retrieveContent(version.cid);
   final content = _decodeContent(bytes);
 
   return DocumentStream(

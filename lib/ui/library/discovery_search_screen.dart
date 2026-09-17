@@ -100,6 +100,9 @@ class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
                     },
                   )
               ],
+              onChanged: (value) {
+                ref.read(searchQueryProvider.notifier).state = value;
+              },
               onSubmitted: (value) {
                 ref.read(searchQueryProvider.notifier).state = value;
               },

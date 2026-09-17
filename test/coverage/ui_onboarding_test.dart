@@ -112,6 +112,36 @@ void main() {
     expect(find.text('Create New Identity'), findsNothing);
   });
 
+  testWidgets(
+      'stored identity offers non-destructive continue path to biometric',
+      (tester) async {
+    installSecureStore();
+    final seed = ProviderContainer();
+    addTearDown(seed.dispose);
+    await seed.read(identityServiceProvider).generateIdentity();
+
+    await pumpOnboarding(tester, step: OnboardingStep.identity);
+    await tester.pumpAndSettle();
+
+    // Upgrade users must not be forced into replace-or-import.
+    expect(find.text('Continue with existing identity'), findsOneWidget);
+    await tester.tap(find.text('Continue with existing identity'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Enable Biometrics'), findsOneWidget);
+  });
+
+  testWidgets('identity step hides continue path when no identity stored',
+      (tester) async {
+    installSecureStore();
+    await pumpOnboarding(tester, step: OnboardingStep.identity);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Continue with existing identity'), findsNothing);
+    expect(find.text('Create New Identity'), findsOneWidget);
+  });
+
   testWidgets('generate backup phrase sets mnemonic words', (tester) async {
     installSecureStore();
     final container = ProviderContainer();
