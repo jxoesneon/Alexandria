@@ -107,8 +107,7 @@ void main() {
       }
     });
 
-    test('storedBytes counts disk-persisted blocks after a restart',
-        () async {
+    test('storedBytes counts disk-persisted blocks after a restart', () async {
       final dir = await Directory.systemTemp.createTemp('alx_bytes_test');
       try {
         final svc1 = IpfsService(_Ref(container), localStoreDir: dir.path);
@@ -127,6 +126,33 @@ void main() {
         expect(svc2.storedBytes, payload.length);
       } finally {
         await dir.delete(recursive: true);
+      }
+    });
+
+    test('storedBytes and block lookups cover the engine blockstore', () async {
+      final localDir = await Directory.systemTemp.createTemp('alx_local_test');
+      final engineDir =
+          await Directory.systemTemp.createTemp('alx_engine_test');
+      try {
+        // Blocks written by the networked engine land in its own
+        // blockstore, not local_blocks - a restart must still count
+        // them toward storedBytes and see them as retrievable.
+        const engineCid =
+            'bafkreierpqoli2pbvdv2mcbybb3e24jr3kgxsfalk5nuefgj2avhh3cffa';
+        final payload = Uint8List.fromList('engine-held'.codeUnits);
+        await File('${engineDir.path}/$engineCid').writeAsBytes(payload);
+
+        final svc = IpfsService(_Ref(container),
+            localStoreDir: localDir.path, engineBlocksDir: engineDir.path);
+        await svc.startNode();
+        await svc.ensureBlocksReady();
+        expect(svc.storedBytes, payload.length);
+        // A pin on an engine-held block is legitimate - the block is
+        // verifiably on this node's disk.
+        expect(await svc.pinCid(engineCid), isTrue);
+      } finally {
+        await localDir.delete(recursive: true);
+        await engineDir.delete(recursive: true);
       }
     });
 

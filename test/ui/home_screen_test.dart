@@ -34,6 +34,9 @@ class _FakePreservationService implements PreservationService {
   Future<HealthStatus> checkContentHealth(String cid) async => status;
 
   @override
+  Future<void>? get reconciled => null;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

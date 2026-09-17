@@ -25,6 +25,14 @@ final ipfsServiceProvider = Provider((ref) {
       engineFactory: underTest ? null : (c) => IPFS.create(config: c));
 });
 
+/// Awaits the disk-block scan before reporting stored bytes - a sync
+/// read at startup would report 0 B while persisted blocks still scan.
+final storedBytesProvider = FutureProvider.autoDispose<int>((ref) async {
+  final ipfs = ref.watch(ipfsServiceProvider);
+  await ipfs.ensureBlocksReady();
+  return ipfs.storedBytes;
+});
+
 class IpfsService {
   final Ref _ref;
   final IpfsEngineFactory? _engineFactory;
@@ -32,8 +40,8 @@ class IpfsService {
   bool _isStarted = false;
   IPFS? _node;
   final String? _localStoreDirOverride;
+  final String? _engineBlocksDirOverride;
   late final bool _persistLocal;
-  Directory? _localBlocksDir;
   final Map<String, Uint8List> _localStore = {};
   final Set<String> _pinnedCids = {};
   // Disk-persisted block sizes, keyed by CID (the filename). Tracked so
@@ -58,10 +66,12 @@ class IpfsService {
   IpfsService(this._ref,
       {IpfsEngineFactory? engineFactory,
       IpfsConfigBuilder? configBuilder,
-      String? localStoreDir})
+      String? localStoreDir,
+      String? engineBlocksDir})
       : _engineFactory = engineFactory,
         _configBuilder = configBuilder,
-        _localStoreDirOverride = localStoreDir {
+        _localStoreDirOverride = localStoreDir,
+        _engineBlocksDirOverride = engineBlocksDir {
     // Disk persistence is production behavior. Under FLUTTER_TEST the
     // zone is FakeAsync: real file I/O awaited from a test body
     // deadlocks (its continuations queue on fake microtasks that only
@@ -164,7 +174,7 @@ class IpfsService {
     _localStore.clear();
     _pinnedCids.clear();
     _diskBlockBytes.clear();
-    _localBlocksDir = null;
+    _blocksDirFuture = null;
     final dir = Directory(await _dataDir());
     if (dir.existsSync()) await dir.delete(recursive: true);
   }
@@ -195,15 +205,25 @@ class IpfsService {
   // manifest must never outlive the payload it points at (that gap is
   // what produced "CID integrity check failed: content unavailable"
   // for blocks that only ever lived in the in-memory map).
-  Future<Directory> _blocksDir() async {
-    var dir = _localBlocksDir;
-    if (dir == null) {
-      dir = _localBlocksDir = Directory(
-          _localStoreDirOverride ?? '${await _dataDir()}/local_blocks');
-      if (!dir.existsSync()) await dir.create(recursive: true);
-      await _loadPins(dir);
-      await _scanDiskBlocks(dir);
-    }
+  // Cache the FUTURE, not the directory: assigning _localBlocksDir
+  // before the awaits would let a second caller return early while the
+  // pins/byte scan is still in flight - exactly the stale-read race
+  // ensureBlocksReady exists to close.
+  Future<Directory>? _blocksDirFuture;
+
+  Future<Directory> _blocksDir() => _blocksDirFuture ??= _initBlocksDir();
+
+  Future<Directory> _initBlocksDir() async {
+    final dir =
+        Directory(_localStoreDirOverride ?? '${await _dataDir()}/local_blocks');
+    if (!dir.existsSync()) await dir.create(recursive: true);
+    await _loadPins(dir);
+    await _scanDiskBlocks(dir);
+    // The engine blockstore is a second on-disk store: networked-mode
+    // addFile writes there (not local_blocks), so without this scan
+    // storedBytes reports 0 B for blocks the node verifiably holds.
+    await _scanDiskBlocks(
+        Directory(_engineBlocksDirOverride ?? '${await _dataDir()}/blocks'));
     return dir;
   }
 
@@ -273,6 +293,9 @@ class IpfsService {
 
   Future<bool> _localBlockExists(String cid) async {
     if (_localStore.containsKey(cid)) return true;
+    // Scanned disk stores (local_blocks + the engine blockstore) - a
+    // block verifiably on disk is retrievable without a network hop.
+    if (_diskBlockBytes.containsKey(cid)) return true;
     if (!_persistLocal || !_persistableCid(cid)) return false;
     try {
       return File('${(await _blocksDir()).path}/$cid').existsSync();
@@ -282,6 +305,10 @@ class IpfsService {
   }
 
   void _attachNode(IPFS node) {
+    // Engine pins are durable (datastore/pins.hive) - merge them into
+    // the local view so a restart sees networked-mode pins instead of
+    // reporting an empty "No content preserved" for a populated store.
+    unawaited(_loadEnginePins(node));
     // Bridge real swarm pubsub into the legacy map shape callers use.
     _pubsubSub = node.pubsubMessages.listen((m) {
       if (!_pubsubController.isClosed) {
@@ -292,6 +319,18 @@ class IpfsService {
     _peerCountTimer = Timer.periodic(
         const Duration(seconds: 5), (_) => unawaited(_refreshPeerCount()));
     unawaited(_refreshPeerCount());
+  }
+
+  /// Pulls the engine's persisted pin list into [_pinnedCids]. Runs
+  /// once per attach - later pin/unpin calls update both views.
+  Future<void> _loadEnginePins(IPFS node) async {
+    try {
+      final pins = await node.pinnedCids;
+      if (pins.isNotEmpty) {
+        _pinnedCids.addAll(pins);
+        unawaited(_savePins());
+      }
+    } catch (_) {}
   }
 
   Future<void> _refreshPeerCount() async {
@@ -341,6 +380,15 @@ class IpfsService {
         final cid = await node.addFile(data);
         _localStore[cid] = data;
         _pinnedCids.add(cid);
+        // Persist the pin on BOTH stores: the engine's pins.hive
+        // protects the block from engine GC, and .pins lets a cold
+        // start see the pin before the engine finishes attaching.
+        unawaited(() async {
+          try {
+            await node.pin(cid);
+          } catch (_) {}
+        }());
+        unawaited(_savePins());
         unawaited(provideCid(cid));
         return cid;
       } catch (_) {

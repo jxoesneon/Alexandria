@@ -39,6 +39,11 @@ final preservationHealthProvider =
   // Persisted pins load lazily with the blocks dir - await the scan or
   // a restart reports "No content preserved" for a populated store.
   await ipfs.ensureBlocksReady();
+  // The startup pin reconcile restores pins for library blocks held
+  // before durable pinning existed - await it or the cold-start pin
+  // set reads empty while it is still populating.
+  final pending = preservation.reconciled;
+  if (pending != null) await pending;
   final cids = ipfs.pinnedCids.toList();
 
   if (cids.isEmpty) {
@@ -87,6 +92,7 @@ class HomeScreen extends ConsumerWidget {
     final statsAsync = ref.watch(libraryDashboardProvider);
     final recentItemsAsync = ref.watch(recentItemsProvider);
     final ipfs = ref.watch(ipfsServiceProvider);
+    final storedBytesAsync = ref.watch(storedBytesProvider);
     final mesh = ref.watch(meshTransportServiceProvider);
     final web = ref.watch(webNodeServiceProvider);
 
@@ -220,7 +226,11 @@ class HomeScreen extends ConsumerWidget {
               Expanded(
                 child: InfoGlass(
                   title: 'Storage Used',
-                  value: _formatBytes(ipfs.storedBytes),
+                  value: storedBytesAsync.when(
+                    data: (bytes) => _formatBytes(bytes),
+                    loading: () => '…',
+                    error: (_, __) => _formatBytes(ipfs.storedBytes),
+                  ),
                   icon: Icons.pie_chart_outline,
                 ),
               ),

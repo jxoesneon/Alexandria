@@ -110,7 +110,9 @@ class ProfileScreen extends ConsumerWidget {
   ) {
     final publicKeyDisplay = identity?.publicKeyBase58 ?? 'No Identity';
     final shortId = identity?.shortId ?? '???';
-    final storedBytes = ref.watch(ipfsServiceProvider).storedBytes;
+    final storedBytesAsync = ref.watch(storedBytesProvider);
+    final ipfs = ref.watch(ipfsServiceProvider);
+    final storedBytes = storedBytesAsync.valueOrNull ?? ipfs.storedBytes;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
