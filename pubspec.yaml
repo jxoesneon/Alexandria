@@ -23,7 +23,7 @@ dependencies:
   path: ^1.9.1
 
   # P2P Decentralized Storage & Transport
-  dart_ipfs: ^1.15.0
+  dart_ipfs: ^1.16.0
 
   # Cryptography, Security & Enclave
   cryptography: ^2.7.2
