@@ -4,6 +4,7 @@ import '../../providers/workspace_providers.dart';
 import '../../services/agent/alexandria_mcp_server.dart';
 import '../../services/credits/credit_service.dart';
 import '../../services/credits/poch_service.dart';
+import '../../services/ipfs_service.dart';
 import '../../services/seed/starter_seed_service.dart';
 import '../agent/agent_network_dialog.dart';
 import '../common/governance_badge.dart';
@@ -49,6 +50,7 @@ class _WorkspaceDashboardScreenState
     final activityFeedAsync = ref.watch(activityFeedProvider);
     final creditBalance = ref.watch(creditBalanceProvider);
     final pochMetrics = ref.watch(pochMetricsProvider);
+    final ipfsService = ref.watch(ipfsServiceProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -441,16 +443,21 @@ class _WorkspaceDashboardScreenState
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppTheme.honorColor.withValues(alpha: 0.15),
+                          color: (ipfsService.isNetworked
+                                  ? AppTheme.honorColor
+                                  : AppTheme.secondaryColor)
+                              .withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text(
-                          'Online',
+                        child: Text(
+                          ipfsService.isNetworked ? 'Online' : 'Local',
                           style: TextStyle(
                             fontFamily: 'JetBrainsMono',
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.honorColor,
+                            color: ipfsService.isNetworked
+                                ? AppTheme.honorColor
+                                : AppTheme.secondaryColor,
                           ),
                         ),
                       ),
@@ -479,7 +486,9 @@ class _WorkspaceDashboardScreenState
                             '${(pochMetrics.allocatedStorageBytes / (1024 * 1024)).toStringAsFixed(1)} MB',
                             AppTheme.textColor),
                         const SizedBox(height: 6),
-                        _buildTelemetryRow('Swarm Peers', '12 Connected',
+                        _buildTelemetryRow(
+                            'Swarm Peers',
+                            '${ipfsService.swarmPeerCount} Connected',
                             AppTheme.primaryAccent),
                         const SizedBox(height: 6),
                         _buildTelemetryRow(

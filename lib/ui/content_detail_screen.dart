@@ -414,7 +414,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
             ],
           ),
         ),
-        child: Column(
+        child: ListView(
           children: [
             const SizedBox(height: 100),
             // Header Section
@@ -572,124 +572,124 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
             ),
             const SizedBox(height: 16),
 
-            Expanded(
-              child: versionsAsync.when(
-                data: (versions) => ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: versions.length,
-                  itemBuilder: (context, index) {
-                    final v = versions[index];
-                    final scoreAsync = ref.watch(trustScoreProvider(v.cid));
+            versionsAsync.when(
+              data: (versions) => ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: versions.length,
+                itemBuilder: (context, index) {
+                  final v = versions[index];
+                  final scoreAsync = ref.watch(trustScoreProvider(v.cid));
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: GlassCard(
-                        height: 100,
-                        onTap: () => _showActionDialog(context, ref, v.cid),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: GlassCard(
+                      height: 100,
+                      onTap: () => _showActionDialog(context, ref, v.cid),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surfaceColor.withValues(
+                                alpha: 0.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.file_present,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                v.format.toUpperCase(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              Text(
+                                v.language,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          // Health Status Indicator
+                          _buildHealthIndicator(ref, v.cid),
+                          const SizedBox(width: 8),
+                          // Trust Score Badge
+                          scoreAsync.when(
+                            data: (score) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
-                                color: AppTheme.surfaceColor.withValues(
-                                  alpha: 0.5,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                Icons.file_present,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  v.format.toUpperCase(),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                Text(
-                                  v.language,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.5),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const Spacer(),
-                            // Health Status Indicator
-                            _buildHealthIndicator(ref, v.cid),
-                            const SizedBox(width: 8),
-                            // Trust Score Badge
-                            scoreAsync.when(
-                              data: (score) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
+                                color: score >= 0
+                                    ? AppTheme.honorColor.withValues(
+                                        alpha: 0.2,
+                                      )
+                                    : AppTheme.dangerColor.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
                                   color: score >= 0
-                                      ? AppTheme.honorColor.withValues(
-                                          alpha: 0.2,
-                                        )
-                                      : AppTheme.dangerColor.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
+                                      ? AppTheme.honorColor
+                                      : AppTheme.dangerColor,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.verified,
+                                    size: 16,
                                     color: score >= 0
                                         ? AppTheme.honorColor
                                         : AppTheme.dangerColor,
                                   ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.verified,
-                                      size: 16,
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '$score',
+                                    style: TextStyle(
                                       color: score >= 0
                                           ? AppTheme.honorColor
                                           : AppTheme.dangerColor,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '$score',
-                                      style: TextStyle(
-                                        color: score >= 0
-                                            ? AppTheme.honorColor
-                                            : AppTheme.dangerColor,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                              loading: () => const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                              error: (_, s) =>
-                                  const Icon(Icons.error, color: Colors.red),
                             ),
-                          ],
-                        ),
+                            loading: () => const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            error: (_, s) =>
+                                const Icon(Icons.error, color: Colors.red),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
+                    ),
+                  );
+                },
               ),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
             ),
 
             // ── Variants of this work ──────────────────────────────────────
