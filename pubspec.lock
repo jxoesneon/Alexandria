@@ -285,10 +285,10 @@ packages:
     dependency: "direct main"
     description:
       name: dart_ipfs
-      sha256: da20d10c4616b7bf7453e07064b65507e0e62327e8936dd6fd1b899000d23708
+      sha256: "7bab8053fe83809db2a3954218623509439f3c25ba3cb1c322c63f310e4909c2"
       url: "https://pub.dev"
     source: hosted
-    version: "1.14.1"
+    version: "1.15.0"
   dart_ipfs_core:
     dependency: transitive
     description:
