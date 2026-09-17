@@ -31,6 +31,8 @@ class IpfsService {
   final IpfsConfigBuilder? _configBuilder;
   bool _isStarted = false;
   IPFS? _node;
+  final String? _localStoreDirOverride;
+  Directory? _localBlocksDir;
   final Map<String, Uint8List> _localStore = {};
   final Set<String> _pinnedCids = {};
   final StreamController<Map<String, String>> _pubsubController =
@@ -49,9 +51,12 @@ class IpfsService {
   int swarmPeerCount = 0;
 
   IpfsService(this._ref,
-      {IpfsEngineFactory? engineFactory, IpfsConfigBuilder? configBuilder})
+      {IpfsEngineFactory? engineFactory,
+      IpfsConfigBuilder? configBuilder,
+      String? localStoreDir})
       : _engineFactory = engineFactory,
-        _configBuilder = configBuilder;
+        _configBuilder = configBuilder,
+        _localStoreDirOverride = localStoreDir;
 
   bool get isStarted => _isStarted;
 
@@ -134,6 +139,81 @@ class IpfsService {
     }
   }
 
+  // Local-mode blocks persist on disk under `<dataDir>/local_blocks/`
+  // so content added while the engine is down survives restarts - a
+  // manifest must never outlive the payload it points at (that gap is
+  // what produced "CID integrity check failed: content unavailable"
+  // for blocks that only ever lived in the in-memory map).
+  Future<Directory> _blocksDir() async {
+    var dir = _localBlocksDir;
+    if (dir == null) {
+      dir = _localBlocksDir = Directory(
+          _localStoreDirOverride ?? '${await _dataDir()}/local_blocks');
+      if (!dir.existsSync()) await dir.create(recursive: true);
+      await _loadPins(dir);
+    }
+    return dir;
+  }
+
+  /// Pin state is as durable as the blocks it protects: a restart
+  /// must not let runGc reap every disk block as "unpinned". Stored
+  /// as a dotfile inside the blocks dir (never a valid CID, skipped
+  /// by GC listing).
+  Future<void> _loadPins(Directory dir) async {
+    try {
+      final f = File('${dir.path}/.pins');
+      if (f.existsSync()) {
+        _pinnedCids.addAll((await f.readAsLines()).where((l) => l.isNotEmpty));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _savePins() async {
+    try {
+      final f = File('${(await _blocksDir()).path}/.pins');
+      await f.writeAsString(_pinnedCids.join('\n'), flush: true);
+    } catch (_) {}
+  }
+
+  /// Filenames are derived from CIDs - gate on structural validity so
+  /// an arbitrary string can never become a filesystem path.
+  bool _persistableCid(String cid) =>
+      _ref.read(cidServiceProvider).isValidCid(cid);
+
+  Future<void> _writeLocalBlock(String cid, Uint8List data) async {
+    if (!_persistableCid(cid)) return;
+    try {
+      final file = File('${(await _blocksDir()).path}/$cid');
+      await file.writeAsBytes(data, flush: true);
+    } catch (_) {
+      // Disk write failed - the in-memory copy still serves this
+      // session; persistence degrades, correctness does not.
+    }
+  }
+
+  Future<Uint8List?> _readLocalBlock(String cid) async {
+    if (!_persistableCid(cid)) return null;
+    try {
+      final file = File('${(await _blocksDir()).path}/$cid');
+      if (!file.existsSync()) return null;
+      final data = await file.readAsBytes();
+      if (data.isEmpty) return null;
+      return data;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> _localBlockExists(String cid) async {
+    if (_localStore.containsKey(cid)) return true;
+    if (!_persistableCid(cid)) return false;
+    try {
+      return File('${(await _blocksDir()).path}/$cid').existsSync();
+    } catch (_) {
+      return false;
+    }
+  }
+
   void _attachNode(IPFS node) {
     // Bridge real swarm pubsub into the legacy map shape callers use.
     _pubsubSub = node.pubsubMessages.listen((m) {
@@ -204,6 +284,8 @@ class IpfsService {
     final cid = _ref.read(cidServiceProvider).computeCid(data).toBase32();
     _localStore[cid] = data;
     _pinnedCids.add(cid);
+    await _writeLocalBlock(cid, data);
+    unawaited(_savePins());
     return cid;
   }
 
@@ -217,8 +299,9 @@ class IpfsService {
   /// ([IPFS.get]); a fetched block is cached locally, so this node
   /// becomes an honest provider for it thereafter.
   Stream<Uint8List> getFile(String cid) async* {
-    final local = _localStore[cid];
+    final local = _localStore[cid] ?? await _readLocalBlock(cid);
     if (local != null) {
+      _localStore[cid] = local; // hydrate the memory cache
       yield local;
       return;
     }
@@ -246,7 +329,7 @@ class IpfsService {
   /// engine pin.
   Future<bool> pinCid(String cid) async {
     if (!_ref.read(cidServiceProvider).isValidCid(cid)) return false;
-    if (!_localStore.containsKey(cid)) return false;
+    if (!await _localBlockExists(cid)) return false;
     final node = _node;
     if (node != null) {
       try {
@@ -257,6 +340,7 @@ class IpfsService {
       }
     }
     _pinnedCids.add(cid);
+    unawaited(_savePins());
     return true;
   }
 
@@ -268,6 +352,7 @@ class IpfsService {
       } catch (_) {}
     }
     _pinnedCids.remove(cid);
+    unawaited(_savePins());
     return true;
   }
 
@@ -284,7 +369,7 @@ class IpfsService {
         final providers =
             await node.findProviders(cid).timeout(const Duration(seconds: 20));
         final out = <String>[...providers];
-        if (_localStore.containsKey(cid) && !out.contains('peer_local_self')) {
+        if (await _localBlockExists(cid) && !out.contains('peer_local_self')) {
           out.add('peer_local_self');
         }
         return out;
@@ -292,7 +377,7 @@ class IpfsService {
         // Query failed - fall through to the honest local answer.
       }
     }
-    if (_localStore.containsKey(cid)) return ['peer_local_self'];
+    if (await _localBlockExists(cid)) return ['peer_local_self'];
     return const [];
   }
 
@@ -319,6 +404,19 @@ class IpfsService {
 
   Future<bool> runGc() async {
     _localStore.removeWhere((key, _) => !_pinnedCids.contains(key));
+    try {
+      // Disk blocks follow the same pin gate - GC removes exactly what
+      // is unpinned, in memory and on disk alike.
+      final dir = await _blocksDir();
+      await for (final entity in dir.list()) {
+        final name = entity.uri.pathSegments.last;
+        if (entity is File &&
+            !name.startsWith('.') &&
+            !_pinnedCids.contains(name)) {
+          await entity.delete();
+        }
+      }
+    } catch (_) {}
     return true;
   }
 }

@@ -1,7 +1,21 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/ipfs_service.dart';
+
+/// Minimal Ref adapter so tests can construct IpfsService directly
+/// (e.g. with an injected localStoreDir) without a provider override.
+class _Ref implements Ref {
+  _Ref(this._container);
+  final ProviderContainer _container;
+
+  @override
+  T read<T>(ProviderListenable<T> provider) => _container.read(provider);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   group('IpfsService (dart_ipfs 1.16.x Engine) Tests', () {
@@ -70,6 +84,42 @@ void main() {
       expect(await ipfs.swarmConnect('/ip4/1.2.3.4/tcp/4001/p2p/12D3KooWX'),
           isFalse);
       expect(ipfs.swarmPeerCount, 0);
+    });
+
+    test('local-mode blocks and pins persist across instances', () async {
+      final dir = await Directory.systemTemp.createTemp('alx_blocks_test');
+      try {
+        final svc1 = IpfsService(_Ref(container), localStoreDir: dir.path);
+        final payload = Uint8List.fromList('durable block'.codeUnits);
+        final cid = await svc1.addFile(payload);
+        expect(File('${dir.path}/$cid').existsSync(), isTrue);
+
+        // Simulated restart: a fresh service over the same dir has no
+        // memory of the add, but must still serve the block and its pin.
+        final svc2 = IpfsService(_Ref(container), localStoreDir: dir.path);
+        final retrieved = await svc2.getFile(cid).first;
+        expect(retrieved, equals(payload));
+        expect(await svc2.pinCid(cid), isTrue);
+        await svc2.runGc();
+        expect(File('${dir.path}/$cid').existsSync(), isTrue);
+      } finally {
+        await dir.delete(recursive: true);
+      }
+    });
+
+    test('runGc reaps unpinned disk blocks', () async {
+      final dir = await Directory.systemTemp.createTemp('alx_blocks_gc');
+      try {
+        final svc = IpfsService(_Ref(container), localStoreDir: dir.path);
+        final cid =
+            await svc.addFile(Uint8List.fromList('ephemeral'.codeUnits));
+        await svc.unpinCid(cid);
+        await svc.runGc();
+        expect(File('${dir.path}/$cid').existsSync(), isFalse);
+        await expectLater(svc.getFile(cid), emitsDone);
+      } finally {
+        await dir.delete(recursive: true);
+      }
     });
   });
 }
