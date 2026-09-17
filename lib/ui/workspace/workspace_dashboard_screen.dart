@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../providers/workspace_providers.dart';
 import '../../services/agent/alexandria_mcp_server.dart';
 import '../../services/credits/credit_service.dart';
@@ -8,6 +7,7 @@ import '../../services/credits/poch_service.dart';
 import '../../services/seed/starter_seed_service.dart';
 import '../agent/agent_network_dialog.dart';
 import '../common/governance_badge.dart';
+import '../common/alexandria_app_bar.dart';
 import '../credits/credit_wallet_dialog.dart';
 import '../credits/sponsorship_card.dart';
 import '../onboarding/first_run_wizard_dialog.dart';
@@ -52,22 +52,23 @@ class _WorkspaceDashboardScreenState
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
+      appBar: alexandriaAppBar(
+        titleWidget: const Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Workspace',
-              style: GoogleFonts.newsreader(
+              style: TextStyle(
+                fontFamily: 'Newsreader',
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textColor,
               ),
             ),
-            const SizedBox(width: 12),
-            const GovernancePillRow(),
+            SizedBox(width: 12),
+            GovernancePillRow(),
           ],
         ),
-        centerTitle: false,
         actions: [
           // Onboarding Tour Action
           IconButton(
@@ -101,7 +102,8 @@ class _WorkspaceDashboardScreenState
                   const SizedBox(width: 6),
                   Text(
                     '${creditBalance.toStringAsFixed(0)} ℭ',
-                    style: GoogleFonts.jetBrainsMono(
+                    style: const TextStyle(
+                      fontFamily: 'JetBrainsMono',
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.primaryAccent,
@@ -157,8 +159,10 @@ class _WorkspaceDashboardScreenState
                             controller: _searchController,
                             onChanged: (val) =>
                                 setState(() => _searchQuery = val),
-                            style: GoogleFonts.inter(
-                                fontSize: 13, color: AppTheme.textColor),
+                            style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 13,
+                                color: AppTheme.textColor),
                             decoration: const InputDecoration(
                               hintText:
                                   'Search library by title, CID, or paste scientific DOI (e.g. 10.1038/s41586-020-2012-7)...',
@@ -421,10 +425,11 @@ class _WorkspaceDashboardScreenState
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
+                      const Expanded(
                         child: Text(
                           'Swarm Telemetry',
-                          style: GoogleFonts.newsreader(
+                          style: TextStyle(
+                            fontFamily: 'Newsreader',
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textColor,
@@ -439,9 +444,10 @@ class _WorkspaceDashboardScreenState
                           color: AppTheme.honorColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
+                        child: const Text(
                           'Online',
-                          style: GoogleFonts.jetBrainsMono(
+                          style: TextStyle(
+                            fontFamily: 'JetBrainsMono',
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.honorColor,
@@ -598,16 +604,21 @@ class _WorkspaceDashboardScreenState
         Expanded(
           child: Text(
             label,
-            style:
-                GoogleFonts.inter(fontSize: 11, color: AppTheme.secondaryColor),
+            style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                color: AppTheme.secondaryColor),
             overflow: TextOverflow.ellipsis,
           ),
         ),
         const SizedBox(width: 8),
         Text(
           value,
-          style: GoogleFonts.jetBrainsMono(
-              fontSize: 11, fontWeight: FontWeight.bold, color: valueColor),
+          style: TextStyle(
+              fontFamily: 'JetBrainsMono',
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: valueColor),
         ),
       ],
     );
@@ -629,16 +640,16 @@ class _WorkspaceDashboardScreenState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
+              const Expanded(
                 child: Row(
                   children: [
-                    const Icon(Icons.stars,
-                        color: AppTheme.primaryAccent, size: 18),
-                    const SizedBox(width: 8),
+                    Icon(Icons.stars, color: AppTheme.primaryAccent, size: 18),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'First-Run Preservation Quests',
-                        style: GoogleFonts.newsreader(
+                        style: TextStyle(
+                            fontFamily: 'Newsreader',
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textColor),
@@ -689,8 +700,10 @@ class _WorkspaceDashboardScreenState
           Expanded(
             child: RichText(
               text: TextSpan(
-                style:
-                    GoogleFonts.inter(fontSize: 11, color: AppTheme.textColor),
+                style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    color: AppTheme.textColor),
                 children: [
                   TextSpan(
                     text: '$title — ',
@@ -744,19 +757,23 @@ class _WorkspaceDashboardScreenState
                     color: AppTheme.primaryAccent, size: 32),
               ),
               const SizedBox(height: 14),
-              Text(
+              const Text(
                 'No workspaces yet.',
-                style: GoogleFonts.newsreader(
+                style: TextStyle(
+                    fontFamily: 'Newsreader',
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textColor),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 'Welcome to Alexandria Commons. Your node is initialized and ready to preserve human knowledge under US §108 statutory safe harbor.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                    fontSize: 13, height: 1.5, color: AppTheme.secondaryColor),
+                style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13,
+                    height: 1.5,
+                    color: AppTheme.secondaryColor),
               ),
               const SizedBox(height: 20),
               Wrap(

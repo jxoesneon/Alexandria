@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/library_models.dart';
 import '../../providers/library_providers.dart';
+import '../collection_screen.dart';
 
 class CollectionsShelvesScreen extends ConsumerWidget {
   const CollectionsShelvesScreen({super.key});
@@ -40,32 +41,20 @@ class _CollectionManagementToolbar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.create_new_folder_outlined),
-          tooltip: 'Create Collection',
-          onPressed: () {
-            // Action to create collection
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.share_outlined),
-          tooltip: 'Share Collection',
-          onPressed: () {
-            // Action to share collection
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.delete_outline),
-          tooltip: 'Delete Collection',
-          onPressed: () {
-            // Action to delete collection
-          },
-        ),
-        const SizedBox(width: 16),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: TextButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CollectionScreen(),
+            ),
+          );
+        },
+        icon: const Icon(Icons.tune, size: 18),
+        label: const Text('Manage collections'),
+      ),
     );
   }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:alexandria/ui/theme/app_theme.dart';
 import 'package:alexandria/ui/onboarding_screen.dart';
 
@@ -9,37 +8,28 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.canvasColor,
       body: Stack(
         children: [
-          // Background - Deep Space / Starfield
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF0F172A), Color(0xFF334155)],
-              ),
-            ),
-          ),
-
           // Content
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(
-                  Icons.temple_buddhist,
+                  Icons.auto_stories,
                   size: 80,
                   color: AppTheme.primaryAccent,
                 ),
 
                 const SizedBox(height: 32),
 
-                Text(
+                const Text(
                   'ALEXANDRIA',
-                  style: GoogleFonts.cinzel(
+                  style: TextStyle(
+                    fontFamily: 'Newsreader',
                     fontSize: 48,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w500,
                     color: AppTheme.textColor,
                     letterSpacing: 4,
                   ),
@@ -49,7 +39,8 @@ class WelcomeScreen extends StatelessWidget {
 
                 Text(
                   'Preserve Human Knowledge',
-                  style: GoogleFonts.libreBaskerville(
+                  style: TextStyle(
+                    fontFamily: 'Inter',
                     fontSize: 18,
                     color: AppTheme.textColor.withValues(alpha: 0.7),
                     fontStyle: FontStyle.italic,
@@ -59,8 +50,8 @@ class WelcomeScreen extends StatelessWidget {
                 const SizedBox(height: 64),
 
                 // Entrance Button
-                GestureDetector(
-                  onTap: () {
+                FilledButton(
+                  onPressed: () {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
@@ -68,40 +59,21 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  child: Container(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primaryAccent,
+                    foregroundColor: AppTheme.canvasColor,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 48,
                       vertical: 16,
                     ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryAccent.withValues(
-                        alpha: 0.1,
-                      ),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: AppTheme.primaryAccent.withValues(
-                          alpha: 0.5,
-                        ),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryAccent.withValues(
-                            alpha: 0.2,
-                          ),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      'Enter the archive',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryAccent,
-                        letterSpacing: 0,
-                      ),
+                  ),
+                  child: const Text(
+                    'Enter the archive',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0,
                     ),
                   ),
                 ),
@@ -116,7 +88,7 @@ class WelcomeScreen extends StatelessWidget {
             right: 0,
             child: Center(
               child: Text(
-                'Decentralized • Encrypted • Eternal',
+                'Your keys, your node, your copy',
                 style: TextStyle(
                   color: AppTheme.textColor.withValues(alpha: 0.3),
                   fontSize: 12,

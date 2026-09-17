@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static const Color canvasColor = Color(0xFF141518);
@@ -8,7 +7,7 @@ class AppTheme {
   static const Color secondaryColor = Color(0xFF8D949D);
   static const Color textColor = Color(0xFFE5E7EB);
   static const Color honorColor = Color(0xFF4A7C59);
-  static const Color dangerColor = Color(0xFFA93C3C);
+  static const Color dangerColor = Color(0xFFE06666);
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -21,23 +20,28 @@ class AppTheme {
         onSurface: textColor,
         error: dangerColor,
       ),
-      textTheme: TextTheme(
-        displayLarge: GoogleFonts.newsreader(
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+            fontFamily: 'Newsreader',
             fontSize: 40,
             fontWeight: FontWeight.w500,
             letterSpacing: -0.5,
             color: textColor),
-        displayMedium: GoogleFonts.newsreader(
+        displayMedium: TextStyle(
+            fontFamily: 'Newsreader',
             fontSize: 28,
             fontWeight: FontWeight.w500,
             letterSpacing: -0.5,
             color: textColor),
-        bodyLarge:
-            GoogleFonts.inter(fontSize: 16, height: 1.6, color: textColor),
-        bodyMedium:
-            GoogleFonts.inter(fontSize: 14, height: 1.5, color: textColor),
-        labelSmall: GoogleFonts.jetBrainsMono(
-            fontSize: 11, letterSpacing: 0.5, color: secondaryColor),
+        bodyLarge: TextStyle(
+            fontFamily: 'Inter', fontSize: 16, height: 1.6, color: textColor),
+        bodyMedium: TextStyle(
+            fontFamily: 'Inter', fontSize: 14, height: 1.5, color: textColor),
+        labelSmall: TextStyle(
+            fontFamily: 'JetBrainsMono',
+            fontSize: 11,
+            letterSpacing: 0.5,
+            color: secondaryColor),
       ),
       navigationBarTheme: NavigationBarThemeData(
         indicatorColor: Colors.transparent,
@@ -48,8 +52,11 @@ class AppTheme {
           final color = states.contains(WidgetState.selected)
               ? primaryAccent
               : secondaryColor;
-          return GoogleFonts.jetBrainsMono(
-              fontSize: 11, color: color, fontWeight: FontWeight.w500);
+          return TextStyle(
+              fontFamily: 'JetBrainsMono',
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w500);
         }),
         iconTheme: WidgetStateProperty.resolveWith<IconThemeData>(
             (Set<WidgetState> states) {
@@ -72,23 +79,28 @@ class AppTheme {
         surface: Color(0xFFF3F1ED),
         onSurface: Color(0xFF141518),
       ),
-      textTheme: TextTheme(
-        displayLarge: GoogleFonts.newsreader(
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+            fontFamily: 'Newsreader',
             fontSize: 40,
             fontWeight: FontWeight.w500,
             letterSpacing: -0.5,
             color: canvasColor),
-        displayMedium: GoogleFonts.newsreader(
+        displayMedium: TextStyle(
+            fontFamily: 'Newsreader',
             fontSize: 28,
             fontWeight: FontWeight.w500,
             letterSpacing: -0.5,
             color: canvasColor),
-        bodyLarge:
-            GoogleFonts.inter(fontSize: 16, height: 1.6, color: canvasColor),
-        bodyMedium:
-            GoogleFonts.inter(fontSize: 14, height: 1.5, color: canvasColor),
-        labelSmall: GoogleFonts.jetBrainsMono(
-            fontSize: 11, letterSpacing: 0.5, color: secondaryColor),
+        bodyLarge: TextStyle(
+            fontFamily: 'Inter', fontSize: 16, height: 1.6, color: canvasColor),
+        bodyMedium: TextStyle(
+            fontFamily: 'Inter', fontSize: 14, height: 1.5, color: canvasColor),
+        labelSmall: TextStyle(
+            fontFamily: 'JetBrainsMono',
+            fontSize: 11,
+            letterSpacing: 0.5,
+            color: secondaryColor),
       ),
       navigationBarTheme: NavigationBarThemeData(
         indicatorColor: Colors.transparent,
@@ -99,8 +111,11 @@ class AppTheme {
           final color = states.contains(WidgetState.selected)
               ? primaryAccent
               : secondaryColor;
-          return GoogleFonts.jetBrainsMono(
-              fontSize: 11, color: color, fontWeight: FontWeight.w500);
+          return TextStyle(
+              fontFamily: 'JetBrainsMono',
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w500);
         }),
         iconTheme: WidgetStateProperty.resolveWith<IconThemeData>(
             (Set<WidgetState> states) {

@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/security_models.dart';
 import '../../providers/security_providers.dart';
+import '../common/identity_required_cta.dart';
+import '../common/alexandria_app_bar.dart';
+import '../profile_screen.dart';
 import 'access_control_screen.dart';
 import 'audit_logs_screen.dart';
 import 'key_management_screen.dart';
@@ -16,10 +19,8 @@ class SecurityDashboardScreen extends ConsumerWidget {
     final alertsAsync = ref.watch(securityAlertsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Security Dashboard'),
-        elevation: 0,
-        scrolledUnderElevation: 0,
+      appBar: alexandriaAppBar(
+        title: 'Security Dashboard',
         actions: [
           IconButton(
             icon: const Icon(Icons.key_outlined),
@@ -276,10 +277,47 @@ class SecurityDashboardScreen extends ConsumerWidget {
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             ),
+            trailing: _remediationFor(context, alert),
           ),
         );
       },
     );
+  }
+
+  /// Remediation action for alert types that have a real destination.
+  /// Informational alerts get no action.
+  Widget? _remediationFor(BuildContext context, SecurityAlert alert) {
+    final message = alert.message.toLowerCase();
+    if (message.startsWith('no identity configured')) {
+      return TextButton(
+        onPressed: () => showDialog(
+          context: context,
+          builder: (context) => const AlertDialog(
+            content: IdentityRequiredCta.noIdentity(),
+          ),
+        ),
+        child: const Text('Create identity'),
+      );
+    }
+    if (message.startsWith('backup your identity')) {
+      return TextButton(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfileScreen()),
+        ),
+        child: const Text('Back up'),
+      );
+    }
+    if (message.startsWith('recent access denials')) {
+      return TextButton(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AuditLogsScreen()),
+        ),
+        child: const Text('View logs'),
+      );
+    }
+    return null;
   }
 
   Color _scoreColor(int score) {

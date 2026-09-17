@@ -11,8 +11,12 @@ import 'package:alexandria/services/knowledge_graph_service.dart';
 import 'package:alexandria/services/preservation_service.dart';
 import 'package:alexandria/services/sibling_service.dart';
 import 'package:alexandria/ui/content_detail_screen.dart';
+import 'package:alexandria/ui/library/content_viewer_screen.dart';
 
 class _FakeIpfsService implements IpfsService {
+  @override
+  int get storedBytes => 0;
+
   bool isPinned(String cid) => true;
 
   @override
@@ -80,14 +84,14 @@ class _FakeContentRepository implements ContentRepository {
   }
 
   @override
-  Future<void> addVersion(
-    String uuid,
-    String path,
-    String language,
-    String format, {
-    int sizeBytes = 0,
+  Future<String> addContentVersion({
+    required String manifestUuid,
+    required Uint8List fileData,
+    String language = 'en',
+    String format = 'bin',
   }) async {
     addVersionCalled = true;
+    return 'bafy_new_version_cid';
   }
 
   @override
@@ -140,6 +144,12 @@ void main() {
             preservationServiceProvider
                 .overrideWithValue(_FakePreservationService()),
             honorSystemProvider.overrideWithValue(fakeHonor),
+            versionFilePickerProvider.overrideWithValue(
+              () async => (
+                bytes: Uint8List.fromList([1, 2, 3, 4, 5]),
+                format: 'pdf',
+              ),
+            ),
           ],
           child: MaterialApp(
             home: ContentDetailScreen(manifest: manifest),
@@ -155,19 +165,20 @@ void main() {
       expect(find.text('math'), findsOneWidget);
       expect(find.text('Year: -300'), findsOneWidget);
 
-      // Tap View button
-      final viewButton = find.widgetWithText(OutlinedButton, 'View');
-      expect(viewButton, findsOneWidget);
-      await tester.tap(viewButton);
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Opening in-app viewer'), findsOneWidget);
-
       // Tap Open in… button
       final openButton = find.widgetWithText(OutlinedButton, 'Open in…');
       expect(openButton, findsOneWidget);
       await tester.tap(openButton);
       await tester.pumpAndSettle();
+
+      // Tap Read button → opens the in-app reader.
+      final readButton = find.widgetWithText(ElevatedButton, 'Read');
+      expect(readButton, findsOneWidget);
+      await tester.tap(readButton);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.byType(ContentViewerScreen), findsOneWidget);
     });
 
     testWidgets(
@@ -230,6 +241,12 @@ void main() {
             preservationServiceProvider
                 .overrideWithValue(_FakePreservationService()),
             honorSystemProvider.overrideWithValue(fakeHonor),
+            versionFilePickerProvider.overrideWithValue(
+              () async => (
+                bytes: Uint8List.fromList([1, 2, 3, 4, 5]),
+                format: 'pdf',
+              ),
+            ),
           ],
           child: MaterialApp(
             home: ContentDetailScreen(manifest: manifest),
@@ -247,7 +264,7 @@ void main() {
       await tester.tap(find.text('PDF'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Verify Content'), findsOneWidget);
+      expect(find.text('Content Actions'), findsOneWidget);
       expect(find.text('Verify (+1)'), findsOneWidget);
 
       // Tap Verify (+1)

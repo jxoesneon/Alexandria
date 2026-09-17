@@ -165,15 +165,54 @@ final availableTagsProvider = FutureProvider<List<String>>((ref) async {
   final manifests = await db.getAllManifests();
   final tags = <String>{};
   for (final manifest in manifests) {
-    final raw = manifest.tags;
-    if (raw == null || raw.isEmpty) continue;
-    for (final tag in raw.split(',')) {
-      final trimmed = tag.trim();
-      if (trimmed.isNotEmpty) tags.add(trimmed);
-    }
+    tags.addAll(_parseManifestTags(manifest.tags));
   }
   return (tags.toList()..sort()).toList();
 });
+
+/// Manifest UUID -> parsed tag set, for faceted search filtering.
+final manifestTagsProvider =
+    FutureProvider<Map<String, Set<String>>>((ref) async {
+  final db = ref.read(databaseProvider);
+  final manifests = await db.getAllManifests();
+  return {
+    for (final m in manifests) m.uuid: _parseManifestTags(m.tags),
+  };
+});
+
+/// Resolves a [ContentManifest] for a version CID or manifest UUID.
+final manifestForCidProvider =
+    FutureProvider.family<ContentManifest?, String>((ref, cidOrUuid) async {
+  final db = ref.read(databaseProvider);
+  final versionMap = await db.getVersionByCid(cidOrUuid);
+  if (versionMap != null) {
+    final manifestId = versionMap['manifestId'] as int?;
+    if (manifestId == null) return null;
+    final manifests = await db.getAllManifests();
+    for (final m in manifests) {
+      if (m.id == manifestId) return m;
+    }
+    return null;
+  }
+  final manifestMap = await db.getManifestByUuid(cidOrUuid);
+  return manifestMap == null ? null : ContentManifest.fromJson(manifestMap);
+});
+
+Set<String> _parseManifestTags(String? raw) {
+  if (raw == null || raw.isEmpty) return const {};
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is List) {
+      return decoded
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toSet();
+    }
+  } on FormatException {
+    // Not JSON - fall through to the comma-separated form.
+  }
+  return raw.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toSet();
+}
 
 /// All content versions linked to a specific manifest or document CID
 final documentVersionsProvider =

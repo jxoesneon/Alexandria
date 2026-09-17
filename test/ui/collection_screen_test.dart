@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:alexandria/providers/library_providers.dart';
 import 'package:alexandria/services/collection_service.dart';
 import 'package:alexandria/services/identity_service.dart';
 import 'package:alexandria/services/secure_storage_service.dart';
@@ -48,7 +49,7 @@ void main() {
         ),
       );
 
-      expect(find.text('THE SCRIPTORIUM'), findsOneWidget);
+      expect(find.text('Collections'), findsOneWidget);
       expect(find.text('Ancient Philosophers'), findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.add_circle));
@@ -95,7 +96,7 @@ void main() {
         ProviderScope(
           overrides: [
             collectionServiceProvider.overrideWithValue(service),
-            selectedCollectionProvider.overrideWith((ref) => col.id),
+            selectedCollectionIdProvider.overrideWith((ref) => col.id),
           ],
           child: const MaterialApp(
             home: CollectionScreen(),

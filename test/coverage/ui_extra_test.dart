@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:alexandria/logic/content_repository.dart';
 import 'package:alexandria/models/library_models.dart';
 import 'package:alexandria/providers/library_providers.dart';
 import 'package:alexandria/services/biometric_service.dart';
@@ -59,16 +60,36 @@ Map<String, String> installSecureStore() {
   return store;
 }
 
+class _FakeContentRepository implements ContentRepository {
+  @override
+  Future<String> createContent({
+    required String title,
+    String? author,
+    String? description,
+    required Uint8List fileData,
+    bool isEncrypted = false,
+    List<String>? tags,
+    String? category,
+    String? format,
+    Map<String, dynamic>? extraMetadata,
+  }) async =>
+      'uuid-fake';
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _FakeIdentityService implements IdentityService {
-  _FakeIdentityService({this.throwOnGenerate = false});
+  _FakeIdentityService({this.throwOnGenerate = false, this.identity});
 
   bool throwOnGenerate;
+  AlexandriaIdentity? identity;
 
   @override
-  Future<AlexandriaIdentity?> getIdentity() async => null;
+  Future<AlexandriaIdentity?> getIdentity() async => identity;
 
   @override
-  Future<bool> hasIdentity() async => false;
+  Future<bool> hasIdentity() async => identity != null;
 
   @override
   Future<AlexandriaIdentity> generateIdentity() async {
@@ -193,19 +214,25 @@ void main() {
     testWidgets('stepper completes at last step and cancels at first',
         (tester) async {
       await bigSurface(tester);
-      await tester.pumpWidget(
-          const ProviderScope(child: MaterialApp(home: CreationWizard())));
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          contentRepositoryProvider.overrideWithValue(_FakeContentRepository()),
+        ],
+        child: const MaterialApp(home: CreationWizard()),
+      ));
       await tester.pumpAndSettle();
 
       // Drive the stepper via its callbacks: tapping the controls row
       // misses the hit test once later (taller) steps shift the layout.
       Stepper stepper() => tester.widget<Stepper>(find.byType(Stepper));
 
-      // Step 0 → Continue → step 1 → Continue → step 2.
-      for (var i = 0; i < 2; i++) {
-        stepper().onStepContinue!();
-        await tester.pumpAndSettle();
-      }
+      // Step 0 → Continue → step 1; fill in title + text content.
+      stepper().onStepContinue!();
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), 'Wizard Doc');
+      await tester.enterText(find.byType(TextField).at(3), 'body text');
+      stepper().onStepContinue!();
+      await tester.pumpAndSettle();
 
       // Toggle the encrypt switch.
       final toggle = find.byType(SwitchListTile);
@@ -214,7 +241,7 @@ void main() {
         await tester.pumpAndSettle();
       }
 
-      // Continue on the last step → snackbar + pop.
+      // Continue on the last step → real createContent → snackbar + pop.
       stepper().onStepContinue!();
       await tester.pumpAndSettle();
       expect(find.text('Add Document to Library'), findsNothing);
@@ -415,11 +442,13 @@ void main() {
       Object? canVoteError,
       Object? canCreateError,
       bool canVoteLoading = false,
+      AlexandriaIdentity? identity,
     }) async {
       await bigSurface(tester);
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          identityServiceProvider.overrideWithValue(_FakeIdentityService()),
+          identityServiceProvider
+              .overrideWithValue(_FakeIdentityService(identity: identity)),
           ledgerServiceProvider.overrideWithValue(_FakeLedgerService()),
           governanceServiceProvider.overrideWithValue(gov),
           canVoteProvider.overrideWith((ref) async {
@@ -486,14 +515,33 @@ void main() {
       expect(gov.lastApprove, isFalse);
     });
 
-    testWidgets('canVote false shows eligibility notice', (tester) async {
+    testWidgets('canVote false without identity shows create-identity CTA',
+        (tester) async {
       final gov = _FakeGovernanceService([_prop('p_nv', ProposalStatus.active)],
           canVoteResult: false);
       await pumpGov(tester, gov: gov);
       await tester.tap(find.text('Prop p_nv'));
       await tester.pumpAndSettle();
+      expect(find.textContaining('Create an identity to participate'),
+          findsOneWidget);
+    });
+
+    testWidgets('canVote false with identity shows reputation notice',
+        (tester) async {
+      final gov = _FakeGovernanceService([_prop('p_nv', ProposalStatus.active)],
+          canVoteResult: false);
+      await pumpGov(tester,
+          gov: gov,
+          identity: AlexandriaIdentity(
+            publicKey: Uint8List.fromList(List.filled(32, 7)),
+            privateKey: Uint8List.fromList(List.filled(32, 8)),
+            createdAt: DateTime(2024),
+          ));
+      await tester.tap(find.text('Prop p_nv'));
+      await tester.pumpAndSettle();
       expect(
           find.textContaining('need at least 10 reputation'), findsOneWidget);
+      expect(find.textContaining('Earn reputation'), findsOneWidget);
     });
 
     testWidgets('create proposal dialog: dropdown change and cancel',

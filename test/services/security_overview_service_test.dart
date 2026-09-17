@@ -130,6 +130,9 @@ class FakeSecureStorageService implements SecureStorageService {
 }
 
 class FakeIpfsService implements IpfsService {
+  @override
+  int get storedBytes => 0;
+
   final Map<String, Uint8List> _files = {};
 
   void seedFile(String cid, Uint8List data) => _files[cid] = data;

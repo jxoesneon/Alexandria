@@ -27,6 +27,9 @@ class FakeSecureStorageService implements SecureStorageService {
 }
 
 class FakeIpfsService implements IpfsService {
+  @override
+  int get storedBytes => 0;
+
   bool gcRun = false;
 
   @override

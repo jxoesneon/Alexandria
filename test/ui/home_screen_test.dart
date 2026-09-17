@@ -14,6 +14,12 @@ class _FakeIpfsService implements IpfsService {
   Set<String> get pinnedCids => _cids;
 
   @override
+  int get storedBytes => 0;
+
+  @override
+  int get swarmPeerCount => 0;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -62,7 +68,13 @@ void main() {
       expect(find.text('All Content Healthy'), findsOneWidget);
       expect(find.text('All artifacts preserved'), findsOneWidget);
       expect(find.text('Recent Additions'), findsOneWidget);
-      expect(find.text('Tractatus Logico-Philosophicus'), findsOneWidget);
+      // Recent additions are provider-driven: the hermetic in-memory
+      // database holds no manifests, so the honest empty state shows.
+      expect(
+        find.text(
+            'No documents in the library yet. Add your first artifact to see it here.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders endangered and lost health statuses', (tester) async {
@@ -113,7 +125,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.search));
       await tester.pumpAndSettle();
 
-      expect(find.text('Search Library'), findsOneWidget);
+      expect(find.text('Discovery & Search'), findsOneWidget);
 
       // Pop back
       final navigator = tester.state<NavigatorState>(find.byType(Navigator));
@@ -123,7 +135,7 @@ void main() {
       // Tap View All
       await tester.tap(find.text('View All'));
       await tester.pumpAndSettle();
-      expect(find.text('Search Library'), findsOneWidget);
+      expect(find.text('Discovery & Search'), findsOneWidget);
     });
   });
 }

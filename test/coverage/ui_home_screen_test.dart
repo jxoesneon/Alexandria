@@ -66,7 +66,9 @@ void main() {
     expect(find.text('Preservation Health'), findsOneWidget);
     expect(find.text('Endangered'), findsOneWidget);
     expect(find.text('Lost'), findsOneWidget);
-    expect(find.text('2 Documents Synced'), findsOneWidget);
+    // Document count comes from the library database (no manifests in
+    // the hermetic store), not from pinned CID bookkeeping.
+    expect(find.text('0 Documents Synced'), findsOneWidget);
   });
 
   testWidgets('endangered-only badge label', (tester) async {

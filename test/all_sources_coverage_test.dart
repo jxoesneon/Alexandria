@@ -153,12 +153,18 @@ import 'package:alexandria/ui/agent/agent_network_dialog.dart'
     as _import_ui_agent_agent_network_dialog_dart;
 import 'package:alexandria/ui/agent/mcp_config_export_dialog.dart'
     as _import_ui_agent_mcp_config_export_dialog_dart;
-import 'package:alexandria/ui/codex/search_screen.dart'
-    as _import_ui_codex_search_screen_dart;
+import 'package:alexandria/ui/app_entry_gate.dart'
+    as _import_ui_app_entry_gate_dart;
 import 'package:alexandria/ui/collection_screen.dart'
     as _import_ui_collection_screen_dart;
+import 'package:alexandria/ui/common/alexandria_app_bar.dart'
+    as _import_ui_common_alexandria_app_bar_dart;
 import 'package:alexandria/ui/common/governance_badge.dart'
     as _import_ui_common_governance_badge_dart;
+import 'package:alexandria/ui/common/identity_required_cta.dart'
+    as _import_ui_common_identity_required_cta_dart;
+import 'package:alexandria/ui/common/identity_avatar_action.dart'
+    as _import_ui_common_identity_avatar_action_dart;
 import 'package:alexandria/ui/content_detail_screen.dart'
     as _import_ui_content_detail_screen_dart;
 import 'package:alexandria/ui/credits/credit_wallet_dialog.dart'
@@ -186,8 +192,6 @@ import 'package:alexandria/ui/network/transports_config_screen.dart'
     as _import_ui_network_transports_config_screen_dart;
 import 'package:alexandria/ui/onboarding/first_run_wizard_dialog.dart'
     as _import_ui_onboarding_first_run_wizard_dialog_dart;
-import 'package:alexandria/ui/onboarding/setup_wizard_screen.dart'
-    as _import_ui_onboarding_setup_wizard_screen_dart;
 import 'package:alexandria/ui/onboarding/welcome_screen.dart'
     as _import_ui_onboarding_welcome_screen_dart;
 import 'package:alexandria/ui/onboarding_screen.dart'

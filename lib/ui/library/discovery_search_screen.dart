@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/database.dart';
 import '../../models/library_models.dart';
 import '../../providers/library_providers.dart';
+import '../content_detail_screen.dart';
+import 'content_viewer_screen.dart';
 
 class DiscoverySearchScreen extends ConsumerStatefulWidget {
   const DiscoverySearchScreen({super.key});
@@ -14,6 +17,9 @@ class DiscoverySearchScreen extends ConsumerStatefulWidget {
 
 class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final Set<String> _selectedFormats = {};
+  final Set<String> _selectedTags = {};
+  String _authorFilter = '';
   bool _isGridView = true;
 
   @override
@@ -22,10 +28,51 @@ class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
     super.dispose();
   }
 
+  List<SearchResult> _applyFilters(
+    List<SearchResult> results,
+    Map<String, Set<String>> tagsByManifest,
+  ) {
+    final authorNeedle = _authorFilter.trim().toLowerCase();
+    return results.where((r) {
+      if (_selectedFormats.isNotEmpty && !_selectedFormats.contains(r.format)) {
+        return false;
+      }
+      if (_selectedTags.isNotEmpty) {
+        final tags = tagsByManifest[r.id] ?? const <String>{};
+        if (!_selectedTags.every(tags.contains)) return false;
+      }
+      if (authorNeedle.isNotEmpty &&
+          !r.author.toLowerCase().contains(authorNeedle)) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  Future<void> _openResult(SearchResult item) async {
+    ContentManifest? manifest;
+    try {
+      manifest = await ref.read(manifestForCidProvider(item.id).future);
+    } catch (_) {
+      manifest = null;
+    }
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => manifest == null
+            ? ContentViewerScreen(documentCid: item.id)
+            : ContentDetailScreen(manifest: manifest),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(searchQueryProvider);
     final resultsAsync = ref.watch(searchResultsProvider(query));
+    final tagsByManifest =
+        ref.watch(manifestTagsProvider).value ?? const <String, Set<String>>{};
 
     return Scaffold(
       appBar: AppBar(
@@ -66,7 +113,11 @@ class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
           // Faceted Filter Panel (Left)
           SizedBox(
             width: 280,
-            child: _buildFilterPanel(context, ref),
+            child: _buildFilterPanel(
+              context,
+              ref,
+              resultsAsync.valueOrNull ?? const [],
+            ),
           ),
           const VerticalDivider(width: 1),
 
@@ -115,12 +166,13 @@ class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
                 Expanded(
                   child: resultsAsync.when(
                     data: (results) {
-                      if (results.isEmpty) {
+                      final filtered = _applyFilters(results, tagsByManifest);
+                      if (filtered.isEmpty) {
                         return const Center(child: Text('No results found.'));
                       }
                       return _isGridView
-                          ? _buildGridView(results)
-                          : _buildListView(results);
+                          ? _buildGridView(filtered)
+                          : _buildListView(filtered);
                     },
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
@@ -136,8 +188,13 @@ class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
     );
   }
 
-  Widget _buildFilterPanel(BuildContext context, WidgetRef ref) {
+  Widget _buildFilterPanel(
+    BuildContext context,
+    WidgetRef ref,
+    List<SearchResult> results,
+  ) {
     final tagsAsync = ref.watch(availableTagsProvider);
+    final formats = results.map((r) => r.format).toSet().toList()..sort();
 
     return ListView(
       padding: const EdgeInsets.all(24.0),
@@ -151,29 +208,28 @@ class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
           initiallyExpanded: true,
           childrenPadding: EdgeInsets.zero,
           tilePadding: EdgeInsets.zero,
-          children: [
-            CheckboxListTile(
-              title: const Text('PDF'),
-              value: true,
-              onChanged: (v) {},
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-            ),
-            CheckboxListTile(
-              title: const Text('EPUB'),
-              value: false,
-              onChanged: (v) {},
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-            ),
-            CheckboxListTile(
-              title: const Text('Markdown'),
-              value: false,
-              onChanged: (v) {},
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ],
+          children: formats.isEmpty
+              ? [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8.0),
+                    child: Text('No formats in the current results.'),
+                  ),
+                ]
+              : formats
+                  .map((format) => CheckboxListTile(
+                        title: Text(format),
+                        value: _selectedFormats.contains(format),
+                        onChanged: (v) => setState(() {
+                          if (v == true) {
+                            _selectedFormats.add(format);
+                          } else {
+                            _selectedFormats.remove(format);
+                          }
+                        }),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                      ))
+                  .toList(),
         ),
 
         const SizedBox(height: 16),
@@ -188,8 +244,14 @@ class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
             data: (tags) => tags
                 .map((tag) => CheckboxListTile(
                       title: Text(tag),
-                      value: false,
-                      onChanged: (v) {},
+                      value: _selectedTags.contains(tag),
+                      onChanged: (v) => setState(() {
+                        if (v == true) {
+                          _selectedTags.add(tag);
+                        } else {
+                          _selectedTags.remove(tag);
+                        }
+                      }),
                       controlAffinity: ListTileControlAffinity.leading,
                       contentPadding: EdgeInsets.zero,
                     ))
@@ -219,9 +281,7 @@ class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
-                onChanged: (value) {
-                  // Stub for filtering by author
-                },
+                onChanged: (value) => setState(() => _authorFilter = value),
               ),
             ),
           ],
@@ -252,9 +312,7 @@ class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
             ),
           ),
           child: InkWell(
-            onTap: () {
-              // Action to open document
-            },
+            onTap: () => _openResult(item),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -355,9 +413,7 @@ class _DiscoverySearchScreenState extends ConsumerState<DiscoverySearchScreen> {
             '${item.dateAdded.year}-${item.dateAdded.month.toString().padLeft(2, '0')}-${item.dateAdded.day.toString().padLeft(2, '0')}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          onTap: () {
-            // Action to open document
-          },
+          onTap: () => _openResult(item),
         );
       },
     );

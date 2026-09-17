@@ -8,6 +8,9 @@ import 'package:alexandria/services/secure_storage_service.dart';
 // --- Fakes ---
 
 class FakeIpfsService implements IpfsService {
+  @override
+  int get storedBytes => 0;
+
   String? lastTopic;
   String? lastData;
 

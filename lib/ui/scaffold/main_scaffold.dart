@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../home_screen.dart';
 import '../library/library_overview_screen.dart';
 import '../network/network_overview_screen.dart';
 import '../security/security_dashboard_screen.dart';
@@ -18,6 +19,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   int _currentIndex = 0;
 
   final _screens = const [
+    HomeScreen(),
     LibraryOverviewScreen(),
     WorkspaceDashboardScreen(),
     NetworkOverviewScreen(),
@@ -39,6 +41,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           onDestinationSelected: (index) =>
               setState(() => _currentIndex = index),
           destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Home',
+            ),
             NavigationDestination(
               icon: Icon(Icons.bookmark_border),
               selectedIcon: Icon(Icons.bookmark),

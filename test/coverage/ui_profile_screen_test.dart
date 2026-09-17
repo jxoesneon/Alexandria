@@ -69,13 +69,13 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     }
 
-    testWidgets('shows unverified state and generates identity',
+    testWidgets('shows no-identity state and generates identity',
         (tester) async {
       installSecureStore();
       await pumpScreen(tester);
       await tester.pumpAndSettle();
 
-      expect(find.text('UNVERIFIED'), findsOneWidget);
+      expect(find.text('NO IDENTITY'), findsOneWidget);
       expect(find.text('Generate Identity'), findsOneWidget);
 
       await tester.tap(find.text('Generate Identity'));
@@ -84,7 +84,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Identity created successfully!'), findsOneWidget);
-      expect(find.text('VERIFIED'), findsOneWidget);
+      expect(find.text('ACTIVE'), findsOneWidget);
     });
 
     testWidgets('generate with stale-null state asks before replacing',
@@ -113,8 +113,8 @@ void main() {
       expect(find.text('Replace existing identity?'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-      // Cancelled: still unverified in the stale view.
-      expect(find.text('UNVERIFIED'), findsOneWidget);
+      // Cancelled: still no-identity in the stale view.
+      expect(find.text('NO IDENTITY'), findsOneWidget);
 
       await tester.tap(find.text('Generate Identity'));
       await tester.pump();
@@ -173,7 +173,7 @@ void main() {
       // and SystemSound messages that share that channel).
       await pumpScreen(tester);
       await tester.pumpAndSettle();
-      expect(find.text('VERIFIED'), findsOneWidget);
+      expect(find.text('ACTIVE'), findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.backup));
       await tester.pump();

@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/preservation_service.dart';
+import '../data/database.dart';
+import '../models/library_models.dart';
+import '../providers/library_providers.dart';
 import '../services/ipfs_service.dart';
+import '../services/mesh_transport_service.dart';
+import '../services/preservation_service.dart';
+import '../services/web_node_service.dart';
+import 'common/alexandria_app_bar.dart';
+import 'content_detail_screen.dart';
+import 'library/discovery_search_screen.dart';
+import 'scriptorium/creation_wizard.dart';
 import 'widgets/glass_card.dart';
 import 'widgets/info_glass.dart';
-import 'codex/search_screen.dart';
-import 'scriptorium/creation_wizard.dart';
 
 /// Summary of preservation health across all pinned content.
 class PreservationHealthSummary {
@@ -74,18 +81,21 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final healthAsync = ref.watch(preservationHealthProvider);
-    final pinnedCount = ref.watch(ipfsServiceProvider).pinnedCids.length;
+    final statsAsync = ref.watch(libraryDashboardProvider);
+    final recentItemsAsync = ref.watch(recentItemsProvider);
+    final ipfs = ref.watch(ipfsServiceProvider);
+    final mesh = ref.watch(meshTransportServiceProvider);
+    final web = ref.watch(webNodeServiceProvider);
+
+    final documentCount = statsAsync.valueOrNull?.totalItems;
+    final connectedPeers = ipfs.swarmPeerCount +
+        mesh.activePeers.length +
+        web.connectedPeers.length;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.auto_stories, color: theme.colorScheme.primary),
-            const SizedBox(width: 10),
-            const Text('Alexandria',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
+      appBar: alexandriaAppBar(
+        title: 'Alexandria',
+        titleIcon: Icons.auto_stories,
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -93,7 +103,8 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SearchScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const DiscoverySearchScreen()),
               );
             },
           ),
@@ -116,7 +127,7 @@ class HomeScreen extends ConsumerWidget {
                       error: (e, _) => _buildErrorBadge(),
                     ),
                     const Spacer(),
-                    Text('$pinnedCount Documents Synced',
+                    Text('${documentCount ?? '—'} Documents Synced',
                         style:
                             const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
@@ -201,20 +212,20 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // Quick Overview Stats
-          const Row(
+          Row(
             children: [
               Expanded(
                 child: InfoGlass(
                   title: 'Storage Used',
-                  value: '428 MB',
+                  value: _formatBytes(ipfs.storedBytes),
                   icon: Icons.pie_chart_outline,
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: InfoGlass(
                   title: 'Connected Peers',
-                  value: '18 Active',
+                  value: '$connectedPeers Active',
                   icon: Icons.hub_outlined,
                 ),
               ),
@@ -236,7 +247,7 @@ class HomeScreen extends ConsumerWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const SearchScreen()),
+                        builder: (context) => const DiscoverySearchScreen()),
                   );
                 },
                 child: const Text('View All'),
@@ -245,38 +256,62 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
 
-          // Document Item Card
-          _buildDocumentCard(
-            context,
-            title: 'Tractatus Logico-Philosophicus',
-            author: 'Ludwig Wittgenstein',
-            category: 'Philosophy',
-            format: 'PDF',
-            size: '4.2 MB',
-            isEncrypted: true,
-          ),
-          const SizedBox(height: 10),
-          _buildDocumentCard(
-            context,
-            title: 'Principles of Quantum Mechanics',
-            author: 'Paul Dirac',
-            category: 'Physics',
-            format: 'DJVU',
-            size: '12.8 MB',
-            isEncrypted: false,
-          ),
-          const SizedBox(height: 10),
-          _buildDocumentCard(
-            context,
-            title: 'Global Climate Dataset 2026',
-            author: 'Open Earth Initiative',
-            category: 'Dataset',
-            format: 'PARQUET',
-            size: '45.1 MB',
-            isEncrypted: false,
+          // Recent documents from the local library
+          recentItemsAsync.when(
+            data: (items) => _buildRecentItems(context, ref, items),
+            loading: () => const Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+            error: (e, _) => GlassCard(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Could not load recent additions.',
+                style:
+                    theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRecentItems(
+      BuildContext context, WidgetRef ref, List<LibraryItem> items) {
+    if (items.isEmpty) {
+      return GlassCard(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Icon(Icons.auto_stories_outlined,
+                color: Theme.of(context).colorScheme.primary, size: 18),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'No documents in the library yet. Add your first artifact to see it here.',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final shown = items.take(5).toList();
+    return Column(
+      children: [
+        for (var i = 0; i < shown.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _buildDocumentCard(context, ref, shown[i]),
+        ],
+      ],
     );
   }
 
@@ -490,17 +525,14 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildDocumentCard(
-    BuildContext context, {
-    required String title,
-    required String author,
-    required String category,
-    required String format,
-    required String size,
-    required bool isEncrypted,
-  }) {
+      BuildContext context, WidgetRef ref, LibraryItem item) {
+    final progressLabel = item.progress > 0
+        ? '${(item.progress * 100).toInt()}% read'
+        : 'In library';
+
     return GlassCard(
       padding: const EdgeInsets.all(14.0),
-      onTap: () {},
+      onTap: () => _openItem(context, ref, item),
       child: Row(
         children: [
           Container(
@@ -511,15 +543,10 @@ class HomeScreen extends ConsumerWidget {
                   Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Center(
-              child: Text(
-                format,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
+            child: Icon(
+              Icons.menu_book_outlined,
+              size: 20,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
           const SizedBox(width: 14),
@@ -528,7 +555,7 @@ class HomeScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  item.title,
                   style: const TextStyle(
                       fontWeight: FontWeight.w600, fontSize: 14),
                   maxLines: 1,
@@ -536,22 +563,71 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '$author • $category',
+                  '${item.author} • $progressLabel',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          if (isEncrypted)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6.0),
-              child: Icon(Icons.lock_outline, size: 16, color: Colors.amber),
-            ),
-          Text(size, style: const TextStyle(color: Colors.grey, fontSize: 12)),
           const SizedBox(width: 6),
           const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
         ],
       ),
     );
   }
+
+  /// Resolves the [LibraryItem]'s manifest and opens the content detail
+  /// screen. The CID -> manifest lookup mirrors `currentDocumentProvider`
+  /// in lib/providers/library_providers.dart: try the version table by CID
+  /// first, then fall back to a manifest-UUID match.
+  Future<void> _openItem(
+      BuildContext context, WidgetRef ref, LibraryItem item) async {
+    final manifest = await _resolveManifest(ref, item.cid);
+    if (!context.mounted) return;
+    if (manifest == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Document not found in the local library.')),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ContentDetailScreen(manifest: manifest),
+      ),
+    );
+  }
+
+  Future<ContentManifest?> _resolveManifest(
+      WidgetRef ref, String cidOrUuid) async {
+    final db = ref.read(databaseProvider);
+
+    final versionMap = await db.getVersionByCid(cidOrUuid);
+    if (versionMap != null) {
+      final manifestId = versionMap['manifestId'] as int?;
+      if (manifestId == null) return null;
+      final manifests = await db.getAllManifests();
+      for (final manifest in manifests) {
+        if (manifest.id == manifestId) return manifest;
+      }
+      return null;
+    }
+
+    final manifestMap = await db.getManifestByUuid(cidOrUuid);
+    return manifestMap == null ? null : ContentManifest.fromJson(manifestMap);
+  }
+}
+
+String _formatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) {
+    return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
 }

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as p;
 import '../common/governance_badge.dart';
 import '../theme/app_theme.dart';
@@ -165,23 +164,26 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                         color: AppTheme.primaryAccent, size: 28),
                   ),
                   const SizedBox(width: 14),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Connect External AI Agents (ALX-006)',
-                          style: GoogleFonts.newsreader(
+                          style: TextStyle(
+                            fontFamily: 'Newsreader',
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textColor,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           '1-Click Model Context Protocol (MCP) configuration for Claude, Gemini, Cursor, and Windsurf.',
-                          style: GoogleFonts.inter(
-                              fontSize: 13, color: AppTheme.secondaryColor),
+                          style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              color: AppTheme.secondaryColor),
                         ),
                       ],
                     ),
@@ -212,16 +214,18 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                   border: Border.all(
                       color: AppTheme.honorColor.withValues(alpha: 0.35)),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(Icons.science_outlined,
+                    Icon(Icons.science_outlined,
                         size: 14, color: AppTheme.honorColor),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Dev simulator — requires --dev. Exposes mock data only: no live credits, payouts, or minting. The production tool surface runs inside the app.',
-                        style: GoogleFonts.inter(
-                            fontSize: 11, color: AppTheme.secondaryColor),
+                        style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            color: AppTheme.secondaryColor),
                       ),
                     ),
                   ],
@@ -240,8 +244,10 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
                   indicatorColor: AppTheme.primaryAccent,
                   labelColor: AppTheme.primaryAccent,
                   unselectedLabelColor: AppTheme.secondaryColor,
-                  labelStyle: GoogleFonts.jetBrainsMono(
-                      fontSize: 12, fontWeight: FontWeight.bold),
+                  labelStyle: const TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold),
                   tabs: [
                     const Tab(text: 'Claude Desktop'),
                     const Tab(text: 'Gemini CLI'),
@@ -272,17 +278,19 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
+                  const Expanded(
                     child: Row(
                       children: [
-                        const Icon(Icons.lock_outline,
+                        Icon(Icons.lock_outline,
                             size: 14, color: AppTheme.honorColor),
-                        const SizedBox(width: 6),
+                        SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             'Dev simulator • stdio / JSON-RPC 2.0 • mock data',
-                            style: GoogleFonts.jetBrainsMono(
-                                fontSize: 11, color: AppTheme.secondaryColor),
+                            style: TextStyle(
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 11,
+                                color: AppTheme.secondaryColor),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -333,7 +341,8 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
             children: [
               Text(
                 filename,
-                style: GoogleFonts.jetBrainsMono(
+                style: const TextStyle(
+                  fontFamily: 'JetBrainsMono',
                   fontSize: 11,
                   color: AppTheme.primaryAccent,
                   fontWeight: FontWeight.bold,
@@ -341,14 +350,14 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
               ),
               InkWell(
                 onTap: () => _copyToClipboard(code),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(Icons.copy,
-                        size: 13, color: AppTheme.secondaryColor),
-                    const SizedBox(width: 4),
+                    Icon(Icons.copy, size: 13, color: AppTheme.secondaryColor),
+                    SizedBox(width: 4),
                     Text(
                       'Copy',
-                      style: GoogleFonts.jetBrainsMono(
+                      style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
                         fontSize: 11,
                         color: AppTheme.secondaryColor,
                       ),
@@ -363,7 +372,8 @@ class _McpConfigExportDialogState extends State<McpConfigExportDialog>
             child: SingleChildScrollView(
               child: SelectableText(
                 code,
-                style: GoogleFonts.jetBrainsMono(
+                style: const TextStyle(
+                  fontFamily: 'JetBrainsMono',
                   fontSize: 12,
                   color: AppTheme.textColor,
                   height: 1.4,

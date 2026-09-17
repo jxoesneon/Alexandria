@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/governance_service.dart';
+import '../services/identity_service.dart';
+import 'common/identity_required_cta.dart';
 import 'theme/app_theme.dart';
 import 'widgets/glass_card.dart';
-import 'widgets/info_glass.dart';
 
 /// Provider for checking if current user can vote
 final canVoteProvider = FutureProvider<bool>((ref) async {
@@ -31,19 +32,7 @@ class GovernanceScreen extends ConsumerWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Row(
-          children: [
-            Text('THE PARLIAMENT'),
-            SizedBox(width: 8),
-            InfoGlass(
-              title: 'Governance',
-              description: 'Participate in decentralized governance. '
-                  'Create proposals, vote on changes, and shape the future of Alexandria.',
-              small: true,
-              color: AppTheme.primaryAccent,
-            ),
-          ],
-        ),
+        title: const Text('Parliament'),
         backgroundColor: Colors.transparent,
         actions: [
           canCreateAsync.when(
@@ -203,7 +192,7 @@ class GovernanceScreen extends ConsumerWidget {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: AppTheme.surfaceColor,
           title: const Text(
             'Create Proposal',
             style: TextStyle(color: Colors.white),
@@ -215,7 +204,7 @@ class GovernanceScreen extends ConsumerWidget {
               children: [
                 DropdownButtonFormField<ProposalType>(
                   initialValue: selectedType,
-                  dropdownColor: const Color(0xFF1E293B),
+                  dropdownColor: AppTheme.surfaceColor,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Proposal Type',
@@ -542,6 +531,7 @@ class _ProposalDetailSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final canVoteAsync = ref.watch(canVoteProvider);
+    final identityAsync = ref.watch(identityStateProvider);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -549,7 +539,7 @@ class _ProposalDetailSheet extends ConsumerWidget {
       maxChildSize: 0.95,
       builder: (context, scrollController) => Container(
         decoration: const BoxDecoration(
-          color: Color(0xFF1E293B),
+          color: AppTheme.surfaceColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SingleChildScrollView(
@@ -623,24 +613,28 @@ class _ProposalDetailSheet extends ConsumerWidget {
                             ),
                           ],
                         )
-                      : Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white10,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.info_outline, color: Colors.white54),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'You need at least 10 reputation and 30 days in the network to vote.',
-                                  style: TextStyle(color: Colors.white54),
+                      : identityAsync.when(
+                          data: (identity) => identity == null
+                              ? const IdentityRequiredCta.noIdentity()
+                              : const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'You need at least 10 reputation and 30 days in the network to vote.',
+                                      style: TextStyle(
+                                        color: Colors.white54,
+                                      ),
+                                    ),
+                                    SizedBox(height: 12),
+                                    IdentityRequiredCta
+                                        .insufficientReputation(),
+                                  ],
                                 ),
-                              ),
-                            ],
+                          loading: () => const Center(
+                            child: CircularProgressIndicator(),
                           ),
+                          error: (_, __) =>
+                              const IdentityRequiredCta.noIdentity(),
                         ),
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
@@ -648,13 +642,12 @@ class _ProposalDetailSheet extends ConsumerWidget {
                 ),
               const SizedBox(height: 24),
               // Vote Breakdown
-              const Text(
-                'VOTE BREAKDOWN',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                  letterSpacing: 2,
-                ),
+              Text(
+                'Vote breakdown',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: Colors.white54,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -691,7 +684,12 @@ class _ProposalDetailSheet extends ConsumerWidget {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'Vote recorded!' : 'Failed to vote'),
+          content: Text(
+            success ? 'Vote recorded!' : 'Failed to vote',
+            style: TextStyle(
+              color: success ? Colors.white : AppTheme.canvasColor,
+            ),
+          ),
           backgroundColor: success ? AppTheme.honorColor : AppTheme.dangerColor,
         ),
       );

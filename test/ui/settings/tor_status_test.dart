@@ -29,6 +29,9 @@ class _FakeSecureStorageService implements SecureStorageService {
 
 class _FakeIpfsService implements IpfsService {
   @override
+  int get storedBytes => 0;
+
+  @override
   Future<bool> runGc() async => true;
 
   @override

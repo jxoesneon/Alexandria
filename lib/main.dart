@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'ui/theme/app_theme.dart';
-import 'ui/scaffold/main_scaffold.dart';
+import 'ui/app_entry_gate.dart';
+import 'logic/settings_logic.dart';
 import 'services/network_overview_service.dart';
 import 'services/preservation_service.dart';
 import 'services/web_node_service.dart';
@@ -35,6 +36,13 @@ class _AlexandriaAppState extends ConsumerState<AlexandriaApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Restore persisted settings (theme/motion); defaults apply if
+      // the read fails - node startup must not depend on it.
+      try {
+        await ref.read(settingsProvider.notifier).loadSettings();
+      } catch (_) {
+        // Non-fatal: AppSettings defaults still apply.
+      }
       // Full node start: IPFS engine + mesh listener + bootstrap
       // auto-dial + rendezvous announce (see NetworkOverviewService).
       await ref.read(networkOverviewServiceProvider).startNode();
@@ -58,12 +66,13 @@ class _AlexandriaAppState extends ConsumerState<AlexandriaApp> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider);
     return MaterialApp(
       title: 'Alexandria',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
-      home: const MainScaffold(),
+      themeMode: settings.themeMode,
+      home: const AppEntryGate(),
       debugShowCheckedModeBanner: false,
     );
   }

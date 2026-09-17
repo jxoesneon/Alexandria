@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../services/credits/credit_service.dart';
 import '../../services/credits/poch_service.dart';
 import '../../services/seed/starter_seed_service.dart';
@@ -125,9 +124,10 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
+                      const Text(
                         'Alexandria Onboarding',
-                        style: GoogleFonts.newsreader(
+                        style: TextStyle(
+                          fontFamily: 'Newsreader',
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.textColor,
@@ -223,19 +223,23 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Decentralized Archival Infrastructure & Common Heritage',
-            style: GoogleFonts.newsreader(
+            style: TextStyle(
+              fontFamily: 'Newsreader',
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: AppTheme.textColor,
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Alexandria is an immutable, peer-to-peer preservation network operating under the statutory non-profit safe harbor of 17 U.S.C. § 108, 17 U.S.C. § 512, and the Marrakesh Treaty. Governed under the five-pillar governance architectural standard.',
-            style: GoogleFonts.inter(
-                fontSize: 13, height: 1.6, color: AppTheme.textColor),
+            style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 13,
+                height: 1.6,
+                color: AppTheme.textColor),
           ),
           const SizedBox(height: 16),
           const GovernanceBanner(),
@@ -248,16 +252,18 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
               border: Border.all(
                   color: AppTheme.secondaryColor.withValues(alpha: 0.2)),
             ),
-            child: Row(
+            child: const Row(
               children: [
-                const Icon(Icons.verified_user_outlined,
+                Icon(Icons.verified_user_outlined,
                     color: AppTheme.honorColor, size: 20),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Zero corporate trackers, zero speculative tokens, and zero proprietary lock-in. Content is verified by cryptographic multihashes (CIDv1).',
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: AppTheme.secondaryColor),
+                    style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        color: AppTheme.secondaryColor),
                   ),
                 ),
               ],
@@ -276,18 +282,22 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Your Common Heritage Grant',
-            style: GoogleFonts.newsreader(
+            style: TextStyle(
+                fontFamily: 'Newsreader',
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textColor),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Every new node receives an initial allocation of Archival Credits (ℭ) to query the swarm, harvest papers, and request remote replication.',
-            style: GoogleFonts.inter(
-                fontSize: 14, height: 1.6, color: AppTheme.textColor),
+            style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                height: 1.6,
+                color: AppTheme.textColor),
           ),
           const SizedBox(height: 16),
           Container(
@@ -319,28 +329,34 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Current Available Balance',
-                        style: GoogleFonts.inter(
-                            fontSize: 12, color: AppTheme.secondaryColor)),
+                    const Text('Current Available Balance',
+                        style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                            color: AppTheme.secondaryColor)),
                     Text(
                       '${balance.toStringAsFixed(1)} ℭ',
-                      style: GoogleFonts.jetBrainsMono(
+                      style: const TextStyle(
+                          fontFamily: 'JetBrainsMono',
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.primaryAccent),
                     ),
                     Text(
                         '≈ ${(balance * 10).toInt()} Sats Parity (1 ℭ = 10 Sats)',
-                        style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11, color: AppTheme.honorColor)),
+                        style: const TextStyle(
+                            fontFamily: 'JetBrainsMono',
+                            fontSize: 11,
+                            color: AppTheme.honorColor)),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          Text('How You Earn More Credits:',
-              style: GoogleFonts.newsreader(
+          const Text('How You Earn More Credits:',
+              style: TextStyle(
+                  fontFamily: 'Newsreader',
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textColor)),
@@ -369,8 +385,10 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
           Expanded(
             child: Text.rich(
               TextSpan(
-                style:
-                    GoogleFonts.inter(fontSize: 12, color: AppTheme.textColor),
+                style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    color: AppTheme.textColor),
                 children: [
                   TextSpan(
                       text: '$title: ',
@@ -393,18 +411,22 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Proof of Common Heritage (PoCH)',
-            style: GoogleFonts.newsreader(
+            style: TextStyle(
+                fontFamily: 'Newsreader',
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textColor),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'To maintain an un-censorable library, every node contributes a mandatory minimum baseline of 1.0 GB local storage cache. Nodes with PoCH ≥ 1.0 enjoy unthrottled maximum download speeds.',
-            style: GoogleFonts.inter(
-                fontSize: 14, height: 1.6, color: AppTheme.textColor),
+            style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                height: 1.6,
+                color: AppTheme.textColor),
           ),
           const SizedBox(height: 20),
           Container(
@@ -421,14 +443,16 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Node Storage Cache Limit:',
-                        style: GoogleFonts.inter(
+                    const Text('Node Storage Cache Limit:',
+                        style: TextStyle(
+                            fontFamily: 'Inter',
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.textColor)),
                     Text(
                       '${_storageAllocationGb.toStringAsFixed(1)} GB',
-                      style: GoogleFonts.jetBrainsMono(
+                      style: const TextStyle(
+                          fontFamily: 'JetBrainsMono',
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.primaryAccent),
@@ -446,33 +470,39 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                     setState(() => _storageAllocationGb = val);
                   },
                 ),
-                Row(
+                const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('0.5 GB',
-                        style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10, color: AppTheme.secondaryColor)),
+                        style: TextStyle(
+                            fontFamily: 'JetBrainsMono',
+                            fontSize: 10,
+                            color: AppTheme.secondaryColor)),
                     Text('1.0 GB Target',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: TextStyle(
+                            fontFamily: 'JetBrainsMono',
                             fontSize: 10,
                             color: AppTheme.honorColor,
                             fontWeight: FontWeight.bold)),
                     Text('10.0 GB',
-                        style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10, color: AppTheme.secondaryColor)),
+                        style: TextStyle(
+                            fontFamily: 'JetBrainsMono',
+                            fontSize: 10,
+                            color: AppTheme.secondaryColor)),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.speed, color: AppTheme.honorColor, size: 18),
-              const SizedBox(width: 8),
+              Icon(Icons.speed, color: AppTheme.honorColor, size: 18),
+              SizedBox(width: 8),
               Text(
                 'QoS Status: 1.0x Full Line Speed (Unthrottled)',
-                style: GoogleFonts.jetBrainsMono(
+                style: TextStyle(
+                    fontFamily: 'JetBrainsMono',
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.honorColor),
@@ -493,18 +523,22 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             '1-Click Starter Archive Packs',
-            style: GoogleFonts.newsreader(
+            style: TextStyle(
+                fontFamily: 'Newsreader',
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textColor),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Start with a pre-indexed collection of public-domain and open-access landmark works so your library is immediately alive.',
-            style: GoogleFonts.inter(
-                fontSize: 14, height: 1.6, color: AppTheme.textColor),
+            style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                height: 1.6,
+                color: AppTheme.textColor),
           ),
           const SizedBox(height: 14),
           ...packs.map((pack) {
@@ -549,7 +583,8 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                               Expanded(
                                 child: Text(
                                   pack.name,
-                                  style: GoogleFonts.inter(
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: AppTheme.textColor,
@@ -567,7 +602,8 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                                 ),
                                 child: Text(
                                   '${pack.documents.length} Works • ~${pack.estimatedSizeMb} MB download',
-                                  style: GoogleFonts.jetBrainsMono(
+                                  style: const TextStyle(
+                                    fontFamily: 'JetBrainsMono',
                                     fontSize: 10,
                                     color: AppTheme.primaryAccent,
                                   ),
@@ -578,7 +614,8 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                           const SizedBox(height: 4),
                           Text(
                             pack.description,
-                            style: GoogleFonts.inter(
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
                               fontSize: 12,
                               color: AppTheme.secondaryColor,
                             ),
@@ -621,13 +658,14 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                     size: 20,
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Clean Slate (Start Empty)',
-                          style: GoogleFonts.inter(
+                          style: TextStyle(
+                            fontFamily: 'Inter',
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textColor,
@@ -635,7 +673,8 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
                         ),
                         Text(
                           'Begin with an empty library and ingest documents or harvest DOIs manually.',
-                          style: GoogleFonts.inter(
+                          style: TextStyle(
+                            fontFamily: 'Inter',
                             fontSize: 12,
                             color: AppTheme.secondaryColor,
                           ),
@@ -659,9 +698,10 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
         children: [
           const CircularProgressIndicator(color: AppTheme.primaryAccent),
           const SizedBox(height: 20),
-          Text(
+          const Text(
             'Initializing Alexandria Commons...',
-            style: GoogleFonts.newsreader(
+            style: TextStyle(
+                fontFamily: 'Newsreader',
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textColor),
@@ -669,8 +709,10 @@ class _FirstRunWizardDialogState extends ConsumerState<FirstRunWizardDialog> {
           const SizedBox(height: 8),
           Text(
             _statusMessage ?? 'Please wait...',
-            style: GoogleFonts.jetBrainsMono(
-                fontSize: 12, color: AppTheme.secondaryColor),
+            style: const TextStyle(
+                fontFamily: 'JetBrainsMono',
+                fontSize: 12,
+                color: AppTheme.secondaryColor),
             textAlign: TextAlign.center,
           ),
         ],

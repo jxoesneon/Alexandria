@@ -10,9 +10,13 @@ import 'package:alexandria/services/ipfs_service.dart';
 import 'package:alexandria/services/knowledge_graph_service.dart';
 import 'package:alexandria/services/preservation_service.dart';
 import 'package:alexandria/ui/content_detail_screen.dart';
+import 'package:alexandria/ui/library/content_viewer_screen.dart';
 import 'package:alexandria/ui/theme/app_theme.dart';
 
 class _FakeIpfs implements IpfsService {
+  @override
+  int get storedBytes => 0;
+
   _FakeIpfs({this.bytes});
 
   final List<int>? bytes;
@@ -248,16 +252,20 @@ void main() {
     Future<void> openActionDialog(WidgetTester tester) async {
       await tester.tap(find.text('PDF').first);
       await tester.pumpAndSettle();
-      expect(find.text('Verify Content'), findsOneWidget);
+      expect(find.text('Content Actions'), findsOneWidget);
     }
 
-    testWidgets('View on a non-viewable format asks for an external viewer',
+    testWidgets('Read opens the in-app reader on the preferred edition',
         (tester) async {
-      await pumpScreen(tester, manifest: _manifest(category: 'blend'));
-      await tester.tap(find.widgetWithText(OutlinedButton, 'View'));
-      await tester.pumpAndSettle();
-      expect(
-          find.textContaining('requires an external viewer'), findsOneWidget);
+      await pumpScreen(
+        tester,
+        manifest: _manifest(category: 'blend'),
+        versions: [_version('cid-v1')],
+      );
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Read'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(ContentViewerScreen), findsOneWidget);
     });
 
     testWidgets('Open in… fails cleanly when no valid CID exists',

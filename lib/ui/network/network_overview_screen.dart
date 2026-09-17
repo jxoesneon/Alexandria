@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/network_models.dart';
 import '../../providers/network_providers.dart';
 import '../../services/network_overview_service.dart';
+import '../common/alexandria_app_bar.dart';
+import '../governance_screen.dart';
 import 'peer_discovery_screen.dart';
 import 'sync_conflict_screen.dart';
 import 'transports_config_screen.dart';
@@ -19,10 +21,8 @@ class NetworkOverviewScreen extends ConsumerWidget {
     final textTheme = theme.textTheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Node Operations Dashboard'),
-        elevation: 0,
-        scrolledUnderElevation: 0,
+      appBar: alexandriaAppBar(
+        title: 'Node Operations Dashboard',
         actions: [
           IconButton(
             icon: const Icon(Icons.people_outline),
@@ -92,6 +92,43 @@ class NetworkOverviewScreen extends ConsumerWidget {
               data: (stats) => _buildBandwidthCard(context, stats),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Text('Failed to load telemetry: $err'),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              'Governance',
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                side: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.4),
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 8.0,
+                ),
+                leading: const Icon(Icons.how_to_vote_outlined),
+                title: const Text('The Parliament'),
+                subtitle: const Text(
+                  'Protocol proposals, votes, and ratified governance',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const GovernanceScreen(),
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),

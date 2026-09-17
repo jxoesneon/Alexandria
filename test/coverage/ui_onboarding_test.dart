@@ -229,13 +229,14 @@ void main() {
 
 /// Fills the import dialog's 24 lazily-built word fields by writing to
 /// each visible [TextField]'s public controller, scrolling the grid to
-/// build the remaining cells.
+/// build the remaining cells. Scoped to the grid so the paste-all
+/// phrase field above it is not mistaken for a word field.
 Future<void> fillWordFields(WidgetTester tester, List<String> words) async {
   var i = 0;
   var guard = 0;
   while (i < 24 && guard++ < 12) {
     final fields = find
-        .byType(TextField)
+        .descendant(of: find.byType(GridView), matching: find.byType(TextField))
         .evaluate()
         .map((e) => e.widget as TextField)
         .toList();
@@ -253,7 +254,8 @@ Future<void> fillWordFields(WidgetTester tester, List<String> words) async {
     if (!filledThisPass) {
       // Guard against a grid that won't scroll further.
       final remaining = find
-          .byType(TextField)
+          .descendant(
+              of: find.byType(GridView), matching: find.byType(TextField))
           .evaluate()
           .map((e) => e.widget as TextField)
           .where((tf) => (tf.controller?.text ?? '').isEmpty)

@@ -23,8 +23,16 @@ void main() {
       );
 
       expect(find.byType(InkWell), findsOneWidget);
-      expect(tester.getSemantics(find.text('Accessible Action Item')),
-          matchesSemantics(label: 'Accessible Action Item'));
+      expect(
+        tester.getSemantics(find.text('Accessible Action Item')),
+        matchesSemantics(
+          label: 'Accessible Action Item',
+          isButton: true,
+          isFocusable: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+        ),
+      );
     });
 
     testWidgets('InfoGlass structure provides clear semantic hierarchy',

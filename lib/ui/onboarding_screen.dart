@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../providers/security_providers.dart';
 import '../services/identity_service.dart';
 import '../services/mnemonic_service.dart';
@@ -9,6 +8,7 @@ import '../services/biometric_service.dart';
 import '../services/secure_storage_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/glass_card.dart';
+import 'onboarding/first_run_wizard_dialog.dart';
 import 'scaffold/main_scaffold.dart';
 
 /// Onboarding state
@@ -33,6 +33,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _isCreating = false;
   bool _isImporting = false;
   final _mnemonicController = TextEditingController();
+  final _pasteAllController = TextEditingController();
   final List<TextEditingController> _wordControllers = List.generate(
     24,
     (_) => TextEditingController(),
@@ -41,6 +42,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   void dispose() {
     _mnemonicController.dispose();
+    _pasteAllController.dispose();
     for (final controller in _wordControllers) {
       controller.dispose();
     }
@@ -52,19 +54,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final step = ref.watch(onboardingStepProvider);
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0B1021), Color(0xFF1E293B)],
-          ),
-        ),
-        child: SafeArea(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 400),
-            child: _buildStep(step),
-          ),
+      backgroundColor: AppTheme.canvasColor,
+      body: SafeArea(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          child: _buildStep(step),
         ),
       ),
     );
@@ -95,18 +89,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(
-            Icons.local_library,
+            Icons.auto_stories,
             size: 120,
             color: AppTheme.primaryAccent,
           ),
           const SizedBox(height: 32),
-          Text(
+          const Text(
             'Alexandria',
-            style: GoogleFonts.orbitron(
+            style: TextStyle(
+              fontFamily: 'Newsreader',
               fontSize: 36,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryAccent,
-              letterSpacing: 0,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.5,
+              color: AppTheme.textColor,
             ),
           ),
           const SizedBox(height: 16),
@@ -121,10 +116,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           const SizedBox(height: 48),
           Text(
-            'A decentralized library where every piece of knowledge is immutable, verifiable, and eternal.',
+            'A decentralized library where every edition is content-addressed and verified against its CID.',
             style: Theme.of(
               context,
-            ).textTheme.bodyLarge?.copyWith(color: Colors.white54),
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.secondaryColor),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 64),
@@ -169,7 +164,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             'It cannot be duplicated, forged, or revoked by anyone.',
             style: Theme.of(
               context,
-            ).textTheme.bodyLarge?.copyWith(color: Colors.white54),
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.secondaryColor),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 48),
@@ -209,7 +204,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
-                              ?.copyWith(color: Colors.white54),
+                              ?.copyWith(color: AppTheme.secondaryColor),
                         ),
                       ],
                     ),
@@ -221,7 +216,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   else
-                    const Icon(Icons.arrow_forward_ios, color: Colors.white54),
+                    const Icon(Icons.arrow_forward_ios,
+                        color: AppTheme.secondaryColor),
                 ],
               ),
             ),
@@ -265,12 +261,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
-                              ?.copyWith(color: Colors.white54),
+                              ?.copyWith(color: AppTheme.secondaryColor),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios, color: Colors.white54),
+                  const Icon(Icons.arrow_forward_ios,
+                      color: AppTheme.secondaryColor),
                 ],
               ),
             ),
@@ -301,7 +298,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             'Your unique cryptographic identity has been generated and securely stored.',
             style: Theme.of(
               context,
-            ).textTheme.bodyLarge?.copyWith(color: Colors.white54),
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.secondaryColor),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
@@ -321,7 +318,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 const SizedBox(width: 12),
                 Text(
                   'Ed25519 Keypair Generated',
-                  style: GoogleFonts.firaCode(
+                  style: TextStyle(
+                    fontFamily: 'JetBrainsMono',
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 14,
                   ),
@@ -349,7 +347,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 OnboardingStep.biometric,
             child: const Text(
               'Skip for now',
-              style: TextStyle(color: Colors.white54),
+              style: TextStyle(color: AppTheme.secondaryColor),
             ),
           ),
         ],
@@ -443,9 +441,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                   Expanded(
                                     child: Text(
                                       mnemonic[index],
-                                      style: GoogleFonts.firaCode(
+                                      style: const TextStyle(
+                                        fontFamily: 'JetBrainsMono',
                                         color: Colors.white,
-                                        fontSize: 12,
+                                        fontSize: 14,
                                       ),
                                     ),
                                   ),
@@ -543,7 +542,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             'Enable biometric authentication to protect your identity and content.',
             style: Theme.of(
               context,
-            ).textTheme.bodyLarge?.copyWith(color: Colors.white54),
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.secondaryColor),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 48),
@@ -559,9 +558,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           const SizedBox(height: 16),
           TextButton(
-            onPressed: () => ref.read(onboardingStepProvider.notifier).state =
-                OnboardingStep.complete,
-            child: const Text('Skip', style: TextStyle(color: Colors.white54)),
+            onPressed: () async {
+              // Skipping still ends onboarding - record it so the gate
+              // doesn't loop back to the welcome flow on next launch.
+              final secureStorage = ref.read(secureStorageServiceProvider);
+              await secureStorage.write('has_seen_onboarding', 'true');
+              ref.read(onboardingStepProvider.notifier).state =
+                  OnboardingStep.complete;
+            },
+            child: const Text('Skip',
+                style: TextStyle(color: AppTheme.secondaryColor)),
           ),
         ],
       ),
@@ -597,10 +603,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'You are now part of the eternal library. Your contributions will be immutable and verifiable forever.',
+            'You are ready. Editions you publish are content-addressed and signed by your key.',
             style: Theme.of(
               context,
-            ).textTheme.bodyLarge?.copyWith(color: Colors.white54),
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.secondaryColor),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 48),
@@ -610,6 +616,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               final secureStorage = ref.read(secureStorageServiceProvider);
               await secureStorage.write('has_seen_onboarding', 'true');
 
+              if (!mounted) return;
+              // First-run setup (credits/PoCH/seed ingest) runs as a
+              // dialog before landing on the library.
+              await FirstRunWizardDialog.show(context);
               if (mounted) {
                 await Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => const MainScaffold()),
@@ -637,7 +647,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: AppTheme.surfaceColor,
         title: const Text(
           'Replace existing identity?',
           style: TextStyle(color: Colors.white),
@@ -743,14 +753,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: AppTheme.surfaceColor,
         title: const Text(
           'Import Recovery Phrase',
           style: TextStyle(color: Colors.white),
         ),
         content: SizedBox(
           width: 400,
-          height: 400,
+          height: 440,
           child: Column(
             children: [
               Text(
@@ -760,6 +770,37 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              TextField(
+                controller: _pasteAllController,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Paste all 24 words separated by spaces',
+                  hintStyle:
+                      const TextStyle(color: Colors.white38, fontSize: 14),
+                  prefixIcon: const Icon(
+                    Icons.content_paste,
+                    size: 18,
+                    color: Colors.white38,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white10,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+                onChanged: (text) {
+                  if (text.trim().split(RegExp(r'\s+')).length > 1) {
+                    _distributePastedWords(text);
+                  }
+                },
+                onSubmitted: _distributePastedWords,
+              ),
+              const SizedBox(height: 12),
               Expanded(
                 child: GridView.builder(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -772,12 +813,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   itemBuilder: (context, index) {
                     return TextField(
                       controller: _wordControllers[index],
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
                       decoration: InputDecoration(
                         prefixText: '${index + 1}. ',
                         prefixStyle: const TextStyle(
                           color: Colors.white38,
-                          fontSize: 11,
+                          fontSize: 12,
                         ),
                         filled: true,
                         fillColor: Colors.white10,
@@ -818,6 +859,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ],
       ),
     );
+  }
+
+  /// Distributes a pasted phrase across the per-word fields so users can
+  /// paste the whole recovery phrase at once instead of typing 24 cells.
+  void _distributePastedWords(String raw) {
+    final words = raw
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList();
+    if (words.isEmpty) return;
+    for (var i = 0; i < _wordControllers.length; i++) {
+      _wordControllers[i].text = i < words.length ? words[i] : '';
+    }
+    _pasteAllController.clear();
   }
 
   Future<void> _importMnemonic(List<String> words) async {

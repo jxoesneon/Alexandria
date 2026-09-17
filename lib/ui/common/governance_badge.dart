@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../governance_screen.dart';
 import '../theme/app_theme.dart';
 
 /// The Five Governance Voices
@@ -114,15 +114,17 @@ class GovernanceBanner extends StatelessWidget {
                   children: [
                     Text(
                       'Alexandria Protocol Governance',
-                      style: GoogleFonts.newsreader(
+                      style: TextStyle(
+                        fontFamily: 'Newsreader',
                         fontSize: compact ? 15 : 17,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textColor,
                       ),
                     ),
-                    Text(
+                    const Text(
                       'Unanimously Ratified Protocol',
-                      style: GoogleFonts.inter(
+                      style: TextStyle(
+                        fontFamily: 'Inter',
                         fontSize: 11,
                         color: AppTheme.secondaryColor,
                       ),
@@ -139,15 +141,16 @@ class GovernanceBanner extends StatelessWidget {
                     color: AppTheme.honorColor.withValues(alpha: 0.4),
                   ),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.check_circle_outline,
+                    Icon(Icons.check_circle_outline,
                         color: AppTheme.honorColor, size: 12),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     Text(
                       'Active',
-                      style: GoogleFonts.jetBrainsMono(
+                      style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.honorColor,
@@ -193,7 +196,8 @@ class GovernanceBanner extends StatelessWidget {
                         const SizedBox(width: 6),
                         Text(
                           voice.name,
-                          style: GoogleFonts.jetBrainsMono(
+                          style: TextStyle(
+                            fontFamily: 'JetBrainsMono',
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: voice.color,
@@ -226,7 +230,8 @@ class GovernanceBanner extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               '${voice.name} Voice',
-              style: GoogleFonts.newsreader(
+              style: const TextStyle(
+                fontFamily: 'Newsreader',
                 fontSize: 20,
                 color: AppTheme.textColor,
                 fontWeight: FontWeight.bold,
@@ -246,7 +251,8 @@ class GovernanceBanner extends StatelessWidget {
               ),
               child: Text(
                 voice.mandate,
-                style: GoogleFonts.jetBrainsMono(
+                style: TextStyle(
+                  fontFamily: 'JetBrainsMono',
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: voice.color,
@@ -256,7 +262,8 @@ class GovernanceBanner extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               voice.description,
-              style: GoogleFonts.inter(
+              style: const TextStyle(
+                fontFamily: 'Inter',
                 fontSize: 13,
                 height: 1.5,
                 color: AppTheme.textColor,
@@ -276,36 +283,60 @@ class GovernanceBanner extends StatelessWidget {
   }
 }
 
-/// Compact row of 5 colored dots/icons for headers and app bars
+/// Compact row of 5 colored dots/icons for headers and app bars.
+///
+/// Doubles as the reachability affordance for protocol governance: tapping
+/// the row opens [GovernanceScreen] (the Parliament) unless [onTap]
+/// overrides the default navigation.
 class GovernancePillRow extends StatelessWidget {
-  const GovernancePillRow({super.key});
+  const GovernancePillRow({super.key, this.onTap});
+
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: GovernanceVoice.values.map((v) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2.5),
-          child: Tooltip(
-            message: '${v.name} Voice: ${v.mandate}',
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: v.color,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: v.color.withValues(alpha: 0.5),
-                    blurRadius: 4,
+    return Tooltip(
+      message: 'Protocol Governance — open the Parliament',
+      child: InkWell(
+        onTap: onTap ??
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const GovernanceScreen(),
+                ),
+              );
+            },
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 6.0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: GovernanceVoice.values.map((v) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                child: Tooltip(
+                  message: '${v.name} Voice: ${v.mandate}',
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: v.color,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: v.color.withValues(alpha: 0.5),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            }).toList(),
           ),
-        );
-      }).toList(),
+        ),
+      ),
     );
   }
 }

@@ -37,12 +37,13 @@ class GlassCard extends StatelessWidget {
 
     if (onTap == null) return content;
 
-    return InkWell(
-      onTap: onTap,
-      canRequestFocus: false,
-      excludeFromSemantics: true,
-      borderRadius: BorderRadius.circular(12.0),
-      child: content,
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12.0),
+        child: content,
+      ),
     );
   }
 }

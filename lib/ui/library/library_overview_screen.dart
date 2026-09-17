@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/database.dart';
 import '../../models/library_models.dart';
 import '../../providers/library_providers.dart';
 import '../../services/sync_service.dart';
+import '../add_content_screen.dart';
+import '../common/alexandria_app_bar.dart';
+import '../content_detail_screen.dart';
+import '../scriptorium/creation_wizard.dart';
+import '../widgets/glass_card.dart';
 import 'collections_shelves_screen.dart';
 import 'content_viewer_screen.dart';
 import 'discovery_search_screen.dart';
@@ -27,10 +33,8 @@ class LibraryOverviewScreen extends ConsumerWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Library'),
-        elevation: 0,
-        scrolledUnderElevation: 0,
+      appBar: alexandriaAppBar(
+        title: 'Library',
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
@@ -43,6 +47,11 @@ class LibraryOverviewScreen extends ConsumerWidget {
                     ?.copyWith(color: syncColor),
               ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Add to Library',
+            onPressed: () => _showAddChooser(context),
           ),
           IconButton(
             icon: const Icon(Icons.search),
@@ -87,7 +96,7 @@ class LibraryOverviewScreen extends ConsumerWidget {
             _buildSectionTitle(context, 'Continue Reading'),
             const SizedBox(height: 16),
             recentItemsAsync.when(
-              data: (items) => _buildRecentItemsCarousel(context, items),
+              data: (items) => _buildRecentItemsCarousel(context, ref, items),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Text('Failed to load recent items: $err'),
             ),
@@ -95,7 +104,7 @@ class LibraryOverviewScreen extends ConsumerWidget {
             _buildSectionTitle(context, 'New Arrivals'),
             const SizedBox(height: 16),
             newArrivalsAsync.when(
-              data: (items) => _buildNewArrivalsFeed(context, items),
+              data: (items) => _buildNewArrivalsFeed(context, ref, items),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Text('Failed to load new arrivals: $err'),
             ),
@@ -181,8 +190,79 @@ class LibraryOverviewScreen extends ConsumerWidget {
     );
   }
 
+  void _showAddChooser(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GlassCard(
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddContentScreen(),
+                    ),
+                  );
+                },
+                child: const ListTile(
+                  leading: Icon(Icons.file_upload_outlined),
+                  title: Text('Import files'),
+                  subtitle: Text('Import documents, books, audio, or datasets'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              GlassCard(
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CreationWizard(),
+                    ),
+                  );
+                },
+                child: const ListTile(
+                  leading: Icon(Icons.edit_outlined),
+                  title: Text('Author content'),
+                  subtitle: Text('Write a new document for your library'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openLibraryItem(
+    BuildContext context,
+    WidgetRef ref,
+    LibraryItem item,
+  ) async {
+    ContentManifest? manifest;
+    try {
+      manifest = await ref.read(manifestForCidProvider(item.cid).future);
+    } catch (_) {
+      manifest = null;
+    }
+    if (!context.mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => manifest == null
+            ? ContentViewerScreen(documentCid: item.cid)
+            : ContentDetailScreen(manifest: manifest),
+      ),
+    );
+  }
+
   Widget _buildRecentItemsCarousel(
-      BuildContext context, List<LibraryItem> items) {
+      BuildContext context, WidgetRef ref, List<LibraryItem> items) {
     if (items.isEmpty) {
       return const Center(
         child: Padding(
@@ -200,18 +280,53 @@ class LibraryOverviewScreen extends ConsumerWidget {
         separatorBuilder: (context, index) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final item = items[index];
-          return _buildItemCard(context, item, showProgress: true);
+          return _buildItemCard(context, ref, item, showProgress: true);
         },
       ),
     );
   }
 
-  Widget _buildNewArrivalsFeed(BuildContext context, List<LibraryItem> items) {
+  Widget _buildNewArrivalsFeed(
+      BuildContext context, WidgetRef ref, List<LibraryItem> items) {
     if (items.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text('No items in the library yet.'),
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            children: [
+              const Text('No items in the library yet.'),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AddContentScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.file_upload_outlined, size: 18),
+                    label: const Text('Import files'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DiscoverySearchScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.travel_explore, size: 18),
+                    label: const Text('Search the commons'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -228,26 +343,20 @@ class LibraryOverviewScreen extends ConsumerWidget {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        return _buildItemCard(context, item, showProgress: false);
+        return _buildItemCard(context, ref, item, showProgress: false);
       },
     );
   }
 
   Widget _buildItemCard(
     BuildContext context,
+    WidgetRef ref,
     LibraryItem item, {
     required bool showProgress,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ContentViewerScreen(documentCid: item.cid),
-          ),
-        );
-      },
+      onTap: () => _openLibraryItem(context, ref, item),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         width: 300,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../data/database.dart';
 import '../providers/security_providers.dart';
 import '../services/identity_service.dart';
@@ -50,48 +49,55 @@ class ProfileScreen extends ConsumerWidget {
     final theme = AppTheme.darkTheme;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(
-          'DIGITAL IDENTITY',
-          style: theme.textTheme.headlineSmall?.copyWith(
-            letterSpacing: 3,
-            color: AppTheme.primaryAccent,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        title: const Text('Identity'),
+        elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.backup),
             tooltip: 'Backup Identity',
             onPressed: () => _showBackupDialog(context, ref),
           ),
-          IconButton(icon: const Icon(Icons.share), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'Copy public key',
+            onPressed: () => _sharePublicKey(context, identityAsync.value),
+          ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0B1021), Color(0xFF1E293B)],
-          ),
+      body: identityAsync.when(
+        data: (identity) => _buildContent(
+          context,
+          ref,
+          identity,
+          reputation,
+          pinnedCount,
+          theme,
         ),
-        child: identityAsync.when(
-          data: (identity) => _buildContent(
-            context,
-            ref,
-            identity,
-            reputation,
-            pinnedCount,
-            theme,
-          ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
-        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e')),
       ),
     );
+  }
+
+  Future<void> _sharePublicKey(
+    BuildContext context,
+    AlexandriaIdentity? identity,
+  ) async {
+    final publicKey = identity?.publicKeyBase58;
+    if (publicKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No identity to share yet.')),
+      );
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: publicKey));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Public key copied to clipboard')),
+      );
+    }
   }
 
   Widget _buildContent(
@@ -104,9 +110,10 @@ class ProfileScreen extends ConsumerWidget {
   ) {
     final publicKeyDisplay = identity?.publicKeyBase58 ?? 'No Identity';
     final shortId = identity?.shortId ?? '???';
+    final storedBytes = ref.watch(ipfsServiceProvider).storedBytes;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 100, 24, 120),
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
           // Profile Header
@@ -126,7 +133,7 @@ class ProfileScreen extends ConsumerWidget {
                           border: Border.all(
                             color: identity != null
                                 ? AppTheme.primaryAccent
-                                : Colors.grey,
+                                : AppTheme.secondaryColor,
                             width: 2,
                           ),
                           boxShadow: [
@@ -145,7 +152,7 @@ class ProfileScreen extends ConsumerWidget {
                           size: 40,
                           color: identity != null
                               ? AppTheme.primaryAccent
-                              : Colors.grey,
+                              : AppTheme.secondaryColor,
                         ),
                       ),
                       const SizedBox(width: 24),
@@ -157,11 +164,11 @@ class ProfileScreen extends ConsumerWidget {
                             Row(
                               children: [
                                 Text(
-                                  identity != null ? 'VERIFIED' : 'UNVERIFIED',
+                                  identity != null ? 'ACTIVE' : 'NO IDENTITY',
                                   style: TextStyle(
                                     color: identity != null
                                         ? AppTheme.primaryAccent
-                                        : Colors.grey,
+                                        : AppTheme.secondaryColor,
                                     letterSpacing: 2,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -184,8 +191,8 @@ class ProfileScreen extends ConsumerWidget {
                               identity != null
                                   ? 'Archivist $shortId'
                                   : 'Create Identity',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
+                              style: theme.textTheme.displayMedium?.copyWith(
+                                fontSize: 22,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -204,7 +211,8 @@ class ProfileScreen extends ConsumerWidget {
                                 publicKeyDisplay.length > 20
                                     ? '${publicKeyDisplay.substring(0, 16)}...'
                                     : publicKeyDisplay,
-                                style: GoogleFonts.firaCode(
+                                style: const TextStyle(
+                                  fontFamily: 'JetBrainsMono',
                                   fontSize: 10,
                                   color: AppTheme.primaryAccent,
                                 ),
@@ -253,7 +261,7 @@ class ProfileScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  const Divider(color: Colors.white10),
+                  const Divider(color: AppTheme.surfaceColor),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -272,9 +280,9 @@ class ProfileScreen extends ConsumerWidget {
                         hint:
                             'Number of unique CIDs you have permanently pinned.',
                       ),
-                      const _StatItem(
+                      _StatItem(
                         label: 'STORAGE',
-                        value: '1.2GB',
+                        value: _formatBytes(storedBytes),
                         color: AppTheme.secondaryColor,
                         hint:
                             'Total disk space used by your pinned IPFS blocks.',
@@ -295,62 +303,41 @@ class ProfileScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'PRESERVATION ACTIVITY',
-                    style: TextStyle(
-                      color: AppTheme.primaryAccent.withValues(alpha: 0.8),
-                      letterSpacing: 2,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                    'Preservation activity',
+                    style: theme.textTheme.displayMedium?.copyWith(
+                      fontSize: 18,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const SizedBox(
+                  SizedBox(
                     height: 110,
-                    child: ContributionGraph(activityData: {}),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Badges Section
-          GlassCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'EARNED BADGES',
-                    style: TextStyle(
-                      color: AppTheme.primaryAccent.withValues(alpha: 0.8),
-                      letterSpacing: 2,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _Badge(
-                        icon: Icons.shield,
-                        label: 'Guardian',
-                        color: Colors.amber,
-                      ),
-                      _Badge(
-                        icon: Icons.auto_stories,
-                        label: 'Keeper',
-                        color: Colors.blue,
-                      ),
-                      _Badge(
-                        icon: Icons.visibility,
-                        label: 'Watchful',
-                        color: Colors.green,
-                      ),
-                    ],
+                    child: identity == null
+                        ? const Center(
+                            child: Text(
+                              'Create an identity to track preservation activity.',
+                              style: TextStyle(color: AppTheme.secondaryColor),
+                            ),
+                          )
+                        : ref
+                            .watch(
+                              userActivityProvider(identity.publicKeyBase58),
+                            )
+                            .when(
+                              data: (data) =>
+                                  ContributionGraph(activityData: data),
+                              loading: () => const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              error: (_, __) => const Center(
+                                child: Text(
+                                  'Activity unavailable.',
+                                  style:
+                                      TextStyle(color: AppTheme.secondaryColor),
+                                ),
+                              ),
+                            ),
                   ),
                 ],
               ),
@@ -378,16 +365,16 @@ class ProfileScreen extends ConsumerWidget {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            backgroundColor: const Color(0xFF1E293B),
+            backgroundColor: AppTheme.surfaceColor,
             title: const Text(
               'Replace existing identity?',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: AppTheme.textColor),
             ),
             content: const Text(
               'An identity already exists on this device. Replacing it '
               'permanently loses the old keypair and every claim bound '
               'to its public key — unless you saved the recovery phrase.',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: AppTheme.secondaryColor),
             ),
             actions: [
               TextButton(
@@ -398,6 +385,7 @@ class ProfileScreen extends ConsumerWidget {
                 onPressed: () => Navigator.pop(dialogContext, true),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppTheme.dangerColor,
+                  foregroundColor: AppTheme.canvasColor,
                 ),
                 child: const Text('Replace identity'),
               ),
@@ -452,17 +440,17 @@ class ProfileScreen extends ConsumerWidget {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: AppTheme.surfaceColor,
           title: const Text(
             'Replace existing identity?',
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: AppTheme.textColor),
           ),
           content: const Text(
             'An identity already exists on this device. Recovering '
             'replaces it permanently — the old keypair and every claim '
             'bound to its public key will be lost unless you saved its '
             'recovery phrase.',
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: AppTheme.secondaryColor),
           ),
           actions: [
             TextButton(
@@ -473,6 +461,7 @@ class ProfileScreen extends ConsumerWidget {
               onPressed: () => Navigator.pop(dialogContext, true),
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.dangerColor,
+                foregroundColor: AppTheme.canvasColor,
               ),
               child: const Text('Replace identity'),
             ),
@@ -486,10 +475,10 @@ class ProfileScreen extends ConsumerWidget {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: AppTheme.surfaceColor,
         title: const Text(
           'Recover Identity',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: AppTheme.textColor),
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -507,18 +496,20 @@ class ProfileScreen extends ConsumerWidget {
               TextField(
                 controller: controller,
                 maxLines: 4,
-                style: GoogleFonts.firaCode(
-                  color: Colors.white,
+                style: const TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  color: AppTheme.textColor,
                   fontSize: 14,
                 ),
                 decoration: InputDecoration(
                   hintText: 'abandon ability able about ...',
-                  hintStyle: GoogleFonts.firaCode(
-                    color: Colors.white30,
+                  hintStyle: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    color: AppTheme.secondaryColor,
                     fontSize: 14,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFF0B1021),
+                  fillColor: AppTheme.canvasColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
@@ -579,7 +570,10 @@ class ProfileScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Recovery failed: $e'),
+            content: Text(
+              'Recovery failed: $e',
+              style: const TextStyle(color: AppTheme.canvasColor),
+            ),
             backgroundColor: AppTheme.dangerColor,
           ),
         );
@@ -604,7 +598,10 @@ class ProfileScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Invalid mnemonic phrase'),
+            content: Text(
+              'Invalid mnemonic phrase',
+              style: TextStyle(color: AppTheme.canvasColor),
+            ),
             backgroundColor: AppTheme.dangerColor,
           ),
         );
@@ -651,10 +648,10 @@ class _BackupDialogState extends State<_BackupDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: AppTheme.surfaceColor,
       title: const Text(
         'Backup Identity',
-        style: TextStyle(color: Colors.white),
+        style: TextStyle(color: AppTheme.textColor),
       ),
       content: _buildContent(),
       actions: [
@@ -740,7 +737,7 @@ class _BackupDialogState extends State<_BackupDialog> {
             const SizedBox(height: 16),
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF0B1021),
+                color: AppTheme.canvasColor,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: AppTheme.primaryAccent.withValues(alpha: 0.3),
@@ -780,8 +777,9 @@ class _BackupDialogState extends State<_BackupDialog> {
                         ),
                         Text(
                           words[index],
-                          style: GoogleFonts.firaCode(
-                            color: Colors.white,
+                          style: const TextStyle(
+                            fontFamily: 'JetBrainsMono',
+                            color: AppTheme.textColor,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -855,9 +853,10 @@ class _StatItem extends StatelessWidget {
           children: [
             Text(
               value,
-              style: GoogleFonts.orbitron(
+              style: TextStyle(
+                fontFamily: 'Newsreader',
                 fontSize: 24,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
                 color: color,
               ),
             ),
@@ -875,8 +874,8 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.5),
+          style: const TextStyle(
+            color: AppTheme.secondaryColor,
             fontSize: 10,
             letterSpacing: 1,
           ),
@@ -886,37 +885,13 @@ class _StatItem extends StatelessWidget {
   }
 }
 
-class _Badge extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _Badge({required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
+String _formatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) {
+    return '${(bytes / 1024).toStringAsFixed(1)} KB';
   }
+  if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
 }

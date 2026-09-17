@@ -124,7 +124,7 @@ void main() {
         ),
       );
 
-      expect(find.text('THE PARLIAMENT'), findsOneWidget);
+      expect(find.text('Parliament'), findsOneWidget);
       await tester.pumpAndSettle();
 
       expect(find.text('Add Gateway Node EU-1'), findsOneWidget);

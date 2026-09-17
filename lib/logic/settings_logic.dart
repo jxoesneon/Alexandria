@@ -50,6 +50,12 @@ final settingsProvider =
   return SettingsNotifier(storage, ipfs);
 });
 
+/// Consumption seam for the Reduced Motion setting: animation helpers
+/// watch this instead of the whole [AppSettings] object.
+final reducedMotionProvider = Provider<bool>((ref) {
+  return ref.watch(settingsProvider.select((s) => s.reducedMotion));
+});
+
 class SettingsNotifier extends StateNotifier<AppSettings> {
   final SecureStorageService _storage;
   final IpfsService _ipfs;

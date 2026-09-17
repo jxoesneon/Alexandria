@@ -62,6 +62,9 @@ class _FakeLedgerService implements LedgerService {
 
 class _FakeIpfsService implements IpfsService {
   @override
+  int get storedBytes => 0;
+
+  @override
   Set<String> get pinnedCids => {'bafy_pin1', 'bafy_pin2'};
 
   @override
@@ -148,14 +151,12 @@ void main() {
         ),
       );
 
-      expect(find.text('DIGITAL IDENTITY'), findsOneWidget);
+      expect(find.text('Identity'), findsOneWidget);
       await tester.pumpAndSettle();
 
       expect(find.text('75'), findsWidgets);
       expect(find.text('REPUTATION'), findsWidgets);
-      expect(find.text('PRESERVATION ACTIVITY'), findsOneWidget);
-      expect(find.text('EARNED BADGES'), findsOneWidget);
-      expect(find.text('Guardian'), findsOneWidget);
+      expect(find.text('Preservation activity'), findsOneWidget);
 
       // Open Backup Dialog
       final backupBtn = find.byIcon(Icons.backup);
@@ -197,7 +198,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('UNVERIFIED'), findsOneWidget);
+      expect(find.text('NO IDENTITY'), findsOneWidget);
       expect(find.text('Generate Identity'), findsOneWidget);
       expect(find.text('Recover from Mnemonic'), findsOneWidget);
 

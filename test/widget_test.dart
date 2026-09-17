@@ -1,13 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alexandria/main.dart';
+import 'package:alexandria/services/secure_storage_service.dart';
+import 'network_test_fakes.dart' as network;
 
 void main() {
   testWidgets('Alexandria App Root Smoke & MainScaffold Navigation Test',
       (WidgetTester tester) async {
+    // Past the first-run gate so the app lands on the MainScaffold.
+    final storage = network.FakeSecureStorageService();
+    await storage.write('has_seen_onboarding', 'true');
+
     await tester.pumpWidget(
-      const ProviderScope(
-        child: AlexandriaApp(),
+      ProviderScope(
+        overrides: [
+          secureStorageServiceProvider.overrideWithValue(storage),
+        ],
+        child: const AlexandriaApp(),
       ),
     );
 
@@ -16,9 +25,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
-    // Library tab is the default - verify it renders
-    expect(find.text('Library'), findsWidgets);
-    expect(find.text('Statistics Summary'), findsOneWidget);
+    // Home tab is the default landing surface - verify it renders
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Your Decentralized Library'), findsOneWidget);
 
     // Switch to Settings tab
     final settingsNav = find.text('Settings');

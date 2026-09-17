@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../providers/library_providers.dart';
 import '../services/collection_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/glass_card.dart';
 import 'widgets/info_glass.dart';
-
-/// Provider for current collection ID being viewed
-final selectedCollectionProvider = StateProvider<String?>((ref) => null);
 
 class CollectionScreen extends ConsumerWidget {
   const CollectionScreen({super.key});
@@ -15,7 +12,7 @@ class CollectionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final collectionService = ref.watch(collectionServiceProvider);
-    final selectedId = ref.watch(selectedCollectionProvider);
+    final selectedId = ref.watch(selectedCollectionIdProvider);
     final collections = collectionService.collections;
 
     return Scaffold(
@@ -23,7 +20,7 @@ class CollectionScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Row(
           children: [
-            Text('THE SCRIPTORIUM'),
+            Text('Collections'),
             SizedBox(width: 8),
             Expanded(
               child: InfoGlass(
@@ -184,8 +181,9 @@ class _CollectionsList extends StatelessWidget {
           child: Consumer(
             builder: (context, ref, _) => _CollectionCard(
               collection: collection,
-              onTap: () => ref.read(selectedCollectionProvider.notifier).state =
-                  collection.id,
+              onTap: () => ref
+                  .read(selectedCollectionIdProvider.notifier)
+                  .state = collection.id,
             ),
           ),
         );
@@ -323,8 +321,9 @@ class _CollectionDetail extends ConsumerWidget {
               IconButton(
                 icon: Icon(Icons.arrow_back,
                     color: Theme.of(context).colorScheme.onSurfaceVariant),
-                onPressed: () =>
-                    ref.read(selectedCollectionProvider.notifier).state = null,
+                onPressed: () => ref
+                    .read(selectedCollectionIdProvider.notifier)
+                    .state = null,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -417,7 +416,8 @@ class _CollectionDetail extends ConsumerWidget {
                 const Spacer(),
                 Text(
                   'Clock: ${collection.lastModified.logical}',
-                  style: GoogleFonts.firaCode(
+                  style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
                     color: Colors.white54,
                     fontSize: 11,
                   ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/database.dart';
@@ -18,6 +19,7 @@ import '../services/external_player_service.dart';
 import 'widgets/glass_card.dart';
 import 'theme/app_theme.dart';
 import 'widgets/info_glass.dart';
+import 'library/content_viewer_screen.dart';
 
 final trustScoreProvider = FutureProvider.family<int, String>((ref, cid) async {
   final honor = ref.watch(honorSystemProvider);
@@ -38,6 +40,22 @@ final versionsProvider = FutureProvider.family<List<ContentVersion>, int>((
 ) async {
   final db = ref.watch(databaseProvider);
   return db.getVersionsForManifest(manifestId);
+});
+
+/// Picks a single file to ingest as a new version. Overridable in tests so
+/// the real `addContentVersion` ingestion path can be exercised without
+/// platform file dialogs.
+final versionFilePickerProvider =
+    Provider<Future<({Uint8List bytes, String format})?> Function()>((ref) {
+  return () async {
+    final picked = await FilePicker.platform.pickFiles(withData: true);
+    final file = picked?.files.single;
+    if (file == null) return null;
+    final bytes = file.bytes ??
+        (file.path != null ? await File(file.path!).readAsBytes() : null);
+    if (bytes == null || bytes.isEmpty) return null;
+    return (bytes: bytes, format: (file.extension ?? 'bin').toLowerCase());
+  };
 });
 
 /// Provider for detecting sibling content
@@ -219,16 +237,6 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
     return registry.resolveExtension(manifest.category);
   }
 
-  /// Returns true if the format can be viewed in-app (text, images, PDF).
-  bool _isViewableInApp(MediaFormatDescriptor descriptor) {
-    final ext = descriptor.extension.toLowerCase();
-    final category = manifest.category.toLowerCase();
-    const viewableExtensions = {'txt', 'pdf', 'jpg', 'jpeg', 'png', 'csv'};
-    const viewableCategories = {'book', 'image', 'text'};
-    return viewableExtensions.contains(ext) ||
-        viewableCategories.contains(category);
-  }
-
   /// Returns a human-readable name for a [SupportedApp].
   String _appName(SupportedApp app) {
     switch (app) {
@@ -257,14 +265,13 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
       children: [
         Row(
           children: [
-            OutlinedButton.icon(
-              onPressed: () => _handleView(context, descriptor),
-              icon: const Icon(Icons.visibility, size: 18),
-              label: const Text('View'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primaryAccent,
-                side: BorderSide(
-                    color: AppTheme.primaryAccent.withValues(alpha: 0.5)),
+            ElevatedButton.icon(
+              onPressed: () => _handleRead(context),
+              icon: const Icon(Icons.menu_book, size: 18),
+              label: const Text('Read'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryAccent,
+                foregroundColor: Colors.black,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(
@@ -302,21 +309,29 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
     );
   }
 
-  void _handleView(BuildContext context, MediaFormatDescriptor descriptor) {
-    final format = descriptor.extension;
-    if (_isViewableInApp(descriptor)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Opening in-app viewer for $format...')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "This format ($format) requires an external viewer. Use 'Open in…' instead.",
-          ),
-        ),
-      );
+  /// Opens the in-app reader on the manifest's preferred edition
+  /// (md-unabridged when present, else the first version); falls back to
+  /// the manifest UUID when no version row exists yet.
+  Future<void> _handleRead(BuildContext context) async {
+    var cid = manifest.uuid;
+    try {
+      final versions = await ref.read(versionsProvider(manifest.id).future);
+      if (versions.isNotEmpty) {
+        cid = versions
+            .firstWhere((v) => v.format == 'md-unabridged',
+                orElse: () => versions.first)
+            .cid;
+      }
+    } catch (_) {
+      // Version lookup failed - the viewer reports its own load error.
     }
+    if (!context.mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ContentViewerScreen(documentCid: cid),
+      ),
+    );
   }
 
   Future<void> _handleOpenExternal(
@@ -545,7 +560,8 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    onPressed: () => _addVersionMock(context, ref),
+                    tooltip: 'Add a file as a new signed version',
+                    onPressed: () => _addVersion(context, ref),
                     icon: const Icon(
                       Icons.add_circle,
                       color: AppTheme.primaryAccent,
@@ -695,11 +711,11 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surfaceColor.withValues(alpha: 0.9),
         title: Text(
-          'Verify Content',
+          'Content Actions',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         content: const Text(
-          'Is this content safe, high quality, and correctly labeled?',
+          'Check integrity, cast a trust vote, or retrieve this edition.',
         ),
         actions: [
           OutlinedButton.icon(
@@ -761,10 +777,10 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
               Navigator.pop(ctx);
               _healContent(context, ref, cid);
             },
-            icon: const Icon(Icons.healing, color: Colors.green),
+            icon: const Icon(Icons.healing, color: AppTheme.honorColor),
             label: const Text(
               'Rescue (Re-pin)',
-              style: TextStyle(color: Colors.green),
+              style: TextStyle(color: AppTheme.honorColor),
             ),
           ),
         ],
@@ -931,15 +947,26 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
     return '${two(dt.hour)}:${two(dt.minute)}';
   }
 
-  Future<void> _addVersionMock(BuildContext context, WidgetRef ref) async {
+  Future<void> _addVersion(BuildContext context, WidgetRef ref) async {
     try {
+      final picked = await ref.read(versionFilePickerProvider)();
+      if (picked == null) return;
+      if (!context.mounted) return;
       final repo = ref.read(contentRepositoryProvider);
-      await repo.addVersion(manifest.uuid, '/path/to/mock', 'en', 'mp4');
+      final cid = await repo.addContentVersion(
+        manifestUuid: manifest.uuid,
+        fileData: picked.bytes,
+        format: picked.format,
+      );
       ref.invalidate(versionsProvider(manifest.id));
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Version Added!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Version added: ${cid.length > 16 ? '${cid.substring(0, 16)}…' : cid}',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (context.mounted) {
@@ -961,7 +988,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
 
         switch (status) {
           case HealthStatus.healthy:
-            color = Colors.green;
+            color = AppTheme.honorColor;
             icon = Icons.signal_cellular_4_bar;
             tooltip = 'Healthy - Many peers available';
             break;
@@ -976,7 +1003,7 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
             tooltip = 'Lost - No peers found';
             break;
           case HealthStatus.unknown:
-            color = Colors.grey;
+            color = AppTheme.secondaryColor;
             icon = Icons.signal_cellular_null;
             tooltip = 'Unknown';
         }
@@ -991,8 +1018,8 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
         height: 16,
         child: CircularProgressIndicator(strokeWidth: 1.5),
       ),
-      error: (_, s) =>
-          const Icon(Icons.error_outline, color: Colors.grey, size: 16),
+      error: (_, s) => const Icon(Icons.error_outline,
+          color: AppTheme.secondaryColor, size: 16),
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../logic/settings_logic.dart';
 import '../../services/tor_service.dart';
 import '../agent/agent_network_dialog.dart';
+import '../common/alexandria_app_bar.dart';
 import '../credits/credit_wallet_dialog.dart';
 import '../plugin_screen.dart';
 import '../widgets/glass_card.dart';
@@ -19,8 +20,8 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
+      appBar: alexandriaAppBar(
+        title: 'Settings',
         actions: [
           IconButton(
             icon: const Icon(Icons.smart_toy_outlined),

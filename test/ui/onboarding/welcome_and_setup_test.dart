@@ -7,7 +7,6 @@ import 'package:alexandria/services/biometric_service.dart';
 import 'package:alexandria/services/identity_service.dart';
 import 'package:alexandria/services/mnemonic_service.dart';
 import 'package:alexandria/services/secure_storage_service.dart';
-import 'package:alexandria/ui/onboarding/setup_wizard_screen.dart';
 import 'package:alexandria/ui/onboarding/welcome_screen.dart';
 import 'package:alexandria/ui/onboarding_screen.dart';
 
@@ -168,35 +167,6 @@ void main() {
 
       await tester.tap(find.text('Enter the archive'));
       await tester.pumpAndSettle();
-    });
-
-    testWidgets('SetupWizardScreen completes timer sequence and progresses',
-        (tester) async {
-      final fakeStorage = _FakeSecureStorageService();
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            secureStorageServiceProvider.overrideWithValue(fakeStorage),
-          ],
-          child: const MaterialApp(
-            home: SetupWizardScreen(),
-          ),
-        ),
-      );
-
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.byIcon(Icons.fingerprint), findsOneWidget);
-
-      // Fast forward all fake timers in _startGenerationSequence
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(milliseconds: 1500));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.pumpAndSettle();
-
-      expect(fakeStorage.storage['has_seen_onboarding'], equals('true'));
     });
 
     testWidgets('OnboardingScreen renders all steps via step provider',
