@@ -83,6 +83,34 @@ void main() {
       );
     });
 
+    testWidgets(
+        'falls back to the service storedBytes when the provider errors',
+        (tester) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ipfsServiceProvider.overrideWithValue(_FakeIpfsService()),
+            preservationServiceProvider
+                .overrideWithValue(_FakePreservationService()),
+            storedBytesProvider
+                .overrideWith((ref) async => throw StateError('disk gone')),
+          ],
+          child: const MaterialApp(
+            home: HomeScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The error branch reads IpfsService.storedBytes directly.
+      expect(find.text('0 B'), findsWidgets);
+    });
+
     testWidgets('renders endangered and lost health statuses', (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:dart_ipfs/dart_ipfs.dart' show IPFS, IPFSConfig, PubSubMessage;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/ipfs_service.dart';
@@ -12,6 +13,46 @@ class _Ref implements Ref {
 
   @override
   T read<T>(ProviderListenable<T> provider) => _container.read(provider);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Minimal stand-in for the dart_ipfs engine: returns canned pins,
+/// records pin() calls, and mints a deterministic CID for addFile.
+class _FakeEngine implements IPFS {
+  _FakeEngine({this.persistedPins = const [], this.throwOnPin = false});
+
+  final List<String> persistedPins;
+  final bool throwOnPin;
+  final List<String> pinCalls = [];
+
+  @override
+  Future<void> start() async {}
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  String get peerID => 'fakeEnginePeer';
+
+  @override
+  Future<List<String>> get pinnedCids async => persistedPins;
+
+  @override
+  Future<void> pin(String cid) async {
+    if (throwOnPin) throw StateError('pin failed');
+    pinCalls.add(cid);
+  }
+
+  @override
+  Future<String> addFile(Uint8List data) async => 'fakeEngineCid';
+
+  @override
+  Stream<PubSubMessage> get pubsubMessages => const Stream.empty();
+
+  @override
+  Future<List<String>> get connectedPeers async => const [];
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -169,6 +210,56 @@ void main() {
       } finally {
         await dir.delete(recursive: true);
       }
+    });
+
+    test('attach merges persisted engine pins into the pin set', () async {
+      final engine = _FakeEngine(persistedPins: [
+        'bafkreigh2akiscaildc6zc2vvpd3hfnhjyj2e3aq3xrgh7w2qjvpmw2hny'
+      ]);
+      final svc = IpfsService(_Ref(container),
+          engineFactory: (_) async => engine,
+          configBuilder: (_) => IPFSConfig());
+
+      await svc.startNode();
+      // _loadEnginePins runs unawaited on attach - let it settle.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(
+          svc.pinnedCids.contains(
+              'bafkreigh2akiscaildc6zc2vvpd3hfnhjyj2e3aq3xrgh7w2qjvpmw2hny'),
+          isTrue);
+      await svc.stopNode();
+    });
+
+    test('networked addFile pins through the engine', () async {
+      final engine = _FakeEngine();
+      final svc = IpfsService(_Ref(container),
+          engineFactory: (_) async => engine,
+          configBuilder: (_) => IPFSConfig());
+
+      await svc.startNode();
+      final cid = await svc.addFile(Uint8List.fromList('net'.codeUnits));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(cid, 'fakeEngineCid');
+      expect(engine.pinCalls, contains('fakeEngineCid'));
+      expect(svc.pinnedCids.contains(cid), isTrue);
+      await svc.stopNode();
+    });
+
+    test('engine pin failure during addFile still keeps local pin', () async {
+      final engine = _FakeEngine(throwOnPin: true);
+      final svc = IpfsService(_Ref(container),
+          engineFactory: (_) async => engine,
+          configBuilder: (_) => IPFSConfig());
+
+      await svc.startNode();
+      final cid = await svc.addFile(Uint8List.fromList('net'.codeUnits));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(cid, 'fakeEngineCid');
+      expect(svc.pinnedCids.contains(cid), isTrue);
+      await svc.stopNode();
     });
   });
 }

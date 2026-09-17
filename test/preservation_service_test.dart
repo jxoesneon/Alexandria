@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/data/database.dart';
@@ -108,6 +109,39 @@ void main() {
           ipfs.pinnedCids.contains(
               'bafkreigh2akiscaildc6zc2vvpd3hfnhjyj2e3aq3xrgh7w2qjvpmw2hny'),
           isFalse);
+    });
+
+    test('runPreservationCycle performs the same pin reconcile', () async {
+      final ipfs = container.read(ipfsServiceProvider);
+      final db = container.read(databaseProvider);
+
+      final cid =
+          await ipfs.addFile(Uint8List.fromList('cycle heal block'.codeUnits));
+      await ipfs.unpinCid(cid);
+
+      await db.insertManifest({
+        'uuid': 'm3',
+        'title': 'Cycle Doc',
+        'lastUpdated': DateTime.now(),
+        'category': 'book',
+        'metadata': '{}',
+      });
+      final manifestId = (await db.getAllManifests()).first.id;
+      await db.insertVersion({
+        'manifestId': manifestId,
+        'cid': cid,
+        'sizeBytes': 17,
+      });
+
+      await preservation.runPreservationCycle();
+      expect(ipfs.pinnedCids.contains(cid), isTrue);
+    });
+
+    test('periodic preservation timer fires the reconcile', () {
+      FakeAsync().run((async) {
+        preservation.startBackgroundPreservation();
+        async.elapse(const Duration(minutes: 16));
+      });
     });
   });
 }
