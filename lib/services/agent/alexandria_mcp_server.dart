@@ -347,31 +347,58 @@ class AlexandriaMcpServer {
   }
 
   Future<Map<String, dynamic>> _searchArchive(String query) async {
-    // Search active bounties and mock index
+    final q = query.toLowerCase();
+    final results = <Map<String, dynamic>>[];
+
+    // The REAL archive: every match is a manifest/version row the node
+    // actually holds - replica counts and pin state come from the
+    // ledger, never a fabricated index.
+    final db = _db;
+    if (db != null) {
+      for (final m in await db.getAllManifests()) {
+        String? doi;
+        final metaRaw = m.metadata;
+        if (metaRaw != null) {
+          try {
+            final meta = jsonDecode(metaRaw);
+            if (meta is Map && meta['doi'] != null) {
+              doi = meta['doi'].toString();
+            }
+          } catch (_) {}
+        }
+        final haystack = '${m.title} ${m.author ?? ''} ${m.description ?? ''} '
+                '${m.tags ?? ''} ${metaRaw ?? ''} ${doi ?? ''}'
+            .toLowerCase();
+        if (q.isNotEmpty && !haystack.contains(q)) continue;
+
+        final versions = await db.getVersionsForManifest(m.id);
+        for (final v in versions) {
+          results.add({
+            'cid': v.cid,
+            'title': m.title,
+            if (doi != null) 'doi': doi,
+            'replicas': v.peerCount,
+            'pinned': v.isPinned,
+            'rarity': v.peerCount >= 3 ? 'Healthy' : 'Critically Endangered',
+          });
+        }
+      }
+    }
+
     final bounties = _moltbookService.activeBounties
         .where((b) =>
-            b.title.toLowerCase().contains(query.toLowerCase()) ||
-            (b.doi != null && b.doi!.contains(query)) ||
-            b.cid.contains(query))
+            b.title.toLowerCase().contains(q) ||
+            (b.doi != null && b.doi!.toLowerCase().contains(q)) ||
+            b.cid.toLowerCase().contains(q))
         .toList();
-
-    final results = [
-      {
-        'cid': 'bafkreic3w7j4pqwqlp...',
-        'title': 'Attention Is All You Need',
-        'doi': '10.48550/arXiv.1706.03762',
-        'replicas': 12,
-        'rarity': 'Healthy',
-      },
-      ...bounties.map((b) => {
-            'cid': b.cid,
-            'title': b.title,
-            'doi': b.doi,
-            'replicas': 1,
-            'rarity': 'Critically Endangered',
-            'bounty_credits': b.offeredCredits,
-          }),
-    ];
+    results.addAll(bounties.map((b) => {
+          'cid': b.cid,
+          'title': b.title,
+          'doi': b.doi,
+          'replicas': 1,
+          'rarity': 'Critically Endangered',
+          'bounty_credits': b.offeredCredits,
+        }));
 
     return _textResponse(jsonEncode({
       'query': query,
@@ -494,7 +521,11 @@ class AlexandriaMcpServer {
       'status': 'success',
       'cid': cid,
       'credits_spent': credits,
-      'swarm_tasks_dispatched': 5,
+      // The debit is durably committed; no replication tasks have been
+      // dispatched - the response must not claim work that never ran.
+      'swarm_tasks_dispatched': 0,
+      'note': 'Replication commissioned; parity tasks dispatch when '
+          'swarm peers are reachable.',
       'remaining_balance': _creditService.balance,
     }));
   }

@@ -141,14 +141,47 @@ void main() {
     });
 
     test('executes alexandria_search_archive tool', () async {
+      // An empty archive must report zero matches - no fabricated
+      // index entries may pad the response.
+      final empty = await mcpServer
+          .callTool('alexandria_search_archive', {'query': 'Physics'});
+      expect(empty['isError'], isFalse);
+      final emptyData =
+          jsonDecode((empty['content'] as List).first['text'] as String);
+      expect(emptyData['query'], 'Physics');
+      expect(emptyData['total_matches'], 0);
+
+      // A real held manifest is findable by title.
+      await db.insertManifest({
+        'uuid': 'test-uuid-1',
+        'title': 'Quantum Physics Preprint',
+        'lastUpdated': DateTime.now(),
+        'tags': 'physics,quantum',
+      });
+      final manifest = await db.getManifestByUuid('test-uuid-1');
+      await db.insertVersion({
+        'manifestId': manifest!['id'] as int,
+        'cid': 'bafkrealheldcid',
+        'sizeBytes': 512,
+      });
+
       final res = await mcpServer
           .callTool('alexandria_search_archive', {'query': 'Physics'});
       expect(res['isError'], isFalse);
+      final data = jsonDecode((res['content'] as List).first['text'] as String);
+      expect(data['total_matches'], 1);
+      final match = (data['matches'] as List).first as Map<String, dynamic>;
+      expect(match['cid'], 'bafkrealheldcid');
+      expect(match['title'], 'Quantum Physics Preprint');
+      expect(match['replicas'], isA<int>());
+      expect(match['pinned'], isA<bool>());
 
-      final text = (res['content'] as List).first['text'] as String;
-      final data = jsonDecode(text) as Map<String, dynamic>;
-      expect(data['query'], 'Physics');
-      expect(data['total_matches'], greaterThan(0));
+      // Non-matching queries stay empty.
+      final miss = await mcpServer
+          .callTool('alexandria_search_archive', {'query': 'Botany'});
+      final missData =
+          jsonDecode((miss['content'] as List).first['text'] as String);
+      expect(missData['total_matches'], 0);
     });
 
     test('executes alexandria_ingest_doi tool and awards verification credits',
