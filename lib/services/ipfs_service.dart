@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:dart_ipfs/dart_ipfs.dart' show IPFS, IPFSConfig, PubSubMessage;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'cid_service.dart';
+import 'secure_storage_service.dart';
 
 /// Injectable engine factory: production wires the real dart_ipfs
 /// engine; tests substitute a fake - or none, which leaves the service
@@ -128,7 +131,11 @@ class IpfsService {
     if (factory != null) {
       try {
         final dir = await _dataDir();
-        final node = await factory((_configBuilder ?? _defaultConfig)(dir));
+        final builder = _configBuilder;
+        final config = builder != null
+            ? builder(dir)
+            : _defaultConfig(dir, await _identitySeed());
+        final node = await factory(config);
         await node.start();
         _node = node;
         lastStartError = null;
@@ -179,7 +186,8 @@ class IpfsService {
     if (dir.existsSync()) await dir.delete(recursive: true);
   }
 
-  static IPFSConfig _defaultConfig(String baseDir) => IPFSConfig(
+  static IPFSConfig _defaultConfig(String baseDir, Uint8List? identitySeed) =>
+      IPFSConfig(
         offline: false,
         debug: false,
         verboseLogging: false,
@@ -187,7 +195,31 @@ class IpfsService {
         keystorePath: '$baseDir/keystore',
         blockStorePath: '$baseDir/blocks',
         dataPath: baseDir,
+        libp2pIdentitySeed: identitySeed,
       );
+
+  /// Secure-storage key holding the base64 libp2p identity seed.
+  static const _identitySeedKey = 'libp2p_identity_seed';
+
+  /// Returns the persisted libp2p identity seed, generating and storing
+  /// one on first use so the peerID is stable across restarts. Returns
+  /// null when secure storage is unavailable - the node then runs with
+  /// an ephemeral identity, the previous behavior.
+  Future<Uint8List?> _identitySeed() async {
+    try {
+      final storage = _ref.read(secureStorageServiceProvider);
+      final existing = await storage.read(_identitySeedKey);
+      if (existing != null && existing.isNotEmpty) {
+        return base64Decode(existing);
+      }
+      final seed = Uint8List.fromList(
+          List<int>.generate(32, (_) => Random.secure().nextInt(256)));
+      await storage.write(_identitySeedKey, base64Encode(seed));
+      return seed;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<String> _dataDir() async {
     try {

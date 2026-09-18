@@ -4,6 +4,7 @@ import 'package:dart_ipfs/dart_ipfs.dart' show IPFS, IPFSConfig, PubSubMessage;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alexandria/services/ipfs_service.dart';
+import 'package:alexandria/services/secure_storage_service.dart';
 
 /// Minimal Ref adapter so tests can construct IpfsService directly
 /// (e.g. with an injected localStoreDir) without a provider override.
@@ -53,6 +54,34 @@ class _FakeEngine implements IPFS {
 
   @override
   Future<List<String>> get connectedPeers async => const [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeSecureStorage implements SecureStorageService {
+  final Map<String, String> data = {};
+
+  @override
+  Future<String?> read(String key) async => data[key];
+
+  @override
+  Future<void> write(String key, String value) async => data[key] = value;
+
+  @override
+  Future<void> delete(String key) async => data.remove(key);
+
+  @override
+  Future<void> deleteAll() async => data.clear();
+
+  @override
+  Future<bool> containsKey(String key) async => data.containsKey(key);
+}
+
+class _ThrowingSecureStorage implements SecureStorageService {
+  @override
+  Future<String?> read(String key) async =>
+      throw StateError('keychain unavailable');
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -259,6 +288,53 @@ void main() {
 
       expect(cid, 'fakeEngineCid');
       expect(svc.pinnedCids.contains(cid), isTrue);
+      await svc.stopNode();
+    });
+
+    test('libp2p identity seed persists across restarts', () async {
+      final storage = _FakeSecureStorage();
+      final c = ProviderContainer(overrides: [
+        secureStorageServiceProvider.overrideWithValue(storage),
+      ]);
+      addTearDown(c.dispose);
+
+      IPFSConfig? firstConfig;
+      final svc1 = IpfsService(_Ref(c), engineFactory: (cfg) async {
+        firstConfig = cfg;
+        return _FakeEngine();
+      });
+      await svc1.startNode();
+      await svc1.stopNode();
+
+      IPFSConfig? secondConfig;
+      final svc2 = IpfsService(_Ref(c), engineFactory: (cfg) async {
+        secondConfig = cfg;
+        return _FakeEngine();
+      });
+      await svc2.startNode();
+      await svc2.stopNode();
+
+      expect(firstConfig!.libp2pIdentitySeed, isNotNull);
+      expect(firstConfig!.libp2pIdentitySeed, secondConfig!.libp2pIdentitySeed);
+    });
+
+    test('unavailable secure storage falls back to ephemeral identity',
+        () async {
+      final c = ProviderContainer(overrides: [
+        secureStorageServiceProvider
+            .overrideWithValue(_ThrowingSecureStorage()),
+      ]);
+      addTearDown(c.dispose);
+
+      IPFSConfig? config;
+      final svc = IpfsService(_Ref(c), engineFactory: (cfg) async {
+        config = cfg;
+        return _FakeEngine();
+      });
+      await svc.startNode();
+
+      expect(config!.libp2pIdentitySeed, isNull);
+      expect(svc.isStarted, isTrue);
       await svc.stopNode();
     });
   });
