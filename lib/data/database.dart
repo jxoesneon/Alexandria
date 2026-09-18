@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../app_network.dart';
 import '../services/secure_storage_service.dart';
 
 part 'database.g.dart';
@@ -29,6 +30,11 @@ final databaseFileGuardProvider = Provider<DatabaseFileGuard>((ref) {
   return const DatabaseFileGuard();
 });
 
+/// SQLite filename for the active network - the testnet gets its own
+/// database so sandbox state never interleaves with mainnet ledgers.
+String get dbFileName =>
+    AppNetwork.testnet ? 'alexandria_testnet.sqlite' : 'alexandria.sqlite';
+
 final databaseProvider = Provider<AppDatabase>((ref) {
   // Unit/widget tests have no path_provider platform channel - they get
   // the hermetic in-memory executor (FLUTTER_TEST is always set under
@@ -42,7 +48,7 @@ final databaseProvider = Provider<AppDatabase>((ref) {
       : AppDatabase(
           LazyDatabase(() async {
             final dir = await getApplicationSupportDirectory();
-            final dbFile = File(p.join(dir.path, 'alexandria.sqlite'));
+            final dbFile = File(p.join(dir.path, dbFileName));
             // Multi-PROCESS writer enforcement: the advisory exclusive
             // lock is acquired BEFORE the SQLite file is opened and held
             // for the process lifetime - a second Alexandria process

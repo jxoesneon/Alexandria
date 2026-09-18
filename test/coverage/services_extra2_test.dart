@@ -13,6 +13,8 @@ import 'package:alexandria/services/secure_storage_service.dart';
 import 'package:alexandria/services/sync_service.dart';
 
 class _FakeSecureStorage implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   final Map<String, String> data = {};
 
   @override

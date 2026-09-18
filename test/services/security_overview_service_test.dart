@@ -111,6 +111,8 @@ class FakeAuditLogService implements AuditLogService {
 }
 
 class FakeSecureStorageService implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   final Map<String, String> _data = {};
 
   @override

@@ -488,6 +488,8 @@ void main() {
 }
 
 class _FakeStorage implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   _FakeStorage(this._data);
   final Map<String, String> _data;
 

@@ -26,6 +26,8 @@ class FakeIpfsService implements IpfsService {
 }
 
 class FakeSecureStorageService implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   final Map<String, String> _data = {};
 
   @override

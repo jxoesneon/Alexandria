@@ -13,6 +13,8 @@ import 'package:flutter_test/flutter_test.dart';
 // --- Fakes ---
 
 class FakeSecureStorageService implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   final Map<String, String> storage = {};
   @override
   Future<String?> read(String key) async => storage[key];

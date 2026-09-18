@@ -22,6 +22,8 @@ import 'package:alexandria/services/secure_storage_service.dart';
 
 /// In-memory SecureStorageService for IdentityService rotation tests.
 class _FakeSecureStorage implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   final Map<String, String> data = {};
 
   @override

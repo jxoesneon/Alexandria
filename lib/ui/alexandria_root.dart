@@ -6,6 +6,7 @@ import '../logic/settings_logic.dart';
 import '../services/network_overview_service.dart';
 import '../services/preservation_service.dart';
 import '../services/web_node_service.dart';
+import '../app_network.dart';
 import '../data/database.dart';
 import '../services/seed/starter_seed_service.dart';
 
@@ -92,6 +93,14 @@ class _AlexandriaAppState extends ConsumerState<AlexandriaApp> {
       themeMode: settings.themeMode,
       home: const AppEntryGate(),
       debugShowCheckedModeBanner: false,
+      builder: AppNetwork.testnet
+          ? (context, child) => Banner(
+                message: 'TESTNET',
+                location: BannerLocation.topStart,
+                color: Colors.orange,
+                child: child ?? const SizedBox.shrink(),
+              )
+          : null,
     );
   }
 }

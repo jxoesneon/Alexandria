@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app_network.dart';
 import 'credit_models.dart';
 import 'credit_service.dart';
 import 'cashu_mint_client.dart';
@@ -439,6 +440,17 @@ class CryptoBridgeService extends ChangeNotifier {
     String? customAddress,
     String? preferredMint,
   }) async {
+    // Testnet isolation: sandbox credits must never attempt real
+    // Lightning egress through a live mint.
+    if (AppNetwork.testnet) {
+      return const SweepResult(
+        success: false,
+        status: 'failed',
+        sats: 0,
+        error: 'Live Lightning sweeps are disabled on the test network',
+      );
+    }
+
     // ALX-010 service gate - fail closed before any network IO. The reason is
     // surfaced verbatim so callers (MCP tools, wallet UI) can display it.
     final rejection = egressRejectionReason(creditsToSweep);

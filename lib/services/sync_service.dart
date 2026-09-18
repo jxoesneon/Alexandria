@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../app_network.dart';
 import 'ipfs_service.dart';
 import 'secure_storage_service.dart';
 
@@ -118,7 +119,8 @@ class SyncService {
       // behind it. Count the failure like any other - the op ages out
       // at the retry bound instead of poisoning the queue.
       try {
-        final topic = '/alexandria/sync/v1/${op.collectionId}';
+        final topic =
+            AppNetwork.topic('/alexandria/sync/v1/${op.collectionId}');
         final success = await ipfs.publishToPubsub(topic, jsonEncode(op.data));
         if (success) {
           completed.add(op);

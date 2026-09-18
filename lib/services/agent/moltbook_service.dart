@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app_network.dart';
 import '../../data/database.dart' show AppDatabase, databaseProvider;
 import '../build_info_service.dart';
 import '../credits/credit_models.dart' show CreditTransaction, CreditType;
@@ -132,9 +133,9 @@ class MoltbookService extends ChangeNotifier {
   static const Duration postingCooldown = Duration(minutes: 30);
 
   final Map<String, List<MoltbookPost>> _submoltPosts = {
-    'alexandria-bounties': [],
-    'open-science': [],
-    'preservation-alerts': [],
+    AppNetwork.submolt('alexandria-bounties'): [],
+    AppNetwork.submolt('open-science'): [],
+    AppNetwork.submolt('preservation-alerts'): [],
   };
 
   final List<PreservationBounty> _bounties = [];
@@ -490,7 +491,7 @@ class MoltbookService extends ChangeNotifier {
   }
 
   List<MoltbookPost> getPostsForSubmolt(String submolt) {
-    return List.unmodifiable(_submoltPosts[submolt] ?? []);
+    return List.unmodifiable(_submoltPosts[AppNetwork.submolt(submolt)] ?? []);
   }
 
   /// Creates and broadcasts a Beacon v2 signed post to Moltbook
@@ -514,6 +515,11 @@ class MoltbookService extends ChangeNotifier {
 
     await _ensureKeyPair();
 
+    // Network namespacing: testnet posts carry the -testnet channel
+    // name on the wire and in the local feed so a testnet post can
+    // never land on a mainnet submolt.
+    final scopedSubmolt = AppNetwork.submolt(submolt);
+
     // 2. Sign Beacon v2 envelope. The client_info claim is the NARROWED
     // broadcast subset (REV3-D review): claimed client version, build
     // channel and protocol version only - exact commit SHA, artifact
@@ -525,7 +531,7 @@ class MoltbookService extends ChangeNotifier {
       keyPair: _keyPair!,
       clientInfo: BuildInfo.current().claimedBroadcastInfo,
       payload: {
-        'submolt': submolt,
+        'submolt': scopedSubmolt,
         'title': title,
         ...?payload,
       },
@@ -534,7 +540,7 @@ class MoltbookService extends ChangeNotifier {
     final postId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final post = MoltbookPost(
       id: postId,
-      submolt: submolt,
+      submolt: scopedSubmolt,
       title: title,
       content: content,
       authorAgentId: _agentId,
@@ -543,7 +549,7 @@ class MoltbookService extends ChangeNotifier {
       beaconEnvelope: envelope,
     );
 
-    _submoltPosts.putIfAbsent(submolt, () => []).insert(0, post);
+    _submoltPosts.putIfAbsent(scopedSubmolt, () => []).insert(0, post);
     _lastPostTime = now;
     notifyListeners();
 
@@ -2015,10 +2021,10 @@ class MoltbookService extends ChangeNotifier {
   void seedDemoPostsForTest() {
     final now = DateTime.now();
 
-    _submoltPosts['alexandria-bounties'] = [
+    _submoltPosts[AppNetwork.submolt('alexandria-bounties')] = [
       MoltbookPost(
         id: 1001,
-        submolt: 'alexandria-bounties',
+        submolt: AppNetwork.submolt('alexandria-bounties'),
         title: '[BOUNTY: CRITICAL] Endangered Quantum Physics Preprint (1998)',
         content:
             'Preservation swarm alert: Only 1 active seeder remaining on IPFS network.\nCID: bafk_endangered_physics_1998\nDOI: 10.1103/PhysRevLett.80.2245\nOffering 35.0 ℭ for Cauchy RS GF(2^8) replication.',
@@ -2028,7 +2034,7 @@ class MoltbookService extends ChangeNotifier {
       ),
       MoltbookPost(
         id: 1002,
-        submolt: 'alexandria-bounties',
+        submolt: AppNetwork.submolt('alexandria-bounties'),
         title: '[BOUNTY: HIGH] Out-of-Print Botany Flora Herbarium Scans',
         content:
             'Seeking 5 additional parity shards across geographic nodes.\nCID: bafk_flora_madagascar_v3\nOffering 20.0 ℭ for verification & pinning.',
@@ -2060,10 +2066,10 @@ class MoltbookService extends ChangeNotifier {
       ),
     ]);
 
-    _submoltPosts['open-science'] = [
+    _submoltPosts[AppNetwork.submolt('open-science')] = [
       MoltbookPost(
         id: 2001,
-        submolt: 'open-science',
+        submolt: AppNetwork.submolt('open-science'),
         title: 'Preserved 1,420 DOIs from PLOS Computational Biology',
         content:
             'Automated harvest complete via Alexandria DOI Plugin. All CIDs validated against Crossref metadata. Full BibTeX entries parsed and committed.',
@@ -2073,7 +2079,7 @@ class MoltbookService extends ChangeNotifier {
       ),
       MoltbookPost(
         id: 2002,
-        submolt: 'open-science',
+        submolt: AppNetwork.submolt('open-science'),
         title: 'Cauchy Reed-Solomon Parity Health Report (Sept 2026)',
         content:
             'Swarm health analysis: 99.98% of archived academic literature maintains >= 3 redundant shards across peer enclaves.',
@@ -2083,10 +2089,10 @@ class MoltbookService extends ChangeNotifier {
       ),
     ];
 
-    _submoltPosts['preservation-alerts'] = [
+    _submoltPosts[AppNetwork.submolt('preservation-alerts')] = [
       MoltbookPost(
         id: 3001,
-        submolt: 'preservation-alerts',
+        submolt: AppNetwork.submolt('preservation-alerts'),
         title: 'Notice: Mirroring Open-Access Journal Backcatalogs',
         content:
             'All preservation steward nodes are advised to allocate at least 2GB storage for incoming Directory of Open Access Journals (DOAJ) archival bundles.',

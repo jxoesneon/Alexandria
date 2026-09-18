@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'package:dart_ipfs/dart_ipfs.dart' show IPFS, IPFSConfig, PubSubMessage;
+import 'package:dart_ipfs/dart_ipfs.dart'
+    show IPFS, IPFSConfig, NetworkConfig, PubSubMessage;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import '../app_network.dart';
 import 'cid_service.dart';
 import 'secure_storage_service.dart';
 
@@ -196,6 +198,19 @@ class IpfsService {
         blockStorePath: '$baseDir/blocks',
         dataPath: baseDir,
         libp2pIdentitySeed: identitySeed,
+        // Testnet runs as a pnet private swarm: a shared 32-byte PSK
+        // wraps every libp2p connection so testnet nodes can never
+        // handshake with mainnet peers. Ephemeral listen ports let a
+        // testnet instance coexist with a mainnet instance on one
+        // host, and no public bootstrap peers are dialed.
+        privateNetworkPsk: AppNetwork.privateNetworkPsk,
+        network: AppNetwork.testnet
+            ? NetworkConfig(
+                bootstrapPeers: const [],
+                listenAddresses: const ['/ip4/0.0.0.0/tcp/0'],
+                quicListenPort: 0,
+              )
+            : null,
       );
 
   /// Secure-storage key holding the base64 libp2p identity seed.
@@ -222,13 +237,14 @@ class IpfsService {
   }
 
   Future<String> _dataDir() async {
+    final repo = AppNetwork.testnet ? 'ipfs_testnet' : 'ipfs';
     try {
       final dir = await getApplicationSupportDirectory();
-      return '${dir.path}/ipfs';
+      return '${dir.path}/$repo';
     } on MissingPluginException {
       // No platform channel (e.g. a test driving an injected factory):
       // a stable temp path keeps the node identity persistent per host.
-      return '${Directory.systemTemp.path}/alexandria_ipfs';
+      return '${Directory.systemTemp.path}/alexandria_$repo';
     }
   }
 

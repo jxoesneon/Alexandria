@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../app_network.dart';
 import 'identity_service.dart';
 import 'ipfs_service.dart';
 import 'mesh_transport_service.dart';
@@ -41,13 +42,16 @@ class RendezvousService {
   /// How often a running node re-publishes its announce.
   final Duration announceInterval;
 
-  /// Well-known gossipsub topic carrying rendezvous announces.
-  static const String topic = '/alexandria/rendezvous/1';
+  /// Well-known gossipsub topic carrying rendezvous announces - the
+  /// active network's namespace so testnet announces never cross into
+  /// the mainnet topic.
+  static String get topic => AppNetwork.topic('/alexandria/rendezvous/1');
 
   /// Signing domain for announce payloads - distinct from every other
   /// signature domain in the codebase so an announce can never be
   /// replayed as a handshake, vote, or receipt signature.
-  static const String signDomain = 'ALX-RENDEZVOUS/1';
+  static String get signDomain =>
+      AppNetwork.testnet ? 'ALX-TESTNET-RENDEZVOUS/1' : 'ALX-RENDEZVOUS/1';
 
   /// Announces older than this are dropped (and future-dated ones
   /// beyond the same skew) - a captured announce has a bounded life.

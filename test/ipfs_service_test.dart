@@ -60,6 +60,8 @@ class _FakeEngine implements IPFS {
 }
 
 class _FakeSecureStorage implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   final Map<String, String> data = {};
 
   @override
@@ -79,6 +81,8 @@ class _FakeSecureStorage implements SecureStorageService {
 }
 
 class _ThrowingSecureStorage implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   @override
   Future<String?> read(String key) async =>
       throw StateError('keychain unavailable');

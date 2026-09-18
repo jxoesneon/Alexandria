@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app_network.dart';
 import '../../data/database.dart' show AppDatabase, databaseProvider;
 import '../credits/credit_service.dart';
 import '../credits/crypto_bridge_service.dart';
@@ -642,7 +643,7 @@ class AlexandriaMcpServer {
     return _textResponse(jsonEncode({
       'status': 'published',
       'bounty_id': bounty.id,
-      'moltbook_submolt': 'alexandria-bounties',
+      'moltbook_submolt': AppNetwork.submolt('alexandria-bounties'),
       'author_agent_id': _moltbookService.agentId,
       'offered_credits': credits,
     }));

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../app_network.dart';
 import '../models/network_models.dart';
 import 'ipfs_service.dart';
 import 'mesh_transport_service.dart';
@@ -338,7 +339,8 @@ class NetworkOverviewService {
     final results = <String>[];
 
     if (ipfs.isStarted) {
-      final ok = await ipfs.publishToPubsub('network_test', 'ping');
+      final ok = await ipfs.publishToPubsub(
+          AppNetwork.testnet ? 'network_test_testnet' : 'network_test', 'ping');
       results.add('IPFS: ${ok ? 'ok' : 'failed'}');
     } else {
       results.add('IPFS: stopped');

@@ -23,9 +23,11 @@ class DataWipeService {
   ///  2. `wipeAllData` empties every ledger/table in one transaction.
   ///  3. `wipeLocalData` deletes the on-disk IPFS repo (datastore,
   ///     keystore, blocks, local_blocks).
-  ///  4. `deleteAll` clears the whole secure-storage keychain - identity
-  ///     keypair, recovery-phrase backup, per-manifest DEKs, onboarding
-  ///     flag, node id, attestation key and persisted settings.
+  ///  4. `deleteAll` clears the keychain - identity keypair, recovery-
+  ///     phrase backup, per-manifest DEKs, onboarding flag, node id,
+  ///     attestation key and persisted settings. Under testnet the wipe
+  ///     is scoped to `testnet_`-prefixed keys only, so a sandbox wipe
+  ///     can never destroy mainnet keychain state.
   ///
   /// A step that throws aborts the sequence and propagates - the UI
   /// reports an incomplete wipe instead of claiming success on a

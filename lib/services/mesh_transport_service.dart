@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../app_network.dart';
 import 'identity_service.dart' show AlexandriaIdentity, identityServiceProvider;
 
 final meshTransportServiceProvider = Provider((ref) {
@@ -15,7 +16,8 @@ final meshTransportServiceProvider = Provider((ref) {
   // peerId - a MITM that cannot produce that signature is refused.
   final identityService = ref.read(identityServiceProvider);
   return MeshTransportService(
-    bootstrap: true,
+    // Testnet never seeds mainnet bootstrap candidates.
+    bootstrap: !AppNetwork.testnet,
     identitySigner: identityService.sign,
     localPeerIdResolver: () async =>
         (await identityService.getIdentity())?.publicKeyBase58,
@@ -340,8 +342,11 @@ class MeshTransportService {
         return MeshHandshakeTicket.synthetic(peerId, multiaddr);
       };
 
-  /// Wire protocol identifier for the peer handshake.
-  static const String handshakeProtocol = 'ALX-MESH/1';
+  /// Wire protocol identifier for the peer handshake - testnet speaks
+  /// `ALX-TESTNET-MESH/1` so a cross-network dial is rejected at frame
+  /// parsing, before any handshake material is exchanged.
+  static String get handshakeProtocol =>
+      AppNetwork.testnet ? 'ALX-TESTNET-MESH/1' : 'ALX-MESH/1';
 
   /// The exact byte string the answering peer signs to prove identity -
   /// `ALX-MESH/1|nonce|peerId|multiaddr-as-dialed|dialerEph|
@@ -787,7 +792,7 @@ class MeshTransportService {
   static Uint8List deriveSessionKey(MeshHandshakeTicket ticket) => _hkdfSha256(
         salt: ticket.sharedSecret,
         ikm: ticket.transcriptBytes,
-        info: utf8.encode('alexandria:mesh-channel:v1'),
+        info: utf8.encode(AppNetwork.meshChannelDomain),
       );
 
   static Uint8List _frameMac(
@@ -825,6 +830,8 @@ class MeshTransportService {
   /// real handshake (e.g. [connectToPeer]) completes. Callers should
   /// treat them as dial targets, not as active peers.
   void bootstrapDefaultPeers() {
+    // Testnet isolation: never seed mainnet bootstrap candidates.
+    if (AppNetwork.testnet) return;
     final defaultBootstrap = [
       MeshPeer(
         peerId: 'QmBootstrapNode1AlexandriaAlpha',

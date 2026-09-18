@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app_network.dart';
 import '../../services/agent/agent_steward_service.dart';
 import '../../services/agent/alexandria_mcp_server.dart';
 import '../../services/agent/beacon_models.dart';
@@ -564,9 +565,10 @@ class _AgentNetworkDialogState extends ConsumerState<AgentNetworkDialog> {
 
   Widget _buildPostCard(
       BuildContext context, MoltbookPost post, MoltbookService service) {
-    final matchedBounty = post.submolt == 'alexandria-bounties'
-        ? _bountyForPost(service, post)
-        : null;
+    final matchedBounty =
+        post.submolt == AppNetwork.submolt('alexandria-bounties')
+            ? _bountyForPost(service, post)
+            : null;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(

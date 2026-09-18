@@ -7,6 +7,8 @@ import 'package:alexandria/services/encryption_service.dart';
 import 'package:alexandria/services/secure_storage_service.dart';
 
 class FakeSecureStorageService implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   final Map<String, String> _data = {};
 
   @override

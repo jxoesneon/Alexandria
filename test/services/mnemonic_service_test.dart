@@ -60,6 +60,8 @@ class _MockIdentityService implements IdentityService {
 /// In-memory [SecureStorageService] so a REAL [IdentityService] (and
 /// its cache) can be exercised end-to-end in tests.
 class _InMemorySecureStorage implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   final Map<String, String> data = {};
 
   @override

@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeSecureStorage implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   _FakeSecureStorage(this.calls);
 
   final List<String> calls;

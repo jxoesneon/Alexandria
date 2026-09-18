@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeSecureStorageService implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   final _storage = <String, String>{};
 
   @override

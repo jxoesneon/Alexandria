@@ -126,6 +126,8 @@ class _FakeBiometricService implements BiometricService {
 }
 
 class _FakeSecureStorageService implements SecureStorageService {
+  @override
+  String get keyPrefix => '';
   final Map<String, String> storage = {};
 
   @override

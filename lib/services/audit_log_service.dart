@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import '../app_network.dart';
 import '../models/security_models.dart';
 import 'secure_storage_service.dart';
 
@@ -12,6 +14,9 @@ final auditLogServiceProvider = Provider((ref) => AuditLogService(ref));
 class AuditLogService {
   final Ref _ref;
   File? _logFile;
+
+  @visibleForTesting
+  String? get logFilePath => _logFile?.path;
 
   /// How often a MAC'd checkpoint line is written into the log itself
   /// (see the chain-integrity comment block). Injectable so tests can
@@ -120,7 +125,11 @@ class AuditLogService {
     if (_logFile != null) return;
     try {
       final dir = await getApplicationDocumentsDirectory();
-      _logFile = File('${dir.path}/audit_trail.log');
+      // Testnet audit entries go to a separate log - a sandbox session
+      // must not interleave with the mainnet chain.
+      _logFile = File(AppNetwork.testnet
+          ? '${dir.path}/audit_trail_testnet.log'
+          : '${dir.path}/audit_trail.log');
     } catch (_) {
       // In-memory or test fallback
     }
